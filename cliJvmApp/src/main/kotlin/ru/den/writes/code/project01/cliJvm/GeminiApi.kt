@@ -36,7 +36,24 @@ internal data class GenerationConfig(
 )
 
 @Serializable
-internal data class GeminiResponse(val candidates: List<Candidate> = emptyList())
+internal data class GeminiResponse(
+    val candidates: List<Candidate> = emptyList(),
+    val usageMetadata: UsageMetadata? = null,
+)
 
 @Serializable
 internal data class Candidate(val content: Content? = null)
+
+/**
+ * Token accounting Gemini attaches to each response. All fields are nullable
+ * because the API may omit some of them: e.g. `thoughtsTokenCount` only shows
+ * up for thinking-capable models, and `cachedContentTokenCount` only when
+ * context caching is in use.
+ */
+@Serializable
+internal data class UsageMetadata(
+    val promptTokenCount: Int? = null,
+    val candidatesTokenCount: Int? = null,
+    val thoughtsTokenCount: Int? = null,
+    val totalTokenCount: Int? = null,
+)

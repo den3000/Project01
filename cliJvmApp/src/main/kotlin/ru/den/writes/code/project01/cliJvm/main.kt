@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.java.Java
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.post
@@ -15,11 +15,13 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import ru.den.writes.code.project01.BuildKonfig
 import kotlin.system.exitProcess
+import kotlin.time.measureTimedValue
 
 private const val KEY_TOKEN = "GEMINI_API_KEY"
-private const val MODEL = "gemini-2.5-flash"
-private const val ENDPOINT =
-    "https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent"
+/** Used when the caller didn't pass `-model`. */
+private const val DEFAULT_MODEL = "gemini-2.5-flash"
+private const val API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
+private fun endpointFor(model: String): String = "$API_BASE/$model:generateContent"
 
 /** Generous request timeout — LLM responses can take a while. */
 private const val REQUEST_TIMEOUT_MS = 120_000L
@@ -51,7 +53,12 @@ suspend fun main(args: Array<String>) {
     // One client for the whole session: avoids the cold-start race that
     // sometimes killed requests when the client was closed too early, and
     // keeps connections warm between prompts.
-    HttpClient(CIO) {
+    //
+    // Engine: Java (JDK 11+ HttpClient). Picked over CIO because CIO's
+    // chunked-encoding parser intermittently dies on long Gemini responses
+    // ("Invalid chunk: content block of size N ended unexpectedly"), most
+    // visibly with thinking-capable models like gemini-3.5-flash.
+    HttpClient(Java) {
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
@@ -128,25 +135,32 @@ private suspend fun runRepl(client: HttpClient, apiKey: String, baseArgs: CliArg
  * retry with the next prompt.
  */
 private suspend fun ask(client: HttpClient, apiKey: String, args: CliArgs): String? {
-    println("========================================================================")
+    val model = args.model ?: DEFAULT_MODEL
+    println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     println("prompt: ${args.prompt}")
+    println("model: $model")
     args.maxTokens?.let { println("maxTokens: $it") }
     args.stopSequences?.let { println("stopSequences: $it") }
     args.endSequence?.let { println("endSequence: $it") }
     args.temperature?.let { println("temperature: $it") }
-    println("========================================================================")
+    println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
     try {
-        val httpResponse = client.post(ENDPOINT) {
-            url { parameters.append("key", apiKey) }
-            contentType(ContentType.Application.Json)
-            setBody(
-                GeminiRequest(
-                    contents = listOf(Content(parts = listOf(Part(args.prompt)))),
-                    generationConfig = args.toGenerationConfig(),
-                    systemInstruction = args.toSystemInstruction(),
+        // measureTimedValue wraps the suspend call; the lambda inherits this
+        // function's suspend context (it's inline), so we get wall-clock for
+        // the actual HTTP round-trip including streaming of the body.
+        val (httpResponse, duration) = measureTimedValue {
+            client.post(endpointFor(model)) {
+                url { parameters.append("key", apiKey) }
+                contentType(ContentType.Application.Json)
+                setBody(
+                    GeminiRequest(
+                        contents = listOf(Content(parts = listOf(Part(args.prompt)))),
+                        generationConfig = args.toGenerationConfig(),
+                        systemInstruction = args.toSystemInstruction(),
+                    )
                 )
-            )
+            }
         }
 
         if (!httpResponse.status.isSuccess()) {
@@ -160,6 +174,17 @@ private suspend fun ask(client: HttpClient, apiKey: String, args: CliArgs): Stri
             ?.joinToString(separator = "") { it.text }
             ?.takeIf { it.isNotBlank() }
 
+        println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        println("duration: ${duration.inWholeMilliseconds} ms")
+        response.usageMetadata?.let { u ->
+            println(
+                "tokens: prompt=${u.promptTokenCount ?: 0}" +
+                    ", output=${u.candidatesTokenCount ?: 0}" +
+                    (u.thoughtsTokenCount?.let { ", thoughts=$it" } ?: "") +
+                    ", total=${u.totalTokenCount ?: 0}"
+            )
+        }
+        println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         println(text ?: "<empty response>")
         return text
     } catch (e: Exception) {

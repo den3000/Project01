@@ -6,6 +6,7 @@ private const val ARG_MAX_TOKENS = "${ARG_PREFIX}maxTokens"
 private const val ARG_STOP_SEQUENCE = "${ARG_PREFIX}stopSequence"
 private const val ARG_END_SEQUENCE = "${ARG_PREFIX}endSequence"
 private const val ARG_TEMPERATURE = "${ARG_PREFIX}temperature"
+private const val ARG_MODEL = "${ARG_PREFIX}model"
 
 /**
  * Errors raised by [CliArgs.from]. Each subclass carries the data the caller
@@ -55,6 +56,19 @@ data class CliArgs(
      * the API, not validated here.
      */
     val temperature: Double?,
+    /**
+     * Gemini text-generation model id. Per Google's catalog
+     * (https://ai.google.dev/gemini-api/docs/models), as of June 2026:
+     * - 2.5 GA: `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`
+     * - 3.1 preview: `gemini-3.1-pro-preview`, `gemini-3-flash-preview`
+     *   (note: the 3.1 Flash id omits the ".1" — that's how Google ships it),
+     *   `gemini-3.1-flash-lite` (GA)
+     * - 3.5: `gemini-3.5-flash` only — no Pro, no Flash-Lite in 3.5
+     *
+     * When null the caller falls back to its own default. Validity isn't
+     * checked here — unknown ids are rejected by the API.
+     */
+    val model: String?,
 ) {
     companion object {
         /** Gemini API limit on the number of stop sequences. */
@@ -66,7 +80,8 @@ data class CliArgs(
                 "[$ARG_MAX_TOKENS <int>] " +
                 "[$ARG_STOP_SEQUENCE <words>] " +
                 "[$ARG_END_SEQUENCE <text>] " +
-                "[$ARG_TEMPERATURE <number 0.0..2.0>]"
+                "[$ARG_TEMPERATURE <number 0.0..2.0>] " +
+                "[$ARG_MODEL <model-id>]"
 
         /**
          * Parses CLI arguments of the form:
@@ -78,6 +93,10 @@ data class CliArgs(
          *                            sent via systemInstruction, best-effort)
          *   -temperature <number>   (optional, decimal; forwarded as
          *                            `generationConfig.temperature`)
+         *   -model <model-id>       (optional; see [CliArgs.model] for the verified
+         *                            list — covers Pro / Flash / Flash-Lite tiers
+         *                            of generations 2.5, 3.1, 3.5 where they exist.
+         *                            Caller picks a default when this is null)
          *
          * Tokens following a known flag are joined with spaces until the next
          * known flag, so unquoted multi-word values work too:
@@ -96,6 +115,7 @@ data class CliArgs(
                 ARG_STOP_SEQUENCE,
                 ARG_END_SEQUENCE,
                 ARG_TEMPERATURE,
+                ARG_MODEL,
             )
             val values = mutableMapOf<String, String>()
             var currentFlag: String? = null
@@ -162,6 +182,7 @@ data class CliArgs(
                 stopSequences = stopSequences,
                 endSequence = values[ARG_END_SEQUENCE]?.takeIf { it.isNotBlank() },
                 temperature = temperature,
+                model = values[ARG_MODEL]?.takeIf { it.isNotBlank() },
             )
         }
     }

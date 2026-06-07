@@ -21,8 +21,10 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   - Hot reload: `./gradlew :desktopApp:hotRun --auto`
   - Standard run: `./gradlew :desktopApp:run`
 - iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
-- CLI JVM app — sends a prompt to Gemini, prints the response, then drops into
-  a REPL where each new line becomes the next prompt. Recognised commands:
+- CLI JVM app — sends a prompt to Gemini, prints the response with a stats
+  footer (wall-clock duration + Gemini's `usageMetadata` token counts:
+  `prompt`, `output`, `thoughts` if the model thinks, and `total`), then drops
+  into a REPL where each new line becomes the next prompt. Recognised commands:
   - `/quit` or `/exit` (or Ctrl-D) — leave the REPL.
   - `/reuse` — feed the model's last reply back as the next prompt without
     retyping it. Handy for chain-of-thought follow-ups where you want the
@@ -48,6 +50,19 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
       higher values produce more random / creative output, lower values are
       more deterministic. Gemini accepts roughly `0.0..2.0`; out-of-range
       values are rejected by the API.
+    - `-model <model-id>` → picks the Gemini model used for the call (the
+      URL path segment in `…/v1beta/models/<id>:generateContent`).
+      Default when omitted: `gemini-2.5-flash`. Text-generation models
+      available per [Google's catalog](https://ai.google.dev/gemini-api/docs/models)
+      as of June 2026:
+      - **2.5 (GA):** `gemini-2.5-pro`, `gemini-2.5-flash`,
+        `gemini-2.5-flash-lite`
+      - **3.1 (mixed):** `gemini-3.1-pro-preview`, `gemini-3-flash-preview`
+        (heads-up: the 3.1 Flash id literally omits the `.1` — that's how
+        Google ships it), `gemini-3.1-flash-lite` (GA)
+      - **3.5:** `gemini-3.5-flash` only — no Pro, no Flash-Lite tier in 3.5
+
+      Unknown / unavailable ids are rejected by the API.
 
 ### Running tests
 
