@@ -22,8 +22,11 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   - Standard run: `./gradlew :desktopApp:run`
 - iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
 - CLI JVM app — sends a prompt to Gemini, prints the response, then drops into
-  a REPL where each new line becomes the next prompt. Type `/quit` or `/exit`
-  (or press Ctrl-D) to leave.
+  a REPL where each new line becomes the next prompt. Recognised commands:
+  - `/quit` or `/exit` (or Ctrl-D) — leave the REPL.
+  - `/reuse` — feed the model's last reply back as the next prompt without
+    retyping it. Handy for chain-of-thought follow-ups where you want the
+    model to keep building on what it just said.
   - Run: `./gradlew :cliJvmApp:run --args="-prompt <text> [-maxTokens <int>] [-stopSequence <text>] [-endSequence <text>]"`
   - Build a packaged launcher: `./gradlew :cliJvmApp:installDist`,
     then run `./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -prompt "<text>"`

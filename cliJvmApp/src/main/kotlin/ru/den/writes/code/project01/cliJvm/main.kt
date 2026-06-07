@@ -26,6 +26,7 @@ private const val REQUEST_TIMEOUT_MS = 120_000L
 
 private const val QUIT_COMMAND = "/quit"
 private const val EXIT_COMMAND = "/exit"
+private const val REUSE_COMMAND = "/reuse"
 private const val PROMPT_INDICATOR = "> "
 
 suspend fun main(args: Array<String>) {
@@ -63,29 +64,61 @@ suspend fun main(args: Array<String>) {
             requestTimeoutMillis = REQUEST_TIMEOUT_MS
         }
     }.use { client ->
-        ask(client, apiKey, initialArgs)
-        runRepl(client, apiKey, initialArgs)
+        val response = ask(client, apiKey, initialArgs)
+        response?.let {
+            runRepl(client, apiKey, initialArgs.copy(prompt = it))
+        } ?: run {
+            runRepl(client, apiKey, initialArgs.copy(prompt = ""))
+        }
     }
 }
 
 /**
  * Reads prompts from stdin and dispatches each as a new Gemini request.
- * Exits when the user types `/quit`, `/exit`, or sends EOF (Ctrl-D).
- * Other flags ([CliArgs.maxTokens], stop / end sequences) from the original
- * CLI invocation are preserved across iterations — only the prompt changes.
+ *
+ * Callers seed [baseArgs] with the model's prior reply as the prompt (see
+ * `main`), so the "base prompt" carried into this loop is whatever the model
+ * just said. That's what `/reuse` resubmits.
+ *
+ * Recognised commands:
+ * - `/quit`, `/exit` (or EOF / Ctrl-D) — leave the REPL.
+ * - `/reuse` — feed the model's last reply back as a new prompt without
+ *   retyping it. Handy for chain-of-thought style follow-ups where you want
+ *   the model to keep building on what it just produced.
+ *
+ * Any other non-empty line is treated as a new prompt.
+ *
+ * Optional flags from the original CLI invocation ([CliArgs.maxTokens],
+ * [CliArgs.stopSequences], [CliArgs.endSequence]) are preserved across
+ * iterations — only the prompt changes between turns.
  */
 private suspend fun runRepl(client: HttpClient, apiKey: String, baseArgs: CliArgs) {
     println()
-    println("Type a new prompt and press Enter. Type $QUIT_COMMAND or $EXIT_COMMAND to leave.")
+    var lastResponse: String? = baseArgs.prompt
     while (true) {
+
+        println("Type a new prompt and press Enter.\n"
+                + "Type $QUIT_COMMAND or $EXIT_COMMAND to leave.\n"
+                + "Type $REUSE_COMMAND to send prompt above."
+        )
         print(PROMPT_INDICATOR)
         System.out.flush()
         val line = readlnOrNull()?.trim() ?: break // EOF (Ctrl-D)
+
         if (line.isEmpty()) continue
+
         if (line.equals(QUIT_COMMAND, ignoreCase = true) ||
             line.equals(EXIT_COMMAND, ignoreCase = true)
         ) break
-        ask(client, apiKey, baseArgs.copy(prompt = line))
+
+        if (line.equals(REUSE_COMMAND, ignoreCase = true)
+            && lastResponse?.isNotEmpty() == true
+        ) {
+            lastResponse = ask(client, apiKey, baseArgs)
+            continue
+        }
+
+        lastResponse = ask(client, apiKey, baseArgs.copy(prompt = line))
     }
 }
 
@@ -94,11 +127,13 @@ private suspend fun runRepl(client: HttpClient, apiKey: String, baseArgs: CliArg
  * exceptions so a single failure does not kill the REPL — the user can
  * retry with the next prompt.
  */
-private suspend fun ask(client: HttpClient, apiKey: String, args: CliArgs) {
+private suspend fun ask(client: HttpClient, apiKey: String, args: CliArgs): String? {
+    println("========================================================================")
     println("prompt: ${args.prompt}")
     args.maxTokens?.let { println("maxTokens: $it") }
     args.stopSequences?.let { println("stopSequences: $it") }
     args.endSequence?.let { println("endSequence: $it") }
+    println("========================================================================")
 
     try {
         val httpResponse = client.post(ENDPOINT) {
@@ -115,7 +150,7 @@ private suspend fun ask(client: HttpClient, apiKey: String, args: CliArgs) {
 
         if (!httpResponse.status.isSuccess()) {
             System.err.println("Gemini API error ${httpResponse.status}: ${httpResponse.bodyAsText()}")
-            return
+            return null
         }
 
         val response: GeminiResponse = httpResponse.body()
@@ -125,9 +160,12 @@ private suspend fun ask(client: HttpClient, apiKey: String, args: CliArgs) {
             ?.takeIf { it.isNotBlank() }
 
         println(text ?: "<empty response>")
+        return text
     } catch (e: Exception) {
         System.err.println("Request failed: ${e.message}")
     }
+
+    return null
 }
 
 /**
