@@ -21,9 +21,26 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   - Hot reload: `./gradlew :desktopApp:hotRun --auto`
   - Standard run: `./gradlew :desktopApp:run`
 - iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
-- CLI JVM app:
-  - Build: ./gradlew :cliJvmApp:installDist
-  - Run: `./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp`
+- CLI JVM app — sends a prompt to Gemini, prints the response, then drops into
+  a REPL where each new line becomes the next prompt. Type `/quit` or `/exit`
+  (or press Ctrl-D) to leave.
+  - Run: `./gradlew :cliJvmApp:run --args="-prompt <text> [-maxTokens <int>] [-stopSequence <text>] [-endSequence <text>]"`
+  - Build a packaged launcher: `./gradlew :cliJvmApp:installDist`,
+    then run `./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -prompt "<text>"`
+  - The Gemini API key is **not** a CLI argument. It is read at build time
+    from `GEMINI_API_KEY` in `local.properties` (gitignored) or from an
+    environment variable of the same name, and exposed to the code via
+    `BuildKonfig.GEMINI_API_KEY`.
+  - Optional flags persist across REPL iterations — only the prompt changes
+    between turns:
+    - `-maxTokens <int>` → `generationConfig.maxOutputTokens`.
+    - `-stopSequence <words>` → split on whitespace; each word becomes its own
+      entry in `generationConfig.stopSequences`. Generation halts the moment
+      *any one* of them appears in the output. Up to 5 words (Gemini API limit);
+      passing more aborts with an error.
+    - `-endSequence <text>` → sent as `systemInstruction`, asking the model
+      to end its response with that string. Best-effort (model directive,
+      not an API guarantee).
 
 ### Running tests
 

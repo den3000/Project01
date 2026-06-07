@@ -17,6 +17,12 @@ application {
     mainClass = "ru.den.writes.code.project01.cliJvm.MainKt"
 }
 
+// Hook the user's terminal into the `run` task so the REPL can actually
+// read stdin when launched via `./gradlew :cliJvmApp:run`.
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`
+}
+
 tasks.withType<AbstractCopyTask>().configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
