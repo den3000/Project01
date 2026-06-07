@@ -5,6 +5,7 @@ private const val ARG_PROMPT = "${ARG_PREFIX}prompt"
 private const val ARG_MAX_TOKENS = "${ARG_PREFIX}maxTokens"
 private const val ARG_STOP_SEQUENCE = "${ARG_PREFIX}stopSequence"
 private const val ARG_END_SEQUENCE = "${ARG_PREFIX}endSequence"
+private const val ARG_TEMPERATURE = "${ARG_PREFIX}temperature"
 
 /**
  * Errors raised by [CliArgs.from]. Each subclass carries the data the caller
@@ -47,6 +48,13 @@ data class CliArgs(
      */
     val stopSequences: List<String>?,
     val endSequence: String?,
+    /**
+     * Sampling temperature for Gemini's `generationConfig.temperature`.
+     * Higher = more random / creative, lower = more deterministic.
+     * Gemini accepts roughly 0.0..2.0; out-of-range values are rejected by
+     * the API, not validated here.
+     */
+    val temperature: Double?,
 ) {
     companion object {
         /** Gemini API limit on the number of stop sequences. */
@@ -57,7 +65,8 @@ data class CliArgs(
             "Usage: $ARG_PROMPT <text> " +
                 "[$ARG_MAX_TOKENS <int>] " +
                 "[$ARG_STOP_SEQUENCE <words>] " +
-                "[$ARG_END_SEQUENCE <text>]"
+                "[$ARG_END_SEQUENCE <text>] " +
+                "[$ARG_TEMPERATURE <number 0.0..2.0>]"
 
         /**
          * Parses CLI arguments of the form:
@@ -67,18 +76,27 @@ data class CliArgs(
          *                            words; each becomes its own stop sequence)
          *   -endSequence <text>     (optional, arbitrary length, may contain spaces;
          *                            sent via systemInstruction, best-effort)
+         *   -temperature <number>   (optional, decimal; forwarded as
+         *                            `generationConfig.temperature`)
          *
          * Tokens following a known flag are joined with spaces until the next
          * known flag, so unquoted multi-word values work too:
          *   -prompt tell me a joke -maxTokens 100
          *
          * @throws CliArgsException.MissingRequiredArgument if `-prompt` is absent or blank.
-         * @throws CliArgsException.InvalidArgumentValue if `-maxTokens` is not an integer.
+         * @throws CliArgsException.InvalidArgumentValue if `-maxTokens` is not an integer
+         *   or `-temperature` is not a decimal number.
          * @throws CliArgsException.TooManyValues if `-stopSequence` has more than
          *   [MAX_STOP_SEQUENCES] whitespace-separated words.
          */
         fun from(args: Array<String>): CliArgs {
-            val knownFlags = setOf(ARG_PROMPT, ARG_MAX_TOKENS, ARG_STOP_SEQUENCE, ARG_END_SEQUENCE)
+            val knownFlags = setOf(
+                ARG_PROMPT,
+                ARG_MAX_TOKENS,
+                ARG_STOP_SEQUENCE,
+                ARG_END_SEQUENCE,
+                ARG_TEMPERATURE,
+            )
             val values = mutableMapOf<String, String>()
             var currentFlag: String? = null
             val buffer = StringBuilder()
@@ -129,11 +147,21 @@ data class CliArgs(
                     }
                 }
 
+            val temperature = values[ARG_TEMPERATURE]?.let { raw ->
+                raw.toDoubleOrNull()
+                    ?: throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_TEMPERATURE,
+                        rawValue = raw,
+                        expectedType = "a decimal number",
+                    )
+            }
+
             return CliArgs(
                 prompt = prompt,
                 maxTokens = maxTokens,
                 stopSequences = stopSequences,
                 endSequence = values[ARG_END_SEQUENCE]?.takeIf { it.isNotBlank() },
+                temperature = temperature,
             )
         }
     }

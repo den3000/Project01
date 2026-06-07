@@ -32,6 +32,7 @@ internal data class Part(val text: String)
 internal data class GenerationConfig(
     val maxOutputTokens: Int? = null,
     val stopSequences: List<String>? = null,
+    val temperature: Double? = null,
 )
 
 @Serializable

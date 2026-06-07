@@ -133,6 +133,7 @@ private suspend fun ask(client: HttpClient, apiKey: String, args: CliArgs): Stri
     args.maxTokens?.let { println("maxTokens: $it") }
     args.stopSequences?.let { println("stopSequences: $it") }
     args.endSequence?.let { println("endSequence: $it") }
+    args.temperature?.let { println("temperature: $it") }
     println("========================================================================")
 
     try {
@@ -175,10 +176,11 @@ private suspend fun ask(client: HttpClient, apiKey: String, args: CliArgs): Stri
  * flags are set so the field is omitted from the request body.
  */
 private fun CliArgs.toGenerationConfig(): GenerationConfig? {
-    if (maxTokens == null && stopSequences == null) return null
+    if (maxTokens == null && stopSequences == null && temperature == null) return null
     return GenerationConfig(
         maxOutputTokens = maxTokens,
         stopSequences = stopSequences,
+        temperature = temperature,
     )
 }
 

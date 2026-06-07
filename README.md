@@ -44,6 +44,10 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
     - `-endSequence <text>` → sent as `systemInstruction`, asking the model
       to end its response with that string. Best-effort (model directive,
       not an API guarantee).
+    - `-temperature <number>` → `generationConfig.temperature`. Decimal;
+      higher values produce more random / creative output, lower values are
+      more deterministic. Gemini accepts roughly `0.0..2.0`; out-of-range
+      values are rejected by the API.
 
 ### Running tests
 
