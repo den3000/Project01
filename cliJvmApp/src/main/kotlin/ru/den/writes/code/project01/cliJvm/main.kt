@@ -13,6 +13,7 @@ import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import ru.den.writes.code.project01.BuildKonfig
 import kotlin.system.exitProcess
 
 private const val KEY_TOKEN = "GEMINI_API_KEY"
@@ -38,11 +39,18 @@ private data class GeminiResponse(val candidates: List<Candidate> = emptyList())
 private data class Candidate(val content: Content? = null)
 
 suspend fun main(args: Array<String>) {
-    val parsed = parseArgs(args) ?: run {
-        System.err.println("""Usage: pass "$KEY_TOKEN <key> [prompt...]" as program arguments""")
-        exitProcess(1)
-    }
-    val (apiKey, prompt) = parsed
+    val (argKey, prompt) = parseArgs(args)
+    val apiKey = argKey
+        ?: BuildKonfig.GEMINI_API_KEY.takeIf { it.isNotBlank() }
+        ?: run {
+            System.err.println(
+                """$KEY_TOKEN not found.
+                  |Pass "$KEY_TOKEN <key>" as program arguments,
+                  |or add "$KEY_TOKEN=<key>" to local.properties at the project root,
+                  |or set $KEY_TOKEN as an environment variable.""".trimMargin()
+            )
+            exitProcess(1)
+        }
     println("prompt: $prompt")
 
     HttpClient(CIO) {
@@ -71,9 +79,11 @@ suspend fun main(args: Array<String>) {
     }
 }
 
-private fun parseArgs(args: Array<String>): Pair<String, String>? {
+/** Returns the API key extracted from args (if any) and the remaining text as the prompt. */
+private fun parseArgs(args: Array<String>): Pair<String?, String> {
     val joined = args.joinToString(" ").trim()
-    val match = Regex("""$KEY_TOKEN\s+(\S+)""").find(joined) ?: return null
+    val match = Regex("""$KEY_TOKEN\s+(\S+)""").find(joined)
+        ?: return null to joined.ifEmpty { DEFAULT_PROMPT }
     val key = match.groupValues[1]
     val prompt = (joined.substring(0, match.range.first) +
             joined.substring(match.range.last + 1))

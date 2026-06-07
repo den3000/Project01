@@ -21,6 +21,9 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   - Hot reload: `./gradlew :desktopApp:hotRun --auto`
   - Standard run: `./gradlew :desktopApp:run`
 - iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+- CLI JVM app:
+  - Build: ./gradlew :cliJvmApp:installDist
+  - Run: `./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp`
 
 ### Running tests
 

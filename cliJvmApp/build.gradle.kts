@@ -5,6 +5,7 @@ plugins {
 }
 
 dependencies {
+    implementation(projects.shared)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.contentNegotiation)
@@ -13,5 +14,9 @@ dependencies {
 }
 
 application {
-    mainClass = "ru.den.writes.code.project01.cli.MainKt"
+    mainClass = "ru.den.writes.code.project01.cliJvm.MainKt"
+}
+
+tasks.withType<AbstractCopyTask>().configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
