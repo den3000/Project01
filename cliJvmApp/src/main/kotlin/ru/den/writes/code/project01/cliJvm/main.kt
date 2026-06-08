@@ -71,39 +71,32 @@ suspend fun main(args: Array<String>) {
             requestTimeoutMillis = REQUEST_TIMEOUT_MS
         }
     }.use { client ->
-        val response = ask(client, apiKey, initialArgs)
-        response?.let {
-            runRepl(client, apiKey, initialArgs.copy(prompt = it))
-        } ?: run {
-            runRepl(client, apiKey, initialArgs.copy(prompt = ""))
-        }
+        runRepl(client, apiKey, initialArgs)
     }
 }
 
 /**
- * Reads prompts from stdin and dispatches each as a new Gemini request.
+ * Drives a stdin-based REPL against Gemini.
  *
- * Callers seed [baseArgs] with the model's prior reply as the prompt (see
- * `main`), so the "base prompt" carried into this loop is whatever the model
- * just said. That's what `/reuse` resubmits.
+ * [baseArgs] is sent as the opening turn before the loop starts reading
+ * user input — that's how the user's `-prompt` argument becomes the first
+ * request. Its flags (model, maxTokens, stopSequences, temperature,
+ * endSequence) stay the same across every iteration; only the prompt
+ * changes between turns, built via `baseArgs.copy(prompt = ...)`.
  *
  * Recognised commands:
  * - `/quit`, `/exit` (or EOF / Ctrl-D) — leave the REPL.
- * - `/reuse` — feed the model's last reply back as a new prompt without
- *   retyping it. Handy for chain-of-thought style follow-ups where you want
- *   the model to keep building on what it just produced.
+ * - `/reuse` — resend the model's most recent reply as the next prompt,
+ *   without retyping it. Handy for chain-of-thought style follow-ups where
+ *   you want the model to keep building on what it just produced. No-op
+ *   when there is no prior reply yet (e.g. the opening request failed or
+ *   returned empty).
  *
  * Any other non-empty line is treated as a new prompt.
- *
- * Optional flags from the original CLI invocation ([CliArgs.maxTokens],
- * [CliArgs.stopSequences], [CliArgs.endSequence]) are preserved across
- * iterations — only the prompt changes between turns.
  */
 private suspend fun runRepl(client: HttpClient, apiKey: String, baseArgs: CliArgs) {
-    println()
-    var lastResponse: String? = baseArgs.prompt
+    var response: String? = ask(client, apiKey, baseArgs)
     while (true) {
-
         println("Type a new prompt and press Enter.\n"
                 + "Type $QUIT_COMMAND or $EXIT_COMMAND to leave.\n"
                 + "Type $REUSE_COMMAND to send prompt above."
@@ -118,14 +111,13 @@ private suspend fun runRepl(client: HttpClient, apiKey: String, baseArgs: CliArg
             line.equals(EXIT_COMMAND, ignoreCase = true)
         ) break
 
-        if (line.equals(REUSE_COMMAND, ignoreCase = true)
-            && lastResponse?.isNotEmpty() == true
-        ) {
-            lastResponse = ask(client, apiKey, baseArgs)
+        if (line.equals(REUSE_COMMAND, ignoreCase = true)) {
+            val prev = response?.takeIf { it.isNotEmpty() } ?: continue
+            response = ask(client, apiKey, baseArgs.copy(prompt = prev))
             continue
         }
 
-        lastResponse = ask(client, apiKey, baseArgs.copy(prompt = line))
+        response = ask(client, apiKey, baseArgs.copy(prompt = line))
     }
 }
 
