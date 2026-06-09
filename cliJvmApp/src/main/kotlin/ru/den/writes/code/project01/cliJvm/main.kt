@@ -54,6 +54,8 @@ suspend fun main(args: Array<String>) {
             requestTimeoutMillis = REQUEST_TIMEOUT_MS
         }
     }.use { client ->
-        Agent(cliArgs = initialArgs, apiKey = apiKey, httpClient = client).runRepl()
+        val llmApi = GeminiApi(httpClient = client, apiKey = apiKey, model = initialArgs.model)
+        val agent = Agent(cliArgs = initialArgs, llmApi = llmApi)
+        agent.runRepl()
     }
 }
