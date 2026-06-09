@@ -76,13 +76,23 @@ suspend fun main(args: Array<String>) {
 }
 
 /**
- * Drives a stdin-based REPL against Gemini.
+ * Drives a stdin-based REPL against Gemini, carrying a running conversation
+ * history across turns.
  *
  * [baseArgs] is sent as the opening turn before the loop starts reading
  * user input — that's how the user's `-prompt` argument becomes the first
  * request. Its flags (model, maxTokens, stopSequences, temperature,
  * endSequence) stay the same across every iteration; only the prompt
  * changes between turns, built via `baseArgs.copy(prompt = ...)`.
+ *
+ * Multi-turn memory: Gemini's `generateContent` endpoint is stateless —
+ * the server holds no session, so the client has to resend the whole
+ * conversation each turn. We accumulate user/model turns into a local
+ * history list after each successful exchange and ship the full list
+ * with every subsequent request. Failed turns are not recorded — a user
+ * turn without a model reply would leave the history with consecutive
+ * `user` roles, which the API rejects. History is unbounded, so long
+ * sessions inflate prompt tokens linearly.
  *
  * Recognised commands:
  * - `/quit`, `/exit` (or EOF / Ctrl-D) — leave the REPL.
@@ -95,7 +105,18 @@ suspend fun main(args: Array<String>) {
  * Any other non-empty line is treated as a new prompt.
  */
 private suspend fun runRepl(client: HttpClient, apiKey: String, baseArgs: CliArgs) {
-    var response: String? = ask(client, apiKey, baseArgs)
+    val history = mutableListOf<Content>()
+
+    suspend fun send(prompt: String): String? {
+        val response = ask(client, apiKey, baseArgs.copy(prompt = prompt), history)
+        if (response != null) {
+            history += Content(parts = listOf(Part(prompt)), role = "user")
+            history += Content(parts = listOf(Part(response)), role = "model")
+        }
+        return response
+    }
+
+    var response: String? = send(baseArgs.prompt)
     while (true) {
         println("Type a new prompt and press Enter.\n"
                 + "Type $QUIT_COMMAND or $EXIT_COMMAND to leave.\n"
@@ -113,20 +134,26 @@ private suspend fun runRepl(client: HttpClient, apiKey: String, baseArgs: CliArg
 
         if (line.equals(REUSE_COMMAND, ignoreCase = true)) {
             val prev = response?.takeIf { it.isNotEmpty() } ?: continue
-            response = ask(client, apiKey, baseArgs.copy(prompt = prev))
+            response = send(prev)
             continue
         }
 
-        response = ask(client, apiKey, baseArgs.copy(prompt = line))
+        response = send(line)
     }
 }
 
 /**
- * Sends one request and prints the response (or the error). Swallows
+ * Sends one request — the running [history] plus the current user turn
+ * built from [args] — and prints the response (or the error). Swallows
  * exceptions so a single failure does not kill the REPL — the user can
  * retry with the next prompt.
  */
-private suspend fun ask(client: HttpClient, apiKey: String, args: CliArgs): String? {
+private suspend fun ask(
+    client: HttpClient,
+    apiKey: String,
+    args: CliArgs,
+    history: List<Content> = emptyList(),
+): String? {
     val model = args.model ?: DEFAULT_MODEL
     println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     println("prompt: ${args.prompt}")
@@ -147,7 +174,10 @@ private suspend fun ask(client: HttpClient, apiKey: String, args: CliArgs): Stri
                 contentType(ContentType.Application.Json)
                 setBody(
                     GeminiRequest(
-                        contents = listOf(Content(parts = listOf(Part(args.prompt)))),
+                        contents = history + Content(
+                            parts = listOf(Part(args.prompt)),
+                            role = "user",
+                        ),
                         generationConfig = args.toGenerationConfig(),
                         systemInstruction = args.toSystemInstruction(),
                     )

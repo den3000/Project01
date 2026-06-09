@@ -18,8 +18,17 @@ internal data class GeminiRequest(
 @Serializable
 internal data class SystemInstruction(val parts: List<Part>)
 
+/**
+ * One turn in the conversation. [role] is `"user"` or `"model"` and is
+ * required for multi-turn requests — Gemini uses it to know who said what
+ * when the client resends the running history. May be left null for one-shot
+ * single-turn calls; the server defaults the lone entry to `user`.
+ */
 @Serializable
-internal data class Content(val parts: List<Part>)
+internal data class Content(
+    val parts: List<Part>,
+    val role: String? = null,
+)
 
 @Serializable
 internal data class Part(val text: String)
