@@ -1,6 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 private const val QUIT_COMMAND = "/quit"
 private const val EXIT_COMMAND = "/exit"
@@ -28,6 +30,14 @@ internal class Agent(
     private val cliArgs: CliArgs.PromptCommand,
     private val llmApi: LlmApi,
     private val historyStore: HistoryStore?,
+    /**
+     * Source of REPL input. Default reads from process `System.in` so
+     * `main` doesn't need to know it exists; tests pass a Reader over a
+     * scripted string. We don't use Kotlin's `readlnOrNull()` because
+     * its underlying `LineReader` captures `System.in` once at class
+     * init — `System.setIn(...)` in tests is then ignored.
+     */
+    private val stdin: BufferedReader = BufferedReader(InputStreamReader(System.`in`)),
 ) {
     /**
      * Drives the conversation.
@@ -88,7 +98,7 @@ internal class Agent(
             )
             print(PROMPT_INDICATOR)
             System.out.flush()
-            val line = readlnOrNull()?.trim() ?: break // EOF (Ctrl-D)
+            val line = stdin.readLine()?.trim() ?: break // EOF (Ctrl-D)
 
             if (line.isEmpty()) continue
 
