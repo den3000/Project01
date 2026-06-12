@@ -8,6 +8,7 @@ import io.ktor.client.engine.java.Java
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
+import jdk.internal.agent.Agent
 import kotlinx.serialization.json.Json
 import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
@@ -15,8 +16,6 @@ import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess
-
-private const val KEY_TOKEN = "GEMINI_API_KEY"
 
 /** Generous request timeout — LLM responses can take a while. */
 private const val REQUEST_TIMEOUT_MS = 120_000L
@@ -31,8 +30,15 @@ private val DB_FILE: File = File(
 )
 
 suspend fun main(args: Array<String>) {
+    // Read every supported provider's key up front and hand both to the
+    // parser — it picks the one that matches `-provider`, or trips a
+    // MissingRequiredArgument if the chosen key is blank. Read-only
+    // -sessions / -clean never touch either key.
+    val geminiApiKey = BuildKonfig.GEMINI_API_KEY
+    val openRouterApiKey = BuildKonfig.OPENROUTER_API_KEY
+
     val initialArgs = try {
-        CliArgs.from(args)
+        CliArgs.from(args, geminiApiKey = geminiApiKey, openRouterApiKey = openRouterApiKey)
     } catch (e: CliArgsException) {
         System.err.println(e.message)
         if (e is CliArgsException.MissingRequiredArgument) {
@@ -76,19 +82,11 @@ suspend fun main(args: Array<String>) {
 }
 
 /**
- * Shared Chat / OneShot path. Both need API key + HTTP client + GeminiApi;
- * they differ only in whether they own a [HistoryStore].
+ * Shared Chat / OneShot path. Both need an HTTP client + an [LlmApi];
+ * they differ only in whether they own a [HistoryStore]. The concrete
+ * [LlmApi] is picked by [CliArgs.PromptCommand.modelProvider].
  */
 private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptCommand) {
-    val apiKey = BuildKonfig.GEMINI_API_KEY.takeIf { it.isNotBlank() } ?: run {
-        System.err.println(
-            """$KEY_TOKEN not found.
-              |Add "$KEY_TOKEN=<key>" to local.properties at the project root,
-              |or set $KEY_TOKEN as an environment variable.""".trimMargin()
-        )
-        exitProcess(1)
-    }
-
     val historyStore: HistoryStore? = when (parsed) {
         is CliArgs.Chat -> {
             val sessionId = parsed.session ?: generateSessionId()
@@ -119,7 +117,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
             json(Json {
                 ignoreUnknownKeys = true
                 // Drop null fields from the request body so we send a clean
-                // `generationConfig` only with the knobs the user set.
+                // payload only with the knobs the user set.
                 explicitNulls = false
             })
         }
@@ -127,7 +125,18 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
             requestTimeoutMillis = REQUEST_TIMEOUT_MS
         }
     }.use { client ->
-        val llmApi = GeminiApi(httpClient = client, apiKey = apiKey, model = parsed.model)
+        val llmApi: LlmApi = when (val mp = parsed.modelProvider) {
+            is ModelProvider.Gemini -> GeminiApi(
+                httpClient = client,
+                apiKey = mp.apiKey,
+                model = mp.model,
+            )
+            is ModelProvider.OpenRouter -> OpenRouterApi(
+                httpClient = client,
+                apiKey = mp.apiKey,
+                model = mp.model,
+            )
+        }
         Agent(cliArgs = parsed, llmApi = llmApi, historyStore = historyStore).run()
     }
 }

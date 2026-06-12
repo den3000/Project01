@@ -75,6 +75,7 @@ buildkonfig {
 
     defaultConfigs {
         buildConfigField(FieldSpec.Type.STRING, "GEMINI_API_KEY", getStringPropertyOrEnvVar("GEMINI_API_KEY"))
+        buildConfigField(FieldSpec.Type.STRING, "OPENROUTER_API_KEY", getStringPropertyOrEnvVar("OPENROUTER_API_KEY"))
     }
 }
 

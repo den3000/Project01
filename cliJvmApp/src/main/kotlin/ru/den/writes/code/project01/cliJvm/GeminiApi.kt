@@ -10,10 +10,8 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlin.time.measureTimedValue
 
-/** Used when the caller doesn't override [GeminiApi.model]. */
-private const val DEFAULT_MODEL = "gemini-2.5-flash"
 private const val API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
-private fun endpointFor(model: String): String = "$API_BASE/$model:generateContent"
+private fun endpointFor(model: GeminiModel): String = "$API_BASE/${model.id}:generateContent"
 
 /**
  * Gemini-backed [LlmApi] implementation.
@@ -34,11 +32,8 @@ private fun endpointFor(model: String): String = "$API_BASE/$model:generateConte
 internal class GeminiApi(
     private val httpClient: HttpClient,
     private val apiKey: String,
-    model: String? = null,
+    private val model: GeminiModel = GeminiModel.Default,
 ) : LlmApi {
-    /** Resolved at construction so the rest of the class can stay non-null. */
-    private val model: String = model ?: DEFAULT_MODEL
-
     override suspend fun send(
         messages: List<Message>,
         params: GenerationParams,
@@ -48,7 +43,7 @@ internal class GeminiApi(
         // noisy to print on every call, and that's the prompt the user
         // just typed.
         println("prompt: ${messages.lastOrNull()?.text ?: ""}")
-        println("model: $model")
+        println("model: ${model.id}")
         params.maxTokens?.let { println("maxTokens: $it") }
         params.stopSequences?.let { println("stopSequences: $it") }
         params.endSequence?.let { println("endSequence: $it") }

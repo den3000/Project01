@@ -7,10 +7,14 @@ private const val ARG_STOP_SEQUENCE = "${ARG_PREFIX}stopSequence"
 private const val ARG_END_SEQUENCE = "${ARG_PREFIX}endSequence"
 private const val ARG_TEMPERATURE = "${ARG_PREFIX}temperature"
 private const val ARG_MODEL = "${ARG_PREFIX}model"
+private const val ARG_PROVIDER = "${ARG_PREFIX}provider"
 private const val ARG_SESSION = "${ARG_PREFIX}session"
 private const val ARG_LIST_SESSIONS = "${ARG_PREFIX}sessions"
 private const val ARG_CLEAN = "${ARG_PREFIX}clean"
 private const val ARG_ONESHOT = "${ARG_PREFIX}oneshot"
+
+private const val PROVIDER_GEMINI = "gemini"
+private const val PROVIDER_OPENROUTER = "openrouter"
 
 private val SESSION_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
 private const val MAX_SESSION_NAME_LENGTH = 64
@@ -19,10 +23,10 @@ private const val MAX_SESSION_NAME_LENGTH = 64
  * Errors raised by [CliArgs.from]. Each subclass carries the data the caller
  * needs to render a meaningful message; the caller decides how/where to print.
  */
-sealed class CliArgsException(message: String) : RuntimeException(message) {
+internal sealed class CliArgsException(message: String) : RuntimeException(message) {
     /** Thrown when a required flag is missing or its value is blank. */
-    class MissingRequiredArgument(val argName: String) :
-        CliArgsException("Missing required argument $argName.")
+    class MissingRequiredArgument(val argName: String, detail: String? = null) :
+        CliArgsException("Missing required argument $argName${detail?.let { ": $it" } ?: "."}")
 
     /** Thrown when a typed flag (e.g. an integer) cannot be parsed. */
     class InvalidArgumentValue(
@@ -51,13 +55,15 @@ sealed class CliArgsException(message: String) : RuntimeException(message) {
  *
  * The shared LLM-talking modes ([Chat], [OneShot]) implement
  * [PromptCommand] so the agent can take a single type and decide
- * behaviour internally.
+ * behaviour internally. The chosen provider (Gemini / OpenRouter) and
+ * its typed model travel as one [ModelProvider] field — the provider
+ * does not fan out into per-provider variants of `Chat`/`OneShot`.
  *
  * Use [CliArgs.from] to build an instance from the raw `args: Array<String>`
  * passed to `main`. Parsing throws [CliArgsException] on invalid input — the
  * caller catches and prints.
  */
-sealed interface CliArgs {
+internal sealed interface CliArgs {
     /** `-sessions`: print the saved-session list and exit. */
     data object ListSessions : CliArgs
 
@@ -74,7 +80,13 @@ sealed interface CliArgs {
         val stopSequences: List<String>?
         val endSequence: String?
         val temperature: Double?
-        val model: String?
+
+        /**
+         * Which provider to talk to + the typed model + its API key,
+         * bundled together. The discriminator `main.kt` uses to pick
+         * the right [LlmApi] implementation.
+         */
+        val modelProvider: ModelProvider
     }
 
     /**
@@ -88,7 +100,7 @@ sealed interface CliArgs {
         override val stopSequences: List<String>?,
         override val endSequence: String?,
         override val temperature: Double?,
-        override val model: String?,
+        override val modelProvider: ModelProvider,
         /**
          * Session name for `-session NAME` — picks which conversation
          * history to resume (or starts a new one with that name if it
@@ -114,7 +126,7 @@ sealed interface CliArgs {
         override val stopSequences: List<String>?,
         override val endSequence: String?,
         override val temperature: Double?,
-        override val model: String?,
+        override val modelProvider: ModelProvider,
     ) : PromptCommand
 
     companion object {
@@ -124,16 +136,18 @@ sealed interface CliArgs {
         /** One-line usage hint suitable for printing alongside an error message. */
         const val USAGE: String =
             "Usage: $ARG_PROMPT <text> " +
+                "[$ARG_PROVIDER <$PROVIDER_GEMINI|$PROVIDER_OPENROUTER>] " +
+                "[$ARG_MODEL <model-id>] " +
                 "[$ARG_MAX_TOKENS <int>] " +
                 "[$ARG_STOP_SEQUENCE <words>] " +
                 "[$ARG_END_SEQUENCE <text>] " +
                 "[$ARG_TEMPERATURE <number 0.0..2.0>] " +
-                "[$ARG_MODEL <model-id>] " +
                 "[$ARG_SESSION <name>]\n" +
                 "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION]\n" +
                 "                (single prompt → response → exit; no REPL, no session)\n" +
                 "   or: $ARG_LIST_SESSIONS   (list saved sessions, ignores all other flags)\n" +
-                "   or: $ARG_CLEAN      (delete ALL session history, ignores all other flags)"
+                "   or: $ARG_CLEAN      (delete ALL session history, ignores all other flags)\n" +
+                "Default provider is $PROVIDER_GEMINI."
 
         /**
          * Parses CLI arguments and dispatches to the right [CliArgs] variant.
@@ -147,16 +161,35 @@ sealed interface CliArgs {
          * - `-oneshot` requires `-prompt` and rejects `-session`.
          * - Otherwise: standard [Chat] with required `-prompt`.
          *
+         * Provider rules:
+         * - `-provider <gemini|openrouter>` picks the provider. Default is
+         *   `gemini`. Any other value → [CliArgsException.InvalidArgumentValue].
+         * - `-model <id>` parses through the typed model for the chosen
+         *   provider — unknown ids fall through to a `Custom(id)` variant.
+         * - The API key for the chosen provider must be non-blank;
+         *   otherwise [CliArgsException.MissingRequiredArgument] (with a
+         *   hint about local.properties / env var).
+         *
+         * @param geminiApiKey resolved Gemini key (BuildKonfig + env var
+         *   merge in `main.kt`); empty string if not configured.
+         * @param openRouterApiKey resolved OpenRouter key; empty string if
+         *   not configured.
+         *
          * @throws CliArgsException.MissingRequiredArgument if `-prompt` is absent
-         *   or blank in Chat / OneShot modes.
+         *   or blank in Chat / OneShot modes, or the selected provider's API
+         *   key is blank.
          * @throws CliArgsException.InvalidArgumentValue if `-maxTokens` is not an
          *   integer, `-temperature` is not a decimal number, `-session` is
-         *   malformed, `-session` is given alongside `-oneshot`, or two mode
-         *   flags are given simultaneously.
+         *   malformed, `-session` is given alongside `-oneshot`, `-provider`
+         *   is unknown, or two mode flags are given simultaneously.
          * @throws CliArgsException.TooManyValues if `-stopSequence` has more than
          *   [MAX_STOP_SEQUENCES] whitespace-separated words.
          */
-        fun from(args: Array<String>): CliArgs {
+        fun from(
+            args: Array<String>,
+            geminiApiKey: String = "",
+            openRouterApiKey: String = "",
+        ): CliArgs {
             val knownFlags = setOf(
                 ARG_PROMPT,
                 ARG_MAX_TOKENS,
@@ -164,6 +197,7 @@ sealed interface CliArgs {
                 ARG_END_SEQUENCE,
                 ARG_TEMPERATURE,
                 ARG_MODEL,
+                ARG_PROVIDER,
                 ARG_SESSION,
                 ARG_LIST_SESSIONS,
                 ARG_CLEAN,
@@ -250,7 +284,14 @@ sealed interface CliArgs {
             }
 
             val endSequence = values[ARG_END_SEQUENCE]?.takeIf { it.isNotBlank() }
-            val model = values[ARG_MODEL]?.takeIf { it.isNotBlank() }
+            val modelRaw = values[ARG_MODEL]?.takeIf { it.isNotBlank() }
+            val providerRaw = values[ARG_PROVIDER]?.takeIf { it.isNotBlank() } ?: PROVIDER_GEMINI
+            val modelProvider = buildModelProvider(
+                providerRaw = providerRaw,
+                modelRaw = modelRaw,
+                geminiApiKey = geminiApiKey,
+                openRouterApiKey = openRouterApiKey,
+            )
 
             if (isOneShot) {
                 // -session NAME doesn't make sense for a fire-and-forget call:
@@ -270,7 +311,7 @@ sealed interface CliArgs {
                     stopSequences = stopSequences,
                     endSequence = endSequence,
                     temperature = temperature,
-                    model = model,
+                    modelProvider = modelProvider,
                 )
             }
 
@@ -291,8 +332,45 @@ sealed interface CliArgs {
                 stopSequences = stopSequences,
                 endSequence = endSequence,
                 temperature = temperature,
-                model = model,
+                modelProvider = modelProvider,
                 session = session,
+            )
+        }
+
+        private fun buildModelProvider(
+            providerRaw: String,
+            modelRaw: String?,
+            geminiApiKey: String,
+            openRouterApiKey: String,
+        ): ModelProvider = when (providerRaw) {
+            PROVIDER_GEMINI -> {
+                if (geminiApiKey.isBlank()) {
+                    throw CliArgsException.MissingRequiredArgument(
+                        argName = "GEMINI_API_KEY",
+                        detail = "set GEMINI_API_KEY in local.properties or as an env var",
+                    )
+                }
+                ModelProvider.Gemini(
+                    model = modelRaw?.let(GeminiModel.Companion::fromId) ?: GeminiModel.Default,
+                    apiKey = geminiApiKey,
+                )
+            }
+            PROVIDER_OPENROUTER -> {
+                if (openRouterApiKey.isBlank()) {
+                    throw CliArgsException.MissingRequiredArgument(
+                        argName = "OPENROUTER_API_KEY",
+                        detail = "set OPENROUTER_API_KEY in local.properties or as an env var",
+                    )
+                }
+                ModelProvider.OpenRouter(
+                    model = modelRaw?.let(OpenRouterModel.Companion::fromId) ?: OpenRouterModel.Default,
+                    apiKey = openRouterApiKey,
+                )
+            }
+            else -> throw CliArgsException.InvalidArgumentValue(
+                argName = ARG_PROVIDER,
+                rawValue = providerRaw,
+                expectedType = "one of: $PROVIDER_GEMINI, $PROVIDER_OPENROUTER",
             )
         }
     }
