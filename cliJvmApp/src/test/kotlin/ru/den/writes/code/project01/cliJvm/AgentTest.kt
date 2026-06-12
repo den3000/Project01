@@ -28,7 +28,7 @@ class AgentTest {
                 stopSequences = null,
                 endSequence = null,
                 temperature = null,
-                model = null,
+                modelProvider = dummyGeminiProvider(),
             )
 
             Agent(oneShot, fake, historyStore = null, stdin = emptyStdin()).run()
@@ -51,7 +51,7 @@ class AgentTest {
             stopSequences = listOf("STOP"),
             endSequence = "[END]",
             temperature = 0.5,
-            model = "gemini-2.5-flash",
+            modelProvider = dummyGeminiProvider(GeminiModel.Known.Gemini25Flash),
         )
 
         Agent(oneShot, fake, historyStore = null, stdin = emptyStdin()).run()
@@ -207,9 +207,18 @@ class AgentTest {
         stopSequences = null,
         endSequence = null,
         temperature = null,
-        model = null,
+        modelProvider = dummyGeminiProvider(),
         session = session,
     )
+
+    /**
+     * Agent doesn't dispatch on the provider (the concrete `LlmApi` is
+     * already stubbed via `FakeLlmApi`), but `CliArgs.PromptCommand`
+     * insists on a non-null [ModelProvider], so tests pass this throwaway.
+     */
+    private fun dummyGeminiProvider(
+        model: GeminiModel = GeminiModel.Default,
+    ): ModelProvider.Gemini = ModelProvider.Gemini(model = model, apiKey = "test-key")
 
     /** Pre-loaded stdin that hands the REPL the given script line by line. */
     private fun stdinScript(script: String): BufferedReader =
