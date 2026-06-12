@@ -52,65 +52,83 @@ suspend fun main(args: Array<String>) {
         .build()
 
     try {
-        if (initialArgs.listSessions) {
-            val sessions = db.messageDao().listSessions()
-            if (sessions.isEmpty()) {
-                println("(no sessions)")
-            } else {
-                sessions.forEach { println("${it.sessionId}\t${it.count} messages") }
+        when (initialArgs) {
+            is CliArgs.ListSessions -> {
+                val sessions = db.messageDao().listSessions()
+                if (sessions.isEmpty()) {
+                    println("(no sessions)")
+                } else {
+                    sessions.forEach { println("${it.sessionId}\t${it.count} messages") }
+                }
             }
-            return
-        }
 
-        // Run mode below. We only need the API key here — list mode never
-        // talks to the LLM.
-        val apiKey = BuildKonfig.GEMINI_API_KEY.takeIf { it.isNotBlank() } ?: run {
-            System.err.println(
-                """$KEY_TOKEN not found.
-                  |Add "$KEY_TOKEN=<key>" to local.properties at the project root,
-                  |or set $KEY_TOKEN as an environment variable.""".trimMargin()
-            )
-            exitProcess(1)
-        }
-
-        val sessionId = initialArgs.session ?: generateSessionId()
-        // "Resume" = the user passed a name AND there's already history under
-        // it. Otherwise it's a new session — either auto-generated id or a
-        // freshly named one — so we announce the id so the user can come back
-        // to it later via -session.
-        val isResume = initialArgs.session != null &&
-            db.messageDao().all(sessionId).isNotEmpty()
-        if (!isResume) {
-            System.err.println("[session] new session: $sessionId")
-        }
-        val historyStore = HistoryStore(db.messageDao(), sessionId)
-
-        // One client for the whole session: avoids the cold-start race that
-        // sometimes killed requests when the client was closed too early, and
-        // keeps connections warm between prompts.
-        //
-        // Engine: Java (JDK 11+ HttpClient). Picked over CIO because CIO's
-        // chunked-encoding parser intermittently dies on long Gemini responses
-        // ("Invalid chunk: content block of size N ended unexpectedly"), most
-        // visibly with thinking-capable models like gemini-3.5-flash.
-        HttpClient(Java) {
-            install(ContentNegotiation) {
-                json(Json {
-                    ignoreUnknownKeys = true
-                    // Drop null fields from the request body so we send a clean
-                    // `generationConfig` only with the knobs the user set.
-                    explicitNulls = false
-                })
+            is CliArgs.Clean -> {
+                val before = db.messageDao().count()
+                db.messageDao().clearAll()
+                println("Cleared $before messages across all sessions.")
             }
-            install(HttpTimeout) {
-                requestTimeoutMillis = REQUEST_TIMEOUT_MS
-            }
-        }.use { client ->
-            val llmApi = GeminiApi(httpClient = client, apiKey = apiKey, model = initialArgs.model)
-            Agent(cliArgs = initialArgs, llmApi = llmApi, historyStore = historyStore).runRepl()
+
+            is CliArgs.PromptCommand -> runPromptCommand(db, initialArgs)
         }
     } finally {
         db.close()
+    }
+}
+
+/**
+ * Shared Chat / OneShot path. Both need API key + HTTP client + GeminiApi;
+ * they differ only in whether they own a [HistoryStore].
+ */
+private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptCommand) {
+    val apiKey = BuildKonfig.GEMINI_API_KEY.takeIf { it.isNotBlank() } ?: run {
+        System.err.println(
+            """$KEY_TOKEN not found.
+              |Add "$KEY_TOKEN=<key>" to local.properties at the project root,
+              |or set $KEY_TOKEN as an environment variable.""".trimMargin()
+        )
+        exitProcess(1)
+    }
+
+    val historyStore: HistoryStore? = when (parsed) {
+        is CliArgs.Chat -> {
+            val sessionId = parsed.session ?: generateSessionId()
+            // "Resume" = the user passed a name AND there's already history
+            // under it. Otherwise it's a new session — either auto-generated
+            // id or a freshly named one — so we announce the id so the user
+            // can come back to it later via -session.
+            val isResume = parsed.session != null &&
+                db.messageDao().all(sessionId).isNotEmpty()
+            if (!isResume) {
+                System.err.println("[session] new session: $sessionId")
+            }
+            HistoryStore(db.messageDao(), sessionId)
+        }
+        is CliArgs.OneShot -> null
+    }
+
+    // One client for the whole session: avoids the cold-start race that
+    // sometimes killed requests when the client was closed too early, and
+    // keeps connections warm between prompts.
+    //
+    // Engine: Java (JDK 11+ HttpClient). Picked over CIO because CIO's
+    // chunked-encoding parser intermittently dies on long Gemini responses
+    // ("Invalid chunk: content block of size N ended unexpectedly"), most
+    // visibly with thinking-capable models like gemini-3.5-flash.
+    HttpClient(Java) {
+        install(ContentNegotiation) {
+            json(Json {
+                ignoreUnknownKeys = true
+                // Drop null fields from the request body so we send a clean
+                // `generationConfig` only with the knobs the user set.
+                explicitNulls = false
+            })
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = REQUEST_TIMEOUT_MS
+        }
+    }.use { client ->
+        val llmApi = GeminiApi(httpClient = client, apiKey = apiKey, model = parsed.model)
+        Agent(cliArgs = parsed, llmApi = llmApi, historyStore = historyStore).run()
     }
 }
 

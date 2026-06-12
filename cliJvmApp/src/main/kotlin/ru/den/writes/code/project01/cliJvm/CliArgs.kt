@@ -9,6 +9,8 @@ private const val ARG_TEMPERATURE = "${ARG_PREFIX}temperature"
 private const val ARG_MODEL = "${ARG_PREFIX}model"
 private const val ARG_SESSION = "${ARG_PREFIX}session"
 private const val ARG_LIST_SESSIONS = "${ARG_PREFIX}sessions"
+private const val ARG_CLEAN = "${ARG_PREFIX}clean"
+private const val ARG_ONESHOT = "${ARG_PREFIX}oneshot"
 
 private val SESSION_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
 private const val MAX_SESSION_NAME_LENGTH = 64
@@ -40,65 +42,81 @@ sealed class CliArgsException(message: String) : RuntimeException(message) {
 /**
  * Strongly-typed view of the CLI arguments accepted by the app.
  *
- * Two modes:
- * - **Run mode** (default): drives a chat session against the LLM. Requires
- *   `-prompt`; everything else optional.
- * - **List mode** (`-sessions`): prints the list of known sessions and exits.
- *   Sets [listSessions] true; all other fields are null/false.
+ * Four modes, modelled as a sealed hierarchy:
+ * - [ListSessions] (`-sessions`) — list known session ids, exit.
+ * - [Clean] (`-clean`) — wipe ALL session history from the DB, exit.
+ * - [Chat] (default `-prompt …`) — interactive REPL with persisted history.
+ * - [OneShot] (`-prompt … -oneshot`) — single prompt, single response, exit;
+ *   no DB, no session, no REPL.
+ *
+ * The shared LLM-talking modes ([Chat], [OneShot]) implement
+ * [PromptCommand] so the agent can take a single type and decide
+ * behaviour internally.
  *
  * Use [CliArgs.from] to build an instance from the raw `args: Array<String>`
  * passed to `main`. Parsing throws [CliArgsException] on invalid input — the
  * caller catches and prints.
  */
-data class CliArgs(
+sealed interface CliArgs {
+    /** `-sessions`: print the saved-session list and exit. */
+    data object ListSessions : CliArgs
+
+    /** `-clean`: delete every row from the messages table and exit. */
+    data object Clean : CliArgs
+
     /**
-     * The opening user turn for run mode. Null only when [listSessions] is true.
+     * Common shape for the LLM-talking modes ([Chat], [OneShot]). Lets
+     * `Agent` accept one type without losing the generation knobs.
      */
-    val prompt: String?,
-    val maxTokens: Int?,
+    sealed interface PromptCommand : CliArgs {
+        val prompt: String
+        val maxTokens: Int?
+        val stopSequences: List<String>?
+        val endSequence: String?
+        val temperature: Double?
+        val model: String?
+    }
+
     /**
-     * Words extracted from `-stopSequence` (split on whitespace). Each element
-     * becomes a separate entry in Gemini's `generationConfig.stopSequences`,
-     * any one of which halts generation when it appears in the output.
+     * Standard interactive mode. Opening `-prompt` is sent; agent enters
+     * a REPL afterwards, persisting every successful turn to the session
+     * named by [session] (or a generated id when null).
      */
-    val stopSequences: List<String>?,
-    val endSequence: String?,
+    data class Chat(
+        override val prompt: String,
+        override val maxTokens: Int?,
+        override val stopSequences: List<String>?,
+        override val endSequence: String?,
+        override val temperature: Double?,
+        override val model: String?,
+        /**
+         * Session name for `-session NAME` — picks which conversation
+         * history to resume (or starts a new one with that name if it
+         * doesn't exist yet). Null means «generate a fresh random
+         * session id at startup».
+         *
+         * Naming rules: `^[a-zA-Z0-9_-]+$`, up to
+         * [MAX_SESSION_NAME_LENGTH] chars.
+         */
+        val session: String?,
+    ) : PromptCommand
+
     /**
-     * Sampling temperature for Gemini's `generationConfig.temperature`.
-     * Higher = more random / creative, lower = more deterministic.
-     * Gemini accepts roughly 0.0..2.0; out-of-range values are rejected by
-     * the API, not validated here.
+     * Single-turn fire-and-forget. Sends the prompt, prints the model's
+     * response, exits. Does NOT load or save any history — there's
+     * intentionally no `session` field because OneShot has no session.
+     * Useful for quick questions where you don't want to pollute your
+     * persisted history.
      */
-    val temperature: Double?,
-    /**
-     * Gemini text-generation model id. Per Google's catalog
-     * (https://ai.google.dev/gemini-api/docs/models), as of June 2026:
-     * - 2.5 GA: `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`
-     * - 3.1 preview: `gemini-3.1-pro-preview`, `gemini-3-flash-preview`
-     *   (note: the 3.1 Flash id omits the ".1" — that's how Google ships it),
-     *   `gemini-3.1-flash-lite` (GA)
-     * - 3.5: `gemini-3.5-flash` only — no Pro, no Flash-Lite in 3.5
-     *
-     * When null the caller falls back to its own default. Validity isn't
-     * checked here — unknown ids are rejected by the API.
-     */
-    val model: String?,
-    /**
-     * Session name for `-session NAME` — picks which conversation history to
-     * resume (or starts a new one with that name if it doesn't exist yet).
-     * Null means «generate a fresh random session id at startup».
-     *
-     * Naming rules: `^[a-zA-Z0-9_-]+$`, up to [MAX_SESSION_NAME_LENGTH] chars.
-     * Out-of-shape names are rejected to keep the value safe for SQL filtering
-     * and human-readable in `-sessions` output.
-     */
-    val session: String?,
-    /**
-     * `-sessions` mode: print the list of known sessions with message counts
-     * and exit. All other fields are ignored when this is true.
-     */
-    val listSessions: Boolean,
-) {
+    data class OneShot(
+        override val prompt: String,
+        override val maxTokens: Int?,
+        override val stopSequences: List<String>?,
+        override val endSequence: String?,
+        override val temperature: Double?,
+        override val model: String?,
+    ) : PromptCommand
+
     companion object {
         /** Gemini API limit on the number of stop sequences. */
         const val MAX_STOP_SEQUENCES: Int = 5
@@ -112,38 +130,29 @@ data class CliArgs(
                 "[$ARG_TEMPERATURE <number 0.0..2.0>] " +
                 "[$ARG_MODEL <model-id>] " +
                 "[$ARG_SESSION <name>]\n" +
-                "   or: $ARG_LIST_SESSIONS   (lists saved sessions, ignores all other flags)"
+                "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION]\n" +
+                "                (single prompt → response → exit; no REPL, no session)\n" +
+                "   or: $ARG_LIST_SESSIONS   (list saved sessions, ignores all other flags)\n" +
+                "   or: $ARG_CLEAN      (delete ALL session history, ignores all other flags)"
 
         /**
-         * Parses CLI arguments of the form:
-         *   -prompt <text...>       (required in run mode; arbitrary length, may
-         *                            contain spaces)
-         *   -maxTokens <int>        (optional)
-         *   -stopSequence <words>   (optional, up to $MAX_STOP_SEQUENCES whitespace-separated
-         *                            words; each becomes its own stop sequence)
-         *   -endSequence <text>     (optional, arbitrary length, may contain spaces;
-         *                            sent via systemInstruction, best-effort)
-         *   -temperature <number>   (optional, decimal; forwarded as
-         *                            `generationConfig.temperature`)
-         *   -model <model-id>       (optional; see [CliArgs.model] for the verified
-         *                            list — covers Pro / Flash / Flash-Lite tiers
-         *                            of generations 2.5, 3.1, 3.5 where they exist.
-         *                            Caller picks a default when this is null)
-         *   -session <name>         (optional; matches `^[a-zA-Z0-9_-]+$`, ≤ 64
-         *                            chars. Picks which saved session to resume,
-         *                            or starts a new one with that name. Omit
-         *                            to start a fresh session with a generated id)
-         *   -sessions               (flag-only; switches to list mode and ignores
-         *                            every other flag)
+         * Parses CLI arguments and dispatches to the right [CliArgs] variant.
          *
-         * Tokens following a known flag are joined with spaces until the next
-         * known flag, so unquoted multi-word values work too:
-         *   -prompt tell me a joke -maxTokens 100
+         * Mode-selection rules:
+         * - If more than one of `-sessions`, `-clean`, `-oneshot` is given,
+         *   throws [CliArgsException.InvalidArgumentValue] — they're mutually
+         *   exclusive.
+         * - `-sessions` wins: returns [ListSessions], ignores everything else.
+         * - `-clean` wins: returns [Clean], ignores everything else.
+         * - `-oneshot` requires `-prompt` and rejects `-session`.
+         * - Otherwise: standard [Chat] with required `-prompt`.
          *
-         * @throws CliArgsException.MissingRequiredArgument if `-prompt` is absent or blank
-         *   in run mode (list mode does not require `-prompt`).
-         * @throws CliArgsException.InvalidArgumentValue if `-maxTokens` is not an integer,
-         *   `-temperature` is not a decimal number, or `-session` is malformed.
+         * @throws CliArgsException.MissingRequiredArgument if `-prompt` is absent
+         *   or blank in Chat / OneShot modes.
+         * @throws CliArgsException.InvalidArgumentValue if `-maxTokens` is not an
+         *   integer, `-temperature` is not a decimal number, `-session` is
+         *   malformed, `-session` is given alongside `-oneshot`, or two mode
+         *   flags are given simultaneously.
          * @throws CliArgsException.TooManyValues if `-stopSequence` has more than
          *   [MAX_STOP_SEQUENCES] whitespace-separated words.
          */
@@ -157,6 +166,8 @@ data class CliArgs(
                 ARG_MODEL,
                 ARG_SESSION,
                 ARG_LIST_SESSIONS,
+                ARG_CLEAN,
+                ARG_ONESHOT,
             )
             val values = mutableMapOf<String, String>()
             var currentFlag: String? = null
@@ -178,21 +189,26 @@ data class CliArgs(
             }
             flush()
 
-            // List mode short-circuits all other validation: if `-sessions` is
-            // present we won't be running a chat session at all, so no point
-            // in checking the other flags.
-            if (ARG_LIST_SESSIONS in values) {
-                return CliArgs(
-                    prompt = null,
-                    maxTokens = null,
-                    stopSequences = null,
-                    endSequence = null,
-                    temperature = null,
-                    model = null,
-                    session = null,
-                    listSessions = true,
+            // Mutual-exclusivity check for the three mode-selecting flags.
+            // Picked up early so an obvious mis-typing fails fast before we
+            // run any partial validation of the other args.
+            val isList = ARG_LIST_SESSIONS in values
+            val isClean = ARG_CLEAN in values
+            val isOneShot = ARG_ONESHOT in values
+            if (listOf(isList, isClean, isOneShot).count { it } > 1) {
+                throw CliArgsException.InvalidArgumentValue(
+                    argName = "$ARG_LIST_SESSIONS / $ARG_CLEAN / $ARG_ONESHOT",
+                    rawValue = "(multiple)",
+                    expectedType = "at most one of $ARG_LIST_SESSIONS, $ARG_CLEAN, $ARG_ONESHOT at a time",
                 )
             }
+
+            if (isList) return ListSessions
+            if (isClean) return Clean
+
+            // Past this point we're in a PromptCommand mode (Chat or OneShot).
+            // All the same fields apply, with one wrinkle: `-session` is
+            // forbidden in OneShot.
 
             val prompt = values[ARG_PROMPT]?.takeIf { it.isNotBlank() }
                 ?: throw CliArgsException.MissingRequiredArgument(ARG_PROMPT)
@@ -233,6 +249,31 @@ data class CliArgs(
                     )
             }
 
+            val endSequence = values[ARG_END_SEQUENCE]?.takeIf { it.isNotBlank() }
+            val model = values[ARG_MODEL]?.takeIf { it.isNotBlank() }
+
+            if (isOneShot) {
+                // -session NAME doesn't make sense for a fire-and-forget call:
+                // we wouldn't load any history (so resume is meaningless) and
+                // we wouldn't write any history (so creating a named session
+                // is misleading). Reject loudly instead of silently ignoring.
+                values[ARG_SESSION]?.takeIf { it.isNotBlank() }?.let { raw ->
+                    throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_SESSION,
+                        rawValue = raw,
+                        expectedType = "absent (not compatible with $ARG_ONESHOT)",
+                    )
+                }
+                return OneShot(
+                    prompt = prompt,
+                    maxTokens = maxTokens,
+                    stopSequences = stopSequences,
+                    endSequence = endSequence,
+                    temperature = temperature,
+                    model = model,
+                )
+            }
+
             val session = values[ARG_SESSION]?.takeIf { it.isNotBlank() }?.let { raw ->
                 if (raw.length > MAX_SESSION_NAME_LENGTH || !raw.matches(SESSION_NAME_REGEX)) {
                     throw CliArgsException.InvalidArgumentValue(
@@ -244,15 +285,14 @@ data class CliArgs(
                 raw
             }
 
-            return CliArgs(
+            return Chat(
                 prompt = prompt,
                 maxTokens = maxTokens,
                 stopSequences = stopSequences,
-                endSequence = values[ARG_END_SEQUENCE]?.takeIf { it.isNotBlank() },
+                endSequence = endSequence,
                 temperature = temperature,
-                model = values[ARG_MODEL]?.takeIf { it.isNotBlank() },
+                model = model,
                 session = session,
-                listSessions = false,
             )
         }
     }

@@ -33,6 +33,19 @@ internal interface MessageDao {
             "FROM messages GROUP BY session_id ORDER BY MIN(id)"
     )
     suspend fun listSessions(): List<SessionSummary>
+
+    /** Total row count across every session — used by `-clean` to report how many were wiped. */
+    @Query("SELECT COUNT(*) FROM messages")
+    suspend fun count(): Int
+
+    /**
+     * Delete every row from the messages table. Used by `-clean`. The
+     * schema (table + index + sqlite_sequence) is left intact, so the
+     * next write reuses the same DB without going through Room
+     * re-initialisation.
+     */
+    @Query("DELETE FROM messages")
+    suspend fun clearAll()
 }
 
 /** Row shape returned by [MessageDao.listSessions]. */
