@@ -15,30 +15,28 @@ private const val PROMPT_INDICATOR = "> "
  * comes pre-configured through [llmApi] — model, credentials and transport
  * all live there.
  *
- * Persistence is similarly externalised through [historyStore]: it owns
- * the file/DB choice and the session scoping; the agent just calls
- * `load()` on startup and `append()` after each successful turn.
+ * Persistence and the in-memory message list both live in [historyStore]:
+ * it owns the file/DB choice, the session scoping, and the cache of
+ * already-loaded turns. The agent just hydrates it on startup and asks it
+ * for the current message view when building each request.
  *
  * What the agent does own:
  * - the opening [cliArgs] (carries the initial `-prompt` and generation
- *   knobs that stay the same across turns);
- * - the running [history] of messages, in neutral [Message] form.
+ *   knobs that stay the same across turns).
  */
 internal class Agent(
     private val cliArgs: CliArgs,
     private val llmApi: LlmApi,
     private val historyStore: HistoryStore,
 ) {
-    private val history = mutableListOf<Message>()
-
     /**
      * Drives a stdin-based REPL, carrying a running conversation history
      * across turns.
      *
      * Startup sequence:
-     *  1. Hydrate [history] from [historyStore]. If anything came back,
-     *     announce the restore (number of prior turns) so the user knows
-     *     they're resuming.
+     *  1. Hydrate [historyStore] from disk. If anything came back, announce
+     *     the restore (number of prior turns) so the user knows they're
+     *     resuming.
      *  2. Send [cliArgs]'s `-prompt` as the next user turn. With restored
      *     history, this turn lands on top of the prior conversation —
      *     that's the "continue as if the agent never shut down" effect.
@@ -50,8 +48,8 @@ internal class Agent(
      *
      * Multi-turn memory: the chat API is stateless, so the client has to
      * resend the whole conversation each turn. We accumulate user / model
-     * turns into [history] after each successful exchange and ship the
-     * full list with every subsequent request. Failed turns are not
+     * turns into [historyStore] after each successful exchange and ship
+     * the full list with every subsequent request. Failed turns are not
      * recorded — a user turn without a model reply would leave the history
      * with two consecutive `USER` roles, which the API rejects. History
      * is unbounded, so long sessions inflate prompt tokens linearly.
@@ -67,10 +65,10 @@ internal class Agent(
      * Any other non-empty line is treated as a new prompt.
      */
     suspend fun runRepl() {
-        history += historyStore.load()
-        if (history.isNotEmpty()) {
+        historyStore.load()
+        if (historyStore.messages.isNotEmpty()) {
             // Every prior turn is a (user, model) pair, so size / 2 = turn count.
-            System.err.println("[session] resumed (${history.size / 2} prior turn(s))")
+            System.err.println("[session] resumed (${historyStore.messages.size / 2} prior turn(s))")
         }
 
         // `main` only constructs an Agent in run mode, where prompt is
@@ -102,24 +100,21 @@ internal class Agent(
     }
 
     /**
-     * One turn: appends [prompt] to the current history as the user's
-     * message, asks [llmApi] for a reply, and records both sides of the
-     * exchange — in memory ([history]) and on disk ([historyStore]) — on
-     * success. Returns the model's reply text, or null if the call failed
-     * (the implementation has already logged the error).
+     * One turn: builds the request as «current history + [prompt] as a
+     * user turn», asks [llmApi] for a reply, and on success records both
+     * sides of the exchange in [historyStore] (which updates its own cache
+     * along with the DB). Returns the model's reply text, or null if the
+     * call failed (the implementation has already logged the error).
      */
     private suspend fun send(prompt: String): String? {
         val userTurn = Message(role = Role.USER, text = prompt)
         val response = llmApi.send(
-            messages = history + userTurn,
+            messages = historyStore.messages + userTurn,
             params = cliArgs.toGenerationParams(),
         )
         if (response != null) {
-            val modelTurn = Message(role = Role.ASSISTANT, text = response)
-            history += userTurn
-            history += modelTurn
             historyStore.append(userTurn)
-            historyStore.append(modelTurn)
+            historyStore.append(Message(role = Role.ASSISTANT, text = response))
         }
         return response
     }
