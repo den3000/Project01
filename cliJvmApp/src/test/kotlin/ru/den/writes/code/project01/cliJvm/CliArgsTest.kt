@@ -64,6 +64,9 @@ class CliArgsTest {
         assertNull(chat.endSequence)
         assertNull(chat.temperature)
         assertNull(chat.session)
+        assertNull(chat.feedFile)
+        assertEquals(2500, chat.chunkChars)
+        assertEquals("", chat.feedInstruction)
         val gemini = assertIs<ModelProvider.Gemini>(chat.modelProvider)
         assertEquals(GeminiModel.Default, gemini.model)
         assertEquals(DUMMY_GEMINI_KEY, gemini.apiKey)
@@ -292,6 +295,62 @@ class CliArgsTest {
         assertEquals("-prompt", ex.argName)
     }
 
+    // --- feed mode ---------------------------------------------------
+
+    @Test
+    fun `feedFile sets feed config on Chat with chunkChars default`() {
+        val parsed = parse("-prompt", "hi", "-feedFile", "/tmp/data.txt")
+        val chat = assertIs<CliArgs.Chat>(parsed)
+        assertEquals("/tmp/data.txt", chat.feedFile)
+        assertEquals(2500, chat.chunkChars)
+        assertEquals("", chat.feedInstruction)
+    }
+
+    @Test
+    fun `feedFile with chunkChars and instruction carries them through`() {
+        val parsed = parse(
+            "-prompt", "hi",
+            "-feedFile", "/tmp/data.txt",
+            "-chunkChars", "777",
+            "-feedInstruction", "Briefly summarise:",
+        )
+        val chat = assertIs<CliArgs.Chat>(parsed)
+        assertEquals(777, chat.chunkChars)
+        assertEquals("Briefly summarise:", chat.feedInstruction)
+    }
+
+    @Test
+    fun `feedFile is rejected alongside oneshot`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-oneshot", "-feedFile", "/tmp/data.txt")
+        }
+        assertEquals("-feedFile", ex.argName)
+    }
+
+    @Test
+    fun `chunkChars without feedFile is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-chunkChars", "1000")
+        }
+        assertEquals("-chunkChars", ex.argName)
+    }
+
+    @Test
+    fun `feedInstruction without feedFile is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-feedInstruction", "go go")
+        }
+        assertEquals("-feedInstruction", ex.argName)
+    }
+
+    @Test
+    fun `non-positive chunkChars is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-feedFile", "/tmp/x.txt", "-chunkChars", "0")
+        }
+        assertEquals("-chunkChars", ex.argName)
+    }
+
     // --- USAGE smoke check ------------------------------------------
 
     @Test
@@ -303,6 +362,7 @@ class CliArgsTest {
             "-prompt", "-provider", "-maxTokens", "-stopSequence", "-endSequence",
             "-temperature", "-model", "-session", "-oneshot",
             "-sessions", "-clean",
+            "-feedFile", "-chunkChars", "-feedInstruction",
         ).forEach { flag ->
             assertTrue(usage.contains(flag), "USAGE missing mention of $flag")
         }

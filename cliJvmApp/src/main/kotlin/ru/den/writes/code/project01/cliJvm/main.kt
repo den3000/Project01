@@ -65,21 +65,12 @@ suspend fun main(args: Array<String>) {
 
     try {
         when (initialArgs) {
-            is CliArgs.ListSessions -> {
-                val sessions = db.messageDao().listSessions()
-                if (sessions.isEmpty()) {
-                    println("(no sessions)")
-                } else {
-                    sessions.forEach { println("${it.sessionId}\t${it.count} messages") }
-                }
-            }
-
+            is CliArgs.ListSessions -> printSessionList(db.messageDao())
             is CliArgs.Clean -> {
                 val before = db.messageDao().count()
                 db.messageDao().clearAll()
                 println("Cleared $before messages across all sessions.")
             }
-
             is CliArgs.PromptCommand -> runPromptCommand(db, initialArgs)
         }
     } finally {
@@ -88,9 +79,36 @@ suspend fun main(args: Array<String>) {
 }
 
 /**
+ * Cross-session summary printed by `-sessions`. For each known session,
+ * shows the message count plus the lifetime token / cost totals
+ * reconstructed from the stored ASSISTANT rows via [SessionStats].
+ */
+private suspend fun printSessionList(dao: MessageDao) {
+    val sessions = dao.listSessions()
+    if (sessions.isEmpty()) {
+        println("(no sessions)")
+        return
+    }
+    sessions.forEach { summary ->
+        val stats = SessionStats().apply {
+            seedFrom(dao.assistantMessages(summary.sessionId), PricingRegistry::lookup)
+        }
+        println(
+            "${summary.sessionId}\t${summary.count} messages" +
+                "\ttotal_tokens=${stats.totalTokens}" +
+                "\tcost=\$${"%.5f".format(stats.totalCostUsd)}"
+        )
+    }
+}
+
+/**
  * Shared Chat / OneShot path. Both need an HTTP client + an [LlmApi];
  * they differ only in whether they own a [HistoryStore]. The concrete
  * [LlmApi] is picked by [CliArgs.PromptCommand.modelProvider].
+ *
+ * Chat may additionally swap stdin for a file-feed source via
+ * [CliArgs.Chat.feedFile]; the file's reader is opened here so its
+ * lifecycle is bounded by `use { }` rather than leaked into Agent.
  */
 private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptCommand) {
     val historyStore: HistoryStore? = when (parsed) {
@@ -143,7 +161,35 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 model = mp.model,
             )
         }
-        Agent(cliArgs = parsed, llmApi = llmApi, historyStore = historyStore).run()
+        val feedFile = (parsed as? CliArgs.Chat)?.feedFile
+        if (feedFile != null) {
+            // File-driven feed mode: open the reader, hand a
+            // ChunkedFilePromptSource to Agent. After the file is fully
+            // read, Agent transitions to `replAfterFeed` so the user can
+            // keep chatting until they type /exit. `use` closes the
+            // reader when Agent.run() returns (normally or via error).
+            File(feedFile).bufferedReader(Charsets.UTF_8).use { reader ->
+                val feedSource = ChunkedFilePromptSource(
+                    reader = reader,
+                    chunkChars = parsed.chunkChars,
+                    instruction = parsed.feedInstruction,
+                )
+                val stdinAfter = StdinPromptSource(
+                    java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
+                )
+                Agent(
+                    cliArgs = parsed,
+                    llmApi = llmApi,
+                    historyStore = historyStore,
+                    promptSource = feedSource,
+                    replAfterFeed = stdinAfter,
+                ).run()
+            }
+        } else {
+            // Stdin REPL: Agent's default StdinPromptSource takes
+            // System.in directly.
+            Agent(cliArgs = parsed, llmApi = llmApi, historyStore = historyStore).run()
+        }
     }
 }
 
