@@ -1,7 +1,10 @@
 package ru.den.writes.code.project01.cliJvm.db
 
 import ru.den.writes.code.project01.cliJvm.Message
+import ru.den.writes.code.project01.cliJvm.PricingRegistry
 import ru.den.writes.code.project01.cliJvm.Role
+import ru.den.writes.code.project01.cliJvm.SessionStats
+import ru.den.writes.code.project01.cliJvm.Usage
 
 /**
  * Conversation-history persistence for one session, with an in-memory
@@ -13,6 +16,12 @@ import ru.den.writes.code.project01.cliJvm.Role
  * [Message] / [Role] (which cross the [ru.den.writes.code.project01.cliJvm.LlmApi]
  * boundary) and the persisted [MessageEntity] (string `role` column,
  * `session_id` discriminator) lives here.
+ *
+ * Token bookkeeping ([stats]) also lives here: on [load] the running
+ * totals are seeded from existing ASSISTANT rows so a resumed session
+ * picks up exactly where the last process left off; on [append] with a
+ * non-null `usage` the totals tick up. Cost is recomputed from tokens
+ * + `modelId` via [PricingRegistry] each time — it isn't stored.
  *
  * The store is bound to one [sessionId] at construction; all
  * load/append operations are implicitly scoped to it.
@@ -37,10 +46,18 @@ internal class HistoryStore(
     val messages: List<Message> get() = cache
 
     /**
-     * Hydrate the cache from the DB. Call once on startup. Subsequent
-     * calls would refresh from disk, but in this app's single-process
-     * model there's no scenario where the DB diverges from the cache
-     * after init.
+     * Cumulative tokens + USD cost for this session, including any
+     * prior runs reconstructed from the DB. Read-only from outside —
+     * only [load] (seeding) and [append] (mid-session updates) mutate
+     * it.
+     */
+    val stats: SessionStats = SessionStats()
+
+    /**
+     * Hydrate the cache and seed [stats] from the DB. Call once on
+     * startup. Subsequent calls would refresh from disk, but in this
+     * app's single-process model there's no scenario where the DB
+     * diverges from the cache after init.
      */
     suspend fun load() {
         val loaded = dao.all(sessionId).map {
@@ -48,6 +65,7 @@ internal class HistoryStore(
         }
         cache.clear()
         cache += loaded
+        stats.seedFrom(dao.assistantMessages(sessionId), PricingRegistry::lookup)
     }
 
     /**
@@ -55,18 +73,38 @@ internal class HistoryStore(
      * then mirrors into the cache — that way a failed insert (throws)
      * doesn't leave the in-memory view ahead of the DB.
      *
+     * For ASSISTANT messages, pass the matching [usage] and [modelId]
+     * from the API response: they're stored on the row and folded into
+     * [stats]. For USER messages, leave them null (default) — token
+     * counts describe the API call, not the user input.
+     *
      * Used twice per agent turn (user message + model reply) and only
      * after a successful exchange, so a crashed turn never leaves a
      * half-conversation on disk.
      */
-    suspend fun append(message: Message) {
+    suspend fun append(
+        message: Message,
+        usage: Usage? = null,
+        modelId: String? = null,
+    ) {
         dao.insert(
             MessageEntity(
                 sessionId = sessionId,
                 role = message.role.name,
                 text = message.text,
+                modelId = modelId,
+                promptTokens = usage?.promptTokens,
+                outputTokens = usage?.outputTokens,
+                thoughtsTokens = usage?.thoughtsTokens,
+                totalTokens = usage?.totalTokens,
             )
         )
         cache += message
+        if (usage != null) {
+            val cost = modelId?.let(PricingRegistry::lookup)
+                ?.let { PricingRegistry.cost(usage, it) }
+                ?: 0.0
+            stats.record(usage, cost)
+        }
     }
 }

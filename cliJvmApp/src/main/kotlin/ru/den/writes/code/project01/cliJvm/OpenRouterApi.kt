@@ -10,7 +10,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import kotlin.time.measureTimedValue
 
 private const val ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -23,9 +22,11 @@ private const val ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
  * One instance is bound to one model — see [GeminiApi]'s notes on
  * sharing the [httpClient].
  *
- * Token accounting prints prompt/completion/total only; there is no
+ * Token accounting reports prompt/output/total only; there is no
  * dedicated «thoughts» counter on this API (thinking tokens, when
- * any, are rolled into `completion_tokens`).
+ * any, are rolled into `completion_tokens`). The response footer
+ * (`duration`, `tokens: …`) is the [Agent]'s job — it has the
+ * running totals that the per-turn footer needs to reference.
  */
 internal class OpenRouterApi(
     private val httpClient: HttpClient,
@@ -35,9 +36,9 @@ internal class OpenRouterApi(
     override suspend fun send(
         messages: List<Message>,
         params: GenerationParams,
-    ): String? {
+    ): LlmResult {
         println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        println("prompt: ${messages.lastOrNull()?.text ?: ""}")
+        println("prompt: ${messages.lastOrNull()?.text?.take(100) ?: ""}")
         println("model: ${model.id}")
         params.maxTokens?.let { println("maxTokens: $it") }
         params.stopSequences?.let { println("stopSequences: $it") }
@@ -58,57 +59,55 @@ internal class OpenRouterApi(
         }.orEmpty()
         val wireMessages = systemPrefix + messages.map { it.toApi() }
 
-        try {
-            val (httpResponse, duration) = measureTimedValue {
-                httpClient.post(ENDPOINT) {
-                    header(HttpHeaders.Authorization, "Bearer $apiKey")
-                    // Optional, used by OpenRouter for usage analytics on
-                    // their rankings page. Send them so this app shows up
-                    // as itself rather than as "unknown".
-                    header("HTTP-Referer", "https://github.com/denwritescode/Project01")
-                    header("X-Title", "Project01 CLI")
-                    contentType(ContentType.Application.Json)
-                    setBody(
-                        OpenRouterRequest(
-                            model = model.id,
-                            messages = wireMessages,
-                            temperature = params.temperature,
-                            maxTokens = params.maxTokens,
-                            stop = params.stopSequences,
-                        )
+        return try {
+            val httpResponse = httpClient.post(ENDPOINT) {
+                header(HttpHeaders.Authorization, "Bearer $apiKey")
+                // Optional, used by OpenRouter for usage analytics on
+                // their rankings page. Send them so this app shows up
+                // as itself rather than as "unknown".
+                header("HTTP-Referer", "https://github.com/denwritescode/Project01")
+                header("X-Title", "Project01 CLI")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    OpenRouterRequest(
+                        model = model.id,
+                        messages = wireMessages,
+                        temperature = params.temperature,
+                        maxTokens = params.maxTokens,
+                        stop = params.stopSequences,
                     )
-                }
+                )
             }
 
             if (!httpResponse.status.isSuccess()) {
-                System.err.println("OpenRouter API error ${httpResponse.status}: ${httpResponse.bodyAsText()}")
-                return null
+                val body = httpResponse.bodyAsText().take(500)
+                return LlmResult(
+                    text = null,
+                    error = "OpenRouter API ${httpResponse.status}: $body",
+                )
             }
 
             val response: OpenRouterResponse = httpResponse.body()
             response.error?.let {
-                System.err.println("OpenRouter error: ${it.message ?: "(no message)"}")
-                return null
+                return LlmResult(
+                    text = null,
+                    error = "OpenRouter error: ${it.message ?: "(no message)"}",
+                )
             }
 
             val text = response.choices.firstOrNull()?.message?.content?.takeIf { it.isNotBlank() }
-            println(text ?: "<empty response>")
-            println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            println("duration: ${duration.inWholeMilliseconds} ms")
-            response.usage?.let { u ->
-                println(
-                    "tokens: prompt=${u.promptTokens}" +
-                        ", output=${u.completionTokens}" +
-                        ", total=${u.totalTokens}"
+            val usage = response.usage?.let { u ->
+                Usage(
+                    promptTokens = u.promptTokens,
+                    outputTokens = u.completionTokens,
+                    thoughtsTokens = 0,
+                    totalTokens = u.totalTokens,
                 )
             }
-            println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            return text
+            LlmResult(text = text, usage = usage)
         } catch (e: Exception) {
-            System.err.println("Request failed: ${e.message}")
+            LlmResult(text = null, error = "Request failed: ${e.message}")
         }
-
-        return null
     }
 }
 

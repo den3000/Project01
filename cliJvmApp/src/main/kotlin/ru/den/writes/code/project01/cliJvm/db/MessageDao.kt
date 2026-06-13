@@ -19,6 +19,17 @@ internal interface MessageDao {
     @Query("SELECT * FROM messages WHERE session_id = :sessionId ORDER BY id ASC")
     suspend fun all(sessionId: String): List<MessageEntity>
 
+    /**
+     * ASSISTANT-only rows for the given session, in conversation order.
+     * Used by [HistoryStore] to seed lifetime token/cost totals on
+     * resume — USER rows have all the token columns null, so filtering
+     * them out at the SQL layer is cheaper than scanning everything.
+     */
+    @Query(
+        "SELECT * FROM messages WHERE session_id = :sessionId AND role = 'ASSISTANT' ORDER BY id ASC"
+    )
+    suspend fun assistantMessages(sessionId: String): List<MessageEntity>
+
     @Insert
     suspend fun insert(entity: MessageEntity)
 

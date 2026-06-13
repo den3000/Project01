@@ -13,6 +13,8 @@ import kotlinx.serialization.json.Json
 import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
+import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess
@@ -55,6 +57,10 @@ suspend fun main(args: Array<String>) {
         // session_id discriminator, distinct -session values touch
         // disjoint rows and don't fight for the writer lock either.
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+        // v1→v2: hand-written ALTER TABLE for the Day-8 token columns
+        // (see MIGRATION_1_2). Without this, opening an old v1 DB
+        // would throw IllegalStateException at startup.
+        .addMigrations(MIGRATION_1_2)
         .build()
 
     try {

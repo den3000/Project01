@@ -8,7 +8,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import kotlin.time.measureTimedValue
 
 private const val API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 private fun endpointFor(model: GeminiModel): String = "$API_BASE/${model.id}:generateContent"
@@ -28,6 +27,10 @@ private fun endpointFor(model: GeminiModel): String = "$API_BASE/${model.id}:gen
  * One instance is bound to one model. To talk to a different model,
  * create another [GeminiApi]; the same [httpClient] can safely be
  * shared across them.
+ *
+ * Prints the request-header block before sending; the response footer
+ * (`duration`, `tokens: …`) is the [Agent]'s job — it has the running
+ * totals that the per-turn footer needs to reference.
  */
 internal class GeminiApi(
     private val httpClient: HttpClient,
@@ -37,12 +40,12 @@ internal class GeminiApi(
     override suspend fun send(
         messages: List<Message>,
         params: GenerationParams,
-    ): String? {
+    ): LlmResult {
         println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         // Show only the last user turn — the rest of the history is too
         // noisy to print on every call, and that's the prompt the user
         // just typed.
-        println("prompt: ${messages.lastOrNull()?.text ?: ""}")
+        println("prompt: ${messages.lastOrNull()?.text?.take(100) ?: ""}")
         println("model: ${model.id}")
         params.maxTokens?.let { println("maxTokens: $it") }
         params.stopSequences?.let { println("stopSequences: $it") }
@@ -50,28 +53,25 @@ internal class GeminiApi(
         params.temperature?.let { println("temperature: $it") }
         println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
-        try {
-            // measureTimedValue wraps the suspend call; the lambda inherits
-            // this function's suspend context (it's inline), so we get
-            // wall-clock for the actual HTTP round-trip including streaming
-            // of the body.
-            val (httpResponse, duration) = measureTimedValue {
-                httpClient.post(endpointFor(model)) {
-                    url { parameters.append("key", apiKey) }
-                    contentType(ContentType.Application.Json)
-                    setBody(
-                        GeminiRequest(
-                            contents = messages.map { it.toContent() },
-                            generationConfig = params.toGenerationConfig(),
-                            systemInstruction = params.toSystemInstruction(),
-                        )
+        return try {
+            val httpResponse = httpClient.post(endpointFor(model)) {
+                url { parameters.append("key", apiKey) }
+                contentType(ContentType.Application.Json)
+                setBody(
+                    GeminiRequest(
+                        contents = messages.map { it.toContent() },
+                        generationConfig = params.toGenerationConfig(),
+                        systemInstruction = params.toSystemInstruction(),
                     )
-                }
+                )
             }
 
             if (!httpResponse.status.isSuccess()) {
-                System.err.println("Gemini API error ${httpResponse.status}: ${httpResponse.bodyAsText()}")
-                return null
+                val body = httpResponse.bodyAsText().take(500)
+                return LlmResult(
+                    text = null,
+                    error = "Gemini API ${httpResponse.status}: $body",
+                )
             }
 
             val response: GeminiResponse = httpResponse.body()
@@ -79,25 +79,18 @@ internal class GeminiApi(
                 .firstOrNull()?.content?.parts
                 ?.joinToString(separator = "") { it.text }
                 ?.takeIf { it.isNotBlank() }
-
-            println(text ?: "<empty response>")
-            println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            println("duration: ${duration.inWholeMilliseconds} ms")
-            response.usageMetadata?.let { u ->
-                println(
-                    "tokens: prompt=${u.promptTokenCount ?: 0}" +
-                        ", output=${u.candidatesTokenCount ?: 0}" +
-                        (u.thoughtsTokenCount?.let { ", thoughts=$it" } ?: "") +
-                        ", total=${u.totalTokenCount ?: 0}"
+            val usage = response.usageMetadata?.let { u ->
+                Usage(
+                    promptTokens = u.promptTokenCount ?: 0,
+                    outputTokens = u.candidatesTokenCount ?: 0,
+                    thoughtsTokens = u.thoughtsTokenCount ?: 0,
+                    totalTokens = u.totalTokenCount ?: 0,
                 )
             }
-            println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            return text
+            LlmResult(text = text, usage = usage)
         } catch (e: Exception) {
-            System.err.println("Request failed: ${e.message}")
+            LlmResult(text = null, error = "Request failed: ${e.message}")
         }
-
-        return null
     }
 }
 
