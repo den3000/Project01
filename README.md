@@ -22,15 +22,25 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   - Standard run: `./gradlew :desktopApp:run`
 - iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
 - CLI JVM app — sends a prompt to a chat-style LLM (Gemini or OpenRouter),
-  prints the response with a stats footer (wall-clock duration + token
-  counts: `prompt`, `output`, `thoughts` for Gemini's thinking models,
-  `total`), then — unless `-oneshot` is passed — drops into a REPL where
-  each new line becomes the next prompt. The full conversation is sent
-  on every turn (the chat APIs are stateless), so multi-turn context is
-  preserved. Successful turns are persisted to a local SQLite file at
-  `~/.project01-cli/history.db` (single file, sessions live in a
-  `session_id` column), so closing and reopening the app picks up where
-  you left off. Recognised REPL commands:
+  prints the response with a stats footer that reports both the current
+  turn's token usage and the session's running totals + USD cost (the
+  same SQLite row store that holds history holds the per-call token
+  counts and model id, so lifetime totals survive restart). Format:
+  `turn:    prompt=X output=Y thoughts=Z total=T  cost=$N`
+  `session: turns=K prompt=… output=… total=…   cost=$M`
+  Cost is recomputed each time from tokens + per-row `model_id` via a
+  static rate table; models not in the table show `cost=$? (no pricing)`
+  in place of the number. `thoughts` is included only for Gemini
+  thinking-capable models (OpenRouter rolls reasoning tokens into
+  `output`).
+  Unless `-oneshot` is passed, the agent drops into a REPL where each
+  new line becomes the next prompt — or in **feed mode** (see flags
+  below) reads successive chunks from a file in place of stdin. The
+  full conversation is sent on every turn (the chat APIs are stateless),
+  so multi-turn context is preserved. Successful turns are persisted to
+  a local SQLite file at `~/.project01-cli/history.db` (single file,
+  sessions live in a `session_id` column), so closing and reopening the
+  app picks up where you left off. Recognised REPL commands:
   - `/quit` or `/exit` (or Ctrl-D) — leave the REPL.
   - `/reuse` — feed the model's last reply back as the next prompt without
     retyping it. Handy for chain-of-thought follow-ups where you want the
@@ -50,7 +60,9 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
     - `-oneshot` → single prompt → response → exit. Does **not** load or
       save history; no session is created. Best for quick questions you
       don't want polluting persisted history.
-    - `-sessions` → list saved sessions and exit. Ignores every other flag.
+    - `-sessions` → list saved sessions and exit. Output per session:
+      `<id>  <N> messages  total_tokens=<X>  cost=$<Y>`. Ignores every
+      other flag.
     - `-clean` → delete every row from the history DB across all sessions
       and exit. Ignores every other flag.
     - (none of the above) → default Chat mode: REPL with persisted history.
@@ -59,6 +71,21 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
       Valid characters: `[a-zA-Z0-9_-]`, up to 64 chars. Without it, a
       fresh random 8-hex-char id is generated and announced on stderr so
       you can come back to it later. Rejected when combined with `-oneshot`.
+  - Feed-mode flags (Chat mode only; rejected when combined with `-oneshot`):
+    - `-feedFile <path>` → replaces stdin as the prompt source: reads
+      the file in successive character-sized chunks and sends each one
+      as the next user turn. The loop stops when the file is exhausted
+      or the provider returns an error. Useful for demonstrating
+      monotonic context growth — you can watch `session:` accumulate
+      cost and tokens turn after turn, and eventually see the API
+      reject a request once the conversation outgrows the model's
+      context window.
+    - `-chunkChars <int>` → chunk size in **characters** (UTF-8 safe via
+      a Reader, not bytes). Default `2500`. Only valid alongside `-feedFile`.
+    - `-feedInstruction <text>` → prefix prepended to every chunk before
+      sending (e.g. `"Briefly comment on the following text section:"`).
+      Default empty — chunks are sent verbatim. Only valid alongside
+      `-feedFile`.
   - Generation knobs (persist across REPL iterations — only the prompt
     changes between turns):
     - `-provider <gemini|openrouter>` → picks which API to call. Default:
@@ -106,6 +133,42 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   - `meta-llama/llama-4-maverick:free`
   - `google/gemma-3-27b-it:free`
   - `qwen/qwen3-235b-a22b:free`
+
+  **Day-8 token / cost demo recipes** (after `./gradlew :cliJvmApp:installDist`):
+
+  ```bash
+  # Cheap real run on Gemini Flash-Lite. Each chunk-turn appends to the
+  # running session totals — watch the `session:` line grow.
+  ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp \
+    -provider gemini -model gemini-2.5-flash-lite \
+    -prompt "Получишь файл по кусочкам — комментируй кратко." \
+    -feedFile bigfile.txt -chunkChars 3000 \
+    -session feed-lite
+
+  # Stress test: same model (1M context window), larger chunks. With
+  # a sufficiently large file the context fills up and the provider
+  # eventually returns a 4xx; agent prints `[error]` and stops the
+  # feed loop, then prints the final `[session-summary]`.
+  ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp \
+    -provider gemini -model gemini-2.5-flash-lite \
+    -prompt "Кратко прокомментируй каждый кусок." \
+    -feedFile bigfile.txt -chunkChars 30000 \
+    -session feed-bust
+
+  # Same idea against a smaller free OpenRouter window — fills up
+  # faster, useful for poking at the overflow path without a big file.
+  ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp \
+    -provider openrouter -model "google/gemma-3-27b-it:free" \
+    -prompt "Comment briefly on each chunk." \
+    -feedFile bigfile.txt -chunkChars 5000 -session feed-or
+
+  # Resume: lifetime totals (across launches) recover from the DB.
+  ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp \
+    -prompt "продолжай" -session feed-lite
+
+  # Inventory: per-session message count + total tokens + cost.
+  ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -sessions
+  ```
 
 ### Running tests
 
