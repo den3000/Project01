@@ -19,6 +19,16 @@ import androidx.room.PrimaryKey
  *   enum lives in [HistoryStore]; Room-side it's just a string column
  *   so the schema stays stable even if we add new role values later.
  * - [text] — the message body.
+ * - [modelId] / [promptTokens] / [outputTokens] / [thoughtsTokens] /
+ *   [totalTokens] — populated **only for ASSISTANT rows**, describing
+ *   the API call that produced the reply. USER rows leave them all
+ *   null because USER messages don't trigger an API call by themselves;
+ *   they describe input, not consumption. Stored together with the
+ *   reply so `-sessions` and the lifetime-totals seed for [HistoryStore]
+ *   can be computed without re-asking the provider. Cost is **not**
+ *   stored — it's recomputed from these counts + [modelId] via
+ *   [ru.den.writes.code.project01.cliJvm.PricingRegistry], so when rates
+ *   change we re-price old sessions for free.
  *
  * Index on `session_id` keeps lookups O(log n) once the table grows
  * past a few thousand rows across many sessions.
@@ -32,4 +42,9 @@ internal data class MessageEntity(
     @ColumnInfo(name = "session_id") val sessionId: String,
     val role: String,
     val text: String,
+    @ColumnInfo(name = "model_id") val modelId: String? = null,
+    @ColumnInfo(name = "prompt_tokens") val promptTokens: Int? = null,
+    @ColumnInfo(name = "output_tokens") val outputTokens: Int? = null,
+    @ColumnInfo(name = "thoughts_tokens") val thoughtsTokens: Int? = null,
+    @ColumnInfo(name = "total_tokens") val totalTokens: Int? = null,
 )

@@ -13,12 +13,15 @@ import kotlinx.serialization.json.Json
 import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
+import ru.den.writes.code.project01.cliJvm.db.MessageDao
+import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess
 
 /** Generous request timeout — LLM responses can take a while. */
-private const val REQUEST_TIMEOUT_MS = 120_000L
+private const val REQUEST_TIMEOUT_MS = 300_000L
 
 /**
  * Where the session history database lives. One file for all sessions,
@@ -55,25 +58,21 @@ suspend fun main(args: Array<String>) {
         // session_id discriminator, distinct -session values touch
         // disjoint rows and don't fight for the writer lock either.
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+        // v1→v2: hand-written ALTER TABLE for the Day-8 token columns
+        // (see MIGRATION_1_2). Without this, opening an old v1 DB
+        // would throw IllegalStateException at startup.
+        .addMigrations(MIGRATION_1_2)
         .build()
 
     try {
         when (initialArgs) {
-            is CliArgs.ListSessions -> {
-                val sessions = db.messageDao().listSessions()
-                if (sessions.isEmpty()) {
-                    println("(no sessions)")
-                } else {
-                    sessions.forEach { println("${it.sessionId}\t${it.count} messages") }
-                }
-            }
-
+            is CliArgs.ListSessions -> printSessionList(db.messageDao())
             is CliArgs.Clean -> {
                 val before = db.messageDao().count()
                 db.messageDao().clearAll()
                 println("Cleared $before messages across all sessions.")
             }
-
+            is CliArgs.Inflate -> inflateSession(db, initialArgs)
             is CliArgs.PromptCommand -> runPromptCommand(db, initialArgs)
         }
     } finally {
@@ -82,9 +81,70 @@ suspend fun main(args: Array<String>) {
 }
 
 /**
+ * Duplicates the last N rows of the given session in-place. No LLM
+ * call, no network, no token spend — pure DB ALTER. Copies carry just
+ * the original `text` and `role`; `model_id` and all token counts are
+ * cleared so [SessionStats] doesn't double-count usage that was
+ * already billed for the original rows. The next real LLM turn sees
+ * the inflated history and Gemini will report a correspondingly
+ * larger `promptTokens` — which is the whole point of this op.
+ */
+private suspend fun inflateSession(db: AppDatabase, parsed: CliArgs.Inflate) {
+    val dao = db.messageDao()
+    val tail = dao.tail(parsed.sessionId, parsed.n)
+    if (tail.isEmpty()) {
+        println("[inflate] session ${parsed.sessionId} has no messages — nothing to copy.")
+        return
+    }
+    tail.forEach { row ->
+        dao.insert(
+            MessageEntity(
+                sessionId = parsed.sessionId,
+                role = row.role,
+                text = row.text,
+                // Token / pricing columns left NULL on the copies: this
+                // is synthetic ballast, not a real API exchange.
+            )
+        )
+    }
+    val total = dao.all(parsed.sessionId).size
+    println(
+        "[inflate] copied ${tail.size} message(s) into session ${parsed.sessionId}; " +
+            "total now $total."
+    )
+}
+
+/**
+ * Cross-session summary printed by `-sessions`. For each known session,
+ * shows the message count plus the lifetime token / cost totals
+ * reconstructed from the stored ASSISTANT rows via [SessionStats].
+ */
+private suspend fun printSessionList(dao: MessageDao) {
+    val sessions = dao.listSessions()
+    if (sessions.isEmpty()) {
+        println("(no sessions)")
+        return
+    }
+    sessions.forEach { summary ->
+        val stats = SessionStats().apply {
+            seedFrom(dao.assistantMessages(summary.sessionId), PricingRegistry::lookup)
+        }
+        println(
+            "${summary.sessionId}\t${summary.count} messages" +
+                "\ttotal_tokens=${stats.totalTokens}" +
+                "\tcost=\$${"%.5f".format(stats.totalCostUsd)}"
+        )
+    }
+}
+
+/**
  * Shared Chat / OneShot path. Both need an HTTP client + an [LlmApi];
  * they differ only in whether they own a [HistoryStore]. The concrete
  * [LlmApi] is picked by [CliArgs.PromptCommand.modelProvider].
+ *
+ * Chat may additionally swap stdin for a file-feed source via
+ * [CliArgs.Chat.feedFile]; the file's reader is opened here so its
+ * lifecycle is bounded by `use { }` rather than leaked into Agent.
  */
 private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptCommand) {
     val historyStore: HistoryStore? = when (parsed) {
@@ -137,7 +197,35 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 model = mp.model,
             )
         }
-        Agent(cliArgs = parsed, llmApi = llmApi, historyStore = historyStore).run()
+        val feedFile = (parsed as? CliArgs.Chat)?.feedFile
+        if (feedFile != null) {
+            // File-driven feed mode: open the reader, hand a
+            // ChunkedFilePromptSource to Agent. After the file is fully
+            // read, Agent transitions to `replAfterFeed` so the user can
+            // keep chatting until they type /exit. `use` closes the
+            // reader when Agent.run() returns (normally or via error).
+            File(feedFile).bufferedReader(Charsets.UTF_8).use { reader ->
+                val feedSource = ChunkedFilePromptSource(
+                    reader = reader,
+                    chunkChars = parsed.chunkChars,
+                    instruction = parsed.feedInstruction,
+                )
+                val stdinAfter = StdinPromptSource(
+                    java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
+                )
+                Agent(
+                    cliArgs = parsed,
+                    llmApi = llmApi,
+                    historyStore = historyStore,
+                    promptSource = feedSource,
+                    replAfterFeed = stdinAfter,
+                ).run()
+            }
+        } else {
+            // Stdin REPL: Agent's default StdinPromptSource takes
+            // System.in directly.
+            Agent(cliArgs = parsed, llmApi = llmApi, historyStore = historyStore).run()
+        }
     }
 }
 

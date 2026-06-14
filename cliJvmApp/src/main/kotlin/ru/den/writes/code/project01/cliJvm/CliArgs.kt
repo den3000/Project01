@@ -12,12 +12,19 @@ private const val ARG_SESSION = "${ARG_PREFIX}session"
 private const val ARG_LIST_SESSIONS = "${ARG_PREFIX}sessions"
 private const val ARG_CLEAN = "${ARG_PREFIX}clean"
 private const val ARG_ONESHOT = "${ARG_PREFIX}oneshot"
+private const val ARG_FEED_FILE = "${ARG_PREFIX}feedFile"
+private const val ARG_CHUNK_CHARS = "${ARG_PREFIX}chunkChars"
+private const val ARG_FEED_INSTRUCTION = "${ARG_PREFIX}feedInstruction"
+private const val ARG_INFLATE = "${ARG_PREFIX}inflate"
 
 private const val PROVIDER_GEMINI = "gemini"
 private const val PROVIDER_OPENROUTER = "openrouter"
 
 private val SESSION_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
 private const val MAX_SESSION_NAME_LENGTH = 64
+
+/** Default chunk size for `-feedFile` when `-chunkChars` is omitted. */
+private const val DEFAULT_CHUNK_CHARS = 2500
 
 /**
  * Errors raised by [CliArgs.from]. Each subclass carries the data the caller
@@ -71,6 +78,19 @@ internal sealed interface CliArgs {
     data object Clean : CliArgs
 
     /**
+     * `-inflate N -session NAME`: copy the last N message rows of a
+     * session and append them to the same session, then exit. No API
+     * calls — pure DB operation. Used to fast-forward a session's
+     * context-window fill for stress testing without paying for or
+     * waiting on rate-limited LLM calls.
+     *
+     * Copied rows preserve `text` + `role` only; `model_id` and the
+     * token counts are NULL on the copies so [SessionStats] doesn't
+     * double-count what was previously billed.
+     */
+    data class Inflate(val sessionId: String, val n: Int) : CliArgs
+
+    /**
      * Common shape for the LLM-talking modes ([Chat], [OneShot]). Lets
      * `Agent` accept one type without losing the generation knobs.
      */
@@ -111,6 +131,31 @@ internal sealed interface CliArgs {
          * [MAX_SESSION_NAME_LENGTH] chars.
          */
         val session: String?,
+        /**
+         * Path to a file to feed to the model in chunks instead of
+         * reading prompts from stdin. Each successful turn pulls the
+         * next [chunkChars] characters from the file and sends them as
+         * the user prompt; the loop stops when the file is exhausted
+         * or the provider returns an error.
+         *
+         * When null, `Agent` falls back to its default
+         * [StdinPromptSource]. Incompatible with [OneShot] (rejected at
+         * parse time).
+         */
+        val feedFile: String?,
+        /**
+         * Chunk size (in characters, not bytes — UTF-8 safe) for feed
+         * mode. Defaults to [DEFAULT_CHUNK_CHARS]; ignored when
+         * [feedFile] is null.
+         */
+        val chunkChars: Int,
+        /**
+         * Optional prefix prepended to each chunk before sending — e.g.
+         * "Briefly comment on the following text:". Empty string means
+         * "send the chunk as-is, no wrap". Ignored when [feedFile] is
+         * null.
+         */
+        val feedInstruction: String,
     ) : PromptCommand
 
     /**
@@ -143,11 +188,13 @@ internal sealed interface CliArgs {
                 "[$ARG_END_SEQUENCE <text>] " +
                 "[$ARG_TEMPERATURE <number 0.0..2.0>] " +
                 "[$ARG_SESSION <name>]\n" +
-                "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION]\n" +
+                "       [$ARG_FEED_FILE <path> [$ARG_CHUNK_CHARS <int>] [$ARG_FEED_INSTRUCTION <text>]]\n" +
+                "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION, no $ARG_FEED_FILE]\n" +
                 "                (single prompt → response → exit; no REPL, no session)\n" +
                 "   or: $ARG_LIST_SESSIONS   (list saved sessions, ignores all other flags)\n" +
                 "   or: $ARG_CLEAN      (delete ALL session history, ignores all other flags)\n" +
-                "Default provider is $PROVIDER_GEMINI."
+                "   or: $ARG_INFLATE <N> $ARG_SESSION <name>   (duplicate the last N rows of <name>; no LLM)\n" +
+                "Default provider is $PROVIDER_GEMINI. Default chunk size is $DEFAULT_CHUNK_CHARS chars."
 
         /**
          * Parses CLI arguments and dispatches to the right [CliArgs] variant.
@@ -202,6 +249,10 @@ internal sealed interface CliArgs {
                 ARG_LIST_SESSIONS,
                 ARG_CLEAN,
                 ARG_ONESHOT,
+                ARG_FEED_FILE,
+                ARG_CHUNK_CHARS,
+                ARG_FEED_INSTRUCTION,
+                ARG_INFLATE,
             )
             val values = mutableMapOf<String, String>()
             var currentFlag: String? = null
@@ -239,6 +290,44 @@ internal sealed interface CliArgs {
 
             if (isList) return ListSessions
             if (isClean) return Clean
+
+            // -inflate is its own standalone op (pure DB, no LLM, no
+            // REPL). It needs -session NAME and N>0, and it can't coexist
+            // with any LLM-flow flag — bail loudly if we see something
+            // mixed in.
+            values[ARG_INFLATE]?.takeIf { it.isNotBlank() }?.let { raw ->
+                val n = raw.toIntOrNull()?.takeIf { it > 0 }
+                    ?: throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_INFLATE,
+                        rawValue = raw,
+                        expectedType = "a positive integer",
+                    )
+                listOf(
+                    ARG_PROMPT, ARG_ONESHOT, ARG_FEED_FILE,
+                    ARG_CHUNK_CHARS, ARG_FEED_INSTRUCTION,
+                ).forEach { flag ->
+                    values[flag]?.takeIf { it.isNotBlank() }?.let { conflict ->
+                        throw CliArgsException.InvalidArgumentValue(
+                            argName = flag,
+                            rawValue = conflict,
+                            expectedType = "absent (not compatible with $ARG_INFLATE)",
+                        )
+                    }
+                }
+                val sessionRaw = values[ARG_SESSION]?.takeIf { it.isNotBlank() }
+                    ?: throw CliArgsException.MissingRequiredArgument(
+                        argName = ARG_SESSION,
+                        detail = "$ARG_INFLATE requires an explicit session name",
+                    )
+                if (sessionRaw.length > MAX_SESSION_NAME_LENGTH || !sessionRaw.matches(SESSION_NAME_REGEX)) {
+                    throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_SESSION,
+                        rawValue = sessionRaw,
+                        expectedType = "alphanumeric / '_' / '-', up to $MAX_SESSION_NAME_LENGTH chars",
+                    )
+                }
+                return Inflate(sessionId = sessionRaw, n = n)
+            }
 
             // Past this point we're in a PromptCommand mode (Chat or OneShot).
             // All the same fields apply, with one wrinkle: `-session` is
@@ -305,6 +394,18 @@ internal sealed interface CliArgs {
                         expectedType = "absent (not compatible with $ARG_ONESHOT)",
                     )
                 }
+                // Feed mode loops on a persisted history, which OneShot
+                // doesn't have — feeding into a no-history fire-and-forget
+                // is a category error, reject up front.
+                listOf(ARG_FEED_FILE, ARG_CHUNK_CHARS, ARG_FEED_INSTRUCTION).forEach { flag ->
+                    values[flag]?.takeIf { it.isNotBlank() }?.let { raw ->
+                        throw CliArgsException.InvalidArgumentValue(
+                            argName = flag,
+                            rawValue = raw,
+                            expectedType = "absent (not compatible with $ARG_ONESHOT)",
+                        )
+                    }
+                }
                 return OneShot(
                     prompt = prompt,
                     maxTokens = maxTokens,
@@ -326,6 +427,36 @@ internal sealed interface CliArgs {
                 raw
             }
 
+            val feedFile = values[ARG_FEED_FILE]?.takeIf { it.isNotBlank() }
+            val chunkChars = values[ARG_CHUNK_CHARS]?.let { raw ->
+                raw.toIntOrNull()?.takeIf { it > 0 }
+                    ?: throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_CHUNK_CHARS,
+                        rawValue = raw,
+                        expectedType = "a positive integer",
+                    )
+            } ?: DEFAULT_CHUNK_CHARS
+            // -chunkChars and -feedInstruction only make sense alongside
+            // -feedFile; reject them up front so a typo doesn't silently
+            // turn into "I configured a chunk size for the REPL".
+            if (feedFile == null) {
+                values[ARG_CHUNK_CHARS]?.takeIf { it.isNotBlank() }?.let { raw ->
+                    throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_CHUNK_CHARS,
+                        rawValue = raw,
+                        expectedType = "absent (requires $ARG_FEED_FILE)",
+                    )
+                }
+                values[ARG_FEED_INSTRUCTION]?.takeIf { it.isNotBlank() }?.let { raw ->
+                    throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_FEED_INSTRUCTION,
+                        rawValue = raw,
+                        expectedType = "absent (requires $ARG_FEED_FILE)",
+                    )
+                }
+            }
+            val feedInstruction = values[ARG_FEED_INSTRUCTION].orEmpty()
+
             return Chat(
                 prompt = prompt,
                 maxTokens = maxTokens,
@@ -334,6 +465,9 @@ internal sealed interface CliArgs {
                 temperature = temperature,
                 modelProvider = modelProvider,
                 session = session,
+                feedFile = feedFile,
+                chunkChars = chunkChars,
+                feedInstruction = feedInstruction,
             )
         }
 

@@ -64,6 +64,9 @@ class CliArgsTest {
         assertNull(chat.endSequence)
         assertNull(chat.temperature)
         assertNull(chat.session)
+        assertNull(chat.feedFile)
+        assertEquals(2500, chat.chunkChars)
+        assertEquals("", chat.feedInstruction)
         val gemini = assertIs<ModelProvider.Gemini>(chat.modelProvider)
         assertEquals(GeminiModel.Default, gemini.model)
         assertEquals(DUMMY_GEMINI_KEY, gemini.apiKey)
@@ -292,6 +295,117 @@ class CliArgsTest {
         assertEquals("-prompt", ex.argName)
     }
 
+    // --- feed mode ---------------------------------------------------
+
+    @Test
+    fun `feedFile sets feed config on Chat with chunkChars default`() {
+        val parsed = parse("-prompt", "hi", "-feedFile", "/tmp/data.txt")
+        val chat = assertIs<CliArgs.Chat>(parsed)
+        assertEquals("/tmp/data.txt", chat.feedFile)
+        assertEquals(2500, chat.chunkChars)
+        assertEquals("", chat.feedInstruction)
+    }
+
+    @Test
+    fun `feedFile with chunkChars and instruction carries them through`() {
+        val parsed = parse(
+            "-prompt", "hi",
+            "-feedFile", "/tmp/data.txt",
+            "-chunkChars", "777",
+            "-feedInstruction", "Briefly summarise:",
+        )
+        val chat = assertIs<CliArgs.Chat>(parsed)
+        assertEquals(777, chat.chunkChars)
+        assertEquals("Briefly summarise:", chat.feedInstruction)
+    }
+
+    @Test
+    fun `feedFile is rejected alongside oneshot`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-oneshot", "-feedFile", "/tmp/data.txt")
+        }
+        assertEquals("-feedFile", ex.argName)
+    }
+
+    @Test
+    fun `chunkChars without feedFile is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-chunkChars", "1000")
+        }
+        assertEquals("-chunkChars", ex.argName)
+    }
+
+    @Test
+    fun `feedInstruction without feedFile is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-feedInstruction", "go go")
+        }
+        assertEquals("-feedInstruction", ex.argName)
+    }
+
+    @Test
+    fun `non-positive chunkChars is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-feedFile", "/tmp/x.txt", "-chunkChars", "0")
+        }
+        assertEquals("-chunkChars", ex.argName)
+    }
+
+    // --- inflate ----------------------------------------------------
+
+    @Test
+    fun `inflate parses session and N`() {
+        val parsed = parse("-inflate", "10", "-session", "foo")
+        val inflate = assertIs<CliArgs.Inflate>(parsed)
+        assertEquals("foo", inflate.sessionId)
+        assertEquals(10, inflate.n)
+    }
+
+    @Test
+    fun `inflate requires session`() {
+        val ex = assertFailsWith<CliArgsException.MissingRequiredArgument> {
+            parse("-inflate", "5")
+        }
+        assertEquals("-session", ex.argName)
+    }
+
+    @Test
+    fun `inflate rejects non-positive N`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-inflate", "0", "-session", "foo")
+        }
+        assertEquals("-inflate", ex.argName)
+    }
+
+    @Test
+    fun `inflate rejects mixing with prompt`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-inflate", "5", "-session", "foo", "-prompt", "hi")
+        }
+        assertEquals("-prompt", ex.argName)
+    }
+
+    @Test
+    fun `inflate rejects mixing with feedFile`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-inflate", "5", "-session", "foo", "-feedFile", "/tmp/x")
+        }
+        assertEquals("-feedFile", ex.argName)
+    }
+
+    @Test
+    fun `inflate works without API keys`() {
+        // Pure DB op — no LLM call — so it must not require either key.
+        val parsed = CliArgs.from(
+            arrayOf("-inflate", "3", "-session", "foo"),
+            geminiApiKey = "",
+            openRouterApiKey = "",
+        )
+        val inflate = assertIs<CliArgs.Inflate>(parsed)
+        assertEquals(3, inflate.n)
+        assertEquals("foo", inflate.sessionId)
+    }
+
     // --- USAGE smoke check ------------------------------------------
 
     @Test
@@ -302,7 +416,8 @@ class CliArgsTest {
         listOf(
             "-prompt", "-provider", "-maxTokens", "-stopSequence", "-endSequence",
             "-temperature", "-model", "-session", "-oneshot",
-            "-sessions", "-clean",
+            "-sessions", "-clean", "-inflate",
+            "-feedFile", "-chunkChars", "-feedInstruction",
         ).forEach { flag ->
             assertTrue(usage.contains(flag), "USAGE missing mention of $flag")
         }

@@ -2,16 +2,26 @@ package ru.den.writes.code.project01.cliJvm
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import kotlin.time.measureTimedValue
+import kotlinx.coroutines.delay
 
 private const val API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 private fun endpointFor(model: GeminiModel): String = "$API_BASE/${model.id}:generateContent"
+
+/**
+ * Backoff used when a 429 response body doesn't carry a server-suggested
+ * "Please retry in X.Ys" hint — pessimistic enough that a TPM-bound
+ * quota window can usually drain, short enough not to feel like the
+ * tool froze.
+ */
+private const val DEFAULT_429_BACKOFF_MS: Long = 5_000L
 
 /**
  * Gemini-backed [LlmApi] implementation.
@@ -28,6 +38,16 @@ private fun endpointFor(model: GeminiModel): String = "$API_BASE/${model.id}:gen
  * One instance is bound to one model. To talk to a different model,
  * create another [GeminiApi]; the same [httpClient] can safely be
  * shared across them.
+ *
+ * Transient-failure handling: a single retry is attempted on 429 (rate
+ * limit) and on `HttpRequestTimeoutException` (Ktor client timeout).
+ * For 429 the wait honours Gemini's "Please retry in X.Ys" hint when
+ * present, otherwise falls back to [DEFAULT_429_BACKOFF_MS]. Persistent
+ * failures (both attempts fail) return an `LlmResult.error`.
+ *
+ * Prints the request-header block before sending; the response footer
+ * (`duration`, `tokens: …`) is the [Agent]'s job — it has the running
+ * totals that the per-turn footer needs to reference.
  */
 internal class GeminiApi(
     private val httpClient: HttpClient,
@@ -37,12 +57,12 @@ internal class GeminiApi(
     override suspend fun send(
         messages: List<Message>,
         params: GenerationParams,
-    ): String? {
+    ): LlmResult {
         println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         // Show only the last user turn — the rest of the history is too
         // noisy to print on every call, and that's the prompt the user
         // just typed.
-        println("prompt: ${messages.lastOrNull()?.text ?: ""}")
+        println("prompt: ${messages.lastOrNull()?.text?.take(100) ?: ""}")
         println("model: ${model.id}")
         params.maxTokens?.let { println("maxTokens: $it") }
         params.stopSequences?.let { println("stopSequences: $it") }
@@ -50,12 +70,13 @@ internal class GeminiApi(
         params.temperature?.let { println("temperature: $it") }
         println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
-        try {
-            // measureTimedValue wraps the suspend call; the lambda inherits
-            // this function's suspend context (it's inline), so we get
-            // wall-clock for the actual HTTP round-trip including streaming
-            // of the body.
-            val (httpResponse, duration) = measureTimedValue {
+        // Single-retry loop: at most one extra attempt on 429 or timeout.
+        // Anything else (5xx, network errors etc.) — fail immediately;
+        // the user already has a high-level error path that keeps the
+        // session alive, so they decide if/when to nudge again.
+        var hasRetried = false
+        while (true) {
+            val httpResponse = try {
                 httpClient.post(endpointFor(model)) {
                     url { parameters.append("key", apiKey) }
                     contentType(ContentType.Application.Json)
@@ -67,11 +88,44 @@ internal class GeminiApi(
                         )
                     )
                 }
+            } catch (e: HttpRequestTimeoutException) {
+                if (hasRetried) {
+                    return LlmResult(
+                        text = null,
+                        error = "Request timeout (after retry): ${redactGeminiKey(e.message)}",
+                    )
+                }
+                System.err.println("[retry] timeout — retrying once")
+                hasRetried = true
+                continue
+            } catch (e: Exception) {
+                return LlmResult(
+                    text = null,
+                    error = "Request failed: ${redactGeminiKey(e.message)}",
+                )
+            }
+
+            if (httpResponse.status == HttpStatusCode.TooManyRequests) {
+                val rawBody = httpResponse.bodyAsText()
+                if (hasRetried) {
+                    return LlmResult(
+                        text = null,
+                        error = "Gemini API 429 (after retry): ${redactGeminiKey(rawBody.take(500))}",
+                    )
+                }
+                val waitMs = parseRetryAfterMillis(rawBody) ?: DEFAULT_429_BACKOFF_MS
+                System.err.println("[retry] 429 — waiting ${waitMs}ms, retrying once")
+                delay(waitMs)
+                hasRetried = true
+                continue
             }
 
             if (!httpResponse.status.isSuccess()) {
-                System.err.println("Gemini API error ${httpResponse.status}: ${httpResponse.bodyAsText()}")
-                return null
+                val body = httpResponse.bodyAsText().take(500)
+                return LlmResult(
+                    text = null,
+                    error = "Gemini API ${httpResponse.status}: ${redactGeminiKey(body)}",
+                )
             }
 
             val response: GeminiResponse = httpResponse.body()
@@ -79,26 +133,40 @@ internal class GeminiApi(
                 .firstOrNull()?.content?.parts
                 ?.joinToString(separator = "") { it.text }
                 ?.takeIf { it.isNotBlank() }
-
-            println(text ?: "<empty response>")
-            println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            println("duration: ${duration.inWholeMilliseconds} ms")
-            response.usageMetadata?.let { u ->
-                println(
-                    "tokens: prompt=${u.promptTokenCount ?: 0}" +
-                        ", output=${u.candidatesTokenCount ?: 0}" +
-                        (u.thoughtsTokenCount?.let { ", thoughts=$it" } ?: "") +
-                        ", total=${u.totalTokenCount ?: 0}"
+            val usage = response.usageMetadata?.let { u ->
+                Usage(
+                    promptTokens = u.promptTokenCount ?: 0,
+                    outputTokens = u.candidatesTokenCount ?: 0,
+                    thoughtsTokens = u.thoughtsTokenCount ?: 0,
+                    totalTokens = u.totalTokenCount ?: 0,
                 )
             }
-            println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            return text
-        } catch (e: Exception) {
-            System.err.println("Request failed: ${e.message}")
+            return LlmResult(text = text, usage = usage)
         }
-
-        return null
     }
+}
+
+/**
+ * Strip the `?key=…` query-string value out of any string that might
+ * contain it (timeout exception messages, HTTP error bodies). Keeps the
+ * `?key=` marker so the reader knows redaction happened; only the value
+ * is replaced. Anywhere this function is used, the call site has
+ * already decided "this text is going to a place where a key would be
+ * a leak" — keep it that way.
+ */
+internal fun redactGeminiKey(text: String?): String =
+    text?.replace(Regex("(\\?key=)[A-Za-z0-9_-]+"), "$1***") ?: ""
+
+/**
+ * Pull a server-suggested retry delay out of a Gemini 429 body. The
+ * response usually contains a sentence like "Please retry in 3.307306781s".
+ * Returns the wait time in milliseconds, or `null` when no such hint is
+ * present (caller falls back to a default).
+ */
+internal fun parseRetryAfterMillis(body: String): Long? {
+    val match = Regex("retry in ([\\d.]+)s", RegexOption.IGNORE_CASE).find(body) ?: return null
+    val seconds = match.groupValues[1].toDoubleOrNull() ?: return null
+    return (seconds * 1000).toLong().coerceAtLeast(0L)
 }
 
 /** Map a neutral [Message] into Gemini's wire [Content]. */
