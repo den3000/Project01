@@ -1,8 +1,10 @@
 package ru.den.writes.code.project01.cliJvm
 
+import kotlinx.coroutines.delay
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.measureTimedValue
 
 /**
@@ -109,12 +111,21 @@ internal class Agent(
                 send(next)
             }
 
-            // Phase 2: if the primary source ran out naturally (e.g. feed
-            // file fully consumed, NOT aborted on error) and a follow-up
-            // REPL source was supplied, announce an interim summary and
-            // keep chatting from stdin until the user types /exit.
-            if (replAfterFeed != null && !promptSource.terminated) {
-                historyStore?.let { printSessionSummary(it.stats, label = "[feed done — interim summary]") }
+            // Phase 2: after the primary source winds down — for any
+            // reason (file exhausted, REPL EOF, error abort) — hand off
+            // to the follow-up source if one was supplied. We don't
+            // gate this on `!terminated` anymore: the user often wants
+            // to keep probing after the first failure (e.g. push past
+            // a rate-limit or context-overflow boundary manually). The
+            // label distinguishes the two cases so it's visible whether
+            // we got here cleanly or after a stumble.
+            if (replAfterFeed != null) {
+                val label = if (promptSource.terminated) {
+                    "[feed aborted — interim summary]"
+                } else {
+                    "[feed done — interim summary]"
+                }
+                historyStore?.let { printSessionSummary(it.stats, label = label) }
                 System.err.println("[continuing in REPL — type /exit or /quit to leave]")
                 currentSource = replAfterFeed
                 while (true) {
@@ -170,6 +181,7 @@ internal class Agent(
 
         println(text)
         printFooter(duration.inWholeMilliseconds, result.usage, modelId)
+        delay(16.seconds)
         return text
     }
 
@@ -180,6 +192,12 @@ internal class Agent(
         if (usage != null) {
             val cost = pricing?.let { PricingRegistry.cost(usage, it) }
             println("turn:    " + formatTurnTokens(usage) + "  cost=${formatCost(cost, pricing != null)}")
+            // Context-fill line only when we know the window. Unknown
+            // windows just skip the line — adding a "?" placeholder
+            // would be noise on the meta-router / out-of-registry models.
+            pricing?.contextWindowTokens?.let { window ->
+                println(formatContextFill(usage.promptTokens, window))
+            }
             historyStore?.let { store ->
                 val s = store.stats
                 val sessionCost = if (pricing != null) s.totalCostUsd else null
@@ -190,6 +208,17 @@ internal class Agent(
             }
         }
         println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        // Warn loudly when we're closing in on the limit. Done outside
+        // the structured block so it stands out, and on stderr so it
+        // survives stdout redirection during demos.
+        if (usage != null && pricing?.contextWindowTokens != null) {
+            val pct = usage.promptTokens.toDouble() / pricing.contextWindowTokens * 100.0
+            if (pct >= CONTEXT_WARN_PCT) {
+                System.err.println(
+                    "[warning] context window %.1f%% full — next turn may overflow".format(pct)
+                )
+            }
+        }
     }
 
     private fun printSessionSummary(stats: SessionStats, label: String = "[session-summary]") {
@@ -207,6 +236,24 @@ internal class Agent(
                 (if (pricing == null) "  (current model has no pricing entry)" else "")
         )
     }
+}
+
+/**
+ * Threshold (% of context window) above which [Agent.printFooter] emits
+ * a `[warning] context window …% full` line to stderr.
+ */
+private const val CONTEXT_WARN_PCT: Double = 90.0
+
+/**
+ * Render the post-turn context-window fill line. Caller is responsible
+ * for only invoking this when the model's context window is known —
+ * the function itself doesn't second-guess that.
+ *
+ * Example: `(120000, 1000000) → "context: 120000 / 1000000 (12.0%)"`.
+ */
+internal fun formatContextFill(promptTokens: Int, windowTokens: Int): String {
+    val pct = promptTokens.toDouble() / windowTokens * 100.0
+    return "context: %d / %d (%.1f%%)".format(promptTokens, windowTokens, pct)
 }
 
 private fun formatTurnTokens(usage: Usage): String = buildString {

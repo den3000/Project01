@@ -306,6 +306,28 @@ class AgentTest {
         assertEquals(null, source.nextPrompt())
     }
 
+    // --- context-fill formatting ------------------------------------
+
+    @Test
+    fun `formatContextFill renders prompt over window with one decimal pct`() {
+        assertEquals(
+            "context: 120000 / 1000000 (12.0%)",
+            formatContextFill(promptTokens = 120_000, windowTokens = 1_000_000),
+        )
+    }
+
+    @Test
+    fun `formatContextFill handles zero and full edge cases`() {
+        assertEquals(
+            "context: 0 / 1000000 (0.0%)",
+            formatContextFill(promptTokens = 0, windowTokens = 1_000_000),
+        )
+        assertEquals(
+            "context: 1000000 / 1000000 (100.0%)",
+            formatContextFill(promptTokens = 1_000_000, windowTokens = 1_000_000),
+        )
+    }
+
     @Test
     fun `feed source natural exhaustion hands off to replAfterFeed`() = runTest {
         TestDb().use { harness ->
@@ -343,11 +365,12 @@ class AgentTest {
     }
 
     @Test
-    fun `feed abort skips the replAfterFeed handoff`() = runTest {
+    fun `feed abort still transitions to replAfterFeed for manual probing`() = runTest {
         TestDb().use { harness ->
             val fake = FakeLlmApi().apply {
                 queueText("opener ok")
                 queue(LlmResult(text = null, error = "synthetic overflow"))  // chunk1 fails
+                queueText("manual probe reply")  // user follow-up after the failure
             }
             val store = HistoryStore(harness.db.messageDao(), sessionId = "abort")
             val chat = newChat(prompt = "open", session = "abort")
@@ -358,7 +381,7 @@ class AgentTest {
                 instruction = "",
             )
             val stdinAfter = StdinPromptSource(
-                BufferedReader(StringReader("never-sent\n/exit\n"))
+                BufferedReader(StringReader("manual probe\n/exit\n"))
             )
 
             Agent(
@@ -369,9 +392,11 @@ class AgentTest {
                 replAfterFeed = stdinAfter,
             ).run()
 
-            // Only opener + chunk1 (failed). Stdin source must not have
-            // been consulted because feedSource.terminated = true.
-            assertEquals(2, fake.calls.size)
+            // opener + chunk1 (failed) + manual REPL probe = 3 calls.
+            // The transition happens despite feedSource.terminated = true:
+            // we let the user keep poking the model after the first error.
+            assertEquals(3, fake.calls.size)
+            assertEquals("manual probe", fake.calls[2].messages.last().text)
         }
     }
 

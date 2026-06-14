@@ -20,7 +20,7 @@ import java.util.UUID
 import kotlin.system.exitProcess
 
 /** Generous request timeout — LLM responses can take a while. */
-private const val REQUEST_TIMEOUT_MS = 120_000L
+private const val REQUEST_TIMEOUT_MS = 300_000L
 
 /**
  * Where the session history database lives. One file for all sessions,
