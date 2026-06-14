@@ -41,6 +41,23 @@ internal class SessionStats {
     }
 
     /**
+     * Fold token usage + cost from a *non-turn* LLM call into the running
+     * totals WITHOUT counting it as a turn.
+     *
+     * Used for history-compaction summarization calls: they spend real
+     * tokens (so prompt/output/cost must stay honest), but they are not
+     * user/assistant exchanges. [turns] — which the footer's `turns=N`
+     * and the `-sessions` view rely on — must keep meaning "real
+     * exchanges only", so it is deliberately left untouched here.
+     */
+    fun recordOverhead(usage: Usage, costUsd: Double) {
+        totalPromptTokens += usage.promptTokens
+        totalOutputTokens += usage.outputTokens
+        totalThoughtsTokens += usage.thoughtsTokens
+        totalCostUsd += costUsd
+    }
+
+    /**
      * Replay accumulated rows into the counters. Used to restore the
      * running totals when resuming an existing session from disk.
      *

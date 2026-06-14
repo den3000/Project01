@@ -70,6 +70,44 @@ class SessionStatsTest {
         assertEquals(0.0, stats.totalCostUsd)
     }
 
+    @Test
+    fun `recordOverhead adds tokens and cost without bumping turns`() {
+        val stats = SessionStats()
+        stats.recordOverhead(
+            Usage(promptTokens = 100, outputTokens = 40, thoughtsTokens = 10, totalTokens = 150),
+            costUsd = 0.0002,
+        )
+        assertEquals(0, stats.turns)
+        assertEquals(100, stats.totalPromptTokens)
+        assertEquals(40, stats.totalOutputTokens)
+        assertEquals(10, stats.totalThoughtsTokens)
+        assertEquals(150, stats.totalTokens)
+        assertEquals(0.0002, stats.totalCostUsd, 1e-12)
+    }
+
+    @Test
+    fun `record and recordOverhead - turns counts only real exchanges`() {
+        val stats = SessionStats()
+        stats.record(
+            Usage(promptTokens = 10, outputTokens = 5, thoughtsTokens = 0, totalTokens = 15),
+            costUsd = 0.0001,
+        )
+        // Compaction overhead between two real turns: tokens/cost fold in,
+        // turns does not.
+        stats.recordOverhead(
+            Usage(promptTokens = 200, outputTokens = 20, thoughtsTokens = 0, totalTokens = 220),
+            costUsd = 0.0005,
+        )
+        stats.record(
+            Usage(promptTokens = 10, outputTokens = 5, thoughtsTokens = 0, totalTokens = 15),
+            costUsd = 0.0001,
+        )
+        assertEquals(2, stats.turns)
+        assertEquals(220, stats.totalPromptTokens) // 10 + 200 + 10
+        assertEquals(30, stats.totalOutputTokens)  // 5 + 20 + 5
+        assertEquals(0.0007, stats.totalCostUsd, 1e-12)
+    }
+
     private fun entity(
         role: String,
         text: String,
