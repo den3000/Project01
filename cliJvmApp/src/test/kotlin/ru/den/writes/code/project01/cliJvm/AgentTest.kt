@@ -307,6 +307,65 @@ class AgentTest {
         assertEquals(null, source.nextPrompt())
     }
 
+    // --- line feed source -------------------------------------------
+
+    @Test
+    fun `line feed source yields one line per turn`() {
+        val source = LineFilePromptSource(BufferedReader(StringReader("first\nsecond\nthird\n")))
+        assertEquals("first", source.nextPrompt())
+        assertEquals("second", source.nextPrompt())
+        assertEquals("third", source.nextPrompt())
+        assertEquals(null, source.nextPrompt())
+    }
+
+    @Test
+    fun `line feed source skips blank and whitespace-only lines`() {
+        val source = LineFilePromptSource(BufferedReader(StringReader("a\n\n   \nb\n")))
+        assertEquals("a", source.nextPrompt())
+        assertEquals("b", source.nextPrompt())
+        assertEquals(null, source.nextPrompt())
+    }
+
+    @Test
+    fun `line feed source trims and wraps each line in the instruction prefix`() {
+        val source = LineFilePromptSource(
+            BufferedReader(StringReader("  hello  \nworld\n")),
+            instruction = "Comment:",
+        )
+        assertEquals("Comment:\n\nhello", source.nextPrompt())
+        assertEquals("Comment:\n\nworld", source.nextPrompt())
+    }
+
+    @Test
+    fun `line feed source stops after a failed turn`() {
+        val source = LineFilePromptSource(BufferedReader(StringReader("a\nb\nc\n")))
+        assertEquals("a", source.nextPrompt())
+        source.notifyTurnFailed()
+        assertEquals(null, source.nextPrompt())
+        assertTrue(source.terminated)
+    }
+
+    @Test
+    fun `Agent drives one turn per line from a line feed source`() = runTest {
+        TestDb().use { harness ->
+            val fake = FakeLlmApi().apply {
+                queueText("r-open")
+                queueText("r1")
+                queueText("r2")
+            }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "lines")
+            val chat = newChat(prompt = "open", session = "lines")
+            val source = LineFilePromptSource(BufferedReader(StringReader("turn one\nturn two\n")))
+
+            Agent(chat, fake, store, promptSource = source).run()
+
+            // opening -prompt + 2 lines = 3 turns.
+            assertEquals(3, fake.calls.size)
+            assertEquals("turn one", fake.calls[1].messages.last().text)
+            assertEquals("turn two", fake.calls[2].messages.last().text)
+        }
+    }
+
     // --- context-fill formatting ------------------------------------
 
     @Test
@@ -584,6 +643,7 @@ class AgentTest {
         feedFile = null,
         chunkChars = 2500,
         feedInstruction = "",
+        byLine = false,
         compress = false,
         keepLast = 6,
         summarizeEvery = 10,

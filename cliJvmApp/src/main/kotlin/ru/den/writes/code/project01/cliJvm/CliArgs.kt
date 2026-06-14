@@ -15,6 +15,7 @@ private const val ARG_ONESHOT = "${ARG_PREFIX}oneshot"
 private const val ARG_FEED_FILE = "${ARG_PREFIX}feedFile"
 private const val ARG_CHUNK_CHARS = "${ARG_PREFIX}chunkChars"
 private const val ARG_FEED_INSTRUCTION = "${ARG_PREFIX}feedInstruction"
+private const val ARG_BY_LINE = "${ARG_PREFIX}byLine"
 private const val ARG_INFLATE = "${ARG_PREFIX}inflate"
 private const val ARG_COMPRESS = "${ARG_PREFIX}compress"
 private const val ARG_KEEP_LAST = "${ARG_PREFIX}keepLast"
@@ -166,6 +167,13 @@ internal sealed interface CliArgs {
          */
         val feedInstruction: String,
         /**
+         * `-byLine`: in feed mode, split [feedFile] into **lines** (one
+         * line = one turn, blank lines skipped) instead of [chunkChars]-
+         * sized character chunks. Ignored when [feedFile] is null;
+         * incompatible with [chunkChars].
+         */
+        val byLine: Boolean,
+        /**
          * `-compress`: enable rolling-summary history compression. False
          * (default) ships the full history every turn (un-compressed
          * behaviour); true folds old turns into a summary via the
@@ -218,7 +226,7 @@ internal sealed interface CliArgs {
                 "[$ARG_END_SEQUENCE <text>] " +
                 "[$ARG_TEMPERATURE <number 0.0..2.0>] " +
                 "[$ARG_SESSION <name>]\n" +
-                "       [$ARG_FEED_FILE <path> [$ARG_CHUNK_CHARS <int>] [$ARG_FEED_INSTRUCTION <text>]]\n" +
+                "       [$ARG_FEED_FILE <path> [$ARG_CHUNK_CHARS <int> | $ARG_BY_LINE] [$ARG_FEED_INSTRUCTION <text>]]\n" +
                 "       [$ARG_COMPRESS [$ARG_KEEP_LAST <int>] [$ARG_SUMMARIZE_EVERY <int>]]\n" +
                 "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION, no $ARG_FEED_FILE]\n" +
                 "                (single prompt → response → exit; no REPL, no session)\n" +
@@ -284,6 +292,7 @@ internal sealed interface CliArgs {
                 ARG_FEED_FILE,
                 ARG_CHUNK_CHARS,
                 ARG_FEED_INSTRUCTION,
+                ARG_BY_LINE,
                 ARG_INFLATE,
                 ARG_COMPRESS,
                 ARG_KEEP_LAST,
@@ -349,9 +358,9 @@ internal sealed interface CliArgs {
                         )
                     }
                 }
-                // Compression flags are presence-based (-compress is
-                // value-less), so check membership rather than blank-ness.
-                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY).forEach { flag ->
+                // Compression / line-mode flags are presence-based
+                // (-compress / -byLine are value-less), so check membership.
+                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE).forEach { flag ->
                     if (flag in values) {
                         throw CliArgsException.InvalidArgumentValue(
                             argName = flag,
@@ -452,10 +461,10 @@ internal sealed interface CliArgs {
                         )
                     }
                 }
-                // Compression is a Chat-only concern (OneShot has no history
-                // to compress). Presence-reject — -compress is value-less so
-                // a blank-check wouldn't catch it.
-                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY).forEach { flag ->
+                // Compression and -byLine are Chat-only concerns (OneShot has
+                // no history / no feed). Presence-reject — these flags are
+                // value-less, so a blank-check wouldn't catch them.
+                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE).forEach { flag ->
                     if (flag in values) {
                         throw CliArgsException.InvalidArgumentValue(
                             argName = flag,
@@ -512,6 +521,26 @@ internal sealed interface CliArgs {
                         expectedType = "absent (requires $ARG_FEED_FILE)",
                     )
                 }
+                if (ARG_BY_LINE in values) {
+                    throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_BY_LINE,
+                        rawValue = "(present)",
+                        expectedType = "absent (requires $ARG_FEED_FILE)",
+                    )
+                }
+            }
+            // -byLine and -chunkChars are two different ways to split the
+            // feed file; having both set is ambiguous, so reject an explicit
+            // -chunkChars alongside -byLine.
+            val byLine = ARG_BY_LINE in values
+            if (byLine) {
+                values[ARG_CHUNK_CHARS]?.takeIf { it.isNotBlank() }?.let { raw ->
+                    throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_CHUNK_CHARS,
+                        rawValue = raw,
+                        expectedType = "absent (not compatible with $ARG_BY_LINE)",
+                    )
+                }
             }
             val feedInstruction = values[ARG_FEED_INSTRUCTION].orEmpty()
 
@@ -557,6 +586,7 @@ internal sealed interface CliArgs {
                 feedFile = feedFile,
                 chunkChars = chunkChars,
                 feedInstruction = feedInstruction,
+                byLine = byLine,
                 compress = compress,
                 keepLast = keepLast,
                 summarizeEvery = summarizeEvery,

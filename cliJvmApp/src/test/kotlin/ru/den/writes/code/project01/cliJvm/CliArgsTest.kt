@@ -67,6 +67,7 @@ class CliArgsTest {
         assertNull(chat.feedFile)
         assertEquals(2500, chat.chunkChars)
         assertEquals("", chat.feedInstruction)
+        assertEquals(false, chat.byLine)
         assertEquals(false, chat.compress)
         assertEquals(6, chat.keepLast)
         assertEquals(10, chat.summarizeEvery)
@@ -354,6 +355,48 @@ class CliArgsTest {
         assertEquals("-chunkChars", ex.argName)
     }
 
+    // --- byLine feed mode (line-by-line) ----------------------------
+
+    @Test
+    fun `byLine sets line-feed mode on Chat`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-feedFile", "/tmp/x.txt", "-byLine"))
+        assertTrue(chat.byLine)
+        assertEquals("/tmp/x.txt", chat.feedFile)
+    }
+
+    @Test
+    fun `byLine works with feedInstruction`() {
+        val chat = assertIs<CliArgs.Chat>(
+            parse("-prompt", "hi", "-feedFile", "/tmp/x.txt", "-byLine", "-feedInstruction", "Comment:")
+        )
+        assertTrue(chat.byLine)
+        assertEquals("Comment:", chat.feedInstruction)
+    }
+
+    @Test
+    fun `byLine without feedFile is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-byLine")
+        }
+        assertEquals("-byLine", ex.argName)
+    }
+
+    @Test
+    fun `byLine together with chunkChars is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-feedFile", "/tmp/x.txt", "-byLine", "-chunkChars", "100")
+        }
+        assertEquals("-chunkChars", ex.argName)
+    }
+
+    @Test
+    fun `byLine is rejected alongside oneshot`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-oneshot", "-byLine")
+        }
+        assertEquals("-byLine", ex.argName)
+    }
+
     // --- inflate ----------------------------------------------------
 
     @Test
@@ -420,7 +463,7 @@ class CliArgsTest {
             "-prompt", "-provider", "-maxTokens", "-stopSequence", "-endSequence",
             "-temperature", "-model", "-session", "-oneshot",
             "-sessions", "-clean", "-inflate",
-            "-feedFile", "-chunkChars", "-feedInstruction",
+            "-feedFile", "-chunkChars", "-feedInstruction", "-byLine",
             "-compress", "-keepLast", "-summarizeEvery",
         ).forEach { flag ->
             assertTrue(usage.contains(flag), "USAGE missing mention of $flag")

@@ -208,17 +208,21 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
             ?.let { HistoryCompressor(keepLast = it.keepLast, summarizeEvery = it.summarizeEvery) }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile
         if (feedFile != null) {
-            // File-driven feed mode: open the reader, hand a
-            // ChunkedFilePromptSource to Agent. After the file is fully
-            // read, Agent transitions to `replAfterFeed` so the user can
-            // keep chatting until they type /exit. `use` closes the
-            // reader when Agent.run() returns (normally or via error).
+            // File-driven feed mode: open the reader and hand a feed source
+            // to Agent — line-by-line (-byLine) or fixed-size character
+            // chunks. After the file is fully read, Agent transitions to
+            // `replAfterFeed` so the user can keep chatting until they type
+            // /exit. `use` closes the reader when Agent.run() returns.
             File(feedFile).bufferedReader(Charsets.UTF_8).use { reader ->
-                val feedSource = ChunkedFilePromptSource(
-                    reader = reader,
-                    chunkChars = parsed.chunkChars,
-                    instruction = parsed.feedInstruction,
-                )
+                val feedSource: PromptSource = if (parsed.byLine) {
+                    LineFilePromptSource(reader = reader, instruction = parsed.feedInstruction)
+                } else {
+                    ChunkedFilePromptSource(
+                        reader = reader,
+                        chunkChars = parsed.chunkChars,
+                        instruction = parsed.feedInstruction,
+                    )
+                }
                 val stdinAfter = StdinPromptSource(
                     java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
                 )
