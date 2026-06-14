@@ -3,9 +3,10 @@ package ru.den.writes.code.project01.cliJvm.db
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Upsert
 
 /**
- * DAO over the `messages` table.
+ * DAO over the `messages` table plus the per-session `summaries` table.
  *
  * Every read/write is scoped by `session_id`, except [listSessions]
  * which is the cross-session query used by the `-sessions` list-mode.
@@ -74,6 +75,28 @@ internal interface MessageDao {
      */
     @Query("DELETE FROM messages")
     suspend fun clearAll()
+
+    // --- summaries (history compression, schema v3) -----------------
+
+    /** The rolling-summary row for a session, or null if none stored yet. */
+    @Query("SELECT * FROM summaries WHERE session_id = :sessionId")
+    suspend fun getSummary(sessionId: String): SummaryEntity?
+
+    /**
+     * Insert-or-replace the rolling summary for a session. One row per
+     * session (session_id is the PK), so this keeps exactly one current
+     * summary as it's rebuilt across compactions.
+     */
+    @Upsert
+    suspend fun upsertSummary(entity: SummaryEntity)
+
+    /**
+     * Delete every summary row. Paired with [clearAll] under `-clean` so a
+     * wiped DB doesn't leave an orphan summary that would resurrect on a
+     * reused session id.
+     */
+    @Query("DELETE FROM summaries")
+    suspend fun clearAllSummaries()
 }
 
 /** Row shape returned by [MessageDao.listSessions]. */

@@ -14,6 +14,7 @@ import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
+import ru.den.writes.code.project01.cliJvm.db.MIGRATION_2_3
 import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import java.io.File
@@ -58,10 +59,10 @@ suspend fun main(args: Array<String>) {
         // session_id discriminator, distinct -session values touch
         // disjoint rows and don't fight for the writer lock either.
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-        // v1→v2: hand-written ALTER TABLE for the Day-8 token columns
-        // (see MIGRATION_1_2). Without this, opening an old v1 DB
-        // would throw IllegalStateException at startup.
-        .addMigrations(MIGRATION_1_2)
+        // v1→v2: Day-8 token columns; v2→v3: Day-9 `summaries` table
+        // (see MIGRATION_1_2 / MIGRATION_2_3). Without these, opening an
+        // older DB would throw IllegalStateException at startup.
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
         .build()
 
     try {
@@ -70,7 +71,10 @@ suspend fun main(args: Array<String>) {
             is CliArgs.Clean -> {
                 val before = db.messageDao().count()
                 db.messageDao().clearAll()
-                println("Cleared $before messages across all sessions.")
+                // Wipe the compression summaries too — otherwise an orphan
+                // summary would resurrect on a reused session id.
+                db.messageDao().clearAllSummaries()
+                println("Cleared $before messages across all sessions (and any saved summaries).")
             }
             is CliArgs.Inflate -> inflateSession(db, initialArgs)
             is CliArgs.PromptCommand -> runPromptCommand(db, initialArgs)
