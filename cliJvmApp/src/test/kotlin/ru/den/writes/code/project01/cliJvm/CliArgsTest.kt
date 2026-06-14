@@ -351,6 +351,61 @@ class CliArgsTest {
         assertEquals("-chunkChars", ex.argName)
     }
 
+    // --- inflate ----------------------------------------------------
+
+    @Test
+    fun `inflate parses session and N`() {
+        val parsed = parse("-inflate", "10", "-session", "foo")
+        val inflate = assertIs<CliArgs.Inflate>(parsed)
+        assertEquals("foo", inflate.sessionId)
+        assertEquals(10, inflate.n)
+    }
+
+    @Test
+    fun `inflate requires session`() {
+        val ex = assertFailsWith<CliArgsException.MissingRequiredArgument> {
+            parse("-inflate", "5")
+        }
+        assertEquals("-session", ex.argName)
+    }
+
+    @Test
+    fun `inflate rejects non-positive N`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-inflate", "0", "-session", "foo")
+        }
+        assertEquals("-inflate", ex.argName)
+    }
+
+    @Test
+    fun `inflate rejects mixing with prompt`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-inflate", "5", "-session", "foo", "-prompt", "hi")
+        }
+        assertEquals("-prompt", ex.argName)
+    }
+
+    @Test
+    fun `inflate rejects mixing with feedFile`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-inflate", "5", "-session", "foo", "-feedFile", "/tmp/x")
+        }
+        assertEquals("-feedFile", ex.argName)
+    }
+
+    @Test
+    fun `inflate works without API keys`() {
+        // Pure DB op — no LLM call — so it must not require either key.
+        val parsed = CliArgs.from(
+            arrayOf("-inflate", "3", "-session", "foo"),
+            geminiApiKey = "",
+            openRouterApiKey = "",
+        )
+        val inflate = assertIs<CliArgs.Inflate>(parsed)
+        assertEquals(3, inflate.n)
+        assertEquals("foo", inflate.sessionId)
+    }
+
     // --- USAGE smoke check ------------------------------------------
 
     @Test
@@ -361,7 +416,7 @@ class CliArgsTest {
         listOf(
             "-prompt", "-provider", "-maxTokens", "-stopSequence", "-endSequence",
             "-temperature", "-model", "-session", "-oneshot",
-            "-sessions", "-clean",
+            "-sessions", "-clean", "-inflate",
             "-feedFile", "-chunkChars", "-feedInstruction",
         ).forEach { flag ->
             assertTrue(usage.contains(flag), "USAGE missing mention of $flag")

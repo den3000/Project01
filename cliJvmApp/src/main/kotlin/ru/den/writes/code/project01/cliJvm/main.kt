@@ -15,6 +15,7 @@ import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
 import ru.den.writes.code.project01.cliJvm.db.MessageDao
+import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess
@@ -71,11 +72,46 @@ suspend fun main(args: Array<String>) {
                 db.messageDao().clearAll()
                 println("Cleared $before messages across all sessions.")
             }
+            is CliArgs.Inflate -> inflateSession(db, initialArgs)
             is CliArgs.PromptCommand -> runPromptCommand(db, initialArgs)
         }
     } finally {
         db.close()
     }
+}
+
+/**
+ * Duplicates the last N rows of the given session in-place. No LLM
+ * call, no network, no token spend — pure DB ALTER. Copies carry just
+ * the original `text` and `role`; `model_id` and all token counts are
+ * cleared so [SessionStats] doesn't double-count usage that was
+ * already billed for the original rows. The next real LLM turn sees
+ * the inflated history and Gemini will report a correspondingly
+ * larger `promptTokens` — which is the whole point of this op.
+ */
+private suspend fun inflateSession(db: AppDatabase, parsed: CliArgs.Inflate) {
+    val dao = db.messageDao()
+    val tail = dao.tail(parsed.sessionId, parsed.n)
+    if (tail.isEmpty()) {
+        println("[inflate] session ${parsed.sessionId} has no messages — nothing to copy.")
+        return
+    }
+    tail.forEach { row ->
+        dao.insert(
+            MessageEntity(
+                sessionId = parsed.sessionId,
+                role = row.role,
+                text = row.text,
+                // Token / pricing columns left NULL on the copies: this
+                // is synthetic ballast, not a real API exchange.
+            )
+        )
+    }
+    val total = dao.all(parsed.sessionId).size
+    println(
+        "[inflate] copied ${tail.size} message(s) into session ${parsed.sessionId}; " +
+            "total now $total."
+    )
 }
 
 /**

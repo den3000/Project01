@@ -15,6 +15,7 @@ private const val ARG_ONESHOT = "${ARG_PREFIX}oneshot"
 private const val ARG_FEED_FILE = "${ARG_PREFIX}feedFile"
 private const val ARG_CHUNK_CHARS = "${ARG_PREFIX}chunkChars"
 private const val ARG_FEED_INSTRUCTION = "${ARG_PREFIX}feedInstruction"
+private const val ARG_INFLATE = "${ARG_PREFIX}inflate"
 
 private const val PROVIDER_GEMINI = "gemini"
 private const val PROVIDER_OPENROUTER = "openrouter"
@@ -75,6 +76,19 @@ internal sealed interface CliArgs {
 
     /** `-clean`: delete every row from the messages table and exit. */
     data object Clean : CliArgs
+
+    /**
+     * `-inflate N -session NAME`: copy the last N message rows of a
+     * session and append them to the same session, then exit. No API
+     * calls — pure DB operation. Used to fast-forward a session's
+     * context-window fill for stress testing without paying for or
+     * waiting on rate-limited LLM calls.
+     *
+     * Copied rows preserve `text` + `role` only; `model_id` and the
+     * token counts are NULL on the copies so [SessionStats] doesn't
+     * double-count what was previously billed.
+     */
+    data class Inflate(val sessionId: String, val n: Int) : CliArgs
 
     /**
      * Common shape for the LLM-talking modes ([Chat], [OneShot]). Lets
@@ -179,6 +193,7 @@ internal sealed interface CliArgs {
                 "                (single prompt → response → exit; no REPL, no session)\n" +
                 "   or: $ARG_LIST_SESSIONS   (list saved sessions, ignores all other flags)\n" +
                 "   or: $ARG_CLEAN      (delete ALL session history, ignores all other flags)\n" +
+                "   or: $ARG_INFLATE <N> $ARG_SESSION <name>   (duplicate the last N rows of <name>; no LLM)\n" +
                 "Default provider is $PROVIDER_GEMINI. Default chunk size is $DEFAULT_CHUNK_CHARS chars."
 
         /**
@@ -237,6 +252,7 @@ internal sealed interface CliArgs {
                 ARG_FEED_FILE,
                 ARG_CHUNK_CHARS,
                 ARG_FEED_INSTRUCTION,
+                ARG_INFLATE,
             )
             val values = mutableMapOf<String, String>()
             var currentFlag: String? = null
@@ -274,6 +290,44 @@ internal sealed interface CliArgs {
 
             if (isList) return ListSessions
             if (isClean) return Clean
+
+            // -inflate is its own standalone op (pure DB, no LLM, no
+            // REPL). It needs -session NAME and N>0, and it can't coexist
+            // with any LLM-flow flag — bail loudly if we see something
+            // mixed in.
+            values[ARG_INFLATE]?.takeIf { it.isNotBlank() }?.let { raw ->
+                val n = raw.toIntOrNull()?.takeIf { it > 0 }
+                    ?: throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_INFLATE,
+                        rawValue = raw,
+                        expectedType = "a positive integer",
+                    )
+                listOf(
+                    ARG_PROMPT, ARG_ONESHOT, ARG_FEED_FILE,
+                    ARG_CHUNK_CHARS, ARG_FEED_INSTRUCTION,
+                ).forEach { flag ->
+                    values[flag]?.takeIf { it.isNotBlank() }?.let { conflict ->
+                        throw CliArgsException.InvalidArgumentValue(
+                            argName = flag,
+                            rawValue = conflict,
+                            expectedType = "absent (not compatible with $ARG_INFLATE)",
+                        )
+                    }
+                }
+                val sessionRaw = values[ARG_SESSION]?.takeIf { it.isNotBlank() }
+                    ?: throw CliArgsException.MissingRequiredArgument(
+                        argName = ARG_SESSION,
+                        detail = "$ARG_INFLATE requires an explicit session name",
+                    )
+                if (sessionRaw.length > MAX_SESSION_NAME_LENGTH || !sessionRaw.matches(SESSION_NAME_REGEX)) {
+                    throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_SESSION,
+                        rawValue = sessionRaw,
+                        expectedType = "alphanumeric / '_' / '-', up to $MAX_SESSION_NAME_LENGTH chars",
+                    )
+                }
+                return Inflate(sessionId = sessionRaw, n = n)
+            }
 
             // Past this point we're in a PromptCommand mode (Chat or OneShot).
             // All the same fields apply, with one wrinkle: `-session` is

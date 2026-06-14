@@ -30,6 +30,23 @@ internal interface MessageDao {
     )
     suspend fun assistantMessages(sessionId: String): List<MessageEntity>
 
+    /**
+     * Last [n] rows of [sessionId] in chronological order. Powers the
+     * `-inflate` CLI op: callers re-insert the returned rows verbatim
+     * (modulo `id` and token columns) to fast-forward a session's
+     * prompt-token size without making LLM calls.
+     *
+     * SQLite returns them in DESC order so we can apply LIMIT, then we
+     * sort back to ASC client-side via the outer query — no need for a
+     * subquery here, this is one disk read.
+     */
+    @Query(
+        "SELECT * FROM messages WHERE session_id = :sessionId " +
+            "AND id IN (SELECT id FROM messages WHERE session_id = :sessionId ORDER BY id DESC LIMIT :n) " +
+            "ORDER BY id ASC"
+    )
+    suspend fun tail(sessionId: String, n: Int): List<MessageEntity>
+
     @Insert
     suspend fun insert(entity: MessageEntity)
 
