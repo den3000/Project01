@@ -16,6 +16,9 @@ private const val ARG_FEED_FILE = "${ARG_PREFIX}feedFile"
 private const val ARG_CHUNK_CHARS = "${ARG_PREFIX}chunkChars"
 private const val ARG_FEED_INSTRUCTION = "${ARG_PREFIX}feedInstruction"
 private const val ARG_INFLATE = "${ARG_PREFIX}inflate"
+private const val ARG_COMPRESS = "${ARG_PREFIX}compress"
+private const val ARG_KEEP_LAST = "${ARG_PREFIX}keepLast"
+private const val ARG_SUMMARIZE_EVERY = "${ARG_PREFIX}summarizeEvery"
 
 private const val PROVIDER_GEMINI = "gemini"
 private const val PROVIDER_OPENROUTER = "openrouter"
@@ -25,6 +28,12 @@ private const val MAX_SESSION_NAME_LENGTH = 64
 
 /** Default chunk size for `-feedFile` when `-chunkChars` is omitted. */
 private const val DEFAULT_CHUNK_CHARS = 2500
+
+/** Default number of recent messages kept verbatim under `-compress`. */
+private const val DEFAULT_KEEP_LAST = 6
+
+/** Default fold threshold under `-compress` (messages beyond the kept tail). */
+private const val DEFAULT_SUMMARIZE_EVERY = 10
 
 /**
  * Errors raised by [CliArgs.from]. Each subclass carries the data the caller
@@ -156,6 +165,27 @@ internal sealed interface CliArgs {
          * null.
          */
         val feedInstruction: String,
+        /**
+         * `-compress`: enable rolling-summary history compression. False
+         * (default) ships the full history every turn (un-compressed
+         * behaviour); true folds old turns into a summary via the
+         * [HistoryCompressor]. Chat-only — OneShot has no history, so the
+         * flag is rejected there at parse time.
+         */
+        val compress: Boolean,
+        /**
+         * `-keepLast N`: trailing messages kept verbatim under [compress]
+         * (snapped down to even by the compressor). Defaults to
+         * [DEFAULT_KEEP_LAST]; only meaningful when [compress] is true.
+         */
+        val keepLast: Int,
+        /**
+         * `-summarizeEvery M`: fold threshold under [compress] — summarize
+         * once at least this many messages pile up beyond the kept tail.
+         * Defaults to [DEFAULT_SUMMARIZE_EVERY]; only meaningful when
+         * [compress] is true.
+         */
+        val summarizeEvery: Int,
     ) : PromptCommand
 
     /**
@@ -189,12 +219,14 @@ internal sealed interface CliArgs {
                 "[$ARG_TEMPERATURE <number 0.0..2.0>] " +
                 "[$ARG_SESSION <name>]\n" +
                 "       [$ARG_FEED_FILE <path> [$ARG_CHUNK_CHARS <int>] [$ARG_FEED_INSTRUCTION <text>]]\n" +
+                "       [$ARG_COMPRESS [$ARG_KEEP_LAST <int>] [$ARG_SUMMARIZE_EVERY <int>]]\n" +
                 "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION, no $ARG_FEED_FILE]\n" +
                 "                (single prompt → response → exit; no REPL, no session)\n" +
                 "   or: $ARG_LIST_SESSIONS   (list saved sessions, ignores all other flags)\n" +
                 "   or: $ARG_CLEAN      (delete ALL session history, ignores all other flags)\n" +
                 "   or: $ARG_INFLATE <N> $ARG_SESSION <name>   (duplicate the last N rows of <name>; no LLM)\n" +
-                "Default provider is $PROVIDER_GEMINI. Default chunk size is $DEFAULT_CHUNK_CHARS chars."
+                "Default provider is $PROVIDER_GEMINI. Default chunk size is $DEFAULT_CHUNK_CHARS chars. " +
+                "Compression defaults: $ARG_KEEP_LAST=$DEFAULT_KEEP_LAST, $ARG_SUMMARIZE_EVERY=$DEFAULT_SUMMARIZE_EVERY."
 
         /**
          * Parses CLI arguments and dispatches to the right [CliArgs] variant.
@@ -253,6 +285,9 @@ internal sealed interface CliArgs {
                 ARG_CHUNK_CHARS,
                 ARG_FEED_INSTRUCTION,
                 ARG_INFLATE,
+                ARG_COMPRESS,
+                ARG_KEEP_LAST,
+                ARG_SUMMARIZE_EVERY,
             )
             val values = mutableMapOf<String, String>()
             var currentFlag: String? = null
@@ -310,6 +345,17 @@ internal sealed interface CliArgs {
                         throw CliArgsException.InvalidArgumentValue(
                             argName = flag,
                             rawValue = conflict,
+                            expectedType = "absent (not compatible with $ARG_INFLATE)",
+                        )
+                    }
+                }
+                // Compression flags are presence-based (-compress is
+                // value-less), so check membership rather than blank-ness.
+                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY).forEach { flag ->
+                    if (flag in values) {
+                        throw CliArgsException.InvalidArgumentValue(
+                            argName = flag,
+                            rawValue = values[flag]?.takeIf { it.isNotBlank() } ?: "(present)",
                             expectedType = "absent (not compatible with $ARG_INFLATE)",
                         )
                     }
@@ -406,6 +452,18 @@ internal sealed interface CliArgs {
                         )
                     }
                 }
+                // Compression is a Chat-only concern (OneShot has no history
+                // to compress). Presence-reject — -compress is value-less so
+                // a blank-check wouldn't catch it.
+                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY).forEach { flag ->
+                    if (flag in values) {
+                        throw CliArgsException.InvalidArgumentValue(
+                            argName = flag,
+                            rawValue = values[flag]?.takeIf { it.isNotBlank() } ?: "(present)",
+                            expectedType = "absent (not compatible with $ARG_ONESHOT)",
+                        )
+                    }
+                }
                 return OneShot(
                     prompt = prompt,
                     maxTokens = maxTokens,
@@ -457,6 +515,37 @@ internal sealed interface CliArgs {
             }
             val feedInstruction = values[ARG_FEED_INSTRUCTION].orEmpty()
 
+            // -compress is a value-less presence flag; -keepLast /
+            // -summarizeEvery tune it and only make sense alongside it.
+            val compress = ARG_COMPRESS in values
+            val keepLast = values[ARG_KEEP_LAST]?.let { raw ->
+                raw.toIntOrNull()?.takeIf { it >= 0 }
+                    ?: throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_KEEP_LAST,
+                        rawValue = raw,
+                        expectedType = "a non-negative integer",
+                    )
+            } ?: DEFAULT_KEEP_LAST
+            val summarizeEvery = values[ARG_SUMMARIZE_EVERY]?.let { raw ->
+                raw.toIntOrNull()?.takeIf { it >= 2 }
+                    ?: throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_SUMMARIZE_EVERY,
+                        rawValue = raw,
+                        expectedType = "an integer >= 2",
+                    )
+            } ?: DEFAULT_SUMMARIZE_EVERY
+            if (!compress) {
+                listOf(ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY).forEach { flag ->
+                    values[flag]?.takeIf { it.isNotBlank() }?.let { raw ->
+                        throw CliArgsException.InvalidArgumentValue(
+                            argName = flag,
+                            rawValue = raw,
+                            expectedType = "absent (requires $ARG_COMPRESS)",
+                        )
+                    }
+                }
+            }
+
             return Chat(
                 prompt = prompt,
                 maxTokens = maxTokens,
@@ -468,6 +557,9 @@ internal sealed interface CliArgs {
                 feedFile = feedFile,
                 chunkChars = chunkChars,
                 feedInstruction = feedInstruction,
+                compress = compress,
+                keepLast = keepLast,
+                summarizeEvery = summarizeEvery,
             )
         }
 

@@ -6,6 +6,7 @@ import java.io.BufferedReader
 import java.io.StringReader
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class AgentTest {
@@ -400,6 +401,176 @@ class AgentTest {
         }
     }
 
+    // --- Day-9 compression -------------------------------------------
+
+    @Test
+    fun `compression folds old turns into a summary pair and shrinks the request`() = runTest {
+        TestDb().use { harness ->
+            val fake = FakeLlmApi().apply {
+                queueText("r1")
+                queueText("r2")
+                queueText("ROLLING SUMMARY")  // summarization call during send 3
+                queueText("r3")
+            }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "comp")
+            val chat = newChat(prompt = "p1", session = "comp")
+            val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
+
+            Agent(
+                cliArgs = chat,
+                llmApi = fake,
+                historyStore = store,
+                promptSource = stdinSource("p2\np3\n/exit\n"),
+                compressor = compressor,
+            ).run()
+
+            // 3 real turns + 1 summarization call.
+            assertEquals(4, fake.calls.size)
+
+            // The summarization call (index 2): one USER message carrying the
+            // folded turns (p1 / r1).
+            assertEquals(1, fake.calls[2].messages.size)
+            assertEquals(Role.USER, fake.calls[2].messages[0].role)
+            assertTrue(fake.calls[2].messages[0].text.contains("p1"))
+
+            // The third real turn (index 3) leads with the synthetic summary
+            // pair, then the recent tail, then the current user turn.
+            val sent = fake.calls[3].messages
+            assertEquals(
+                Message(Role.USER, HistoryCompressor.SUMMARY_FRAME_PREFIX + "ROLLING SUMMARY"),
+                sent[0],
+            )
+            assertEquals(Message(Role.ASSISTANT, HistoryCompressor.ACK_TEXT), sent[1])
+            assertEquals(Message(Role.USER, "p3"), sent.last())
+            // The folded prefix is gone; the request is shorter than full history.
+            assertTrue(sent.none { it.text == "p1" || it.text == "r1" })
+            // Strict role alternation on the wire list (Gemini contract).
+            assertEquals(Role.USER, sent.first().role)
+            sent.zipWithNext().forEach { (a, b) -> assertTrue(a.role != b.role) }
+        }
+    }
+
+    @Test
+    fun `failed summarization degrades to full tail and the real turn still goes out`() = runTest {
+        TestDb().use { harness ->
+            val fake = FakeLlmApi().apply {
+                queueText("r1")
+                queueText("r2")
+                queue(LlmResult(text = null, error = "summarizer boom"))  // compaction fails
+                queueText("r3")
+            }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "degrade")
+            val chat = newChat(prompt = "p1", session = "degrade")
+            val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
+
+            Agent(
+                cliArgs = chat,
+                llmApi = fake,
+                historyStore = store,
+                promptSource = stdinSource("p2\np3\n/exit\n"),
+                compressor = compressor,
+            ).run()
+
+            assertEquals(4, fake.calls.size)
+            // The third real turn carried the FULL history (no summary frame).
+            assertEquals(
+                listOf(
+                    Message(Role.USER, "p1"),
+                    Message(Role.ASSISTANT, "r1"),
+                    Message(Role.USER, "p2"),
+                    Message(Role.ASSISTANT, "r2"),
+                    Message(Role.USER, "p3"),
+                ),
+                fake.calls[3].messages,
+            )
+            // State never advanced → nothing persisted.
+            assertNull(store.loadSummary())
+        }
+    }
+
+    @Test
+    fun `resume uses the persisted summary without re-summarizing covered messages`() = runTest {
+        TestDb().use { harness ->
+            val dao = harness.db.messageDao()
+            // Seed prior history + a persisted summary covering the first pair.
+            val seed = HistoryStore(dao, sessionId = "resume")
+            seed.append(Message(Role.USER, "p1"))
+            seed.append(Message(Role.ASSISTANT, "r1"))
+            seed.append(Message(Role.USER, "p2"))
+            seed.append(Message(Role.ASSISTANT, "r2"))
+            seed.saveSummary(
+                summaryText = "PRIOR SUMMARY",
+                coveredCount = 2,
+                modelId = "gemini-2.5-flash-lite",
+                usage = Usage(promptTokens = 100, outputTokens = 10, totalTokens = 110),
+            )
+
+            // Fresh run: summarizeEvery high enough that no compaction fires.
+            val fake = FakeLlmApi().apply { queueText("r3") }
+            val store = HistoryStore(dao, sessionId = "resume")
+            val chat = newChat(prompt = "p3", session = "resume")
+            val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 100)
+
+            Agent(
+                cliArgs = chat,
+                llmApi = fake,
+                historyStore = store,
+                promptSource = stdinSource("/exit\n"),
+                compressor = compressor,
+            ).run()
+
+            // Only the single real turn — no summarization call.
+            assertEquals(1, fake.calls.size)
+            val sent = fake.calls[0].messages
+            assertEquals(
+                Message(Role.USER, HistoryCompressor.SUMMARY_FRAME_PREFIX + "PRIOR SUMMARY"),
+                sent[0],
+            )
+            assertEquals(Message(Role.ASSISTANT, HistoryCompressor.ACK_TEXT), sent[1])
+            // Covered prefix (p1 / r1) must NOT appear in the request.
+            assertTrue(sent.none { it.text == "p1" || it.text == "r1" })
+            assertEquals(Message(Role.USER, "p2"), sent[2])
+            assertEquals(Message(Role.ASSISTANT, "r2"), sent[3])
+            assertEquals(Message(Role.USER, "p3"), sent.last())
+        }
+    }
+
+    @Test
+    fun `compression runs in feed mode across chunks`() = runTest {
+        TestDb().use { harness ->
+            val fake = FakeLlmApi().apply {
+                queueText("r-open")    // opening prompt
+                queueText("r-c1")      // chunk 1
+                queueText("SUMMARY")   // compaction before the chunk-2 turn
+                queueText("r-c2")      // chunk 2
+            }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "feedcomp")
+            val chat = newChat(prompt = "open", session = "feedcomp")
+            val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
+            val feed = ChunkedFilePromptSource(
+                reader = StringReader("AAABBB"),  // 2 chunks × 3 chars
+                chunkChars = 3,
+                instruction = "",
+            )
+
+            Agent(
+                cliArgs = chat,
+                llmApi = fake,
+                historyStore = store,
+                promptSource = feed,
+                compressor = compressor,
+            ).run()
+
+            // open + chunk1 + (compaction) + chunk2 = 4 calls.
+            assertEquals(4, fake.calls.size)
+            // The chunk-2 turn (index 3) carries the summary pair.
+            assertEquals(
+                Message(Role.USER, HistoryCompressor.SUMMARY_FRAME_PREFIX + "SUMMARY"),
+                fake.calls[3].messages[0],
+            )
+        }
+    }
+
     // --- helpers ----------------------------------------------------
 
     private fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.Chat(
@@ -413,6 +584,9 @@ class AgentTest {
         feedFile = null,
         chunkChars = 2500,
         feedInstruction = "",
+        compress = false,
+        keepLast = 6,
+        summarizeEvery = 10,
     )
 
     /**

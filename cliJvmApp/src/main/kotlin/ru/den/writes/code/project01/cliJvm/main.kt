@@ -201,6 +201,11 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 model = mp.model,
             )
         }
+        // Build the history compressor only when -compress is set on a Chat.
+        // OneShot has no history, so it never compresses (stays null).
+        val compressor = (parsed as? CliArgs.Chat)
+            ?.takeIf { it.compress }
+            ?.let { HistoryCompressor(keepLast = it.keepLast, summarizeEvery = it.summarizeEvery) }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile
         if (feedFile != null) {
             // File-driven feed mode: open the reader, hand a
@@ -223,12 +228,18 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                     historyStore = historyStore,
                     promptSource = feedSource,
                     replAfterFeed = stdinAfter,
+                    compressor = compressor,
                 ).run()
             }
         } else {
             // Stdin REPL: Agent's default StdinPromptSource takes
             // System.in directly.
-            Agent(cliArgs = parsed, llmApi = llmApi, historyStore = historyStore).run()
+            Agent(
+                cliArgs = parsed,
+                llmApi = llmApi,
+                historyStore = historyStore,
+                compressor = compressor,
+            ).run()
         }
     }
 }
