@@ -253,11 +253,14 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 model = mp.model,
             )
         }
-        // Build the history compressor only when -compress is set on a Chat.
-        // OneShot has no history, so it never compresses (stays null).
-        val compressor = (parsed as? CliArgs.Chat)
+        // Pick the context-management strategy. Only Chat varies it; for now
+        // -compress maps to the rolling-summary strategy and everything else
+        // sends the full history. OneShot has no history (the `as? Chat`
+        // guard yields null → FullHistory via the elvis).
+        val strategy: ContextStrategy = (parsed as? CliArgs.Chat)
             ?.takeIf { it.compress }
-            ?.let { HistoryCompressor(keepLast = it.keepLast, summarizeEvery = it.summarizeEvery) }
+            ?.let { ContextStrategy.Summary(HistoryCompressor(keepLast = it.keepLast, summarizeEvery = it.summarizeEvery)) }
+            ?: ContextStrategy.FullHistory
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile
         if (feedFile != null) {
             // File-driven feed mode: open the reader and hand a feed source
@@ -284,7 +287,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                     historyStore = historyStore,
                     promptSource = feedSource,
                     replAfterFeed = stdinAfter,
-                    compressor = compressor,
+                    strategy = strategy,
                 ).run()
             }
         } else {
@@ -294,7 +297,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 cliArgs = parsed,
                 llmApi = llmApi,
                 historyStore = historyStore,
-                compressor = compressor,
+                strategy = strategy,
             ).run()
         }
     }

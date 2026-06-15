@@ -480,7 +480,7 @@ class AgentTest {
                 llmApi = fake,
                 historyStore = store,
                 promptSource = stdinSource("p2\np3\n/exit\n"),
-                compressor = compressor,
+                strategy = ContextStrategy.Summary(compressor),
             ).run()
 
             // 3 real turns + 1 summarization call.
@@ -527,7 +527,7 @@ class AgentTest {
                 llmApi = fake,
                 historyStore = store,
                 promptSource = stdinSource("p2\np3\n/exit\n"),
-                compressor = compressor,
+                strategy = ContextStrategy.Summary(compressor),
             ).run()
 
             assertEquals(4, fake.calls.size)
@@ -575,7 +575,7 @@ class AgentTest {
                 llmApi = fake,
                 historyStore = store,
                 promptSource = stdinSource("/exit\n"),
-                compressor = compressor,
+                strategy = ContextStrategy.Summary(compressor),
             ).run()
 
             // Only the single real turn — no summarization call.
@@ -617,7 +617,7 @@ class AgentTest {
                 llmApi = fake,
                 historyStore = store,
                 promptSource = feed,
-                compressor = compressor,
+                strategy = ContextStrategy.Summary(compressor),
             ).run()
 
             // open + chunk1 + (compaction) + chunk2 = 4 calls.
