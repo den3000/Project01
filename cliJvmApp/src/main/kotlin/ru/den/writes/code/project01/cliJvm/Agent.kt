@@ -7,6 +7,9 @@ import java.io.InputStreamReader
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.measureTimedValue
 
+/** Valid branch names: same shape as session names — alphanumerics, '_' or '-'. */
+private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
+
 /**
  * One running conversation, in either REPL (Chat) or fire-and-forget
  * (OneShot) mode.
@@ -120,19 +123,15 @@ internal class Agent(
         }
 
         try {
-            while (true) {
-                val next = promptSource.nextPrompt() ?: break
-                send(next)
-            }
+            drive(promptSource)
 
-            // Phase 2: after the primary source winds down — for any
-            // reason (file exhausted, REPL EOF, error abort) — hand off
-            // to the follow-up source if one was supplied. We don't
-            // gate this on `!terminated` anymore: the user often wants
-            // to keep probing after the first failure (e.g. push past
-            // a rate-limit or context-overflow boundary manually). The
-            // label distinguishes the two cases so it's visible whether
-            // we got here cleanly or after a stumble.
+            // Phase 2: after the primary source winds down — for any reason
+            // (file exhausted, REPL EOF, error abort) — hand off to the
+            // follow-up source if one was supplied. We don't gate this on
+            // `!terminated`: the user often wants to keep probing after the
+            // first failure (e.g. push past a rate-limit or context-overflow
+            // boundary manually). The label distinguishes a clean finish from
+            // a stumble.
             if (replAfterFeed != null) {
                 val label = if (promptSource.terminated) {
                     "[feed aborted — interim summary]"
@@ -141,11 +140,7 @@ internal class Agent(
                 }
                 historyStore?.let { printSessionSummary(it.stats, label = label) }
                 System.err.println("[continuing in REPL — type /exit or /quit to leave]")
-                currentSource = replAfterFeed
-                while (true) {
-                    val next = replAfterFeed.nextPrompt() ?: break
-                    send(next)
-                }
+                drive(replAfterFeed)
             }
         } finally {
             historyStore?.let { printSessionSummary(it.stats) }
@@ -207,6 +202,81 @@ internal class Agent(
         printFooter(duration.inWholeMilliseconds, result.usage, modelId)
         delay(16.seconds)
         return text
+    }
+
+    /**
+     * Pump [source] until it signals [PromptResult.Stop], sending prompts and
+     * dispatching branch commands. Sets [currentSource] so the source's
+     * `observeReply` / `notifyTurnFailed` hooks fire on the right source as we
+     * move from a feed to the follow-up REPL.
+     */
+    private suspend fun drive(source: PromptSource) {
+        currentSource = source
+        while (true) {
+            when (val next = source.nextPrompt()) {
+                PromptResult.Stop -> return
+                is PromptResult.Prompt -> send(next.text)
+                is PromptResult.Command -> handleBranchCommand(next.command)
+            }
+        }
+    }
+
+    /**
+     * Execute a REPL branch command against [historyStore]. The DB work is
+     * suspend (hence here, not in the pure [PromptSource]); results print to
+     * stderr. Branch commands need a persisted session — a no-op with an
+     * explanatory line otherwise (OneShot).
+     */
+    private suspend fun handleBranchCommand(command: BranchCommand) {
+        val store = historyStore
+        if (store == null) {
+            System.err.println("[branch] branch commands need a persisted session")
+            return
+        }
+        when (command) {
+            BranchCommand.Checkpoint -> System.err.println(
+                "[checkpoint] branch '${store.branchId}', ${store.messages.size} message(s) — " +
+                    "use /branch <name> to fork a new branch from here"
+            )
+            BranchCommand.ListBranches -> {
+                val branches = store.branches()
+                System.err.println(
+                    "[branches] " + branches.joinToString(", ") { if (it == store.branchId) "* $it" else it }
+                )
+            }
+            is BranchCommand.Branch -> {
+                val name = command.name
+                when {
+                    !name.matches(BRANCH_NAME_REGEX) ->
+                        System.err.println("[branch] invalid name '$name' (letters, digits, '_' or '-')")
+                    name == store.branchId ->
+                        System.err.println("[branch] already on '$name'")
+                    name in store.branches() ->
+                        System.err.println("[branch] '$name' already exists — use /switch $name")
+                    else -> {
+                        val copied = store.messages.size
+                        store.fork(name)
+                        System.err.println(
+                            "[branch] forked '${store.branchId}' → '$name' ($copied message(s) copied); " +
+                                "/switch $name to continue on it"
+                        )
+                    }
+                }
+            }
+            is BranchCommand.Switch -> {
+                val name = command.name
+                when {
+                    name == store.branchId -> System.err.println("[branch] already on '$name'")
+                    name !in store.branches() ->
+                        System.err.println("[branch] no such branch '$name' (use /branches to list)")
+                    else -> {
+                        store.switchTo(name)
+                        strategy.rebind(store)
+                        System.err.println("[branch] switched to '$name' (${store.messages.size / 2} prior turn(s))")
+                    }
+                }
+            }
+        }
     }
 
     private fun printFooter(durationMs: Long, usage: Usage?, modelId: String) {

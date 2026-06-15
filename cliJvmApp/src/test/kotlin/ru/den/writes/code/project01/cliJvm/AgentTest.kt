@@ -290,10 +290,10 @@ class AgentTest {
             chunkChars = 5,
             instruction = "",
         )
-        assertEquals("hello", source.nextPrompt())
-        assertEquals(" worl", source.nextPrompt())
-        assertEquals("d!!", source.nextPrompt())
-        assertEquals(null, source.nextPrompt())
+        assertEquals(PromptResult.Prompt("hello"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt(" worl"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt("d!!"), source.nextPrompt())
+        assertEquals(PromptResult.Stop, source.nextPrompt())
     }
 
     @Test
@@ -303,8 +303,8 @@ class AgentTest {
             chunkChars = 5,
             instruction = "Comment:",
         )
-        assertEquals("Comment:\n\n12345", source.nextPrompt())
-        assertEquals(null, source.nextPrompt())
+        assertEquals(PromptResult.Prompt("Comment:\n\n12345"), source.nextPrompt())
+        assertEquals(PromptResult.Stop, source.nextPrompt())
     }
 
     // --- line feed source -------------------------------------------
@@ -312,18 +312,18 @@ class AgentTest {
     @Test
     fun `line feed source yields one line per turn`() {
         val source = LineFilePromptSource(BufferedReader(StringReader("first\nsecond\nthird\n")))
-        assertEquals("first", source.nextPrompt())
-        assertEquals("second", source.nextPrompt())
-        assertEquals("third", source.nextPrompt())
-        assertEquals(null, source.nextPrompt())
+        assertEquals(PromptResult.Prompt("first"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt("second"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt("third"), source.nextPrompt())
+        assertEquals(PromptResult.Stop, source.nextPrompt())
     }
 
     @Test
     fun `line feed source skips blank and whitespace-only lines`() {
         val source = LineFilePromptSource(BufferedReader(StringReader("a\n\n   \nb\n")))
-        assertEquals("a", source.nextPrompt())
-        assertEquals("b", source.nextPrompt())
-        assertEquals(null, source.nextPrompt())
+        assertEquals(PromptResult.Prompt("a"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt("b"), source.nextPrompt())
+        assertEquals(PromptResult.Stop, source.nextPrompt())
     }
 
     @Test
@@ -332,16 +332,16 @@ class AgentTest {
             BufferedReader(StringReader("  hello  \nworld\n")),
             instruction = "Comment:",
         )
-        assertEquals("Comment:\n\nhello", source.nextPrompt())
-        assertEquals("Comment:\n\nworld", source.nextPrompt())
+        assertEquals(PromptResult.Prompt("Comment:\n\nhello"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt("Comment:\n\nworld"), source.nextPrompt())
     }
 
     @Test
     fun `line feed source stops after a failed turn`() {
         val source = LineFilePromptSource(BufferedReader(StringReader("a\nb\nc\n")))
-        assertEquals("a", source.nextPrompt())
+        assertEquals(PromptResult.Prompt("a"), source.nextPrompt())
         source.notifyTurnFailed()
-        assertEquals(null, source.nextPrompt())
+        assertEquals(PromptResult.Stop, source.nextPrompt())
         assertTrue(source.terminated)
     }
 
@@ -708,6 +708,47 @@ class AgentTest {
             )
             assertEquals(Message(Role.USER, "p2"), fake.calls[3].messages.last())
         }
+    }
+
+    // --- Day-10 branching commands ----------------------------------
+
+    @Test
+    fun `branch then switch forks history and continues on the new branch`() = runTest {
+        TestDb().use { harness ->
+            val dao = harness.db.messageDao()
+            val fake = FakeLlmApi().apply {
+                queueText("r1")  // opening turn on main
+                queueText("r2")  // one turn after switching to alt
+            }
+            val store = HistoryStore(dao, sessionId = "s")
+            val chat = newChat(prompt = "m1", session = "s")
+
+            Agent(
+                cliArgs = chat,
+                llmApi = fake,
+                historyStore = store,
+                promptSource = stdinSource("/branch alt\n/switch alt\na1\n/exit\n"),
+            ).run()
+
+            // Branch commands make no LLM calls — only the two real turns do.
+            assertEquals(2, fake.calls.size)
+            // main keeps just its opening exchange; alt has the copied prefix + its own turn.
+            assertEquals(listOf("m1", "r1"), dao.all("s", "main").map { it.text })
+            assertEquals(listOf("m1", "r1", "a1", "r2"), dao.all("s", "alt").map { it.text })
+            assertEquals(setOf("main", "alt"), dao.branchesOf("s").toSet())
+        }
+    }
+
+    @Test
+    fun `StdinPromptSource classifies branch slash-commands`() {
+        fun classify(line: String): PromptResult =
+            StdinPromptSource(BufferedReader(StringReader("$line\n"))).nextPrompt()
+        assertEquals(PromptResult.Command(BranchCommand.Branch("alt")), classify("/branch alt"))
+        assertEquals(PromptResult.Command(BranchCommand.Switch("alt")), classify("/switch alt"))
+        assertEquals(PromptResult.Command(BranchCommand.ListBranches), classify("/branches"))
+        assertEquals(PromptResult.Command(BranchCommand.Checkpoint), classify("/checkpoint"))
+        assertEquals(PromptResult.Stop, classify("/exit"))
+        assertEquals(PromptResult.Prompt("just a prompt"), classify("just a prompt"))
     }
 
     // --- helpers ----------------------------------------------------

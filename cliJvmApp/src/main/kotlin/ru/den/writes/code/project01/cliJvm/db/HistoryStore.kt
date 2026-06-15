@@ -238,6 +238,21 @@ internal class HistoryStore(
         branchId = newBranch
         load()
     }
+
+    /** All branch ids that exist for this session, in order of first appearance. */
+    suspend fun branches(): List<String> = dao.branchesOf(sessionId)
+
+    /**
+     * Fork the current branch into [newBranch]: copy this (session, branch)'s
+     * messages (with token columns, so the fork's stats stay honest), plus its
+     * summary and facts rows if present. Does not switch — the caller switches
+     * explicitly via [switchTo].
+     */
+    suspend fun fork(newBranch: String) {
+        dao.copyBranchMessages(sessionId = sessionId, fromBranch = branchId, toBranch = newBranch)
+        dao.getSummary(sessionId, branchId)?.let { dao.upsertSummary(it.copy(branchId = newBranch)) }
+        dao.getFacts(sessionId, branchId)?.let { dao.upsertFacts(it.copy(branchId = newBranch)) }
+    }
 }
 
 /**

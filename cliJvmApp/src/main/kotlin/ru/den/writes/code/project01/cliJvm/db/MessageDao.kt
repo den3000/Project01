@@ -113,6 +113,25 @@ internal interface MessageDao {
     /** Delete every facts row. Paired with [clearAll] under `-clean`. */
     @Query("DELETE FROM facts")
     suspend fun clearAllFacts()
+
+    // --- branches (Day-10) ------------------------------------------
+
+    /** Distinct branch ids for a session, in order of first appearance. */
+    @Query("SELECT branch_id FROM messages WHERE session_id = :sessionId GROUP BY branch_id ORDER BY MIN(id)")
+    suspend fun branchesOf(sessionId: String): List<String>
+
+    /**
+     * Fork a branch's messages: copy every row of `(sessionId, fromBranch)`
+     * into `toBranch`, preserving role/text AND the token columns (so the
+     * fork's stats stay honest — it's a real continuation, unlike `-inflate`).
+     * New rows get fresh ids; insert order follows the source's `id` order.
+     */
+    @Query(
+        "INSERT INTO messages (session_id, branch_id, role, text, model_id, prompt_tokens, output_tokens, thoughts_tokens, total_tokens) " +
+            "SELECT session_id, :toBranch, role, text, model_id, prompt_tokens, output_tokens, thoughts_tokens, total_tokens " +
+            "FROM messages WHERE session_id = :sessionId AND branch_id = :fromBranch ORDER BY id ASC"
+    )
+    suspend fun copyBranchMessages(sessionId: String, fromBranch: String, toBranch: String)
 }
 
 /** Row shape returned by [MessageDao.listSessions]. */
