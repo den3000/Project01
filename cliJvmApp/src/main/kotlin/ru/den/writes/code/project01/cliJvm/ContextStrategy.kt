@@ -97,7 +97,7 @@ internal class TurnContext(
  * concrete [ContextStrategy], wiring in runtime dependencies (the compressor,
  * the window size, …) that don't belong in parsed CLI args.
  */
-internal enum class ContextStrategyKind { FULL, WINDOW, SUMMARY }
+internal enum class ContextStrategyKind { FULL, WINDOW, FACTS, SUMMARY }
 
 /**
  * Snap a count down to the nearest even number, floored at 0. Shared by the

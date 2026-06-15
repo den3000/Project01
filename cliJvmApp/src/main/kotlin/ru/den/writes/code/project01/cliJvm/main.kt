@@ -264,6 +264,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
         } else when (chat.strategy) {
             ContextStrategyKind.FULL -> ContextStrategy.FullHistory
             ContextStrategyKind.WINDOW -> ContextStrategy.SlidingWindow(chat.keepLast)
+            ContextStrategyKind.FACTS -> StickyFacts(chat.keepLast)
             ContextStrategyKind.SUMMARY -> ContextStrategy.Summary(
                 HistoryCompressor(keepLast = chat.keepLast, summarizeEvery = chat.summarizeEvery),
             )

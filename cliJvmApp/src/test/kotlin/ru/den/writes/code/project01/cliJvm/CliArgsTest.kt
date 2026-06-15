@@ -567,6 +567,27 @@ class CliArgsTest {
     }
 
     @Test
+    fun `strategy facts selects FACTS`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-strategy", "facts"))
+        assertEquals(ContextStrategyKind.FACTS, chat.strategy)
+    }
+
+    @Test
+    fun `keepLast is accepted under strategy facts`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-strategy", "facts", "-keepLast", "4"))
+        assertEquals(ContextStrategyKind.FACTS, chat.strategy)
+        assertEquals(4, chat.keepLast)
+    }
+
+    @Test
+    fun `summarizeEvery is rejected under strategy facts`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-strategy", "facts", "-summarizeEvery", "5")
+        }
+        assertEquals("-summarizeEvery", ex.argName)
+    }
+
+    @Test
     fun `strategy full is both the default and an explicit value`() {
         assertEquals(ContextStrategyKind.FULL, assertIs<CliArgs.Chat>(parse("-prompt", "hi")).strategy)
         assertEquals(

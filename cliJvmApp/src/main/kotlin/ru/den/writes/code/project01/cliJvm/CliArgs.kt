@@ -25,6 +25,7 @@ private const val ARG_STRATEGY = "${ARG_PREFIX}strategy"
 // -strategy values (matched case-insensitively).
 private const val STRATEGY_FULL = "full"
 private const val STRATEGY_WINDOW = "window"
+private const val STRATEGY_FACTS = "facts"
 private const val STRATEGY_SUMMARY = "summary"
 
 private const val PROVIDER_GEMINI = "gemini"
@@ -235,7 +236,7 @@ internal sealed interface CliArgs {
                 "[$ARG_TEMPERATURE <number 0.0..2.0>] " +
                 "[$ARG_SESSION <name>]\n" +
                 "       [$ARG_FEED_FILE <path> [$ARG_CHUNK_CHARS <int> | $ARG_BY_LINE] [$ARG_FEED_INSTRUCTION <text>]]\n" +
-                "       [$ARG_STRATEGY <$STRATEGY_FULL|$STRATEGY_WINDOW|$STRATEGY_SUMMARY> [$ARG_KEEP_LAST <int>] [$ARG_SUMMARIZE_EVERY <int>]]" +
+                "       [$ARG_STRATEGY <$STRATEGY_FULL|$STRATEGY_WINDOW|$STRATEGY_FACTS|$STRATEGY_SUMMARY> [$ARG_KEEP_LAST <int>] [$ARG_SUMMARIZE_EVERY <int>]]" +
                 "  (or $ARG_COMPRESS = $ARG_STRATEGY $STRATEGY_SUMMARY)\n" +
                 "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION, no $ARG_FEED_FILE]\n" +
                 "                (single prompt → response → exit; no REPL, no session)\n" +
@@ -561,11 +562,12 @@ internal sealed interface CliArgs {
                 when (raw.lowercase()) {
                     STRATEGY_FULL -> ContextStrategyKind.FULL
                     STRATEGY_WINDOW -> ContextStrategyKind.WINDOW
+                    STRATEGY_FACTS -> ContextStrategyKind.FACTS
                     STRATEGY_SUMMARY -> ContextStrategyKind.SUMMARY
                     else -> throw CliArgsException.InvalidArgumentValue(
                         argName = ARG_STRATEGY,
                         rawValue = raw,
-                        expectedType = "one of: $STRATEGY_FULL, $STRATEGY_WINDOW, $STRATEGY_SUMMARY",
+                        expectedType = "one of: $STRATEGY_FULL, $STRATEGY_WINDOW, $STRATEGY_FACTS, $STRATEGY_SUMMARY",
                     )
                 }
             }
@@ -610,13 +612,14 @@ internal sealed interface CliArgs {
                         )
                     }
                 }
-                ContextStrategyKind.WINDOW -> values[ARG_SUMMARIZE_EVERY]?.takeIf { it.isNotBlank() }?.let { raw ->
-                    throw CliArgsException.InvalidArgumentValue(
-                        argName = ARG_SUMMARIZE_EVERY,
-                        rawValue = raw,
-                        expectedType = "absent (only valid with $ARG_STRATEGY $STRATEGY_SUMMARY)",
-                    )
-                }
+                ContextStrategyKind.WINDOW, ContextStrategyKind.FACTS ->
+                    values[ARG_SUMMARIZE_EVERY]?.takeIf { it.isNotBlank() }?.let { raw ->
+                        throw CliArgsException.InvalidArgumentValue(
+                            argName = ARG_SUMMARIZE_EVERY,
+                            rawValue = raw,
+                            expectedType = "absent (only valid with $ARG_STRATEGY $STRATEGY_SUMMARY)",
+                        )
+                    }
                 ContextStrategyKind.SUMMARY -> Unit
             }
 
