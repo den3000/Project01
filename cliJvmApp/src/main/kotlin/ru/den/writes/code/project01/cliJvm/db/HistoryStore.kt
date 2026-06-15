@@ -20,8 +20,11 @@ import ru.den.writes.code.project01.cliJvm.Usage
  * Token bookkeeping ([stats]) also lives here: on [load] the running
  * totals are seeded from existing ASSISTANT rows so a resumed session
  * picks up exactly where the last process left off; on [append] with a
- * non-null `usage` the totals tick up. Cost is recomputed from tokens
- * + `modelId` via [PricingRegistry] each time — it isn't stored.
+ * non-null `usage` the totals tick up. The Day-9 compression summary is
+ * persisted here too ([saveSummary] / [loadSummary]); its summarization
+ * calls fold into [stats] as overhead (tokens + cost, but not turns) and
+ * are re-seeded from the summary row on [load]. Cost is recomputed from
+ * tokens + `modelId` via [PricingRegistry] each time — it isn't stored.
  *
  * The store is bound to one [sessionId] at construction; all
  * load/append operations are implicitly scoped to it.
@@ -66,6 +69,18 @@ internal class HistoryStore(
         cache.clear()
         cache += loaded
         stats.seedFrom(dao.assistantMessages(sessionId), PricingRegistry::lookup)
+        // Re-seed compaction overhead from the persisted summary row (if
+        // any) so a resumed compressed session's footer stays honest about
+        // summarization spend. The compressor's own state (summary text +
+        // watermark) is hydrated separately by the caller via loadSummary().
+        dao.getSummary(sessionId)?.let { row ->
+            row.overheadUsageOrNull()?.let { usage ->
+                val cost = row.modelId?.let(PricingRegistry::lookup)
+                    ?.let { PricingRegistry.cost(usage, it) }
+                    ?: 0.0
+                stats.recordOverhead(usage, cost)
+            }
+        }
     }
 
     /**
@@ -107,4 +122,71 @@ internal class HistoryStore(
             stats.record(usage, cost)
         }
     }
+
+    /**
+     * Persist the rolling compression summary for this session and fold
+     * the summarization call's [usage] into [stats] as overhead (tokens +
+     * cost, but not a turn — see [SessionStats.recordOverhead]).
+     *
+     * The token columns on the row are *cumulative* across every
+     * compaction in the session: we read the prior row and add this call's
+     * usage, so a later [load] re-seeds the full overhead in one shot. Only
+     * this call's usage is folded into [stats] live, because earlier
+     * compactions of the current run already recorded theirs (and prior
+     * runs are recovered via [load]). Cost is recomputed from tokens +
+     * [modelId] via [PricingRegistry], never stored.
+     */
+    suspend fun saveSummary(
+        summaryText: String,
+        coveredCount: Int,
+        modelId: String?,
+        usage: Usage?,
+    ) {
+        val prior = dao.getSummary(sessionId)
+        dao.upsertSummary(
+            SummaryEntity(
+                sessionId = sessionId,
+                summaryText = summaryText,
+                coveredCount = coveredCount,
+                modelId = modelId ?: prior?.modelId,
+                promptTokens = sumTokens(prior?.promptTokens, usage?.promptTokens),
+                outputTokens = sumTokens(prior?.outputTokens, usage?.outputTokens),
+                thoughtsTokens = sumTokens(prior?.thoughtsTokens, usage?.thoughtsTokens),
+                totalTokens = sumTokens(prior?.totalTokens, usage?.totalTokens),
+            )
+        )
+        if (usage != null) {
+            val cost = modelId?.let(PricingRegistry::lookup)
+                ?.let { PricingRegistry.cost(usage, it) }
+                ?: 0.0
+            stats.recordOverhead(usage, cost)
+        }
+    }
+
+    /**
+     * The persisted summary row for this session, or null if none stored.
+     * The caller (Agent) uses it to hydrate the compressor's summary +
+     * watermark on resume; the overhead totals were already re-seeded by
+     * [load].
+     */
+    suspend fun loadSummary(): SummaryEntity? = dao.getSummary(sessionId)
+}
+
+/**
+ * Sum two nullable token counts, preserving "no data": null + null → null,
+ * otherwise a missing side counts as 0.
+ */
+private fun sumTokens(a: Int?, b: Int?): Int? =
+    if (a == null && b == null) null else (a ?: 0) + (b ?: 0)
+
+/**
+ * Lift a [SummaryEntity]'s stored overhead token columns back into a
+ * [Usage], or null if the row carries no token data — mirrors how
+ * [SessionStats] reconstructs per-row usage from [MessageEntity].
+ */
+private fun SummaryEntity.overheadUsageOrNull(): Usage? {
+    val p = promptTokens ?: return null
+    val o = outputTokens ?: return null
+    val t = totalTokens ?: return null
+    return Usage(promptTokens = p, outputTokens = o, thoughtsTokens = thoughtsTokens ?: 0, totalTokens = t)
 }

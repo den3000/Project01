@@ -49,6 +49,14 @@ internal class Agent(
      * more errors.
      */
     private val replAfterFeed: PromptSource? = null,
+    /**
+     * Optional history compressor. Null (default) = no compression: the
+     * full history is sent every turn (the un-compressed behaviour). When
+     * non-null, old turns are folded into a rolling summary and each
+     * request carries `[summary pair] + recent tail` instead. Only wired
+     * for Chat with `-compress`; OneShot always passes null.
+     */
+    private val compressor: HistoryCompressor? = null,
 ) {
     /**
      * The source currently driving prompts. Set inside [send] so
@@ -95,6 +103,12 @@ internal class Agent(
                     "[session] resumed: ${store.messages.size / 2} prior turn(s), " +
                         "tokens so far: total=${s.totalTokens}, cost=${formatCost(s.totalCostUsd, knownPricing = true)}"
                 )
+            }
+            // Hydrate the compressor's rolling summary + watermark from the
+            // persisted row so a resumed session keeps compacting where it
+            // left off (overhead totals were already re-seeded by load()).
+            compressor?.let { c ->
+                store.loadSummary()?.let { c.applyPersisted(it.summaryText, it.coveredCount) }
             }
         }
 
@@ -149,10 +163,20 @@ internal class Agent(
      *   mode aborts, returns null.
      */
     private suspend fun send(prompt: String): String? {
+        // Compact BEFORE building the request and before appending this
+        // turn: historyStore.messages is even-length at this point (pairs
+        // are appended only on success), which the compressor's role-
+        // alternation invariant relies on. compactIfNeeded folds older
+        // turns into the rolling summary; planContext then returns the
+        // synthetic summary pair + recent tail in place of the full list.
+        compactIfNeeded()
         val userTurn = Message(role = Role.USER, text = prompt)
+        val baseContext = compressor?.let { c ->
+            historyStore?.let { c.planContext(it.messages) }
+        } ?: historyStore?.messages ?: emptyList()
         val (result, duration) = measureTimedValue {
             llmApi.send(
-                messages = (historyStore?.messages ?: emptyList()) + userTurn,
+                messages = baseContext + userTurn,
                 params = cliArgs.toGenerationParams(),
             )
         }
@@ -183,6 +207,31 @@ internal class Agent(
         printFooter(duration.inWholeMilliseconds, result.usage, modelId)
         delay(16.seconds)
         return text
+    }
+
+    /**
+     * Run a compaction pass if a compressor is configured. Summarizes the
+     * oldest foldable turns into the rolling summary, persists it (folding
+     * the summarization tokens into session overhead), and logs a
+     * `[compaction]` line. A failed or blank summarization degrades
+     * silently — the compressor leaves its state untouched and this turn
+     * ships the full tail; the next turn retries.
+     */
+    private suspend fun compactIfNeeded() {
+        val store = historyStore ?: return
+        val c = compressor ?: return
+        val outcome = c.maybeCompact(store.messages, llmApi) ?: return
+        store.saveSummary(
+            summaryText = outcome.newSummary,
+            coveredCount = outcome.newCoveredCount,
+            modelId = cliArgs.modelProvider.modelId,
+            usage = outcome.usage,
+        )
+        System.err.println(
+            "[compaction] folded messages ${outcome.foldedFrom}..${outcome.foldedTo} " +
+                "into summary; covered=${outcome.newCoveredCount}, " +
+                "kept tail=${store.messages.size - outcome.newCoveredCount}"
+        )
     }
 
     private fun printFooter(durationMs: Long, usage: Usage?, modelId: String) {

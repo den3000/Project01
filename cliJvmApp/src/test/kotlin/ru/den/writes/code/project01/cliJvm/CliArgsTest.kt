@@ -67,6 +67,10 @@ class CliArgsTest {
         assertNull(chat.feedFile)
         assertEquals(2500, chat.chunkChars)
         assertEquals("", chat.feedInstruction)
+        assertEquals(false, chat.byLine)
+        assertEquals(false, chat.compress)
+        assertEquals(6, chat.keepLast)
+        assertEquals(10, chat.summarizeEvery)
         val gemini = assertIs<ModelProvider.Gemini>(chat.modelProvider)
         assertEquals(GeminiModel.Default, gemini.model)
         assertEquals(DUMMY_GEMINI_KEY, gemini.apiKey)
@@ -351,6 +355,48 @@ class CliArgsTest {
         assertEquals("-chunkChars", ex.argName)
     }
 
+    // --- byLine feed mode (line-by-line) ----------------------------
+
+    @Test
+    fun `byLine sets line-feed mode on Chat`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-feedFile", "/tmp/x.txt", "-byLine"))
+        assertTrue(chat.byLine)
+        assertEquals("/tmp/x.txt", chat.feedFile)
+    }
+
+    @Test
+    fun `byLine works with feedInstruction`() {
+        val chat = assertIs<CliArgs.Chat>(
+            parse("-prompt", "hi", "-feedFile", "/tmp/x.txt", "-byLine", "-feedInstruction", "Comment:")
+        )
+        assertTrue(chat.byLine)
+        assertEquals("Comment:", chat.feedInstruction)
+    }
+
+    @Test
+    fun `byLine without feedFile is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-byLine")
+        }
+        assertEquals("-byLine", ex.argName)
+    }
+
+    @Test
+    fun `byLine together with chunkChars is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-feedFile", "/tmp/x.txt", "-byLine", "-chunkChars", "100")
+        }
+        assertEquals("-chunkChars", ex.argName)
+    }
+
+    @Test
+    fun `byLine is rejected alongside oneshot`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-oneshot", "-byLine")
+        }
+        assertEquals("-byLine", ex.argName)
+    }
+
     // --- inflate ----------------------------------------------------
 
     @Test
@@ -417,10 +463,93 @@ class CliArgsTest {
             "-prompt", "-provider", "-maxTokens", "-stopSequence", "-endSequence",
             "-temperature", "-model", "-session", "-oneshot",
             "-sessions", "-clean", "-inflate",
-            "-feedFile", "-chunkChars", "-feedInstruction",
+            "-feedFile", "-chunkChars", "-feedInstruction", "-byLine",
+            "-compress", "-keepLast", "-summarizeEvery",
         ).forEach { flag ->
             assertTrue(usage.contains(flag), "USAGE missing mention of $flag")
         }
+    }
+
+    // --- compression (Day-9) ----------------------------------------
+
+    @Test
+    fun `compress flag enables compression with default knobs`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-compress"))
+        assertTrue(chat.compress)
+        assertEquals(6, chat.keepLast)
+        assertEquals(10, chat.summarizeEvery)
+    }
+
+    @Test
+    fun `compress carries keepLast and summarizeEvery when set`() {
+        val chat = assertIs<CliArgs.Chat>(
+            parse("-prompt", "hi", "-compress", "-keepLast", "4", "-summarizeEvery", "20")
+        )
+        assertTrue(chat.compress)
+        assertEquals(4, chat.keepLast)
+        assertEquals(20, chat.summarizeEvery)
+    }
+
+    @Test
+    fun `keepLast zero is accepted`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-compress", "-keepLast", "0"))
+        assertEquals(0, chat.keepLast)
+    }
+
+    @Test
+    fun `keepLast without compress is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-keepLast", "4")
+        }
+        assertEquals("-keepLast", ex.argName)
+    }
+
+    @Test
+    fun `summarizeEvery without compress is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-summarizeEvery", "10")
+        }
+        assertEquals("-summarizeEvery", ex.argName)
+    }
+
+    @Test
+    fun `negative keepLast is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-compress", "-keepLast", "-3")
+        }
+        assertEquals("-keepLast", ex.argName)
+    }
+
+    @Test
+    fun `summarizeEvery below 2 is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-compress", "-summarizeEvery", "1")
+        }
+        assertEquals("-summarizeEvery", ex.argName)
+    }
+
+    @Test
+    fun `compress is rejected alongside oneshot`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-oneshot", "-compress")
+        }
+        assertEquals("-compress", ex.argName)
+    }
+
+    @Test
+    fun `keepLast is rejected alongside oneshot`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-oneshot", "-keepLast", "4")
+        }
+        assertEquals("-keepLast", ex.argName)
+    }
+
+    @Test
+    fun `compress is rejected alongside inflate`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-inflate", "5", "-session", "foo", "-compress")
+        }
+        assertEquals("-compress", ex.argName)
     }
 
     private companion object {

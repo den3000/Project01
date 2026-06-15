@@ -6,11 +6,12 @@ import java.io.Reader
 /**
  * What drives the next user turn at each loop iteration of [Agent].
  *
- * Two production implementations:
+ * Production implementations:
  * - [StdinPromptSource] — interactive REPL, reads from stdin, handles
  *   `/quit`, `/exit`, `/reuse`.
  * - [ChunkedFilePromptSource] — feed mode, reads next N characters
  *   from a file and returns them as the next user prompt.
+ * - [LineFilePromptSource] — feed mode, one line per turn.
  *
  * Tests pass their own one-shot stubs.
  */
@@ -157,5 +158,44 @@ internal class ChunkedFilePromptSource(
         if (read == 0) return null
         val chunk = String(buffer, 0, read)
         return if (instruction.isEmpty()) chunk else "$instruction\n\n$chunk"
+    }
+}
+
+/**
+ * Reads the next non-blank **line** from [reader] and returns it as the
+ * next user prompt, optionally wrapped in a fixed [instruction] prefix.
+ *
+ * One line = one turn — the easy companion to [ChunkedFilePromptSource]'s
+ * character chunks. Handy for scripting reproducible runs: write the
+ * conversation one turn per line and feed it in. Blank / whitespace-only
+ * lines are skipped (so you can space the script out for readability) and
+ * each line is trimmed. When the stream is exhausted [nextPrompt] returns
+ * `null` and the agent loop stops naturally.
+ *
+ * Same abort semantics as [ChunkedFilePromptSource]: a failed turn flips
+ * [terminated] so the feed stops instead of pushing more lines into an
+ * already-broken conversation. The caller owns the [reader] lifecycle —
+ * wrap construction in a `reader.use { ... }` block at the call site.
+ */
+internal class LineFilePromptSource(
+    private val reader: BufferedReader,
+    private val instruction: String = "",
+) : PromptSource {
+    private var aborted = false
+
+    override val terminated: Boolean get() = aborted
+
+    override fun notifyTurnFailed() {
+        aborted = true
+    }
+
+    override fun nextPrompt(): String? {
+        if (aborted) return null
+        while (true) {
+            val line = reader.readLine() ?: return null  // EOF
+            val trimmed = line.trim()
+            if (trimmed.isEmpty()) continue  // skip blank separator lines
+            return if (instruction.isEmpty()) trimmed else "$instruction\n\n$trimmed"
+        }
     }
 }

@@ -14,6 +14,7 @@ import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
+import ru.den.writes.code.project01.cliJvm.db.MIGRATION_2_3
 import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import java.io.File
@@ -58,10 +59,10 @@ suspend fun main(args: Array<String>) {
         // session_id discriminator, distinct -session values touch
         // disjoint rows and don't fight for the writer lock either.
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-        // v1→v2: hand-written ALTER TABLE for the Day-8 token columns
-        // (see MIGRATION_1_2). Without this, opening an old v1 DB
-        // would throw IllegalStateException at startup.
-        .addMigrations(MIGRATION_1_2)
+        // v1→v2: Day-8 token columns; v2→v3: Day-9 `summaries` table
+        // (see MIGRATION_1_2 / MIGRATION_2_3). Without these, opening an
+        // older DB would throw IllegalStateException at startup.
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
         .build()
 
     try {
@@ -70,7 +71,10 @@ suspend fun main(args: Array<String>) {
             is CliArgs.Clean -> {
                 val before = db.messageDao().count()
                 db.messageDao().clearAll()
-                println("Cleared $before messages across all sessions.")
+                // Wipe the compression summaries too — otherwise an orphan
+                // summary would resurrect on a reused session id.
+                db.messageDao().clearAllSummaries()
+                println("Cleared $before messages across all sessions (and any saved summaries).")
             }
             is CliArgs.Inflate -> inflateSession(db, initialArgs)
             is CliArgs.PromptCommand -> runPromptCommand(db, initialArgs)
@@ -117,7 +121,9 @@ private suspend fun inflateSession(db: AppDatabase, parsed: CliArgs.Inflate) {
 /**
  * Cross-session summary printed by `-sessions`. For each known session,
  * shows the message count plus the lifetime token / cost totals
- * reconstructed from the stored ASSISTANT rows via [SessionStats].
+ * reconstructed from the stored ASSISTANT rows via [SessionStats]. When a
+ * session has a stored compression summary, a `compressed(...)` segment is
+ * appended with the watermark and the cumulative summarization overhead.
  */
 private suspend fun printSessionList(dao: MessageDao) {
     val sessions = dao.listSessions()
@@ -129,11 +135,61 @@ private suspend fun printSessionList(dao: MessageDao) {
         val stats = SessionStats().apply {
             seedFrom(dao.assistantMessages(summary.sessionId), PricingRegistry::lookup)
         }
-        println(
-            "${summary.sessionId}\t${summary.count} messages" +
-                "\ttotal_tokens=${stats.totalTokens}" +
-                "\tcost=\$${"%.5f".format(stats.totalCostUsd)}"
-        )
+        val summaryRow = dao.getSummary(summary.sessionId)
+        val line = if (summaryRow == null) {
+            formatSessionLine(summary.sessionId, summary.count, stats.totalTokens, stats.totalCostUsd)
+        } else {
+            // Compaction overhead lives on the summary row (cumulative
+            // summarization tokens); recompute its cost from the stored
+            // model, mirroring how exchange cost is derived.
+            val overhead = Usage(
+                promptTokens = summaryRow.promptTokens ?: 0,
+                outputTokens = summaryRow.outputTokens ?: 0,
+                thoughtsTokens = summaryRow.thoughtsTokens ?: 0,
+                totalTokens = summaryRow.totalTokens ?: 0,
+            )
+            val overheadCost = summaryRow.modelId?.let(PricingRegistry::lookup)
+                ?.let { PricingRegistry.cost(overhead, it) } ?: 0.0
+            formatSessionLine(
+                sessionId = summary.sessionId,
+                messageCount = summary.count,
+                totalTokens = stats.totalTokens,
+                costUsd = stats.totalCostUsd,
+                coveredCount = summaryRow.coveredCount,
+                overheadTokens = overhead.totalTokens,
+                overheadCostUsd = overheadCost,
+            )
+        }
+        println(line)
+    }
+}
+
+/**
+ * Render one `-sessions` row. The `compressed(...)` segment is appended
+ * only when [coveredCount] is non-null (the session has a stored rolling
+ * summary). [overheadTokens] / [overheadCostUsd] report the cumulative
+ * summarization spend, which is deliberately NOT folded into [totalTokens]
+ * / [costUsd] — those stay the billed exchange totals so the column keeps
+ * its original meaning; the overhead is shown alongside so the price of
+ * compression is visible.
+ */
+internal fun formatSessionLine(
+    sessionId: String,
+    messageCount: Int,
+    totalTokens: Int,
+    costUsd: Double,
+    coveredCount: Int? = null,
+    overheadTokens: Int = 0,
+    overheadCostUsd: Double = 0.0,
+): String {
+    val base = "$sessionId\t$messageCount messages" +
+        "\ttotal_tokens=$totalTokens" +
+        "\tcost=\$${"%.5f".format(costUsd)}"
+    return if (coveredCount == null) {
+        base
+    } else {
+        base + "\tcompressed(covered=$coveredCount/$messageCount" +
+            ", overhead=${overheadTokens}tok \$${"%.5f".format(overheadCostUsd)})"
     }
 }
 
@@ -197,19 +253,28 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 model = mp.model,
             )
         }
+        // Build the history compressor only when -compress is set on a Chat.
+        // OneShot has no history, so it never compresses (stays null).
+        val compressor = (parsed as? CliArgs.Chat)
+            ?.takeIf { it.compress }
+            ?.let { HistoryCompressor(keepLast = it.keepLast, summarizeEvery = it.summarizeEvery) }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile
         if (feedFile != null) {
-            // File-driven feed mode: open the reader, hand a
-            // ChunkedFilePromptSource to Agent. After the file is fully
-            // read, Agent transitions to `replAfterFeed` so the user can
-            // keep chatting until they type /exit. `use` closes the
-            // reader when Agent.run() returns (normally or via error).
+            // File-driven feed mode: open the reader and hand a feed source
+            // to Agent — line-by-line (-byLine) or fixed-size character
+            // chunks. After the file is fully read, Agent transitions to
+            // `replAfterFeed` so the user can keep chatting until they type
+            // /exit. `use` closes the reader when Agent.run() returns.
             File(feedFile).bufferedReader(Charsets.UTF_8).use { reader ->
-                val feedSource = ChunkedFilePromptSource(
-                    reader = reader,
-                    chunkChars = parsed.chunkChars,
-                    instruction = parsed.feedInstruction,
-                )
+                val feedSource: PromptSource = if (parsed.byLine) {
+                    LineFilePromptSource(reader = reader, instruction = parsed.feedInstruction)
+                } else {
+                    ChunkedFilePromptSource(
+                        reader = reader,
+                        chunkChars = parsed.chunkChars,
+                        instruction = parsed.feedInstruction,
+                    )
+                }
                 val stdinAfter = StdinPromptSource(
                     java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
                 )
@@ -219,12 +284,18 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                     historyStore = historyStore,
                     promptSource = feedSource,
                     replAfterFeed = stdinAfter,
+                    compressor = compressor,
                 ).run()
             }
         } else {
             // Stdin REPL: Agent's default StdinPromptSource takes
             // System.in directly.
-            Agent(cliArgs = parsed, llmApi = llmApi, historyStore = historyStore).run()
+            Agent(
+                cliArgs = parsed,
+                llmApi = llmApi,
+                historyStore = historyStore,
+                compressor = compressor,
+            ).run()
         }
     }
 }

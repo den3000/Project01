@@ -4,6 +4,7 @@ import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class HistoryStoreTest {
@@ -180,6 +181,149 @@ class HistoryStoreTest {
             store.append(Message(Role.ASSISTANT, "a"))  // no usage / modelId
             assertEquals(0, store.stats.turns)
             assertEquals(0, store.stats.totalTokens)
+        }
+    }
+
+    // --- Day-9 compression: summary persistence + overhead ----------
+
+    @Test
+    fun `saveSummary persists the row and folds overhead into stats without a turn`() = runTest {
+        TestDb().use { harness ->
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "comp")
+            store.saveSummary(
+                summaryText = "rolling",
+                coveredCount = 10,
+                modelId = "gemini-2.5-flash-lite",
+                usage = Usage(promptTokens = 1000, outputTokens = 200, totalTokens = 1200),
+            )
+
+            // Overhead folded in, but turns stays 0 (not a real exchange).
+            assertEquals(0, store.stats.turns)
+            assertEquals(1000, store.stats.totalPromptTokens)
+            assertEquals(200, store.stats.totalOutputTokens)
+            assertEquals(1200, store.stats.totalTokens)
+            val expected = (1000 * 0.10 + 200 * 0.40) / 1_000_000.0
+            assertEquals(expected, store.stats.totalCostUsd, 1e-12)
+
+            // Row persisted with watermark + cumulative tokens.
+            val row = harness.db.messageDao().getSummary("comp")
+            assertEquals("rolling", row?.summaryText)
+            assertEquals(10, row?.coveredCount)
+            assertEquals(1000, row?.promptTokens)
+        }
+    }
+
+    @Test
+    fun `saveSummary with null usage persists the row and leaves stats untouched`() = runTest {
+        TestDb().use { harness ->
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "comp")
+            store.saveSummary("rolling", coveredCount = 4, modelId = "gemini-2.5-flash-lite", usage = null)
+            assertEquals(0, store.stats.turns)
+            assertEquals(0, store.stats.totalTokens)
+            assertEquals(0.0, store.stats.totalCostUsd)
+            assertEquals("rolling", harness.db.messageDao().getSummary("comp")?.summaryText)
+        }
+    }
+
+    @Test
+    fun `saveSummary accumulates overhead tokens across compactions`() = runTest {
+        TestDb().use { harness ->
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "comp")
+            store.saveSummary(
+                "s1", coveredCount = 10, modelId = "gemini-2.5-flash-lite",
+                usage = Usage(promptTokens = 100, outputTokens = 20, totalTokens = 120),
+            )
+            store.saveSummary(
+                "s2", coveredCount = 20, modelId = "gemini-2.5-flash-lite",
+                usage = Usage(promptTokens = 300, outputTokens = 40, totalTokens = 340),
+            )
+
+            // Row holds the cumulative overhead; latest summary + watermark win.
+            val row = harness.db.messageDao().getSummary("comp")
+            assertEquals("s2", row?.summaryText)
+            assertEquals(20, row?.coveredCount)
+            assertEquals(400, row?.promptTokens) // 100 + 300
+            assertEquals(60, row?.outputTokens)  // 20 + 40
+            assertEquals(460, row?.totalTokens)  // 120 + 340
+            assertEquals(400, store.stats.totalPromptTokens)
+            assertEquals(0, store.stats.turns)
+        }
+    }
+
+    @Test
+    fun `load re-seeds overhead from the persisted summary row`() = runTest {
+        TestDb().use { harness ->
+            val w = HistoryStore(harness.db.messageDao(), sessionId = "resume-comp")
+            w.saveSummary(
+                "rolling", coveredCount = 8, modelId = "gemini-2.5-flash-lite",
+                usage = Usage(promptTokens = 500, outputTokens = 100, totalTokens = 600),
+            )
+
+            val resumed = HistoryStore(harness.db.messageDao(), sessionId = "resume-comp")
+            resumed.load()
+            assertEquals(0, resumed.stats.turns)
+            assertEquals(500, resumed.stats.totalPromptTokens)
+            assertEquals(100, resumed.stats.totalOutputTokens)
+            assertEquals(600, resumed.stats.totalTokens)
+            val expected = (500 * 0.10 + 100 * 0.40) / 1_000_000.0
+            assertEquals(expected, resumed.stats.totalCostUsd, 1e-12)
+        }
+    }
+
+    @Test
+    fun `load combines assistant-row stats with summary overhead`() = runTest {
+        TestDb().use { harness ->
+            val w = HistoryStore(harness.db.messageDao(), sessionId = "mix")
+            w.append(Message(Role.USER, "u"))
+            w.append(
+                Message(Role.ASSISTANT, "a"),
+                usage = Usage(promptTokens = 100, outputTokens = 50, totalTokens = 150),
+                modelId = "gemini-2.5-flash-lite",
+            )
+            w.saveSummary(
+                "rolling", coveredCount = 2, modelId = "gemini-2.5-flash-lite",
+                usage = Usage(promptTokens = 1000, outputTokens = 10, totalTokens = 1010),
+            )
+
+            val resumed = HistoryStore(harness.db.messageDao(), sessionId = "mix")
+            resumed.load()
+            assertEquals(1, resumed.stats.turns)                 // one real exchange
+            assertEquals(1100, resumed.stats.totalPromptTokens)  // 100 + 1000
+            assertEquals(60, resumed.stats.totalOutputTokens)    // 50 + 10
+        }
+    }
+
+    @Test
+    fun `loadSummary round-trips summary text and watermark`() = runTest {
+        TestDb().use { harness ->
+            val w = HistoryStore(harness.db.messageDao(), sessionId = "rt")
+            w.saveSummary("the summary", coveredCount = 12, modelId = "m", usage = null)
+
+            val r = HistoryStore(harness.db.messageDao(), sessionId = "rt")
+            val row = r.loadSummary()
+            assertEquals("the summary", row?.summaryText)
+            assertEquals(12, row?.coveredCount)
+        }
+    }
+
+    @Test
+    fun `load without a summary row seeds no overhead`() = runTest {
+        TestDb().use { harness ->
+            val w = HistoryStore(harness.db.messageDao(), sessionId = "plain")
+            w.append(Message(Role.USER, "u"))
+            w.append(
+                Message(Role.ASSISTANT, "a"),
+                usage = Usage(promptTokens = 10, outputTokens = 5, totalTokens = 15),
+                modelId = "gemini-2.5-flash-lite",
+            )
+
+            val r = HistoryStore(harness.db.messageDao(), sessionId = "plain")
+            r.load()
+            assertEquals(1, r.stats.turns)
+            assertEquals(10, r.stats.totalPromptTokens)
+            assertEquals(5, r.stats.totalOutputTokens)
+            assertEquals(15, r.stats.totalTokens)
+            assertNull(r.loadSummary())
         }
     }
 }
