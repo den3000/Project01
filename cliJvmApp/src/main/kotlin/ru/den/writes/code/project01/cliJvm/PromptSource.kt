@@ -4,6 +4,29 @@ import java.io.BufferedReader
 import java.io.Reader
 
 /**
+ * The outcome of [PromptSource.nextPrompt]: a user prompt to send, a REPL
+ * branch-management command for [Agent] to execute, or a signal to stop the
+ * loop (REPL `/quit` / `/exit`, file exhausted, or an aborted feed).
+ */
+internal sealed interface PromptResult {
+    data class Prompt(val text: String) : PromptResult
+    data class Command(val command: BranchCommand) : PromptResult
+    data object Stop : PromptResult
+}
+
+/**
+ * A branch-management command typed at the REPL (Day-10). [StdinPromptSource]
+ * only classifies the line into one of these; [Agent] executes the (suspend)
+ * DB work, so the source stays pure and synchronous.
+ */
+internal sealed interface BranchCommand {
+    data object Checkpoint : BranchCommand
+    data object ListBranches : BranchCommand
+    data class Branch(val name: String) : BranchCommand
+    data class Switch(val name: String) : BranchCommand
+}
+
+/**
  * What drives the next user turn at each loop iteration of [Agent].
  *
  * Production implementations:
@@ -17,11 +40,11 @@ import java.io.Reader
  */
 internal interface PromptSource {
     /**
-     * Next user prompt to send, or `null` when the source is exhausted
-     * (REPL EOF/quit, file fully consumed, etc.) and the loop should
-     * stop.
+     * The next [PromptResult]: a [PromptResult.Prompt] to send, a
+     * [PromptResult.Command] for the agent to run, or [PromptResult.Stop]
+     * when the source is exhausted (REPL EOF/quit, file consumed, abort).
      */
-    fun nextPrompt(): String?
+    fun nextPrompt(): PromptResult
 
     /**
      * Hook the agent calls after each successful turn. Lets a source
@@ -35,14 +58,14 @@ internal interface PromptSource {
      * Hook the agent calls when a turn failed (provider returned an
      * error). Default is a no-op — REPL sources just let the user try
      * again. [ChunkedFilePromptSource] uses it to flip an abort flag so
-     * the next [nextPrompt] returns `null` and the feed loop stops
-     * gracefully instead of feeding more context into an already-broken
-     * conversation.
+     * the next [nextPrompt] returns [PromptResult.Stop] and the feed loop
+     * stops gracefully instead of feeding more context into an
+     * already-broken conversation.
      */
     fun notifyTurnFailed() {}
 
     /**
-     * `true` if this source returned `null` because it was aborted
+     * `true` if this source signalled [PromptResult.Stop] because it was aborted
      * (e.g. via [notifyTurnFailed]) rather than naturally exhausted
      * (file done, REPL `/exit`). Lets the agent distinguish "loop ended
      * because the data ran out, switch to next phase" from "loop ended
@@ -59,6 +82,10 @@ internal interface PromptSource {
 private const val QUIT_COMMAND = "/quit"
 private const val EXIT_COMMAND = "/exit"
 private const val REUSE_COMMAND = "/reuse"
+private const val CHECKPOINT_COMMAND = "/checkpoint"
+private const val BRANCH_COMMAND = "/branch"
+private const val SWITCH_COMMAND = "/switch"
+private const val BRANCHES_COMMAND = "/branches"
 private const val PROMPT_INDICATOR = "> "
 
 /**
@@ -76,26 +103,40 @@ private const val PROMPT_INDICATOR = "> "
 internal class StdinPromptSource(private val reader: BufferedReader) : PromptSource {
     private var lastReply: String? = null
 
-    override fun nextPrompt(): String? {
+    override fun nextPrompt(): PromptResult {
         while (true) {
             println(
                 "Type a new prompt and press Enter.\n"
-                    + "Type $QUIT_COMMAND or $EXIT_COMMAND to leave.\n"
-                    + "Type $REUSE_COMMAND to send prompt above."
+                    + "Type $QUIT_COMMAND or $EXIT_COMMAND to leave, $REUSE_COMMAND to resend the last reply.\n"
+                    + "Branches: $BRANCHES_COMMAND, $BRANCH_COMMAND <name>, $SWITCH_COMMAND <name>, $CHECKPOINT_COMMAND."
             )
             print(PROMPT_INDICATOR)
             System.out.flush()
-            val line = reader.readLine()?.trim() ?: return null  // EOF / Ctrl-D
+            val line = reader.readLine()?.trim() ?: return PromptResult.Stop  // EOF / Ctrl-D
             if (line.isEmpty()) continue
             if (
                 line.equals(QUIT_COMMAND, ignoreCase = true)
                 || line.equals(EXIT_COMMAND, ignoreCase = true)
-            ) return null
+            ) return PromptResult.Stop
             if (line.equals(REUSE_COMMAND, ignoreCase = true)) {
                 val cached = lastReply?.takeIf { it.isNotEmpty() } ?: continue
-                return cached
+                return PromptResult.Prompt(cached)
             }
-            return line
+            parseBranchCommand(line)?.let { return PromptResult.Command(it) }
+            return PromptResult.Prompt(line)
+        }
+    }
+
+    /** Classify a `/branch`-family command, or null if [line] isn't one. */
+    private fun parseBranchCommand(line: String): BranchCommand? {
+        val parts = line.split(Regex("\\s+"), limit = 2)
+        val name = parts.getOrNull(1)?.trim().orEmpty()
+        return when (parts[0].lowercase()) {
+            CHECKPOINT_COMMAND -> BranchCommand.Checkpoint
+            BRANCHES_COMMAND -> BranchCommand.ListBranches
+            BRANCH_COMMAND -> BranchCommand.Branch(name)
+            SWITCH_COMMAND -> BranchCommand.Switch(name)
+            else -> null
         }
     }
 
@@ -141,8 +182,8 @@ internal class ChunkedFilePromptSource(
         aborted = true
     }
 
-    override fun nextPrompt(): String? {
-        if (aborted) return null
+    override fun nextPrompt(): PromptResult {
+        if (aborted) return PromptResult.Stop
         // Loop until the reader fills at least one character or hits
         // EOF — read() can return 0 if the buffer has length 0 (we
         // guard against that above) or 0 chars are available right now
@@ -155,9 +196,9 @@ internal class ChunkedFilePromptSource(
             read += n
             if (read >= buffer.size) break
         }
-        if (read == 0) return null
+        if (read == 0) return PromptResult.Stop
         val chunk = String(buffer, 0, read)
-        return if (instruction.isEmpty()) chunk else "$instruction\n\n$chunk"
+        return PromptResult.Prompt(if (instruction.isEmpty()) chunk else "$instruction\n\n$chunk")
     }
 }
 
@@ -189,13 +230,13 @@ internal class LineFilePromptSource(
         aborted = true
     }
 
-    override fun nextPrompt(): String? {
-        if (aborted) return null
+    override fun nextPrompt(): PromptResult {
+        if (aborted) return PromptResult.Stop
         while (true) {
-            val line = reader.readLine() ?: return null  // EOF
+            val line = reader.readLine() ?: return PromptResult.Stop  // EOF
             val trimmed = line.trim()
             if (trimmed.isEmpty()) continue  // skip blank separator lines
-            return if (instruction.isEmpty()) trimmed else "$instruction\n\n$trimmed"
+            return PromptResult.Prompt(if (instruction.isEmpty()) trimmed else "$instruction\n\n$trimmed")
         }
     }
 }

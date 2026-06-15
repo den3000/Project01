@@ -68,7 +68,7 @@ class CliArgsTest {
         assertEquals(2500, chat.chunkChars)
         assertEquals("", chat.feedInstruction)
         assertEquals(false, chat.byLine)
-        assertEquals(false, chat.compress)
+        assertEquals(ContextStrategyKind.FULL, chat.strategy)
         assertEquals(6, chat.keepLast)
         assertEquals(10, chat.summarizeEvery)
         val gemini = assertIs<ModelProvider.Gemini>(chat.modelProvider)
@@ -464,7 +464,7 @@ class CliArgsTest {
             "-temperature", "-model", "-session", "-oneshot",
             "-sessions", "-clean", "-inflate",
             "-feedFile", "-chunkChars", "-feedInstruction", "-byLine",
-            "-compress", "-keepLast", "-summarizeEvery",
+            "-compress", "-keepLast", "-summarizeEvery", "-strategy",
         ).forEach { flag ->
             assertTrue(usage.contains(flag), "USAGE missing mention of $flag")
         }
@@ -475,7 +475,7 @@ class CliArgsTest {
     @Test
     fun `compress flag enables compression with default knobs`() {
         val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-compress"))
-        assertTrue(chat.compress)
+        assertEquals(ContextStrategyKind.SUMMARY, chat.strategy)
         assertEquals(6, chat.keepLast)
         assertEquals(10, chat.summarizeEvery)
     }
@@ -485,7 +485,7 @@ class CliArgsTest {
         val chat = assertIs<CliArgs.Chat>(
             parse("-prompt", "hi", "-compress", "-keepLast", "4", "-summarizeEvery", "20")
         )
-        assertTrue(chat.compress)
+        assertEquals(ContextStrategyKind.SUMMARY, chat.strategy)
         assertEquals(4, chat.keepLast)
         assertEquals(20, chat.summarizeEvery)
     }
@@ -550,6 +550,102 @@ class CliArgsTest {
             parse("-inflate", "5", "-session", "foo", "-compress")
         }
         assertEquals("-compress", ex.argName)
+    }
+
+    // --- strategy switch (Day-10) -----------------------------------
+
+    @Test
+    fun `strategy window selects WINDOW`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-strategy", "window"))
+        assertEquals(ContextStrategyKind.WINDOW, chat.strategy)
+    }
+
+    @Test
+    fun `strategy summary selects SUMMARY`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-strategy", "summary"))
+        assertEquals(ContextStrategyKind.SUMMARY, chat.strategy)
+    }
+
+    @Test
+    fun `strategy facts selects FACTS`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-strategy", "facts"))
+        assertEquals(ContextStrategyKind.FACTS, chat.strategy)
+    }
+
+    @Test
+    fun `keepLast is accepted under strategy facts`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-strategy", "facts", "-keepLast", "4"))
+        assertEquals(ContextStrategyKind.FACTS, chat.strategy)
+        assertEquals(4, chat.keepLast)
+    }
+
+    @Test
+    fun `summarizeEvery is rejected under strategy facts`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-strategy", "facts", "-summarizeEvery", "5")
+        }
+        assertEquals("-summarizeEvery", ex.argName)
+    }
+
+    @Test
+    fun `strategy full is both the default and an explicit value`() {
+        assertEquals(ContextStrategyKind.FULL, assertIs<CliArgs.Chat>(parse("-prompt", "hi")).strategy)
+        assertEquals(
+            ContextStrategyKind.FULL,
+            assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-strategy", "full")).strategy,
+        )
+    }
+
+    @Test
+    fun `unknown strategy value is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-strategy", "bogus")
+        }
+        assertEquals("-strategy", ex.argName)
+    }
+
+    @Test
+    fun `compress is shorthand for strategy summary`() {
+        assertEquals(
+            ContextStrategyKind.SUMMARY,
+            assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-compress")).strategy,
+        )
+        // -compress paired with an explicit -strategy summary is allowed.
+        assertEquals(
+            ContextStrategyKind.SUMMARY,
+            assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-compress", "-strategy", "summary")).strategy,
+        )
+    }
+
+    @Test
+    fun `compress paired with a conflicting strategy is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-compress", "-strategy", "window")
+        }
+        assertEquals("-compress", ex.argName)
+    }
+
+    @Test
+    fun `keepLast is accepted under strategy window`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-strategy", "window", "-keepLast", "4"))
+        assertEquals(ContextStrategyKind.WINDOW, chat.strategy)
+        assertEquals(4, chat.keepLast)
+    }
+
+    @Test
+    fun `summarizeEvery is rejected under strategy window`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-strategy", "window", "-summarizeEvery", "5")
+        }
+        assertEquals("-summarizeEvery", ex.argName)
+    }
+
+    @Test
+    fun `strategy is rejected alongside oneshot`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-oneshot", "-strategy", "window")
+        }
+        assertEquals("-strategy", ex.argName)
     }
 
     private companion object {

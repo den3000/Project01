@@ -20,6 +20,13 @@ private const val ARG_INFLATE = "${ARG_PREFIX}inflate"
 private const val ARG_COMPRESS = "${ARG_PREFIX}compress"
 private const val ARG_KEEP_LAST = "${ARG_PREFIX}keepLast"
 private const val ARG_SUMMARIZE_EVERY = "${ARG_PREFIX}summarizeEvery"
+private const val ARG_STRATEGY = "${ARG_PREFIX}strategy"
+
+// -strategy values (matched case-insensitively).
+private const val STRATEGY_FULL = "full"
+private const val STRATEGY_WINDOW = "window"
+private const val STRATEGY_FACTS = "facts"
+private const val STRATEGY_SUMMARY = "summary"
 
 private const val PROVIDER_GEMINI = "gemini"
 private const val PROVIDER_OPENROUTER = "openrouter"
@@ -174,24 +181,26 @@ internal sealed interface CliArgs {
          */
         val byLine: Boolean,
         /**
-         * `-compress`: enable rolling-summary history compression. False
-         * (default) ships the full history every turn (un-compressed
-         * behaviour); true folds old turns into a summary via the
-         * [HistoryCompressor]. Chat-only — OneShot has no history, so the
-         * flag is rejected there at parse time.
+         * Context-management strategy selected via `-strategy`
+         * (`-compress` is the shorthand for [ContextStrategyKind.SUMMARY]).
+         * Defaults to [ContextStrategyKind.FULL] — ship the whole history
+         * each turn. `main` maps this to a concrete [ContextStrategy].
+         * Chat-only — OneShot has no history, so the flags are rejected
+         * there at parse time.
          */
-        val compress: Boolean,
+        val strategy: ContextStrategyKind,
         /**
-         * `-keepLast N`: trailing messages kept verbatim under [compress]
-         * (snapped down to even by the compressor). Defaults to
-         * [DEFAULT_KEEP_LAST]; only meaningful when [compress] is true.
+         * `-keepLast N`: trailing messages kept verbatim. Used by the
+         * sliding-window and summary strategies (snapped down to even).
+         * Defaults to [DEFAULT_KEEP_LAST]; ignored under
+         * [ContextStrategyKind.FULL].
          */
         val keepLast: Int,
         /**
-         * `-summarizeEvery M`: fold threshold under [compress] — summarize
-         * once at least this many messages pile up beyond the kept tail.
-         * Defaults to [DEFAULT_SUMMARIZE_EVERY]; only meaningful when
-         * [compress] is true.
+         * `-summarizeEvery M`: fold threshold for the summary strategy —
+         * summarize once at least this many messages pile up beyond the kept
+         * tail. Defaults to [DEFAULT_SUMMARIZE_EVERY]; only meaningful under
+         * [ContextStrategyKind.SUMMARY].
          */
         val summarizeEvery: Int,
     ) : PromptCommand
@@ -227,14 +236,16 @@ internal sealed interface CliArgs {
                 "[$ARG_TEMPERATURE <number 0.0..2.0>] " +
                 "[$ARG_SESSION <name>]\n" +
                 "       [$ARG_FEED_FILE <path> [$ARG_CHUNK_CHARS <int> | $ARG_BY_LINE] [$ARG_FEED_INSTRUCTION <text>]]\n" +
-                "       [$ARG_COMPRESS [$ARG_KEEP_LAST <int>] [$ARG_SUMMARIZE_EVERY <int>]]\n" +
+                "       [$ARG_STRATEGY <$STRATEGY_FULL|$STRATEGY_WINDOW|$STRATEGY_FACTS|$STRATEGY_SUMMARY> [$ARG_KEEP_LAST <int>] [$ARG_SUMMARIZE_EVERY <int>]]" +
+                "  (or $ARG_COMPRESS = $ARG_STRATEGY $STRATEGY_SUMMARY)\n" +
                 "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION, no $ARG_FEED_FILE]\n" +
                 "                (single prompt → response → exit; no REPL, no session)\n" +
                 "   or: $ARG_LIST_SESSIONS   (list saved sessions, ignores all other flags)\n" +
                 "   or: $ARG_CLEAN      (delete ALL session history, ignores all other flags)\n" +
                 "   or: $ARG_INFLATE <N> $ARG_SESSION <name>   (duplicate the last N rows of <name>; no LLM)\n" +
+                "REPL branch commands: /branches, /branch <name>, /switch <name>, /checkpoint.\n" +
                 "Default provider is $PROVIDER_GEMINI. Default chunk size is $DEFAULT_CHUNK_CHARS chars. " +
-                "Compression defaults: $ARG_KEEP_LAST=$DEFAULT_KEEP_LAST, $ARG_SUMMARIZE_EVERY=$DEFAULT_SUMMARIZE_EVERY."
+                "Strategy tuning defaults: $ARG_KEEP_LAST=$DEFAULT_KEEP_LAST, $ARG_SUMMARIZE_EVERY=$DEFAULT_SUMMARIZE_EVERY."
 
         /**
          * Parses CLI arguments and dispatches to the right [CliArgs] variant.
@@ -297,6 +308,7 @@ internal sealed interface CliArgs {
                 ARG_COMPRESS,
                 ARG_KEEP_LAST,
                 ARG_SUMMARIZE_EVERY,
+                ARG_STRATEGY,
             )
             val values = mutableMapOf<String, String>()
             var currentFlag: String? = null
@@ -360,7 +372,7 @@ internal sealed interface CliArgs {
                 }
                 // Compression / line-mode flags are presence-based
                 // (-compress / -byLine are value-less), so check membership.
-                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE).forEach { flag ->
+                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE, ARG_STRATEGY).forEach { flag ->
                     if (flag in values) {
                         throw CliArgsException.InvalidArgumentValue(
                             argName = flag,
@@ -464,7 +476,7 @@ internal sealed interface CliArgs {
                 // Compression and -byLine are Chat-only concerns (OneShot has
                 // no history / no feed). Presence-reject — these flags are
                 // value-less, so a blank-check wouldn't catch them.
-                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE).forEach { flag ->
+                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE, ARG_STRATEGY).forEach { flag ->
                     if (flag in values) {
                         throw CliArgsException.InvalidArgumentValue(
                             argName = flag,
@@ -544,9 +556,35 @@ internal sealed interface CliArgs {
             }
             val feedInstruction = values[ARG_FEED_INSTRUCTION].orEmpty()
 
-            // -compress is a value-less presence flag; -keepLast /
-            // -summarizeEvery tune it and only make sense alongside it.
-            val compress = ARG_COMPRESS in values
+            // Context-management strategy. -strategy <full|window|summary>
+            // selects it explicitly; -compress is the historical shorthand
+            // for "-strategy summary".
+            val explicitStrategy = values[ARG_STRATEGY]?.takeIf { it.isNotBlank() }?.let { raw ->
+                when (raw.lowercase()) {
+                    STRATEGY_FULL -> ContextStrategyKind.FULL
+                    STRATEGY_WINDOW -> ContextStrategyKind.WINDOW
+                    STRATEGY_FACTS -> ContextStrategyKind.FACTS
+                    STRATEGY_SUMMARY -> ContextStrategyKind.SUMMARY
+                    else -> throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_STRATEGY,
+                        rawValue = raw,
+                        expectedType = "one of: $STRATEGY_FULL, $STRATEGY_WINDOW, $STRATEGY_FACTS, $STRATEGY_SUMMARY",
+                    )
+                }
+            }
+            // -compress == "-strategy summary": allow it alone or paired with
+            // an explicit summary; reject pairing it with any other strategy.
+            val compressShorthand = ARG_COMPRESS in values
+            if (compressShorthand && explicitStrategy != null && explicitStrategy != ContextStrategyKind.SUMMARY) {
+                throw CliArgsException.InvalidArgumentValue(
+                    argName = ARG_COMPRESS,
+                    rawValue = "(present)",
+                    expectedType = "absent — $ARG_COMPRESS is shorthand for $ARG_STRATEGY $STRATEGY_SUMMARY",
+                )
+            }
+            val strategy = explicitStrategy
+                ?: if (compressShorthand) ContextStrategyKind.SUMMARY else ContextStrategyKind.FULL
+
             val keepLast = values[ARG_KEEP_LAST]?.let { raw ->
                 raw.toIntOrNull()?.takeIf { it >= 0 }
                     ?: throw CliArgsException.InvalidArgumentValue(
@@ -563,16 +601,27 @@ internal sealed interface CliArgs {
                         expectedType = "an integer >= 2",
                     )
             } ?: DEFAULT_SUMMARIZE_EVERY
-            if (!compress) {
-                listOf(ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY).forEach { flag ->
+            // -keepLast applies to window + summary; -summarizeEvery to
+            // summary only. Reject the tuning flags where they'd be ignored.
+            when (strategy) {
+                ContextStrategyKind.FULL -> listOf(ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY).forEach { flag ->
                     values[flag]?.takeIf { it.isNotBlank() }?.let { raw ->
                         throw CliArgsException.InvalidArgumentValue(
                             argName = flag,
                             rawValue = raw,
-                            expectedType = "absent (requires $ARG_COMPRESS)",
+                            expectedType = "absent (requires $ARG_STRATEGY $STRATEGY_WINDOW or $STRATEGY_SUMMARY)",
                         )
                     }
                 }
+                ContextStrategyKind.WINDOW, ContextStrategyKind.FACTS ->
+                    values[ARG_SUMMARIZE_EVERY]?.takeIf { it.isNotBlank() }?.let { raw ->
+                        throw CliArgsException.InvalidArgumentValue(
+                            argName = ARG_SUMMARIZE_EVERY,
+                            rawValue = raw,
+                            expectedType = "absent (only valid with $ARG_STRATEGY $STRATEGY_SUMMARY)",
+                        )
+                    }
+                ContextStrategyKind.SUMMARY -> Unit
             }
 
             return Chat(
@@ -587,7 +636,7 @@ internal sealed interface CliArgs {
                 chunkChars = chunkChars,
                 feedInstruction = feedInstruction,
                 byLine = byLine,
-                compress = compress,
+                strategy = strategy,
                 keepLast = keepLast,
                 summarizeEvery = summarizeEvery,
             )

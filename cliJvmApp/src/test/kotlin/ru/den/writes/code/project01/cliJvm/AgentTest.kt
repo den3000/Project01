@@ -290,10 +290,10 @@ class AgentTest {
             chunkChars = 5,
             instruction = "",
         )
-        assertEquals("hello", source.nextPrompt())
-        assertEquals(" worl", source.nextPrompt())
-        assertEquals("d!!", source.nextPrompt())
-        assertEquals(null, source.nextPrompt())
+        assertEquals(PromptResult.Prompt("hello"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt(" worl"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt("d!!"), source.nextPrompt())
+        assertEquals(PromptResult.Stop, source.nextPrompt())
     }
 
     @Test
@@ -303,8 +303,8 @@ class AgentTest {
             chunkChars = 5,
             instruction = "Comment:",
         )
-        assertEquals("Comment:\n\n12345", source.nextPrompt())
-        assertEquals(null, source.nextPrompt())
+        assertEquals(PromptResult.Prompt("Comment:\n\n12345"), source.nextPrompt())
+        assertEquals(PromptResult.Stop, source.nextPrompt())
     }
 
     // --- line feed source -------------------------------------------
@@ -312,18 +312,18 @@ class AgentTest {
     @Test
     fun `line feed source yields one line per turn`() {
         val source = LineFilePromptSource(BufferedReader(StringReader("first\nsecond\nthird\n")))
-        assertEquals("first", source.nextPrompt())
-        assertEquals("second", source.nextPrompt())
-        assertEquals("third", source.nextPrompt())
-        assertEquals(null, source.nextPrompt())
+        assertEquals(PromptResult.Prompt("first"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt("second"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt("third"), source.nextPrompt())
+        assertEquals(PromptResult.Stop, source.nextPrompt())
     }
 
     @Test
     fun `line feed source skips blank and whitespace-only lines`() {
         val source = LineFilePromptSource(BufferedReader(StringReader("a\n\n   \nb\n")))
-        assertEquals("a", source.nextPrompt())
-        assertEquals("b", source.nextPrompt())
-        assertEquals(null, source.nextPrompt())
+        assertEquals(PromptResult.Prompt("a"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt("b"), source.nextPrompt())
+        assertEquals(PromptResult.Stop, source.nextPrompt())
     }
 
     @Test
@@ -332,16 +332,16 @@ class AgentTest {
             BufferedReader(StringReader("  hello  \nworld\n")),
             instruction = "Comment:",
         )
-        assertEquals("Comment:\n\nhello", source.nextPrompt())
-        assertEquals("Comment:\n\nworld", source.nextPrompt())
+        assertEquals(PromptResult.Prompt("Comment:\n\nhello"), source.nextPrompt())
+        assertEquals(PromptResult.Prompt("Comment:\n\nworld"), source.nextPrompt())
     }
 
     @Test
     fun `line feed source stops after a failed turn`() {
         val source = LineFilePromptSource(BufferedReader(StringReader("a\nb\nc\n")))
-        assertEquals("a", source.nextPrompt())
+        assertEquals(PromptResult.Prompt("a"), source.nextPrompt())
         source.notifyTurnFailed()
-        assertEquals(null, source.nextPrompt())
+        assertEquals(PromptResult.Stop, source.nextPrompt())
         assertTrue(source.terminated)
     }
 
@@ -480,7 +480,7 @@ class AgentTest {
                 llmApi = fake,
                 historyStore = store,
                 promptSource = stdinSource("p2\np3\n/exit\n"),
-                compressor = compressor,
+                strategy = ContextStrategy.Summary(compressor),
             ).run()
 
             // 3 real turns + 1 summarization call.
@@ -527,7 +527,7 @@ class AgentTest {
                 llmApi = fake,
                 historyStore = store,
                 promptSource = stdinSource("p2\np3\n/exit\n"),
-                compressor = compressor,
+                strategy = ContextStrategy.Summary(compressor),
             ).run()
 
             assertEquals(4, fake.calls.size)
@@ -575,7 +575,7 @@ class AgentTest {
                 llmApi = fake,
                 historyStore = store,
                 promptSource = stdinSource("/exit\n"),
-                compressor = compressor,
+                strategy = ContextStrategy.Summary(compressor),
             ).run()
 
             // Only the single real turn — no summarization call.
@@ -617,7 +617,7 @@ class AgentTest {
                 llmApi = fake,
                 historyStore = store,
                 promptSource = feed,
-                compressor = compressor,
+                strategy = ContextStrategy.Summary(compressor),
             ).run()
 
             // open + chunk1 + (compaction) + chunk2 = 4 calls.
@@ -628,6 +628,127 @@ class AgentTest {
                 fake.calls[3].messages[0],
             )
         }
+    }
+
+    // --- Day-10 sticky facts ----------------------------------------
+
+    @Test
+    fun `StickyFacts extracts facts and injects them on subsequent turns`() = runTest {
+        TestDb().use { harness ->
+            val fake = FakeLlmApi().apply {
+                queueText("""{"k":"v1"}""")  // extraction for turn 1 (opening prompt)
+                queueText("r1")              // main reply turn 1
+                queueText("""{"k":"v2"}""")  // extraction for turn 2
+                queueText("r2")              // main reply turn 2
+            }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "facts")
+            val chat = newChat(prompt = "p1", session = "facts")
+
+            Agent(
+                cliArgs = chat,
+                llmApi = fake,
+                historyStore = store,
+                promptSource = stdinSource("p2\n/exit\n"),
+                strategy = StickyFacts(keepLast = 2),
+            ).run()
+
+            // Per turn: extraction call first, then the main turn → 4 calls.
+            assertEquals(4, fake.calls.size)
+            // Extraction call (index 0): single USER message with the user text,
+            // and NOT the facts frame (the extractor doesn't see it).
+            assertEquals(1, fake.calls[0].messages.size)
+            assertEquals(Role.USER, fake.calls[0].messages[0].role)
+            assertTrue(fake.calls[0].messages[0].text.contains("p1"))
+            assertTrue(fake.calls[0].messages.none { it.text.startsWith(FactsExtractor.FACTS_FRAME_PREFIX) })
+
+            // Main turn 1 (index 1) leads with the facts pair just extracted.
+            assertEquals(
+                Message(Role.USER, FactsExtractor.FACTS_FRAME_PREFIX + """{"k":"v1"}"""),
+                fake.calls[1].messages[0],
+            )
+            assertEquals(Message(Role.ASSISTANT, FactsExtractor.FACTS_ACK_TEXT), fake.calls[1].messages[1])
+            assertEquals(Message(Role.USER, "p1"), fake.calls[1].messages.last())
+
+            // Main turn 2 (index 3) carries the updated facts + recent tail + new turn.
+            val sent = fake.calls[3].messages
+            assertEquals(Message(Role.USER, FactsExtractor.FACTS_FRAME_PREFIX + """{"k":"v2"}"""), sent[0])
+            assertEquals(Message(Role.USER, "p2"), sent.last())
+
+            // Extraction is overhead, not a turn: only the two real exchanges count.
+            assertEquals(2, store.stats.turns)
+        }
+    }
+
+    @Test
+    fun `StickyFacts keeps prior facts when an extraction returns non-json`() = runTest {
+        TestDb().use { harness ->
+            val fake = FakeLlmApi().apply {
+                queueText("""{"k":"v1"}""")        // extraction turn 1 → facts set
+                queueText("r1")                    // main turn 1
+                queueText("no json here, sorry")   // extraction turn 2 → degrade to prior
+                queueText("r2")                    // main turn 2
+            }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "degrade")
+            val chat = newChat(prompt = "p1", session = "degrade")
+
+            Agent(
+                cliArgs = chat,
+                llmApi = fake,
+                historyStore = store,
+                promptSource = stdinSource("p2\n/exit\n"),
+                strategy = StickyFacts(keepLast = 2),
+            ).run()
+
+            assertEquals(4, fake.calls.size)
+            // Turn 2 still ships the PRIOR facts (extraction 2 was unusable),
+            // and the real turn still goes out.
+            assertEquals(
+                Message(Role.USER, FactsExtractor.FACTS_FRAME_PREFIX + """{"k":"v1"}"""),
+                fake.calls[3].messages[0],
+            )
+            assertEquals(Message(Role.USER, "p2"), fake.calls[3].messages.last())
+        }
+    }
+
+    // --- Day-10 branching commands ----------------------------------
+
+    @Test
+    fun `branch then switch forks history and continues on the new branch`() = runTest {
+        TestDb().use { harness ->
+            val dao = harness.db.messageDao()
+            val fake = FakeLlmApi().apply {
+                queueText("r1")  // opening turn on main
+                queueText("r2")  // one turn after switching to alt
+            }
+            val store = HistoryStore(dao, sessionId = "s")
+            val chat = newChat(prompt = "m1", session = "s")
+
+            Agent(
+                cliArgs = chat,
+                llmApi = fake,
+                historyStore = store,
+                promptSource = stdinSource("/branch alt\n/switch alt\na1\n/exit\n"),
+            ).run()
+
+            // Branch commands make no LLM calls — only the two real turns do.
+            assertEquals(2, fake.calls.size)
+            // main keeps just its opening exchange; alt has the copied prefix + its own turn.
+            assertEquals(listOf("m1", "r1"), dao.all("s", "main").map { it.text })
+            assertEquals(listOf("m1", "r1", "a1", "r2"), dao.all("s", "alt").map { it.text })
+            assertEquals(setOf("main", "alt"), dao.branchesOf("s").toSet())
+        }
+    }
+
+    @Test
+    fun `StdinPromptSource classifies branch slash-commands`() {
+        fun classify(line: String): PromptResult =
+            StdinPromptSource(BufferedReader(StringReader("$line\n"))).nextPrompt()
+        assertEquals(PromptResult.Command(BranchCommand.Branch("alt")), classify("/branch alt"))
+        assertEquals(PromptResult.Command(BranchCommand.Switch("alt")), classify("/switch alt"))
+        assertEquals(PromptResult.Command(BranchCommand.ListBranches), classify("/branches"))
+        assertEquals(PromptResult.Command(BranchCommand.Checkpoint), classify("/checkpoint"))
+        assertEquals(PromptResult.Stop, classify("/exit"))
+        assertEquals(PromptResult.Prompt("just a prompt"), classify("just a prompt"))
     }
 
     // --- helpers ----------------------------------------------------
@@ -644,7 +765,7 @@ class AgentTest {
         chunkChars = 2500,
         feedInstruction = "",
         byLine = false,
-        compress = false,
+        strategy = ContextStrategyKind.FULL,
         keepLast = 6,
         summarizeEvery = 10,
     )

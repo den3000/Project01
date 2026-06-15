@@ -326,4 +326,64 @@ class HistoryStoreTest {
             assertNull(r.loadSummary())
         }
     }
+
+    // --- Day-10 branching + facts -----------------------------------
+
+    @Test
+    fun `branches of the same session are isolated`() = runTest {
+        TestDb().use { harness ->
+            val dao = harness.db.messageDao()
+            HistoryStore(dao, sessionId = "s", initialBranch = "main").append(Message(Role.USER, "on main"))
+            HistoryStore(dao, sessionId = "s", initialBranch = "feature").append(Message(Role.USER, "on feature"))
+
+            val freshMain = HistoryStore(dao, sessionId = "s", initialBranch = "main")
+            freshMain.load()
+            assertEquals(listOf(Message(Role.USER, "on main")), freshMain.messages)
+
+            val freshFeature = HistoryStore(dao, sessionId = "s", initialBranch = "feature")
+            freshFeature.load()
+            assertEquals(listOf(Message(Role.USER, "on feature")), freshFeature.messages)
+        }
+    }
+
+    @Test
+    fun `switchTo re-hydrates the store for the new branch`() = runTest {
+        TestDb().use { harness ->
+            val dao = harness.db.messageDao()
+            HistoryStore(dao, "s", "main").append(Message(Role.USER, "m1"))
+            HistoryStore(dao, "s", "feature").append(Message(Role.USER, "f1"))
+
+            val store = HistoryStore(dao, "s", "main")
+            store.load()
+            assertEquals(listOf(Message(Role.USER, "m1")), store.messages)
+            assertEquals("main", store.branchId)
+
+            store.switchTo("feature")
+            assertEquals("feature", store.branchId)
+            assertEquals(listOf(Message(Role.USER, "f1")), store.messages)
+        }
+    }
+
+    @Test
+    fun `saveFacts folds overhead without a turn and load re-seeds it`() = runTest {
+        TestDb().use { harness ->
+            val dao = harness.db.messageDao()
+            val store = HistoryStore(dao, "s", "main")
+            store.saveFacts(
+                factsJson = """{"name":"Denis"}""",
+                modelId = "gemini-2.5-flash-lite",
+                usage = Usage(promptTokens = 300, outputTokens = 20, totalTokens = 320),
+            )
+            assertEquals(0, store.stats.turns)
+            assertEquals(300, store.stats.totalPromptTokens)
+
+            val resumed = HistoryStore(dao, "s", "main")
+            resumed.load()
+            assertEquals(0, resumed.stats.turns)
+            assertEquals(300, resumed.stats.totalPromptTokens)
+            assertEquals("""{"name":"Denis"}""", resumed.loadFacts()?.factsJson)
+            // Facts are per-branch: the 'feature' branch has none of its own.
+            assertNull(HistoryStore(dao, "s", "feature").loadFacts())
+        }
+    }
 }

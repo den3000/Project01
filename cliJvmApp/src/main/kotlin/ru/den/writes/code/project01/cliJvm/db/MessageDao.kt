@@ -17,8 +17,8 @@ import androidx.room.Upsert
  */
 @Dao
 internal interface MessageDao {
-    @Query("SELECT * FROM messages WHERE session_id = :sessionId ORDER BY id ASC")
-    suspend fun all(sessionId: String): List<MessageEntity>
+    @Query("SELECT * FROM messages WHERE session_id = :sessionId AND branch_id = :branchId ORDER BY id ASC")
+    suspend fun all(sessionId: String, branchId: String = DEFAULT_BRANCH): List<MessageEntity>
 
     /**
      * ASSISTANT-only rows for the given session, in conversation order.
@@ -27,9 +27,10 @@ internal interface MessageDao {
      * them out at the SQL layer is cheaper than scanning everything.
      */
     @Query(
-        "SELECT * FROM messages WHERE session_id = :sessionId AND role = 'ASSISTANT' ORDER BY id ASC"
+        "SELECT * FROM messages WHERE session_id = :sessionId AND branch_id = :branchId " +
+            "AND role = 'ASSISTANT' ORDER BY id ASC"
     )
-    suspend fun assistantMessages(sessionId: String): List<MessageEntity>
+    suspend fun assistantMessages(sessionId: String, branchId: String = DEFAULT_BRANCH): List<MessageEntity>
 
     /**
      * Last [n] rows of [sessionId] in chronological order. Powers the
@@ -42,24 +43,24 @@ internal interface MessageDao {
      * subquery here, this is one disk read.
      */
     @Query(
-        "SELECT * FROM messages WHERE session_id = :sessionId " +
-            "AND id IN (SELECT id FROM messages WHERE session_id = :sessionId ORDER BY id DESC LIMIT :n) " +
+        "SELECT * FROM messages WHERE session_id = :sessionId AND branch_id = :branchId " +
+            "AND id IN (SELECT id FROM messages WHERE session_id = :sessionId AND branch_id = :branchId " +
+            "ORDER BY id DESC LIMIT :n) " +
             "ORDER BY id ASC"
     )
-    suspend fun tail(sessionId: String, n: Int): List<MessageEntity>
+    suspend fun tail(sessionId: String, n: Int, branchId: String = DEFAULT_BRANCH): List<MessageEntity>
 
     @Insert
     suspend fun insert(entity: MessageEntity)
 
     /**
-     * Cross-session summary for the `-sessions` list-mode: one row per
-     * known session id with how many messages it has, ordered by when
-     * the session first appeared (MIN(id) as a cheap "created at"
-     * proxy).
+     * Per-(session, branch) summary for the `-sessions` list-mode: one row
+     * per branch of each session with how many messages it has, ordered by
+     * when the branch first appeared (MIN(id) as a cheap "created at" proxy).
      */
     @Query(
-        "SELECT session_id AS sessionId, COUNT(*) AS count " +
-            "FROM messages GROUP BY session_id ORDER BY MIN(id)"
+        "SELECT session_id AS sessionId, branch_id AS branchId, COUNT(*) AS count " +
+            "FROM messages GROUP BY session_id, branch_id ORDER BY MIN(id)"
     )
     suspend fun listSessions(): List<SessionSummary>
 
@@ -78,9 +79,9 @@ internal interface MessageDao {
 
     // --- summaries (history compression, schema v3) -----------------
 
-    /** The rolling-summary row for a session, or null if none stored yet. */
-    @Query("SELECT * FROM summaries WHERE session_id = :sessionId")
-    suspend fun getSummary(sessionId: String): SummaryEntity?
+    /** The rolling-summary row for a (session, branch), or null if none stored yet. */
+    @Query("SELECT * FROM summaries WHERE session_id = :sessionId AND branch_id = :branchId")
+    suspend fun getSummary(sessionId: String, branchId: String = DEFAULT_BRANCH): SummaryEntity?
 
     /**
      * Insert-or-replace the rolling summary for a session. One row per
@@ -97,10 +98,44 @@ internal interface MessageDao {
      */
     @Query("DELETE FROM summaries")
     suspend fun clearAllSummaries()
+
+    // --- facts (sticky-facts strategy, schema v4) -------------------
+
+    /** The sticky-facts row for a (session, branch), or null if none stored yet. */
+    @Query("SELECT * FROM facts WHERE session_id = :sessionId AND branch_id = :branchId")
+    suspend fun getFacts(sessionId: String, branchId: String): FactsEntity?
+
+    /** Insert-or-replace the facts blob for a (session, branch) — one row each. */
+    @Upsert
+    suspend fun upsertFacts(entity: FactsEntity)
+
+    /** Delete every facts row. Paired with [clearAll] under `-clean`. */
+    @Query("DELETE FROM facts")
+    suspend fun clearAllFacts()
+
+    // --- branches (Day-10) ------------------------------------------
+
+    /** Distinct branch ids for a session, in order of first appearance. */
+    @Query("SELECT branch_id FROM messages WHERE session_id = :sessionId GROUP BY branch_id ORDER BY MIN(id)")
+    suspend fun branchesOf(sessionId: String): List<String>
+
+    /**
+     * Fork a branch's messages: copy every row of `(sessionId, fromBranch)`
+     * into `toBranch`, preserving role/text AND the token columns (so the
+     * fork's stats stay honest — it's a real continuation, unlike `-inflate`).
+     * New rows get fresh ids; insert order follows the source's `id` order.
+     */
+    @Query(
+        "INSERT INTO messages (session_id, branch_id, role, text, model_id, prompt_tokens, output_tokens, thoughts_tokens, total_tokens) " +
+            "SELECT session_id, :toBranch, role, text, model_id, prompt_tokens, output_tokens, thoughts_tokens, total_tokens " +
+            "FROM messages WHERE session_id = :sessionId AND branch_id = :fromBranch ORDER BY id ASC"
+    )
+    suspend fun copyBranchMessages(sessionId: String, fromBranch: String, toBranch: String)
 }
 
 /** Row shape returned by [MessageDao.listSessions]. */
 internal data class SessionSummary(
     val sessionId: String,
+    val branchId: String,
     val count: Int,
 )

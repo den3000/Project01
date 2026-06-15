@@ -7,6 +7,9 @@ import java.io.InputStreamReader
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.measureTimedValue
 
+/** Valid branch names: same shape as session names — alphanumerics, '_' or '-'. */
+private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
+
 /**
  * One running conversation, in either REPL (Chat) or fire-and-forget
  * (OneShot) mode.
@@ -50,13 +53,14 @@ internal class Agent(
      */
     private val replAfterFeed: PromptSource? = null,
     /**
-     * Optional history compressor. Null (default) = no compression: the
-     * full history is sent every turn (the un-compressed behaviour). When
-     * non-null, old turns are folded into a rolling summary and each
-     * request carries `[summary pair] + recent tail` instead. Only wired
-     * for Chat with `-compress`; OneShot always passes null.
+     * How history is shaped into each request. Default
+     * [ContextStrategy.FullHistory] sends the whole conversation every turn
+     * (the un-compressed behaviour). Other strategies fold or trim the
+     * history and may run a per-turn side effect (see [ContextStrategy.onTurn]).
+     * Only Chat varies this; OneShot has no history, so it always uses
+     * [ContextStrategy.FullHistory].
      */
-    private val compressor: HistoryCompressor? = null,
+    private val strategy: ContextStrategy = ContextStrategy.FullHistory,
 ) {
     /**
      * The source currently driving prompts. Set inside [send] so
@@ -104,12 +108,11 @@ internal class Agent(
                         "tokens so far: total=${s.totalTokens}, cost=${formatCost(s.totalCostUsd, knownPricing = true)}"
                 )
             }
-            // Hydrate the compressor's rolling summary + watermark from the
-            // persisted row so a resumed session keeps compacting where it
-            // left off (overhead totals were already re-seeded by load()).
-            compressor?.let { c ->
-                store.loadSummary()?.let { c.applyPersisted(it.summaryText, it.coveredCount) }
-            }
+            // Re-hydrate any per-(session, branch) strategy state (e.g. the
+            // rolling summary + watermark) from persistence so a resumed
+            // session keeps shaping context where it left off (overhead
+            // totals were already re-seeded by load()).
+            strategy.rebind(store)
         }
 
         send(cliArgs.prompt)
@@ -120,19 +123,15 @@ internal class Agent(
         }
 
         try {
-            while (true) {
-                val next = promptSource.nextPrompt() ?: break
-                send(next)
-            }
+            drive(promptSource)
 
-            // Phase 2: after the primary source winds down — for any
-            // reason (file exhausted, REPL EOF, error abort) — hand off
-            // to the follow-up source if one was supplied. We don't
-            // gate this on `!terminated` anymore: the user often wants
-            // to keep probing after the first failure (e.g. push past
-            // a rate-limit or context-overflow boundary manually). The
-            // label distinguishes the two cases so it's visible whether
-            // we got here cleanly or after a stumble.
+            // Phase 2: after the primary source winds down — for any reason
+            // (file exhausted, REPL EOF, error abort) — hand off to the
+            // follow-up source if one was supplied. We don't gate this on
+            // `!terminated`: the user often wants to keep probing after the
+            // first failure (e.g. push past a rate-limit or context-overflow
+            // boundary manually). The label distinguishes a clean finish from
+            // a stumble.
             if (replAfterFeed != null) {
                 val label = if (promptSource.terminated) {
                     "[feed aborted — interim summary]"
@@ -141,11 +140,7 @@ internal class Agent(
                 }
                 historyStore?.let { printSessionSummary(it.stats, label = label) }
                 System.err.println("[continuing in REPL — type /exit or /quit to leave]")
-                currentSource = replAfterFeed
-                while (true) {
-                    val next = replAfterFeed.nextPrompt() ?: break
-                    send(next)
-                }
+                drive(replAfterFeed)
             }
         } finally {
             historyStore?.let { printSessionSummary(it.stats) }
@@ -163,17 +158,18 @@ internal class Agent(
      *   mode aborts, returns null.
      */
     private suspend fun send(prompt: String): String? {
-        // Compact BEFORE building the request and before appending this
-        // turn: historyStore.messages is even-length at this point (pairs
-        // are appended only on success), which the compressor's role-
-        // alternation invariant relies on. compactIfNeeded folds older
-        // turns into the rolling summary; planContext then returns the
-        // synthetic summary pair + recent tail in place of the full list.
-        compactIfNeeded()
+        val modelId = cliArgs.modelProvider.modelId
+        // Per-turn strategy side effect (rolling-summary compaction, facts
+        // extraction, …) runs BEFORE the request is built and before this
+        // turn's pair is appended: historyStore.messages is even-length here
+        // (pairs are appended only on success), which the strategies'
+        // role-alternation invariant relies on. No-op for FullHistory.
+        historyStore?.let { strategy.onTurn(TurnContext(it, llmApi, prompt, modelId)) }
         val userTurn = Message(role = Role.USER, text = prompt)
-        val baseContext = compressor?.let { c ->
-            historyStore?.let { c.planContext(it.messages) }
-        } ?: historyStore?.messages ?: emptyList()
+        // planContext turns the stored history into the wire list — full
+        // history, a summary pair + tail, a sliding window, etc., depending
+        // on the strategy. OneShot (null store) sends just the prompt.
+        val baseContext = historyStore?.let { strategy.planContext(it.messages) } ?: emptyList()
         val (result, duration) = measureTimedValue {
             llmApi.send(
                 messages = baseContext + userTurn,
@@ -194,7 +190,6 @@ internal class Agent(
             return null
         }
 
-        val modelId = cliArgs.modelProvider.modelId
         historyStore?.append(userTurn)
         historyStore?.append(
             Message(role = Role.ASSISTANT, text = text),
@@ -210,28 +205,78 @@ internal class Agent(
     }
 
     /**
-     * Run a compaction pass if a compressor is configured. Summarizes the
-     * oldest foldable turns into the rolling summary, persists it (folding
-     * the summarization tokens into session overhead), and logs a
-     * `[compaction]` line. A failed or blank summarization degrades
-     * silently — the compressor leaves its state untouched and this turn
-     * ships the full tail; the next turn retries.
+     * Pump [source] until it signals [PromptResult.Stop], sending prompts and
+     * dispatching branch commands. Sets [currentSource] so the source's
+     * `observeReply` / `notifyTurnFailed` hooks fire on the right source as we
+     * move from a feed to the follow-up REPL.
      */
-    private suspend fun compactIfNeeded() {
-        val store = historyStore ?: return
-        val c = compressor ?: return
-        val outcome = c.maybeCompact(store.messages, llmApi) ?: return
-        store.saveSummary(
-            summaryText = outcome.newSummary,
-            coveredCount = outcome.newCoveredCount,
-            modelId = cliArgs.modelProvider.modelId,
-            usage = outcome.usage,
-        )
-        System.err.println(
-            "[compaction] folded messages ${outcome.foldedFrom}..${outcome.foldedTo} " +
-                "into summary; covered=${outcome.newCoveredCount}, " +
-                "kept tail=${store.messages.size - outcome.newCoveredCount}"
-        )
+    private suspend fun drive(source: PromptSource) {
+        currentSource = source
+        while (true) {
+            when (val next = source.nextPrompt()) {
+                PromptResult.Stop -> return
+                is PromptResult.Prompt -> send(next.text)
+                is PromptResult.Command -> handleBranchCommand(next.command)
+            }
+        }
+    }
+
+    /**
+     * Execute a REPL branch command against [historyStore]. The DB work is
+     * suspend (hence here, not in the pure [PromptSource]); results print to
+     * stderr. Branch commands need a persisted session — a no-op with an
+     * explanatory line otherwise (OneShot).
+     */
+    private suspend fun handleBranchCommand(command: BranchCommand) {
+        val store = historyStore
+        if (store == null) {
+            System.err.println("[branch] branch commands need a persisted session")
+            return
+        }
+        when (command) {
+            BranchCommand.Checkpoint -> System.err.println(
+                "[checkpoint] branch '${store.branchId}', ${store.messages.size} message(s) — " +
+                    "use /branch <name> to fork a new branch from here"
+            )
+            BranchCommand.ListBranches -> {
+                val branches = store.branches()
+                System.err.println(
+                    "[branches] " + branches.joinToString(", ") { if (it == store.branchId) "* $it" else it }
+                )
+            }
+            is BranchCommand.Branch -> {
+                val name = command.name
+                when {
+                    !name.matches(BRANCH_NAME_REGEX) ->
+                        System.err.println("[branch] invalid name '$name' (letters, digits, '_' or '-')")
+                    name == store.branchId ->
+                        System.err.println("[branch] already on '$name'")
+                    name in store.branches() ->
+                        System.err.println("[branch] '$name' already exists — use /switch $name")
+                    else -> {
+                        val copied = store.messages.size
+                        store.fork(name)
+                        System.err.println(
+                            "[branch] forked '${store.branchId}' → '$name' ($copied message(s) copied); " +
+                                "/switch $name to continue on it"
+                        )
+                    }
+                }
+            }
+            is BranchCommand.Switch -> {
+                val name = command.name
+                when {
+                    name == store.branchId -> System.err.println("[branch] already on '$name'")
+                    name !in store.branches() ->
+                        System.err.println("[branch] no such branch '$name' (use /branches to list)")
+                    else -> {
+                        store.switchTo(name)
+                        strategy.rebind(store)
+                        System.err.println("[branch] switched to '$name' (${store.messages.size / 2} prior turn(s))")
+                    }
+                }
+            }
+        }
     }
 
     private fun printFooter(durationMs: Long, usage: Usage?, modelId: String) {
