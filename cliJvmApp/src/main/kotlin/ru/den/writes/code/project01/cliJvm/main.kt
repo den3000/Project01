@@ -121,7 +121,9 @@ private suspend fun inflateSession(db: AppDatabase, parsed: CliArgs.Inflate) {
 /**
  * Cross-session summary printed by `-sessions`. For each known session,
  * shows the message count plus the lifetime token / cost totals
- * reconstructed from the stored ASSISTANT rows via [SessionStats].
+ * reconstructed from the stored ASSISTANT rows via [SessionStats]. When a
+ * session has a stored compression summary, a `compressed(...)` segment is
+ * appended with the watermark and the cumulative summarization overhead.
  */
 private suspend fun printSessionList(dao: MessageDao) {
     val sessions = dao.listSessions()
@@ -133,11 +135,61 @@ private suspend fun printSessionList(dao: MessageDao) {
         val stats = SessionStats().apply {
             seedFrom(dao.assistantMessages(summary.sessionId), PricingRegistry::lookup)
         }
-        println(
-            "${summary.sessionId}\t${summary.count} messages" +
-                "\ttotal_tokens=${stats.totalTokens}" +
-                "\tcost=\$${"%.5f".format(stats.totalCostUsd)}"
-        )
+        val summaryRow = dao.getSummary(summary.sessionId)
+        val line = if (summaryRow == null) {
+            formatSessionLine(summary.sessionId, summary.count, stats.totalTokens, stats.totalCostUsd)
+        } else {
+            // Compaction overhead lives on the summary row (cumulative
+            // summarization tokens); recompute its cost from the stored
+            // model, mirroring how exchange cost is derived.
+            val overhead = Usage(
+                promptTokens = summaryRow.promptTokens ?: 0,
+                outputTokens = summaryRow.outputTokens ?: 0,
+                thoughtsTokens = summaryRow.thoughtsTokens ?: 0,
+                totalTokens = summaryRow.totalTokens ?: 0,
+            )
+            val overheadCost = summaryRow.modelId?.let(PricingRegistry::lookup)
+                ?.let { PricingRegistry.cost(overhead, it) } ?: 0.0
+            formatSessionLine(
+                sessionId = summary.sessionId,
+                messageCount = summary.count,
+                totalTokens = stats.totalTokens,
+                costUsd = stats.totalCostUsd,
+                coveredCount = summaryRow.coveredCount,
+                overheadTokens = overhead.totalTokens,
+                overheadCostUsd = overheadCost,
+            )
+        }
+        println(line)
+    }
+}
+
+/**
+ * Render one `-sessions` row. The `compressed(...)` segment is appended
+ * only when [coveredCount] is non-null (the session has a stored rolling
+ * summary). [overheadTokens] / [overheadCostUsd] report the cumulative
+ * summarization spend, which is deliberately NOT folded into [totalTokens]
+ * / [costUsd] — those stay the billed exchange totals so the column keeps
+ * its original meaning; the overhead is shown alongside so the price of
+ * compression is visible.
+ */
+internal fun formatSessionLine(
+    sessionId: String,
+    messageCount: Int,
+    totalTokens: Int,
+    costUsd: Double,
+    coveredCount: Int? = null,
+    overheadTokens: Int = 0,
+    overheadCostUsd: Double = 0.0,
+): String {
+    val base = "$sessionId\t$messageCount messages" +
+        "\ttotal_tokens=$totalTokens" +
+        "\tcost=\$${"%.5f".format(costUsd)}"
+    return if (coveredCount == null) {
+        base
+    } else {
+        base + "\tcompressed(covered=$coveredCount/$messageCount" +
+            ", overhead=${overheadTokens}tok \$${"%.5f".format(overheadCostUsd)})"
     }
 }
 
