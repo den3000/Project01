@@ -253,14 +253,19 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 model = mp.model,
             )
         }
-        // Pick the context-management strategy. Only Chat varies it; for now
-        // -compress maps to the rolling-summary strategy and everything else
-        // sends the full history. OneShot has no history (the `as? Chat`
-        // guard yields null → FullHistory via the elvis).
-        val strategy: ContextStrategy = (parsed as? CliArgs.Chat)
-            ?.takeIf { it.compress }
-            ?.let { ContextStrategy.Summary(HistoryCompressor(keepLast = it.keepLast, summarizeEvery = it.summarizeEvery)) }
-            ?: ContextStrategy.FullHistory
+        // Map the parsed strategy kind to a concrete ContextStrategy, wiring
+        // in runtime deps (the compressor, the window size). OneShot has no
+        // history, so the `as? Chat` guard yields null → FullHistory.
+        val chat = parsed as? CliArgs.Chat
+        val strategy: ContextStrategy = if (chat == null) {
+            ContextStrategy.FullHistory
+        } else when (chat.strategy) {
+            ContextStrategyKind.FULL -> ContextStrategy.FullHistory
+            ContextStrategyKind.WINDOW -> ContextStrategy.SlidingWindow(chat.keepLast)
+            ContextStrategyKind.SUMMARY -> ContextStrategy.Summary(
+                HistoryCompressor(keepLast = chat.keepLast, summarizeEvery = chat.summarizeEvery),
+            )
+        }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile
         if (feedFile != null) {
             // File-driven feed mode: open the reader and hand a feed source

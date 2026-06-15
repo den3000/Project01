@@ -197,6 +197,3 @@ internal data class CompactionOutcome(
     val foldedTo: Int,
     val usage: Usage?,
 )
-
-/** Snap a count down to the nearest even number, floored at 0. */
-private fun evenDown(n: Int): Int = (if (n < 0) 0 else n).let { it - it % 2 }

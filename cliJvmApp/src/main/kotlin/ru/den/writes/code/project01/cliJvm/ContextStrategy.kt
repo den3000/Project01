@@ -32,6 +32,20 @@ internal sealed interface ContextStrategy {
     }
 
     /**
+     * Sliding-window strategy: send only the last [keepLast] messages and
+     * drop everything older — no summary, no extra LLM call. The cheapest
+     * way to bound prompt growth, at the cost of forgetting old turns
+     * outright. [keepLast] is snapped down to an even number so the kept
+     * tail stays USER-first and role-alternating; `keepLast = 0` yields an
+     * empty tail (the caller still appends the current USER turn).
+     */
+    class SlidingWindow(keepLast: Int) : ContextStrategy {
+        private val keepLast: Int = evenDown(keepLast)
+        override fun planContext(history: List<Message>): List<Message> =
+            history.takeLast(keepLast)
+    }
+
+    /**
      * Rolling-summary strategy (Day 9): folds old turns into a single
      * summary and sends `[summary pair] + recent tail` instead of the full
      * history. Delegates entirely to [HistoryCompressor] — [onTurn] runs one
@@ -76,3 +90,18 @@ internal class TurnContext(
     val userText: String,
     val modelId: String,
 )
+
+/**
+ * The context-management strategy the user selected (via `-strategy`, or the
+ * `-compress` shorthand). The parser produces this intent; `main` maps it to a
+ * concrete [ContextStrategy], wiring in runtime dependencies (the compressor,
+ * the window size, …) that don't belong in parsed CLI args.
+ */
+internal enum class ContextStrategyKind { FULL, WINDOW, SUMMARY }
+
+/**
+ * Snap a count down to the nearest even number, floored at 0. Shared by the
+ * strategies that keep a USER-first / even tail ([ContextStrategy.SlidingWindow]
+ * and [HistoryCompressor]), both of which rely on the parity invariant.
+ */
+internal fun evenDown(n: Int): Int = (if (n < 0) 0 else n).let { it - it % 2 }

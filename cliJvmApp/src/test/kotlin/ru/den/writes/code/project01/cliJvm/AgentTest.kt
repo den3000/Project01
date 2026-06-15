@@ -644,7 +644,7 @@ class AgentTest {
         chunkChars = 2500,
         feedInstruction = "",
         byLine = false,
-        compress = false,
+        strategy = ContextStrategyKind.FULL,
         keepLast = 6,
         summarizeEvery = 10,
     )
