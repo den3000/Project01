@@ -54,14 +54,13 @@ internal interface MessageDao {
     suspend fun insert(entity: MessageEntity)
 
     /**
-     * Cross-session summary for the `-sessions` list-mode: one row per
-     * known session id with how many messages it has, ordered by when
-     * the session first appeared (MIN(id) as a cheap "created at"
-     * proxy).
+     * Per-(session, branch) summary for the `-sessions` list-mode: one row
+     * per branch of each session with how many messages it has, ordered by
+     * when the branch first appeared (MIN(id) as a cheap "created at" proxy).
      */
     @Query(
-        "SELECT session_id AS sessionId, COUNT(*) AS count " +
-            "FROM messages GROUP BY session_id ORDER BY MIN(id)"
+        "SELECT session_id AS sessionId, branch_id AS branchId, COUNT(*) AS count " +
+            "FROM messages GROUP BY session_id, branch_id ORDER BY MIN(id)"
     )
     suspend fun listSessions(): List<SessionSummary>
 
@@ -137,5 +136,6 @@ internal interface MessageDao {
 /** Row shape returned by [MessageDao.listSessions]. */
 internal data class SessionSummary(
     val sessionId: String,
+    val branchId: String,
     val count: Int,
 )
