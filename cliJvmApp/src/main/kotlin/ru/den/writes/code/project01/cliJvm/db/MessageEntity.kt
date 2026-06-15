@@ -5,6 +5,9 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/** Default branch every session lives on until the user forks one (Day-10 branching). */
+internal const val DEFAULT_BRANCH: String = "main"
+
 /**
  * One persisted message row.
  *
@@ -30,12 +33,12 @@ import androidx.room.PrimaryKey
  *   [ru.den.writes.code.project01.cliJvm.PricingRegistry], so when rates
  *   change we re-price old sessions for free.
  *
- * Index on `session_id` keeps lookups O(log n) once the table grows
- * past a few thousand rows across many sessions.
+ * Index on `(session_id, branch_id)` keeps lookups O(log n) once the table
+ * grows past a few thousand rows across many sessions / branches.
  */
 @Entity(
     tableName = "messages",
-    indices = [Index("session_id")],
+    indices = [Index(value = ["session_id", "branch_id"])],
 )
 internal data class MessageEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -47,4 +50,10 @@ internal data class MessageEntity(
     @ColumnInfo(name = "output_tokens") val outputTokens: Int? = null,
     @ColumnInfo(name = "thoughts_tokens") val thoughtsTokens: Int? = null,
     @ColumnInfo(name = "total_tokens") val totalTokens: Int? = null,
+    /**
+     * Conversation branch this row belongs to (Day-10 branching). Added in
+     * schema v4; pre-v4 rows are backfilled to [DEFAULT_BRANCH]. Together
+     * with [sessionId] it scopes every per-conversation query.
+     */
+    @ColumnInfo(name = "branch_id") val branchId: String = DEFAULT_BRANCH,
 )

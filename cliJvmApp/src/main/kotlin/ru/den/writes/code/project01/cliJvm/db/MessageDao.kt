@@ -97,6 +97,20 @@ internal interface MessageDao {
      */
     @Query("DELETE FROM summaries")
     suspend fun clearAllSummaries()
+
+    // --- facts (sticky-facts strategy, schema v4) -------------------
+
+    /** The sticky-facts row for a (session, branch), or null if none stored yet. */
+    @Query("SELECT * FROM facts WHERE session_id = :sessionId AND branch_id = :branchId")
+    suspend fun getFacts(sessionId: String, branchId: String): FactsEntity?
+
+    /** Insert-or-replace the facts blob for a (session, branch) — one row each. */
+    @Upsert
+    suspend fun upsertFacts(entity: FactsEntity)
+
+    /** Delete every facts row. Paired with [clearAll] under `-clean`. */
+    @Query("DELETE FROM facts")
+    suspend fun clearAllFacts()
 }
 
 /** Row shape returned by [MessageDao.listSessions]. */

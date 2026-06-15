@@ -15,6 +15,7 @@ import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
 import ru.den.writes.code.project01.cliJvm.db.MIGRATION_2_3
+import ru.den.writes.code.project01.cliJvm.db.MIGRATION_3_4
 import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import java.io.File
@@ -59,10 +60,11 @@ suspend fun main(args: Array<String>) {
         // session_id discriminator, distinct -session values touch
         // disjoint rows and don't fight for the writer lock either.
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-        // v1→v2: Day-8 token columns; v2→v3: Day-9 `summaries` table
-        // (see MIGRATION_1_2 / MIGRATION_2_3). Without these, opening an
-        // older DB would throw IllegalStateException at startup.
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        // v1→v2: Day-8 token columns; v2→v3: Day-9 `summaries` table;
+        // v3→v4: Day-10 branch_id + `facts` table (see MIGRATION_1_2 /
+        // MIGRATION_2_3 / MIGRATION_3_4). Without these, opening an older
+        // DB would throw IllegalStateException at startup.
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         .build()
 
     try {
