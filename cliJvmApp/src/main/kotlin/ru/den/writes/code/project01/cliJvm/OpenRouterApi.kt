@@ -38,7 +38,7 @@ internal class OpenRouterApi(
         params: GenerationParams,
     ): LlmResult {
         println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        println("prompt: ${messages.lastOrNull()?.text?.take(100) ?: ""}")
+        println("prompt: ${messages.lastOrNull()?.text ?: ""}")
         println("model: ${model.id}")
         params.maxTokens?.let { println("maxTokens: $it") }
         params.stopSequences?.let { println("stopSequences: $it") }

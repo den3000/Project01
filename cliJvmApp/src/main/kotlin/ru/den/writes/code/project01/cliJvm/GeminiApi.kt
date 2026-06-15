@@ -62,7 +62,7 @@ internal class GeminiApi(
         // Show only the last user turn — the rest of the history is too
         // noisy to print on every call, and that's the prompt the user
         // just typed.
-        println("prompt: ${messages.lastOrNull()?.text?.take(100) ?: ""}")
+        println("prompt: ${messages.lastOrNull()?.text ?: ""}")
         println("model: ${model.id}")
         params.maxTokens?.let { println("maxTokens: $it") }
         params.stopSequences?.let { println("stopSequences: $it") }
