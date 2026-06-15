@@ -17,8 +17,8 @@ import androidx.room.Upsert
  */
 @Dao
 internal interface MessageDao {
-    @Query("SELECT * FROM messages WHERE session_id = :sessionId ORDER BY id ASC")
-    suspend fun all(sessionId: String): List<MessageEntity>
+    @Query("SELECT * FROM messages WHERE session_id = :sessionId AND branch_id = :branchId ORDER BY id ASC")
+    suspend fun all(sessionId: String, branchId: String = DEFAULT_BRANCH): List<MessageEntity>
 
     /**
      * ASSISTANT-only rows for the given session, in conversation order.
@@ -27,9 +27,10 @@ internal interface MessageDao {
      * them out at the SQL layer is cheaper than scanning everything.
      */
     @Query(
-        "SELECT * FROM messages WHERE session_id = :sessionId AND role = 'ASSISTANT' ORDER BY id ASC"
+        "SELECT * FROM messages WHERE session_id = :sessionId AND branch_id = :branchId " +
+            "AND role = 'ASSISTANT' ORDER BY id ASC"
     )
-    suspend fun assistantMessages(sessionId: String): List<MessageEntity>
+    suspend fun assistantMessages(sessionId: String, branchId: String = DEFAULT_BRANCH): List<MessageEntity>
 
     /**
      * Last [n] rows of [sessionId] in chronological order. Powers the
@@ -42,11 +43,12 @@ internal interface MessageDao {
      * subquery here, this is one disk read.
      */
     @Query(
-        "SELECT * FROM messages WHERE session_id = :sessionId " +
-            "AND id IN (SELECT id FROM messages WHERE session_id = :sessionId ORDER BY id DESC LIMIT :n) " +
+        "SELECT * FROM messages WHERE session_id = :sessionId AND branch_id = :branchId " +
+            "AND id IN (SELECT id FROM messages WHERE session_id = :sessionId AND branch_id = :branchId " +
+            "ORDER BY id DESC LIMIT :n) " +
             "ORDER BY id ASC"
     )
-    suspend fun tail(sessionId: String, n: Int): List<MessageEntity>
+    suspend fun tail(sessionId: String, n: Int, branchId: String = DEFAULT_BRANCH): List<MessageEntity>
 
     @Insert
     suspend fun insert(entity: MessageEntity)
@@ -78,9 +80,9 @@ internal interface MessageDao {
 
     // --- summaries (history compression, schema v3) -----------------
 
-    /** The rolling-summary row for a session, or null if none stored yet. */
-    @Query("SELECT * FROM summaries WHERE session_id = :sessionId")
-    suspend fun getSummary(sessionId: String): SummaryEntity?
+    /** The rolling-summary row for a (session, branch), or null if none stored yet. */
+    @Query("SELECT * FROM summaries WHERE session_id = :sessionId AND branch_id = :branchId")
+    suspend fun getSummary(sessionId: String, branchId: String = DEFAULT_BRANCH): SummaryEntity?
 
     /**
      * Insert-or-replace the rolling summary for a session. One row per
