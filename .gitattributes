@@ -1,0 +1,7 @@
+# Project memory: append short, independent bullet lines (see CLAUDE.md).
+# `union` is a built-in merge driver: on conflict it keeps the additions from
+# BOTH sides instead of writing conflict markers — ideal for an append-only
+# memory file edited from parallel worktrees. (Occasional duplicate line is the
+# trade-off; just delete it.) Needs this .gitattributes present on both merged
+# branches to take effect.
+CLAUDE.md merge=union

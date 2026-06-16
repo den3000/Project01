@@ -17,3 +17,7 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# Claude Code: ignore nested worktrees — we use sibling worktrees
+# (../Project01-WT-NN) so Android Studio indexing stays happy. See CLAUDE.md.
+.claude/worktrees/
