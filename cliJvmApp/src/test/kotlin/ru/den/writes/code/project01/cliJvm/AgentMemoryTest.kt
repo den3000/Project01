@@ -118,6 +118,109 @@ class AgentMemoryTest {
         }
     }
 
+    @Test
+    fun `slash memory-mode flips the next turn's wire shape mid-session`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root).apply { saveProfile("Kotlin only") }
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+
+                val fake = FakeLlmApi().apply {
+                    queueText("first")
+                    queueText("second")
+                }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(
+                    chat, fake, store,
+                    promptSource = stdinSource("/memory-mode system\ngo on\n/exit\n"),
+                    memory = memory,
+                ).run()
+
+                // calls[0] — opening turn was PREAMBLE (USER frame + ASSISTANT ack + prompt)
+                assertEquals(Role.USER, fake.calls[0].messages[0].role)
+                assertEquals(Role.ASSISTANT, fake.calls[0].messages[1].role)
+                // calls[1] — after /memory-mode system, the next turn carries Role.SYSTEM
+                val secondWire = fake.calls[1].messages
+                assertEquals(Role.SYSTEM, secondWire[0].role)
+                assertTrue(secondWire[0].text.startsWith(MemoryLayer.PROFILE_HEADING))
+            }
+        }
+    }
+
+    @Test
+    fun `slash profile writes to the store`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root)
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+
+                val fake = FakeLlmApi().apply { queueText("ok") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(
+                    chat, fake, store,
+                    promptSource = stdinSource("/profile I write Kotlin and Compose\n/exit\n"),
+                    memory = memory,
+                ).run()
+
+                assertEquals("I write Kotlin and Compose", memStore.loadProfile())
+            }
+        }
+    }
+
+    @Test
+    fun `slash rule adds a numbered rule file`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root)
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+
+                val fake = FakeLlmApi().apply { queueText("ok") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(
+                    chat, fake, store,
+                    promptSource = stdinSource("/rule No Spring Boot\n/exit\n"),
+                    memory = memory,
+                ).run()
+
+                val rules = memStore.listRules()
+                assertEquals(1, rules.size)
+                assertEquals("001", rules[0].id)
+                assertEquals("No Spring Boot", rules[0].text)
+            }
+        }
+    }
+
+    @Test
+    fun `slash task sets active id and slash task-note appends to it`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root)
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+
+                val fake = FakeLlmApi().apply { queueText("ok") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(
+                    chat, fake, store,
+                    promptSource = stdinSource("/task auth\n/task-note Ktor + JWT chosen\n/exit\n"),
+                    memory = memory,
+                ).run()
+
+                assertEquals("auth", memory.activeTaskId())
+                val task = memStore.loadTask("auth")
+                assertTrue(task != null)
+                assertEquals(listOf("Ktor + JWT chosen"), task.notes)
+            }
+        }
+    }
+
     // --- helpers ----------------------------------------------------
 
     private fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.Chat(

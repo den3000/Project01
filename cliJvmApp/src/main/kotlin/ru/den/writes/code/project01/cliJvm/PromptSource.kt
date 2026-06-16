@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.cliJvm.memory.MemoryMode
 import java.io.BufferedReader
 import java.io.Reader
 
@@ -15,15 +16,29 @@ internal sealed interface PromptResult {
 }
 
 /**
- * A branch-management command typed at the REPL (Day-10). [StdinPromptSource]
- * only classifies the line into one of these; [Agent] executes the (suspend)
- * DB work, so the source stays pure and synchronous.
+ * A branch-management command typed at the REPL (Day-10) or a
+ * memory-management command (Day-11). [StdinPromptSource] only
+ * classifies the line into one of these; [Agent] executes the
+ * (suspend) DB/disk work, so the source stays pure and synchronous.
  */
 internal sealed interface BranchCommand {
     data object Checkpoint : BranchCommand
     data object ListBranches : BranchCommand
     data class Branch(val name: String) : BranchCommand
     data class Switch(val name: String) : BranchCommand
+
+    /** Print the active mode + the saved profile/rules/task. */
+    data object ShowMemory : BranchCommand
+    /** Overwrite `profile.md` with the given text. */
+    data class SetProfile(val text: String) : BranchCommand
+    /** Append a new rule under `rules/`. */
+    data class AddRule(val text: String) : BranchCommand
+    /** Switch the active task id (creates an empty task file if absent). */
+    data class SetTask(val taskId: String) : BranchCommand
+    /** Append a note to the currently-active task. */
+    data class AppendTaskNote(val note: String) : BranchCommand
+    /** Flip the memory-injection mode (PREAMBLE ↔ SYSTEM). */
+    data class SetMemoryMode(val mode: MemoryMode) : BranchCommand
 }
 
 /**
@@ -86,6 +101,12 @@ private const val CHECKPOINT_COMMAND = "/checkpoint"
 private const val BRANCH_COMMAND = "/branch"
 private const val SWITCH_COMMAND = "/switch"
 private const val BRANCHES_COMMAND = "/branches"
+private const val MEMORY_COMMAND = "/memory"
+private const val PROFILE_COMMAND = "/profile"
+private const val RULE_COMMAND = "/rule"
+private const val TASK_COMMAND = "/task"
+private const val TASK_NOTE_COMMAND = "/task-note"
+private const val MEMORY_MODE_COMMAND = "/memory-mode"
 private const val PROMPT_INDICATOR = "> "
 
 /**
@@ -108,7 +129,9 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
             println(
                 "Type a new prompt and press Enter.\n"
                     + "Type $QUIT_COMMAND or $EXIT_COMMAND to leave, $REUSE_COMMAND to resend the last reply.\n"
-                    + "Branches: $BRANCHES_COMMAND, $BRANCH_COMMAND <name>, $SWITCH_COMMAND <name>, $CHECKPOINT_COMMAND."
+                    + "Branches: $BRANCHES_COMMAND, $BRANCH_COMMAND <name>, $SWITCH_COMMAND <name>, $CHECKPOINT_COMMAND.\n"
+                    + "Memory: $MEMORY_COMMAND, $PROFILE_COMMAND <text>, $RULE_COMMAND <text>, $TASK_COMMAND <id>, "
+                    + "$TASK_NOTE_COMMAND <text>, $MEMORY_MODE_COMMAND <preamble|system>."
             )
             print(PROMPT_INDICATOR)
             System.out.flush()
@@ -127,17 +150,35 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
         }
     }
 
-    /** Classify a `/branch`-family command, or null if [line] isn't one. */
+    /**
+     * Classify a `/branch`-family or `/memory`-family command, or null
+     * if [line] isn't one. The lone exception is `/memory-mode` which
+     * needs a `preamble` / `system` argument — anything else falls
+     * through as a normal prompt (the agent's footer makes the typo
+     * obvious; we'd rather not eat the line silently).
+     */
     private fun parseBranchCommand(line: String): BranchCommand? {
         val parts = line.split(Regex("\\s+"), limit = 2)
-        val name = parts.getOrNull(1)?.trim().orEmpty()
+        val arg = parts.getOrNull(1)?.trim().orEmpty()
         return when (parts[0].lowercase()) {
             CHECKPOINT_COMMAND -> BranchCommand.Checkpoint
             BRANCHES_COMMAND -> BranchCommand.ListBranches
-            BRANCH_COMMAND -> BranchCommand.Branch(name)
-            SWITCH_COMMAND -> BranchCommand.Switch(name)
+            BRANCH_COMMAND -> BranchCommand.Branch(arg)
+            SWITCH_COMMAND -> BranchCommand.Switch(arg)
+            MEMORY_COMMAND -> BranchCommand.ShowMemory
+            PROFILE_COMMAND -> BranchCommand.SetProfile(arg)
+            RULE_COMMAND -> BranchCommand.AddRule(arg)
+            TASK_COMMAND -> BranchCommand.SetTask(arg)
+            TASK_NOTE_COMMAND -> BranchCommand.AppendTaskNote(arg)
+            MEMORY_MODE_COMMAND -> parseMemoryMode(arg)
             else -> null
         }
+    }
+
+    private fun parseMemoryMode(arg: String): BranchCommand? = when (arg.lowercase()) {
+        "preamble" -> BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE)
+        "system" -> BranchCommand.SetMemoryMode(MemoryMode.SYSTEM)
+        else -> null
     }
 
     override fun observeReply(reply: String) {

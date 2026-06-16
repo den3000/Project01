@@ -3,6 +3,7 @@ package ru.den.writes.code.project01.cliJvm
 import kotlinx.coroutines.delay
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.project01.cliJvm.memory.TaskNotes
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlin.time.Duration.Companion.seconds
@@ -238,29 +239,29 @@ internal class Agent(
     }
 
     /**
-     * Execute a REPL branch command against [historyStore]. The DB work is
-     * suspend (hence here, not in the pure [PromptSource]); results print to
-     * stderr. Branch commands need a persisted session — a no-op with an
-     * explanatory line otherwise (OneShot).
+     * Execute a REPL branch- or memory-management command. The DB work
+     * (and disk work for memory) is suspend / blocking, so the
+     * `PromptSource` stays pure and only classifies the line. Branch
+     * commands need a persisted session; memory commands need a
+     * configured [memory] provider — each prints an explanatory line
+     * to stderr when its dependency is absent. Output otherwise mirrors
+     * the existing `[branch] …` style.
      */
     private suspend fun handleBranchCommand(command: BranchCommand) {
-        val store = historyStore
-        if (store == null) {
-            System.err.println("[branch] branch commands need a persisted session")
-            return
-        }
         when (command) {
-            BranchCommand.Checkpoint -> System.err.println(
-                "[checkpoint] branch '${store.branchId}', ${store.messages.size} message(s) — " +
-                    "use /branch <name> to fork a new branch from here"
-            )
-            BranchCommand.ListBranches -> {
+            BranchCommand.Checkpoint -> withHistoryStore { store ->
+                System.err.println(
+                    "[checkpoint] branch '${store.branchId}', ${store.messages.size} message(s) — " +
+                        "use /branch <name> to fork a new branch from here"
+                )
+            }
+            BranchCommand.ListBranches -> withHistoryStore { store ->
                 val branches = store.branches()
                 System.err.println(
                     "[branches] " + branches.joinToString(", ") { if (it == store.branchId) "* $it" else it }
                 )
             }
-            is BranchCommand.Branch -> {
+            is BranchCommand.Branch -> withHistoryStore { store ->
                 val name = command.name
                 when {
                     !name.matches(BRANCH_NAME_REGEX) ->
@@ -279,7 +280,7 @@ internal class Agent(
                     }
                 }
             }
-            is BranchCommand.Switch -> {
+            is BranchCommand.Switch -> withHistoryStore { store ->
                 val name = command.name
                 when {
                     name == store.branchId -> System.err.println("[branch] already on '$name'")
@@ -292,6 +293,74 @@ internal class Agent(
                     }
                 }
             }
+            BranchCommand.ShowMemory -> withMemory { mem ->
+                System.err.println("[memory]\n${mem.describe()}")
+            }
+            is BranchCommand.SetProfile -> withMemory { mem ->
+                if (command.text.isBlank()) {
+                    System.err.println("[memory] /profile needs the new profile text")
+                } else {
+                    mem.store.saveProfile(command.text)
+                    System.err.println("[memory] profile saved (${command.text.length} char(s))")
+                }
+            }
+            is BranchCommand.AddRule -> withMemory { mem ->
+                if (command.text.isBlank()) {
+                    System.err.println("[memory] /rule needs the new rule text")
+                } else {
+                    val rule = mem.store.addRule(command.text)
+                    System.err.println("[memory] rule ${rule.id} added")
+                }
+            }
+            is BranchCommand.SetTask -> withMemory { mem ->
+                val id = command.taskId
+                if (id.isBlank()) {
+                    System.err.println("[memory] /task needs a task id")
+                } else {
+                    mem.setTask(id)
+                    // Touch-create so the file is visible on `/memory` and on disk
+                    // even before the first note is appended.
+                    if (mem.store.loadTask(id) == null) {
+                        mem.store.saveTask(TaskNotes(taskId = id))
+                    }
+                    System.err.println("[memory] active task → $id")
+                }
+            }
+            is BranchCommand.AppendTaskNote -> withMemory { mem ->
+                val active = mem.activeTaskId()
+                when {
+                    active == null ->
+                        System.err.println("[memory] /task-note needs an active task — set one with /task <id>")
+                    command.note.isBlank() ->
+                        System.err.println("[memory] /task-note needs the note text")
+                    else -> {
+                        mem.store.appendTaskNote(active, command.note)
+                        System.err.println("[memory] note appended to task '$active'")
+                    }
+                }
+            }
+            is BranchCommand.SetMemoryMode -> withMemory { mem ->
+                mem.setMode(command.mode)
+                System.err.println("[memory] mode → ${command.mode.name.lowercase()}")
+            }
+        }
+    }
+
+    private inline fun withHistoryStore(block: (HistoryStore) -> Unit) {
+        val store = historyStore
+        if (store == null) {
+            System.err.println("[branch] branch commands need a persisted session")
+        } else {
+            block(store)
+        }
+    }
+
+    private inline fun withMemory(block: (MemoryProvider) -> Unit) {
+        val mem = memory
+        if (mem == null) {
+            System.err.println("[memory] memory commands need -memory-mode <preamble|system> at startup")
+        } else {
+            block(mem)
         }
     }
 
