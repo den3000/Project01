@@ -2,6 +2,7 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.delay
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlin.time.Duration.Companion.seconds
@@ -61,6 +62,15 @@ internal class Agent(
      * [ContextStrategy.FullHistory].
      */
     private val strategy: ContextStrategy = ContextStrategy.FullHistory,
+    /**
+     * Long-term + working memory façade (Day-11). Non-null when the user
+     * passed `-memory-mode preamble|system`; null otherwise (and for
+     * OneShot, which has no memory by design). Read once per turn from
+     * [send] and prepended to the wire list either as a USER/ASSISTANT
+     * frame pair (PREAMBLE) or as one-or-more `Role.SYSTEM` messages
+     * (SYSTEM). Memory entries are NEVER persisted into [historyStore].
+     */
+    private val memory: MemoryProvider? = null,
 ) {
     /**
      * The source currently driving prompts. Set inside [send] so
@@ -170,9 +180,15 @@ internal class Agent(
         // history, a summary pair + tail, a sliding window, etc., depending
         // on the strategy. OneShot (null store) sends just the prompt.
         val baseContext = historyStore?.let { strategy.planContext(it.messages) } ?: emptyList()
+        // Memory layer (profile / rules / current task) sits ABOVE the
+        // history tail so it stays stable across turns even as `baseContext`
+        // gets re-shaped by the strategy. Empty list when no MemoryProvider
+        // is wired in, or when every layer is empty — byte-identical to
+        // the no-memory path.
+        val memoryLayer = memory?.memoryLayer() ?: emptyList()
         val (result, duration) = measureTimedValue {
             llmApi.send(
-                messages = baseContext + userTurn,
+                messages = memoryLayer + baseContext + userTurn,
                 params = cliArgs.toGenerationParams(),
             )
         }
