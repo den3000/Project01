@@ -21,7 +21,7 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   - Hot reload: `./gradlew :desktopApp:hotRun --auto`
   - Standard run: `./gradlew :desktopApp:run`
 - iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
-- CLI JVM app — sends a prompt to a chat-style LLM (Gemini or OpenRouter),
+- CLI JVM app — sends a prompt to a chat-style LLM (Gemini, OpenRouter or Hugging Face),
   prints the response with a stats footer that reports both the current
   turn's token usage and the session's running totals + USD cost (the
   same SQLite row store that holds history holds the per-call token
@@ -31,9 +31,11 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   `session: turns=K prompt=… output=… total=…   cost=$M`
   Cost is recomputed each time from tokens + per-row `model_id` via a
   static rate table; models not in the table show `cost=$? (no pricing)`
-  in place of the number. `thoughts` is included only for Gemini
-  thinking-capable models (OpenRouter rolls reasoning tokens into
-  `output`). Once the prompt passes 90% of the window, a
+  in place of the number. `thoughts` is reported for Gemini
+  thinking-capable models and for Hugging Face reasoning models that
+  surface `completion_tokens_details.reasoning_tokens` (DeepSeek-R1,
+  Qwen3-Thinking, gpt-oss variants); OpenRouter rolls reasoning tokens
+  into `output`. Once the prompt passes 90% of the window, a
   `[warning] context window …% full` line is printed to stderr.
   Unless `-oneshot` is passed, the agent drops into a REPL where each
   new line becomes the next prompt — or in **feed mode** (see flags
@@ -68,6 +70,7 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
     variables, and exposed via `BuildKonfig`:
     - `GEMINI_API_KEY` → `BuildKonfig.GEMINI_API_KEY`
     - `OPENROUTER_API_KEY` → `BuildKonfig.OPENROUTER_API_KEY`
+    - `HUGGINGFACE_API_KEY` → `BuildKonfig.HUGGINGFACE_API_KEY`
 
     Only the chosen provider's key needs to be set. Read-only commands
     (`-sessions`, `-clean`) work without any key at all.
@@ -146,14 +149,16 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
     relative to a `full` run to see a strategy holding prompt growth down.
   - Generation knobs (persist across REPL iterations — only the prompt
     changes between turns):
-    - `-provider <gemini|openrouter>` → picks which API to call. Default:
-      `gemini`. Each provider has its own typed model catalog and key.
+    - `-provider <gemini|openrouter|huggingface>` → picks which API to
+      call. Default: `gemini`. Each provider has its own typed model
+      catalog and key.
     - `-model <model-id>` → picks the model. Default depends on the
       provider — see catalogs below. Unknown ids fall through to a `Custom`
       variant and are forwarded to the provider verbatim (the provider's
       API decides whether to accept them).
     - `-maxTokens <int>` → upper bound on output tokens (Gemini:
-      `generationConfig.maxOutputTokens`; OpenRouter: `max_tokens`).
+      `generationConfig.maxOutputTokens`; OpenRouter / Hugging Face:
+      `max_tokens`).
     - `-stopSequence <words>` → split on whitespace; each word becomes its
       own stop sequence. Generation halts the moment *any one* of them
       appears in the output. Capped at 5 words (Gemini's limit; OpenRouter
@@ -161,8 +166,9 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
       API at runtime).
     - `-endSequence <text>` → asks the model to end its response with that
       string. Lowered to a system instruction internally (Gemini's
-      `systemInstruction`, OpenRouter's `system`-role message). Best-effort
-      — it's a model directive, not an API guarantee.
+      `systemInstruction`; OpenRouter / Hugging Face: a prepended
+      `system`-role message). Best-effort — it's a model directive, not
+      an API guarantee.
     - `-temperature <number>` → decimal. Higher values produce more
       random / creative output, lower values are more deterministic.
       Gemini accepts roughly `0.0..2.0`. Out-of-range values are rejected
@@ -196,6 +202,21 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   `google/gemma-3-27b-it` is still live but **paid** (~$0.08/$0.16 per 1M
   tokens) — it's not in the typed catalog, but the price table knows it,
   so a `-model google/gemma-3-27b-it` run still reports real cost.
+
+  **Hugging Face Router**
+  ([Inference Providers chat-completions](https://huggingface.co/docs/inference-providers/tasks/chat-completion),
+  default: `meta-llama/Llama-3.3-70B-Instruct`). The Router fans out to
+  backing providers (Cerebras, Together, Fireworks, DeepInfra…), so the
+  exact rate billed depends on which provider answers the call — the
+  price-table figures are *approximate*. The HF $0.10/month free credit
+  pool applies on top of those rates. Available ids drift fast — verify
+  against `https://router.huggingface.co/v1/models` when one starts
+  404-ing; any current id passes through as `Custom`. Typed catalog:
+  - `meta-llama/Llama-3.3-70B-Instruct` (131K ctx) — general
+  - `deepseek-ai/DeepSeek-R1` (64K ctx) — reasoning
+  - `Qwen/Qwen3-4B-Thinking-2507` (256K ctx) — light thinking
+  - `Qwen/Qwen3.6-35B-A3B` (131K ctx) — MoE general
+  - `openai/gpt-oss-120b` (131K ctx) — large general / tool calling
 
   **Demo recipes** (after `./gradlew :cliJvmApp:installDist`):
 
@@ -251,8 +272,8 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 - Android tests: `./gradlew :shared:testAndroidHostTest`
 - Desktop tests: `./gradlew :shared:jvmTest`
 - iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
-- CLI JVM app tests (fast, no network — Gemini/OpenRouter are stubbed):
-  `./gradlew :cliJvmApp:test`
+- CLI JVM app tests (fast, no network — all providers stubbed via
+  `FakeLlmApi`): `./gradlew :cliJvmApp:test`
 
 ---
 

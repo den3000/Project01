@@ -63,8 +63,12 @@ internal data class GenerationParams(
 )
 
 /**
- * Neutral token-accounting type. [thoughtsTokens] is always 0 for
- * providers that don't separately bill reasoning tokens (e.g. OpenRouter).
+ * Neutral token-accounting type. [thoughtsTokens] reports reasoning /
+ * thinking tokens when the provider surfaces them separately — Gemini
+ * via `usageMetadata.thoughtsTokenCount`, Hugging Face via
+ * `completion_tokens_details.reasoning_tokens` on reasoning-capable
+ * models. Always 0 for providers (OpenRouter) or responses that fold
+ * reasoning into the regular completion count.
  */
 internal data class Usage(
     val promptTokens: Int,

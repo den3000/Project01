@@ -5,10 +5,11 @@ package ru.den.writes.code.project01.cliJvm
  * URL, resolved API key, and the typed model.
  *
  * Exists only as a CLI-layer discriminator between the supported
- * providers (currently Gemini and OpenRouter). The actual wire shapes,
- * DTOs and per-turn logic live in [GeminiApi] / [OpenRouterApi];
- * [ModelProvider] is just the carrier that lets [CliArgs] expose a
- * single field and `main.kt` dispatch on a `when`.
+ * providers (currently Gemini, OpenRouter and Hugging Face). The actual
+ * wire shapes, DTOs and per-turn logic live in [GeminiApi] /
+ * [OpenRouterApi] / [HuggingFaceApi]; [ModelProvider] is just the
+ * carrier that lets [CliArgs] expose a single field and `main.kt`
+ * dispatch on a `when`.
  */
 internal sealed interface ModelProvider {
     /** Full URL of the chat-style endpoint for this provider/model. */
@@ -42,6 +43,20 @@ internal sealed interface ModelProvider {
         override val apiKey: String,
     ) : ModelProvider {
         override val endpoint: String get() = "https://openrouter.ai/api/v1/chat/completions"
+        override val modelId: String get() = model.id
+    }
+
+    /**
+     * Hugging Face Inference Providers — Router endpoint that fronts a
+     * pool of backing providers (Cerebras / Together / Fireworks / …).
+     * One endpoint for all models; the model id rides in the request
+     * body, same as OpenRouter.
+     */
+    data class HuggingFace(
+        val model: HuggingFaceModel = HuggingFaceModel.Default,
+        override val apiKey: String,
+    ) : ModelProvider {
+        override val endpoint: String get() = "https://router.huggingface.co/v1/chat/completions"
         override val modelId: String get() = model.id
     }
 }

@@ -39,6 +39,17 @@ class PricingRegistryTest {
     }
 
     @Test
+    fun `lookup returns approximate rates for a Hugging Face routed model`() {
+        // HF Router prices are per-provider; the registry holds an
+        // approximation so the footer still shows a real cost figure
+        // instead of "(no pricing)" for the typed catalog ids.
+        val p = assertNotNull(PricingRegistry.lookup("meta-llama/Llama-3.3-70B-Instruct"))
+        assertEquals(0.23, p.inputUsdPer1M)
+        assertEquals(0.40, p.outputUsdPer1M)
+        assertEquals(131_072, p.contextWindowTokens)
+    }
+
+    @Test
     fun `cost formula includes thoughts under the output rate`() {
         // 1000 prompt × $0.10/M = 0.0001
         // (500 output + 200 thoughts) × $0.40/M = 0.00028
