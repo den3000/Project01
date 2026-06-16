@@ -221,6 +221,100 @@ class AgentMemoryTest {
         }
     }
 
+    @Test
+    fun `slash task-note without an active task does not crash and writes nothing`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root)
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+
+                val fake = FakeLlmApi().apply { queueText("ok") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(
+                    chat, fake, store,
+                    promptSource = stdinSource("/task-note stranded\n/exit\n"),
+                    memory = memory,
+                ).run()
+
+                assertEquals(emptyList(), memStore.listTaskIds(), "no task should have been created")
+            }
+        }
+    }
+
+    @Test
+    fun `slash profile with no text is rejected and leaves the store empty`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root)
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+
+                val fake = FakeLlmApi().apply { queueText("ok") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(
+                    chat, fake, store,
+                    promptSource = stdinSource("/profile\n/exit\n"),
+                    memory = memory,
+                ).run()
+
+                assertEquals(null, memStore.loadProfile())
+            }
+        }
+    }
+
+    @Test
+    fun `slash memory-mode with garbage falls through as a normal prompt`() = runTest {
+        // /memory-mode without a valid value isn't a recognised command, so
+        // parseBranchCommand returns null and the line travels as a user
+        // prompt — the agent sends a second turn and the mode stays put.
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root).apply { saveProfile("anything") }
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+
+                val fake = FakeLlmApi().apply {
+                    queueText("first")
+                    queueText("second")
+                }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(
+                    chat, fake, store,
+                    promptSource = stdinSource("/memory-mode shrug\n/exit\n"),
+                    memory = memory,
+                ).run()
+
+                assertEquals(MemoryMode.PREAMBLE, memory.currentMode())
+                assertEquals(2, fake.calls.size, "garbage /memory-mode landed as a real prompt")
+            }
+        }
+    }
+
+    @Test
+    fun `slash memory and friends without a memory provider do not crash`() = runTest {
+        // Agent without MemoryProvider: the memory commands should print an
+        // explanatory line and become no-ops, not throw or persist anything.
+        TestDb().use { harness ->
+            val fake = FakeLlmApi().apply { queueText("ok") }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+            val chat = newChat(prompt = "hi", session = "demo")
+
+            Agent(
+                chat, fake, store,
+                promptSource = stdinSource("/memory\n/profile yo\n/rule no\n/exit\n"),
+                memory = null,
+            ).run()
+
+            // Only the opening turn went out; the three memory commands were
+            // recognised but bounced because no MemoryProvider was wired.
+            assertEquals(1, fake.calls.size)
+        }
+    }
+
     // --- helpers ----------------------------------------------------
 
     private fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.Chat(

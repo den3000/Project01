@@ -28,6 +28,7 @@
 - `ContextStrategy.kt` (full/window/summary) + `StickyFacts.kt` (facts) + `HistoryCompressor.kt` — стратегии контекста.
 - `SessionStats.kt`, `PromptSource.kt`.
 - `db/` — Room: `AppDatabase` (version=4), `MessageDao`, `HistoryStore`, entity'и (messages/summaries/facts).
+- `memory/` — модель памяти ассистента (день 11): `MemoryMode` (PREAMBLE/SYSTEM), `MemoryStore` (markdown-файлы под `~/.project01-cli/memory/`: `profile.md`, `rules/NNN-*.md`, `tasks/<id>.md`), `MemoryLayer` (композиция `composePreamble`/`composeSystem`), `MemoryProvider` (фасад с активным режимом + taskId).
 - Тесты: `src/test/.../cliJvm/` — `FakeLlmApi`, `TestDb` + `*Test` (offline, без сети).
 
 ## Команды и verification loop
@@ -55,6 +56,8 @@
 - **Не печатать секреты** (значения ключей из `local.properties`/`BuildKonfig`) в транскрипт.
 - `readlnOrNull()` глобально кэширует `System.in` — Agent читает через инжектируемый `PromptSource`.
 - flash-lite TPM 4M — главный боттлнек нагрузочных прогонов (упираешься в rate-limit раньше, чем в переполнение контекста).
+- **`Role.SYSTEM` НЕ персистится в `HistoryStore`** — memory-слой инжектится только в wire-list `Agent.send()` поверх `baseContext`. В `messages`-таблице всегда лежат только `USER`/`ASSISTANT`. Каждый провайдер сам собирает все `Role.SYSTEM` входа в нативный system-блок (Gemini → `SystemInstruction`, OpenAI-shape → один `role="system"` в начале списка); `endSequence` приклеивается к этому же блоку.
+- **`-memory-mode <preamble|system>` — переключатель режима** для day-11 слоёв; без него memory-провайдер не создаётся и wire-list байт-в-байт совпадает с pre-day-11. `-task <id>` без `-memory-mode` парсер отвергает.
 
 ## Стиль работы пользователя
 - По-русски. **Делать только то, что попросили** — без попутных «улучшений»

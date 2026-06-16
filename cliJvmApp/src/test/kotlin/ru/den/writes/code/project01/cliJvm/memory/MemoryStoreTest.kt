@@ -116,6 +116,15 @@ class MemoryStoreTest {
     }
 
     @Test
+    fun `parseTaskNotes on a header-only file returns empty fields`() {
+        val notes = MemoryStore.parseTaskNotes("foo", "# Task: foo\n")
+        assertEquals("foo", notes.taskId)
+        assertNull(notes.goal)
+        assertNull(notes.stage)
+        assertEquals(emptyList(), notes.notes)
+    }
+
+    @Test
     fun `parseTaskNotes skips unknown sections`() {
         val raw = """
             # Task: foo
