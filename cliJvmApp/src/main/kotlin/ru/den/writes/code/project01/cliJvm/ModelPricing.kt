@@ -31,6 +31,7 @@ internal data class ModelPricing(
  * Rates current as of June 2026. Sources:
  * - Gemini: https://ai.google.dev/gemini-api/docs/pricing
  * - OpenRouter free roster (all 0/0): https://openrouter.ai/models?max_price=0
+ * - Hugging Face Router: https://huggingface.co/docs/inference-providers/en/pricing
  */
 internal object PricingRegistry {
     private val byId: Map<String, ModelPricing> = mapOf(
@@ -97,6 +98,19 @@ internal object PricingRegistry {
         "qwen/qwen3-coder:free"       to ModelPricing(0.0, 0.0, 1_048_576),
         "nvidia/nemotron-3-super-120b-a12b:free" to ModelPricing(0.0, 0.0, 1_000_000),
         "google/gemma-3-27b-it"       to ModelPricing(0.08, 0.16, 131_072),
+
+        // ---- Hugging Face Router ---------------------------------------
+        // The HF Router fans out to backing providers (Cerebras, Together,
+        // Fireworks, DeepInfra…); the exact rate billed depends on which
+        // provider answers the call, so these are *approximations* of the
+        // commonly-routed price tier on June 2026. The CLI surfaces this
+        // cost in the footer — treat it as a guideline, not a guarantee.
+        // The HF $0.10/month free credit pool applies on top of these.
+        "meta-llama/Llama-3.3-70B-Instruct"    to ModelPricing(0.23, 0.40, 131_072),
+        "deepseek-ai/DeepSeek-R1"              to ModelPricing(3.00, 7.00, 65_536),
+        "Qwen/Qwen3-4B-Thinking-2507"          to ModelPricing(0.05, 0.10, 262_144),
+        "Qwen/Qwen3.6-35B-A3B"                 to ModelPricing(0.30, 0.60, 131_072),
+        "openai/gpt-oss-120b"                  to ModelPricing(0.50, 1.50, 131_072),
     )
 
     fun lookup(modelId: String): ModelPricing? = byId[modelId]
