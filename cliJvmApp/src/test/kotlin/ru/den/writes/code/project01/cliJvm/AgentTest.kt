@@ -768,6 +768,8 @@ class AgentTest {
         strategy = ContextStrategyKind.FULL,
         keepLast = 6,
         summarizeEvery = 10,
+        task = null,
+        memoryMode = null,
     )
 
     /**

@@ -77,14 +77,16 @@ internal class GeminiApi(
         var hasRetried = false
         while (true) {
             val httpResponse = try {
+                val systemMsgs = messages.filter { it.role == Role.SYSTEM }
+                val turnMsgs = messages.filter { it.role != Role.SYSTEM }
                 httpClient.post(endpointFor(model)) {
                     url { parameters.append("key", apiKey) }
                     contentType(ContentType.Application.Json)
                     setBody(
                         GeminiRequest(
-                            contents = messages.map { it.toContent() },
+                            contents = turnMsgs.mapNotNull { it.toContentOrNull() },
                             generationConfig = params.toGenerationConfig(),
-                            systemInstruction = params.toSystemInstruction(),
+                            systemInstruction = buildSystemInstruction(systemMsgs, params.endSequence),
                         )
                     )
                 }
@@ -169,22 +171,25 @@ internal fun parseRetryAfterMillis(body: String): Long? {
     return (seconds * 1000).toLong().coerceAtLeast(0L)
 }
 
-/** Map a neutral [Message] into Gemini's wire [Content]. */
-private fun Message.toContent(): Content =
-    Content(
-        parts = listOf(Part(text)),
-        role = when (role) {
-            Role.USER -> "user"
-            Role.ASSISTANT -> "model"
-        },
-    )
+/**
+ * Map a neutral [Message] into Gemini's wire [Content]. `Role.SYSTEM`
+ * returns null — those messages travel via [buildSystemInstruction]
+ * (Gemini has a dedicated `systemInstruction` field, separate from
+ * `contents`). Caller is expected to filter SYSTEM out of `contents`
+ * upstream; the null fallback here is exhaustiveness insurance.
+ */
+private fun Message.toContentOrNull(): Content? = when (role) {
+    Role.SYSTEM -> null
+    Role.USER -> Content(parts = listOf(Part(text)), role = "user")
+    Role.ASSISTANT -> Content(parts = listOf(Part(text)), role = "model")
+}
 
 /**
  * Builds Gemini's `generationConfig` from the neutral [GenerationParams].
  * Only [GenerationParams.stopSequences] / [maxTokens] / [temperature] land
  * here — [GenerationParams.endSequence] is a different concept (best-effort
- * trailing marker) and is handled via [toSystemInstruction]. Returns `null`
- * when nothing is set so the field is omitted from the request body.
+ * trailing marker) and is handled via [buildSystemInstruction]. Returns
+ * `null` when nothing is set so the field is omitted from the request body.
  */
 private fun GenerationParams.toGenerationConfig(): GenerationConfig? {
     if (maxTokens == null && stopSequences == null && temperature == null) return null
@@ -196,14 +201,29 @@ private fun GenerationParams.toGenerationConfig(): GenerationConfig? {
 }
 
 /**
- * Translates [GenerationParams.endSequence] into a `systemInstruction`
- * asking the model to terminate its response with that exact string.
- * Gemini has no native "force-end-with" field, so this is the closest
- * API-level mechanism; compliance is best-effort, not guaranteed.
+ * Compose Gemini's `systemInstruction` from neutral inputs per the
+ * [LlmApi.send] contract: all [systemMessages] are concatenated with
+ * blank-line separators, and [endSequence] (if set) appends the
+ * trailing-marker instruction with the same separator. Returns `null`
+ * when both inputs are empty so the field is omitted from the request
+ * body — same bytes as before this change for callers that pass only
+ * USER/ASSISTANT and no `endSequence`.
+ *
+ * Bundles everything into one `Part` (Gemini accepts multi-part bodies
+ * but a single concatenated part keeps the DTO untouched and the test
+ * assertions trivial).
  */
-private fun GenerationParams.toSystemInstruction(): SystemInstruction? =
-    endSequence?.let { end ->
-        SystemInstruction(
-            parts = listOf(Part("Always end your response with the literal text: \"$end\""))
-        )
+internal fun buildSystemInstruction(
+    systemMessages: List<Message>,
+    endSequence: String?,
+): SystemInstruction? {
+    val parts = mutableListOf<String>()
+    if (systemMessages.isNotEmpty()) {
+        parts += systemMessages.joinToString("\n\n") { it.text }
     }
+    if (endSequence != null) {
+        parts += "Always end your response with the literal text: \"$endSequence\""
+    }
+    if (parts.isEmpty()) return null
+    return SystemInstruction(parts = listOf(Part(parts.joinToString("\n\n"))))
+}

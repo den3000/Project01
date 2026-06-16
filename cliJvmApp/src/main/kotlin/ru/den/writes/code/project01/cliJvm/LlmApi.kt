@@ -19,6 +19,22 @@ internal interface LlmApi {
      * current user turn before calling — see the OpenAI-style `messages`
      * shape) and returns the model's reply alongside token usage.
      *
+     * **Role.SYSTEM routing.** Implementations MUST collect every
+     * `Role.SYSTEM` entry in [messages] (in input order, anywhere in the
+     * list — not necessarily contiguous at the start) and route them
+     * into the provider's native system slot. The rules are:
+     *
+     * - Multiple SYSTEM entries are concatenated with `"\n\n"` between
+     *   them into one combined block.
+     * - If [GenerationParams.endSequence] is set, the
+     *   "Always end your response with..." instruction is appended to
+     *   that same block with another `"\n\n"` separator.
+     * - If neither SYSTEM input nor `endSequence` is present, no system
+     *   block is sent (the relevant request-body field is omitted — same
+     *   bytes as today for callers that pass only USER/ASSISTANT).
+     * - `Role.USER` and `Role.ASSISTANT` keep their position relative
+     *   to one another after SYSTEM entries are filtered out.
+     *
      * On failure, returns [LlmResult] with `text = null` and a populated
      * [LlmResult.error]. The contract is "non-null error means the
      * implementation already logged technical details" — callers print
@@ -34,8 +50,14 @@ internal interface LlmApi {
  * Who said this turn. Mapped by each [LlmApi] implementation to its
  * provider-specific role string (e.g. Gemini calls the assistant `"model"`,
  * OpenAI calls it `"assistant"` — that mapping is not the agent's problem).
+ *
+ * [SYSTEM] is the "instructions / persona / constraints" channel; the
+ * provider lifts it into a native system slot per the [LlmApi.send]
+ * contract. The history database never stores SYSTEM rows — they live
+ * only in the wire list assembled per-turn (see the memory layer
+ * pipeline).
  */
-internal enum class Role { USER, ASSISTANT }
+internal enum class Role { SYSTEM, USER, ASSISTANT }
 
 /**
  * One turn in the running conversation.
