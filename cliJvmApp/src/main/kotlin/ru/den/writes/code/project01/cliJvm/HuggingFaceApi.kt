@@ -61,18 +61,7 @@ internal class HuggingFaceApi(
         params.temperature?.let { println("temperature: $it") }
         println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
-        // endSequence has no native field here — same trick as Gemini /
-        // OpenRouter, lower it to a system message asking the model to
-        // terminate with the literal text. Best-effort, not enforced.
-        val systemPrefix = params.endSequence?.let {
-            listOf(
-                HuggingFaceMessage(
-                    role = "system",
-                    content = "Always end your response with the literal text: \"$it\"",
-                )
-            )
-        }.orEmpty()
-        val wireMessages = systemPrefix + messages.map { it.toApi() }
+        val wireMessages = buildHuggingFaceWireMessages(messages, params.endSequence)
 
         // Single-retry loop: at most one extra attempt on 503 (cold start).
         // Everything else (network errors, 4xx, other 5xx) fails immediately.
@@ -150,15 +139,38 @@ internal fun parseRetryAfterSeconds(headerValue: String?): Long? {
     return seconds.coerceAtLeast(0L)
 }
 
-/** Map a neutral [Message] into the OpenAI-style role/content shape. */
+/** Map a neutral non-SYSTEM [Message] into the OpenAI-style role/content shape. */
 private fun Message.toApi(): HuggingFaceMessage =
     HuggingFaceMessage(
         role = when (role) {
+            // Filtered out by buildHuggingFaceWireMessages — branch kept
+            // for exhaustiveness.
+            Role.SYSTEM -> "system"
             Role.USER -> "user"
             Role.ASSISTANT -> "assistant"
         },
         content = text,
     )
+
+/**
+ * Build the OAI-style `messages` list per the [LlmApi.send] contract —
+ * see [buildOpenRouterWireMessages] for the rationale. Mirrored here
+ * because the HF Router speaks the same dialect but with its own
+ * `HuggingFaceMessage` DTO.
+ */
+internal fun buildHuggingFaceWireMessages(
+    messages: List<Message>,
+    endSequence: String?,
+): List<HuggingFaceMessage> {
+    val systemTexts = buildList {
+        addAll(messages.filter { it.role == Role.SYSTEM }.map { it.text })
+        endSequence?.let { add("Always end your response with the literal text: \"$it\"") }
+    }
+    val systemPrefix = if (systemTexts.isEmpty()) emptyList()
+    else listOf(HuggingFaceMessage(role = "system", content = systemTexts.joinToString("\n\n")))
+    val turnMsgs = messages.filter { it.role != Role.SYSTEM }
+    return systemPrefix + turnMsgs.map { it.toApi() }
+}
 
 /**
  * Collapse HF's OpenAI-shaped usage into the neutral [Usage]. The

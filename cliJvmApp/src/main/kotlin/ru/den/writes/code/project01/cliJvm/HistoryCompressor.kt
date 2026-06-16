@@ -149,6 +149,10 @@ internal class HistoryCompressor(
                 val who = when (msg.role) {
                     Role.USER -> "USER"
                     Role.ASSISTANT -> "ASSISTANT"
+                    // History never carries SYSTEM messages (memory layer
+                    // lives outside the persisted conversation), but the
+                    // compiler wants the branch for exhaustiveness.
+                    Role.SYSTEM -> "SYSTEM"
                 }
                 "$who: ${msg.text}"
             }

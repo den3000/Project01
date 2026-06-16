@@ -2,6 +2,7 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class GeminiApiTest {
@@ -43,5 +44,50 @@ class GeminiApiTest {
     @Test
     fun `parseRetryAfterMillis handles integer seconds`() {
         assertEquals(5_000L, parseRetryAfterMillis("retry in 5s, please"))
+    }
+
+    // --- buildSystemInstruction -------------------------------------
+
+    @Test
+    fun `buildSystemInstruction returns null when there is no SYSTEM input and no endSequence`() {
+        // Regression guard: no-memory + no-endSequence callers should
+        // hit the same `systemInstruction = null` path they did before.
+        assertNull(buildSystemInstruction(emptyList(), endSequence = null))
+    }
+
+    @Test
+    fun `buildSystemInstruction with only endSequence reproduces the prior behaviour`() {
+        val si = buildSystemInstruction(emptyList(), endSequence = "<<DONE>>")
+        assertNotNull(si)
+        val text = si.parts.single().text
+        assertEquals("Always end your response with the literal text: \"<<DONE>>\"", text)
+    }
+
+    @Test
+    fun `buildSystemInstruction with only SYSTEM messages joins them with blank-line separator`() {
+        val si = buildSystemInstruction(
+            listOf(
+                Message(Role.SYSTEM, "[Profile]\nP"),
+                Message(Role.SYSTEM, "[Rules]\n- R1"),
+            ),
+            endSequence = null,
+        )
+        assertNotNull(si)
+        val text = si.parts.single().text
+        assertEquals("[Profile]\nP\n\n[Rules]\n- R1", text)
+    }
+
+    @Test
+    fun `buildSystemInstruction appends endSequence after SYSTEM messages with a blank line`() {
+        val si = buildSystemInstruction(
+            listOf(Message(Role.SYSTEM, "[Profile]\nP")),
+            endSequence = "<<DONE>>",
+        )
+        assertNotNull(si)
+        val text = si.parts.single().text
+        assertEquals(
+            "[Profile]\nP\n\nAlways end your response with the literal text: \"<<DONE>>\"",
+            text,
+        )
     }
 }

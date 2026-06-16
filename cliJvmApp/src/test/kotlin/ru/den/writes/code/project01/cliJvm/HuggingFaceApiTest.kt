@@ -124,4 +124,82 @@ class HuggingFaceApiTest {
         assertNull(resp.usage?.completionTokensDetails)
         assertEquals(0, resp.usage!!.toNeutral().thoughtsTokens)
     }
+
+    // --- buildHuggingFaceWireMessages -------------------------------
+
+    @Test
+    fun `wire-builder emits no system message when there is no SYSTEM input and no endSequence`() {
+        val wire = buildHuggingFaceWireMessages(
+            listOf(
+                Message(Role.USER, "hi"),
+                Message(Role.ASSISTANT, "hello"),
+            ),
+            endSequence = null,
+        )
+        assertEquals(2, wire.size)
+        assertEquals("user", wire[0].role)
+        assertEquals("assistant", wire[1].role)
+    }
+
+    @Test
+    fun `wire-builder with only endSequence emits one system message at the head`() {
+        val wire = buildHuggingFaceWireMessages(
+            listOf(Message(Role.USER, "hi")),
+            endSequence = "<<DONE>>",
+        )
+        assertEquals(2, wire.size)
+        assertEquals("system", wire[0].role)
+        assertEquals(
+            "Always end your response with the literal text: \"<<DONE>>\"",
+            wire[0].content,
+        )
+    }
+
+    @Test
+    fun `wire-builder collapses multiple SYSTEM messages into one`() {
+        val wire = buildHuggingFaceWireMessages(
+            listOf(
+                Message(Role.SYSTEM, "[Profile]\nP"),
+                Message(Role.SYSTEM, "[Rules]\n- R1"),
+                Message(Role.USER, "hi"),
+            ),
+            endSequence = null,
+        )
+        assertEquals(2, wire.size)
+        assertEquals("system", wire[0].role)
+        assertEquals("[Profile]\nP\n\n[Rules]\n- R1", wire[0].content)
+    }
+
+    @Test
+    fun `wire-builder merges SYSTEM messages with endSequence`() {
+        val wire = buildHuggingFaceWireMessages(
+            listOf(
+                Message(Role.SYSTEM, "[Profile]\nP"),
+                Message(Role.USER, "hi"),
+            ),
+            endSequence = "<<DONE>>",
+        )
+        assertEquals(2, wire.size)
+        assertEquals(
+            "[Profile]\nP\n\nAlways end your response with the literal text: \"<<DONE>>\"",
+            wire[0].content,
+        )
+    }
+
+    @Test
+    fun `wire-builder collects SYSTEM messages even when interleaved`() {
+        val wire = buildHuggingFaceWireMessages(
+            listOf(
+                Message(Role.USER, "hello"),
+                Message(Role.SYSTEM, "[Rules]\n- R1"),
+                Message(Role.ASSISTANT, "world"),
+            ),
+            endSequence = null,
+        )
+        assertEquals(3, wire.size)
+        assertEquals("system", wire[0].role)
+        assertEquals("[Rules]\n- R1", wire[0].content)
+        assertEquals("user", wire[1].role)
+        assertEquals("assistant", wire[2].role)
+    }
 }
