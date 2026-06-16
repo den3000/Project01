@@ -41,9 +41,15 @@ suspend fun main(args: Array<String>) {
     // -sessions / -clean never touch either key.
     val geminiApiKey = BuildKonfig.GEMINI_API_KEY
     val openRouterApiKey = BuildKonfig.OPENROUTER_API_KEY
+    val huggingFaceApiKey = BuildKonfig.HUGGINGFACE_API_KEY
 
     val initialArgs = try {
-        CliArgs.from(args, geminiApiKey = geminiApiKey, openRouterApiKey = openRouterApiKey)
+        CliArgs.from(
+            args,
+            geminiApiKey = geminiApiKey,
+            openRouterApiKey = openRouterApiKey,
+            huggingFaceApiKey = huggingFaceApiKey,
+        )
     } catch (e: CliArgsException) {
         System.err.println(e.message)
         if (e is CliArgsException.MissingRequiredArgument) {
@@ -269,6 +275,11 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 model = mp.model,
             )
             is ModelProvider.OpenRouter -> OpenRouterApi(
+                httpClient = client,
+                apiKey = mp.apiKey,
+                model = mp.model,
+            )
+            is ModelProvider.HuggingFace -> HuggingFaceApi(
                 httpClient = client,
                 apiKey = mp.apiKey,
                 model = mp.model,

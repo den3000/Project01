@@ -30,6 +30,7 @@ private const val STRATEGY_SUMMARY = "summary"
 
 private const val PROVIDER_GEMINI = "gemini"
 private const val PROVIDER_OPENROUTER = "openrouter"
+private const val PROVIDER_HUGGINGFACE = "huggingface"
 
 private val SESSION_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
 private const val MAX_SESSION_NAME_LENGTH = 64
@@ -79,9 +80,10 @@ internal sealed class CliArgsException(message: String) : RuntimeException(messa
  *
  * The shared LLM-talking modes ([Chat], [OneShot]) implement
  * [PromptCommand] so the agent can take a single type and decide
- * behaviour internally. The chosen provider (Gemini / OpenRouter) and
- * its typed model travel as one [ModelProvider] field — the provider
- * does not fan out into per-provider variants of `Chat`/`OneShot`.
+ * behaviour internally. The chosen provider (Gemini / OpenRouter /
+ * Hugging Face) and its typed model travel as one [ModelProvider]
+ * field — the provider does not fan out into per-provider variants
+ * of `Chat`/`OneShot`.
  *
  * Use [CliArgs.from] to build an instance from the raw `args: Array<String>`
  * passed to `main`. Parsing throws [CliArgsException] on invalid input — the
@@ -228,7 +230,7 @@ internal sealed interface CliArgs {
         /** One-line usage hint suitable for printing alongside an error message. */
         const val USAGE: String =
             "Usage: $ARG_PROMPT <text> " +
-                "[$ARG_PROVIDER <$PROVIDER_GEMINI|$PROVIDER_OPENROUTER>] " +
+                "[$ARG_PROVIDER <$PROVIDER_GEMINI|$PROVIDER_OPENROUTER|$PROVIDER_HUGGINGFACE>] " +
                 "[$ARG_MODEL <model-id>] " +
                 "[$ARG_MAX_TOKENS <int>] " +
                 "[$ARG_STOP_SEQUENCE <words>] " +
@@ -260,8 +262,9 @@ internal sealed interface CliArgs {
          * - Otherwise: standard [Chat] with required `-prompt`.
          *
          * Provider rules:
-         * - `-provider <gemini|openrouter>` picks the provider. Default is
-         *   `gemini`. Any other value → [CliArgsException.InvalidArgumentValue].
+         * - `-provider <gemini|openrouter|huggingface>` picks the provider.
+         *   Default is `gemini`. Any other value →
+         *   [CliArgsException.InvalidArgumentValue].
          * - `-model <id>` parses through the typed model for the chosen
          *   provider — unknown ids fall through to a `Custom(id)` variant.
          * - The API key for the chosen provider must be non-blank;
@@ -272,6 +275,8 @@ internal sealed interface CliArgs {
          *   merge in `main.kt`); empty string if not configured.
          * @param openRouterApiKey resolved OpenRouter key; empty string if
          *   not configured.
+         * @param huggingFaceApiKey resolved Hugging Face token; empty
+         *   string if not configured.
          *
          * @throws CliArgsException.MissingRequiredArgument if `-prompt` is absent
          *   or blank in Chat / OneShot modes, or the selected provider's API
@@ -287,6 +292,7 @@ internal sealed interface CliArgs {
             args: Array<String>,
             geminiApiKey: String = "",
             openRouterApiKey: String = "",
+            huggingFaceApiKey: String = "",
         ): CliArgs {
             val knownFlags = setOf(
                 ARG_PROMPT,
@@ -447,6 +453,7 @@ internal sealed interface CliArgs {
                 modelRaw = modelRaw,
                 geminiApiKey = geminiApiKey,
                 openRouterApiKey = openRouterApiKey,
+                huggingFaceApiKey = huggingFaceApiKey,
             )
 
             if (isOneShot) {
@@ -647,6 +654,7 @@ internal sealed interface CliArgs {
             modelRaw: String?,
             geminiApiKey: String,
             openRouterApiKey: String,
+            huggingFaceApiKey: String,
         ): ModelProvider = when (providerRaw) {
             PROVIDER_GEMINI -> {
                 if (geminiApiKey.isBlank()) {
@@ -672,10 +680,22 @@ internal sealed interface CliArgs {
                     apiKey = openRouterApiKey,
                 )
             }
+            PROVIDER_HUGGINGFACE -> {
+                if (huggingFaceApiKey.isBlank()) {
+                    throw CliArgsException.MissingRequiredArgument(
+                        argName = "HUGGINGFACE_API_KEY",
+                        detail = "set HUGGINGFACE_API_KEY in local.properties or as an env var",
+                    )
+                }
+                ModelProvider.HuggingFace(
+                    model = modelRaw?.let(HuggingFaceModel.Companion::fromId) ?: HuggingFaceModel.Default,
+                    apiKey = huggingFaceApiKey,
+                )
+            }
             else -> throw CliArgsException.InvalidArgumentValue(
                 argName = ARG_PROVIDER,
                 rawValue = providerRaw,
-                expectedType = "one of: $PROVIDER_GEMINI, $PROVIDER_OPENROUTER",
+                expectedType = "one of: $PROVIDER_GEMINI, $PROVIDER_OPENROUTER, $PROVIDER_HUGGINGFACE",
             )
         }
     }
