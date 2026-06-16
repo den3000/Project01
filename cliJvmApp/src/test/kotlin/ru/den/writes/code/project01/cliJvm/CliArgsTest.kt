@@ -152,10 +152,10 @@ class CliArgsTest {
         val parsed = parse(
             "-prompt", "hi",
             "-provider", "openrouter",
-            "-model", "openrouter/auto:free",
+            "-model", "meta-llama/llama-3.3-70b-instruct:free",
         )
         val or = assertIs<ModelProvider.OpenRouter>((parsed as CliArgs.PromptCommand).modelProvider)
-        assertEquals(OpenRouterModel.Known.AutoFree, or.model)
+        assertEquals(OpenRouterModel.Known.Llama33_70bFree, or.model)
     }
 
     @Test

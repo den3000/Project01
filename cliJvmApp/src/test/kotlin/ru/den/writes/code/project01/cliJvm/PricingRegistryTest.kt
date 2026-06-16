@@ -22,9 +22,20 @@ class PricingRegistryTest {
 
     @Test
     fun `lookup returns zero rates for free OpenRouter models`() {
-        val p = assertNotNull(PricingRegistry.lookup("google/gemma-3-27b-it"))
+        val p = assertNotNull(PricingRegistry.lookup("meta-llama/llama-3.3-70b-instruct:free"))
         assertEquals(0.0, p.inputUsdPer1M)
         assertEquals(0.0, p.outputUsdPer1M)
+        assertEquals(131_072, p.contextWindowTokens)
+    }
+
+    @Test
+    fun `lookup returns paid rates for the one paid OpenRouter entry`() {
+        // google/gemma-3-27b-it has no :free variant anymore — kept in the
+        // registry as a paid model so -model runs still report real cost.
+        val p = assertNotNull(PricingRegistry.lookup("google/gemma-3-27b-it"))
+        assertEquals(0.08, p.inputUsdPer1M)
+        assertEquals(0.16, p.outputUsdPer1M)
+        assertEquals(131_072, p.contextWindowTokens)
     }
 
     @Test
