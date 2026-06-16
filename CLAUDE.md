@@ -23,6 +23,7 @@
 - `LlmApi.kt` — нейтральный интерфейс + `Message`/`Role`/`GenerationParams`/`Usage`/`LlmResult`.
 - `ModelProvider.kt`, `GeminiModel.kt`, `OpenRouterModel.kt` — typed провайдер + модель (+`Custom` escape hatch).
 - `GeminiApi.kt`+`GeminiDto.kt`, `OpenRouterApi.kt`+`OpenRouterDto.kt` — реализации `LlmApi`.
+- `HuggingFaceApi.kt`+`HuggingFaceDto.kt`+`HuggingFaceModel.kt` — третий провайдер: HF Inference Providers через OpenAI-совместимый Router.
 - `ModelPricing.kt` — `PricingRegistry`: цены/окна. **Single source of truth по ценам.**
 - `ContextStrategy.kt` (full/window/summary) + `StickyFacts.kt` (facts) + `HistoryCompressor.kt` — стратегии контекста.
 - `SessionStats.kt`, `PromptSource.kt`.
@@ -46,6 +47,10 @@
 - **OpenRouter free-roster протухает быстро** — `:free` id мрут (404). Сверять с
   `https://openrouter.ai/api/v1/models` (`jq`, ключ не нужен). Каталог — `OpenRouterModel.kt`,
   цены — `ModelPricing.kt`. Дефолт `openrouter/auto` — роутер, НЕ `:free` → может быть платным.
+- **HF Router маршрутизирует между провайдерами** (Cerebras/Together/Fireworks/…), реальный
+  тариф per-provider — цены в `ModelPricing.kt` для HF-моделей это *приближения*. Free tier
+  HF — $0.10/мес кредитов поверх. 503 при cold start серверлес-модели → одна retry с
+  `Retry-After` (`HuggingFaceApi`). Живой каталог: `https://router.huggingface.co/v1/models`.
 - zsh-глоббинг (`?` `*` `[` `!`) в `-prompt` ломается без кавычек — оборачивать.
 - **Не печатать секреты** (значения ключей из `local.properties`/`BuildKonfig`) в транскрипт.
 - `readlnOrNull()` глобально кэширует `System.in` — Agent читает через инжектируемый `PromptSource`.
@@ -67,6 +72,7 @@
 - Ключи: `BuildKonfig.GEMINI_API_KEY` / `OPENROUTER_API_KEY` (плагин `buildkonfig`, lowercase k, в `:shared`).
   Источник — `local.properties` (gitignored), при отсутствии ключа fallback на env-переменную того же имени
   (`shared/build.gradle.kts` → `getStringPropertyOrEnvVar`).
+- Третий ключ — `BuildKonfig.HUGGINGFACE_API_KEY` (источник `HUGGINGFACE_API_KEY` в `local.properties`/env), для `-provider huggingface`.
 
 ## Worktree (Android Studio)
 - Работаю в том worktree, что открыт в AS, и запускаюсь **из него**. Не из

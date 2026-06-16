@@ -17,6 +17,7 @@ class CliArgsTest {
             args = arrayOf(*args),
             geminiApiKey = DUMMY_GEMINI_KEY,
             openRouterApiKey = DUMMY_OPENROUTER_KEY,
+            huggingFaceApiKey = DUMMY_HUGGINGFACE_KEY,
         )
 
     // --- mode selection: admin / chat / oneshot ----------------------
@@ -207,6 +208,59 @@ class CliArgsTest {
             )
         }
         assertEquals("OPENROUTER_API_KEY", ex.argName)
+    }
+
+    @Test
+    fun `-provider huggingface without -model uses HuggingFace default`() {
+        val parsed = parse("-prompt", "hi", "-provider", "huggingface")
+        val chat = assertIs<CliArgs.Chat>(parsed)
+        val hf = assertIs<ModelProvider.HuggingFace>(chat.modelProvider)
+        assertEquals(HuggingFaceModel.Default, hf.model)
+        assertEquals(DUMMY_HUGGINGFACE_KEY, hf.apiKey)
+    }
+
+    @Test
+    fun `-provider huggingface with known -model resolves to Known entry`() {
+        val parsed = parse(
+            "-prompt", "hi",
+            "-provider", "huggingface",
+            "-model", "deepseek-ai/DeepSeek-R1",
+        )
+        val hf = assertIs<ModelProvider.HuggingFace>((parsed as CliArgs.PromptCommand).modelProvider)
+        assertEquals(HuggingFaceModel.Known.DeepSeekR1, hf.model)
+    }
+
+    @Test
+    fun `-provider huggingface with unknown -model falls through to Custom`() {
+        val parsed = parse(
+            "-prompt", "hi",
+            "-provider", "huggingface",
+            "-model", "some-org/not-yet-known-7b",
+        )
+        val hf = assertIs<ModelProvider.HuggingFace>((parsed as CliArgs.PromptCommand).modelProvider)
+        assertEquals(HuggingFaceModel.Custom("some-org/not-yet-known-7b"), hf.model)
+    }
+
+    @Test
+    fun `selecting huggingface without HUGGINGFACE_API_KEY raises MissingRequiredArgument`() {
+        val ex = assertFailsWith<CliArgsException.MissingRequiredArgument> {
+            CliArgs.from(
+                arrayOf("-prompt", "hi", "-provider", "huggingface"),
+                geminiApiKey = DUMMY_GEMINI_KEY,
+                openRouterApiKey = DUMMY_OPENROUTER_KEY,
+                huggingFaceApiKey = "",
+            )
+        }
+        assertEquals("HUGGINGFACE_API_KEY", ex.argName)
+    }
+
+    @Test
+    fun `USAGE lists huggingface in the -provider choices`() {
+        // Lock in that USAGE keeps every supported provider visible.
+        // Future provider drops would silently leave this stale otherwise.
+        assertTrue(CliArgs.USAGE.contains("huggingface"), "USAGE missing huggingface")
+        assertTrue(CliArgs.USAGE.contains("openrouter"), "USAGE missing openrouter")
+        assertTrue(CliArgs.USAGE.contains("gemini"), "USAGE missing gemini")
     }
 
     // --- mode conflicts and validation errors ------------------------
@@ -651,5 +705,6 @@ class CliArgsTest {
     private companion object {
         const val DUMMY_GEMINI_KEY = "test-gemini-key"
         const val DUMMY_OPENROUTER_KEY = "test-openrouter-key"
+        const val DUMMY_HUGGINGFACE_KEY = "test-huggingface-key"
     }
 }
