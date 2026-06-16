@@ -1,5 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.cliJvm.memory.MemoryMode
+
 private const val ARG_PREFIX = "-"
 private const val ARG_PROMPT = "${ARG_PREFIX}prompt"
 private const val ARG_MAX_TOKENS = "${ARG_PREFIX}maxTokens"
@@ -21,6 +23,13 @@ private const val ARG_COMPRESS = "${ARG_PREFIX}compress"
 private const val ARG_KEEP_LAST = "${ARG_PREFIX}keepLast"
 private const val ARG_SUMMARIZE_EVERY = "${ARG_PREFIX}summarizeEvery"
 private const val ARG_STRATEGY = "${ARG_PREFIX}strategy"
+private const val ARG_MEMORY = "${ARG_PREFIX}memory"
+private const val ARG_TASK = "${ARG_PREFIX}task"
+private const val ARG_MEMORY_MODE = "${ARG_PREFIX}memory-mode"
+
+// -memory-mode values (matched case-insensitively).
+private const val MEMORY_MODE_PREAMBLE = "preamble"
+private const val MEMORY_MODE_SYSTEM = "system"
 
 // -strategy values (matched case-insensitively).
 private const val STRATEGY_FULL = "full"
@@ -108,6 +117,28 @@ internal sealed interface CliArgs {
      * double-count what was previously billed.
      */
     data class Inflate(val sessionId: String, val n: Int) : CliArgs
+
+    /**
+     * `-memory <subcommand>`: read or write the long-term / working
+     * memory files under `~/.project01-cli/memory/`, then exit. Pure
+     * disk operation, no LLM and no session — these commands manage the
+     * data the agent later pulls into its prompt via `-memory-mode`.
+     */
+    data class Memory(val action: MemoryAction) : CliArgs
+
+    /** What `-memory` does this invocation. */
+    sealed interface MemoryAction {
+        /** Print every layer (mode, profile, rules, active task). */
+        data object Show : MemoryAction
+        /** Overwrite `profile.md` with [text]. Blank deletes the file. */
+        data class SetProfile(val text: String) : MemoryAction
+        /** Append a new rule under `rules/`. */
+        data class AddRule(val text: String) : MemoryAction
+        /** Delete the rule with this id (three-digit prefix). */
+        data class RemoveRule(val id: String) : MemoryAction
+        /** Create/select a task file under `tasks/<taskId>.md`. */
+        data class SetTask(val taskId: String) : MemoryAction
+    }
 
     /**
      * Common shape for the LLM-talking modes ([Chat], [OneShot]). Lets
@@ -205,6 +236,27 @@ internal sealed interface CliArgs {
          * [ContextStrategyKind.SUMMARY].
          */
         val summarizeEvery: Int,
+        /**
+         * `-task <id>`: pre-select an active working-memory task for the
+         * session. When [memoryMode] is null this is ignored; otherwise
+         * the agent injects the matching `tasks/<id>.md` file (if any)
+         * into every turn and `/task-note` appends to it. Null = no
+         * active task at startup; switch with `/task <id>` in the REPL.
+         *
+         * Naming rules: same shape as session (`^[a-zA-Z0-9_-]+$`, up to
+         * [MAX_SESSION_NAME_LENGTH] chars).
+         */
+        val task: String?,
+        /**
+         * `-memory-mode <preamble|system>`: enables the memory layer for
+         * this session. Null (default) leaves memory dormant — wire
+         * shape is identical to a pre-Day-11 chat. PREAMBLE injects one
+         * USER/ASSISTANT pair carrying every non-empty layer; SYSTEM
+         * emits dedicated `Role.SYSTEM` messages the provider lifts into
+         * its native system slot. Switchable mid-session via
+         * `/memory-mode`.
+         */
+        val memoryMode: MemoryMode?,
     ) : PromptCommand
 
     /**
@@ -240,12 +292,16 @@ internal sealed interface CliArgs {
                 "       [$ARG_FEED_FILE <path> [$ARG_CHUNK_CHARS <int> | $ARG_BY_LINE] [$ARG_FEED_INSTRUCTION <text>]]\n" +
                 "       [$ARG_STRATEGY <$STRATEGY_FULL|$STRATEGY_WINDOW|$STRATEGY_FACTS|$STRATEGY_SUMMARY> [$ARG_KEEP_LAST <int>] [$ARG_SUMMARIZE_EVERY <int>]]" +
                 "  (or $ARG_COMPRESS = $ARG_STRATEGY $STRATEGY_SUMMARY)\n" +
+                "       [$ARG_MEMORY_MODE <$MEMORY_MODE_PREAMBLE|$MEMORY_MODE_SYSTEM> [$ARG_TASK <id>]]\n" +
                 "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION, no $ARG_FEED_FILE]\n" +
                 "                (single prompt → response → exit; no REPL, no session)\n" +
                 "   or: $ARG_LIST_SESSIONS   (list saved sessions, ignores all other flags)\n" +
                 "   or: $ARG_CLEAN      (delete ALL session history, ignores all other flags)\n" +
                 "   or: $ARG_INFLATE <N> $ARG_SESSION <name>   (duplicate the last N rows of <name>; no LLM)\n" +
+                "   or: $ARG_MEMORY show | profile <text> | rule add <text> | rule rm <id> | task <id>\n" +
+                "                (manage long-term/working memory under ~/.project01-cli/memory/; no LLM)\n" +
                 "REPL branch commands: /branches, /branch <name>, /switch <name>, /checkpoint.\n" +
+                "REPL memory commands: /memory, /profile <text>, /rule <text>, /task <id>, /task-note <text>, /memory-mode <preamble|system>.\n" +
                 "Default provider is $PROVIDER_GEMINI. Default chunk size is $DEFAULT_CHUNK_CHARS chars. " +
                 "Strategy tuning defaults: $ARG_KEEP_LAST=$DEFAULT_KEEP_LAST, $ARG_SUMMARIZE_EVERY=$DEFAULT_SUMMARIZE_EVERY."
 
@@ -315,6 +371,9 @@ internal sealed interface CliArgs {
                 ARG_KEEP_LAST,
                 ARG_SUMMARIZE_EVERY,
                 ARG_STRATEGY,
+                ARG_MEMORY,
+                ARG_TASK,
+                ARG_MEMORY_MODE,
             )
             val values = mutableMapOf<String, String>()
             var currentFlag: String? = null
@@ -336,22 +395,50 @@ internal sealed interface CliArgs {
             }
             flush()
 
-            // Mutual-exclusivity check for the three mode-selecting flags.
+            // Mutual-exclusivity check for the mode-selecting flags.
             // Picked up early so an obvious mis-typing fails fast before we
             // run any partial validation of the other args.
             val isList = ARG_LIST_SESSIONS in values
             val isClean = ARG_CLEAN in values
             val isOneShot = ARG_ONESHOT in values
-            if (listOf(isList, isClean, isOneShot).count { it } > 1) {
+            val isMemoryOp = ARG_MEMORY in values
+            if (listOf(isList, isClean, isOneShot, isMemoryOp).count { it } > 1) {
                 throw CliArgsException.InvalidArgumentValue(
-                    argName = "$ARG_LIST_SESSIONS / $ARG_CLEAN / $ARG_ONESHOT",
+                    argName = "$ARG_LIST_SESSIONS / $ARG_CLEAN / $ARG_ONESHOT / $ARG_MEMORY",
                     rawValue = "(multiple)",
-                    expectedType = "at most one of $ARG_LIST_SESSIONS, $ARG_CLEAN, $ARG_ONESHOT at a time",
+                    expectedType = "at most one of $ARG_LIST_SESSIONS, $ARG_CLEAN, $ARG_ONESHOT, $ARG_MEMORY at a time",
                 )
             }
 
             if (isList) return ListSessions
             if (isClean) return Clean
+
+            // -memory is its own standalone op (pure disk, no LLM, no REPL).
+            // It rejects LLM-flow / inflate flags so a typo doesn't quietly
+            // turn into a half-configured chat.
+            values[ARG_MEMORY]?.takeIf { it.isNotBlank() }?.let { raw ->
+                val action = parseMemoryAction(raw)
+                listOf(
+                    ARG_PROMPT, ARG_FEED_FILE, ARG_CHUNK_CHARS, ARG_FEED_INSTRUCTION,
+                    ARG_INFLATE, ARG_TASK, ARG_MEMORY_MODE,
+                ).forEach { flag ->
+                    values[flag]?.takeIf { it.isNotBlank() }?.let { conflict ->
+                        throw CliArgsException.InvalidArgumentValue(
+                            argName = flag,
+                            rawValue = conflict,
+                            expectedType = "absent (not compatible with $ARG_MEMORY)",
+                        )
+                    }
+                }
+                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE, ARG_STRATEGY).forEach { flag ->
+                    if (flag in values) throw CliArgsException.InvalidArgumentValue(
+                        argName = flag,
+                        rawValue = values[flag]?.takeIf { it.isNotBlank() } ?: "(present)",
+                        expectedType = "absent (not compatible with $ARG_MEMORY)",
+                    )
+                }
+                return Memory(action)
+            }
 
             // -inflate is its own standalone op (pure DB, no LLM, no
             // REPL). It needs -session NAME and N>0, and it can't coexist
@@ -366,7 +453,7 @@ internal sealed interface CliArgs {
                     )
                 listOf(
                     ARG_PROMPT, ARG_ONESHOT, ARG_FEED_FILE,
-                    ARG_CHUNK_CHARS, ARG_FEED_INSTRUCTION,
+                    ARG_CHUNK_CHARS, ARG_FEED_INSTRUCTION, ARG_TASK, ARG_MEMORY_MODE,
                 ).forEach { flag ->
                     values[flag]?.takeIf { it.isNotBlank() }?.let { conflict ->
                         throw CliArgsException.InvalidArgumentValue(
@@ -480,10 +567,14 @@ internal sealed interface CliArgs {
                         )
                     }
                 }
-                // Compression and -byLine are Chat-only concerns (OneShot has
-                // no history / no feed). Presence-reject — these flags are
-                // value-less, so a blank-check wouldn't catch them.
-                listOf(ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE, ARG_STRATEGY).forEach { flag ->
+                // Compression / -byLine / -task / -memory-mode are
+                // Chat-only concerns (OneShot has no history, no feed,
+                // and no memory). Presence-reject — some of these flags
+                // are value-less, so a blank-check wouldn't catch them.
+                listOf(
+                    ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE, ARG_STRATEGY,
+                    ARG_TASK, ARG_MEMORY_MODE,
+                ).forEach { flag ->
                     if (flag in values) {
                         throw CliArgsException.InvalidArgumentValue(
                             argName = flag,
@@ -631,6 +722,41 @@ internal sealed interface CliArgs {
                 ContextStrategyKind.SUMMARY -> Unit
             }
 
+            // -memory-mode: enable the memory layer for this Chat. Null
+            // (flag absent) leaves memory dormant — wire shape identical
+            // to pre-Day-11. Any other value is a typo.
+            val memoryMode = values[ARG_MEMORY_MODE]?.takeIf { it.isNotBlank() }?.let { raw ->
+                when (raw.lowercase()) {
+                    MEMORY_MODE_PREAMBLE -> MemoryMode.PREAMBLE
+                    MEMORY_MODE_SYSTEM -> MemoryMode.SYSTEM
+                    else -> throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_MEMORY_MODE,
+                        rawValue = raw,
+                        expectedType = "one of: $MEMORY_MODE_PREAMBLE, $MEMORY_MODE_SYSTEM",
+                    )
+                }
+            }
+            // -task: same name shape as session. Only meaningful when
+            // memory is enabled — otherwise nothing reads it; reject the
+            // combination loudly so the user sees the bad input.
+            val task = values[ARG_TASK]?.takeIf { it.isNotBlank() }?.let { raw ->
+                if (raw.length > MAX_SESSION_NAME_LENGTH || !raw.matches(SESSION_NAME_REGEX)) {
+                    throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_TASK,
+                        rawValue = raw,
+                        expectedType = "alphanumeric / '_' / '-', up to $MAX_SESSION_NAME_LENGTH chars",
+                    )
+                }
+                raw
+            }
+            if (task != null && memoryMode == null) {
+                throw CliArgsException.InvalidArgumentValue(
+                    argName = ARG_TASK,
+                    rawValue = task,
+                    expectedType = "absent (requires $ARG_MEMORY_MODE)",
+                )
+            }
+
             return Chat(
                 prompt = prompt,
                 maxTokens = maxTokens,
@@ -646,7 +772,85 @@ internal sealed interface CliArgs {
                 strategy = strategy,
                 keepLast = keepLast,
                 summarizeEvery = summarizeEvery,
+                task = task,
+                memoryMode = memoryMode,
             )
+        }
+
+        /**
+         * Parse the right-hand side of `-memory <…>`. Subcommands:
+         *  - `show`
+         *  - `profile <text>`
+         *  - `rule add <text>`
+         *  - `rule rm <id>`
+         *  - `task <id>`
+         */
+        private fun parseMemoryAction(raw: String): MemoryAction {
+            val tokens = raw.trim().split(Regex("\\s+"), limit = 3)
+            return when (tokens[0].lowercase()) {
+                "show" -> {
+                    if (tokens.size > 1) throw CliArgsException.InvalidArgumentValue(
+                        argName = ARG_MEMORY,
+                        rawValue = raw,
+                        expectedType = "$ARG_MEMORY show (no extra arguments)",
+                    )
+                    MemoryAction.Show
+                }
+                "profile" -> {
+                    val text = raw.substringAfter(' ', missingDelimiterValue = "").trim()
+                    if (text.isEmpty()) throw CliArgsException.MissingRequiredArgument(
+                        argName = ARG_MEMORY,
+                        detail = "profile needs the new text",
+                    )
+                    MemoryAction.SetProfile(text)
+                }
+                "rule" -> {
+                    val verb = tokens.getOrNull(1)?.lowercase()
+                    when (verb) {
+                        "add" -> {
+                            val text = tokens.getOrNull(2)?.trim().orEmpty()
+                            if (text.isEmpty()) throw CliArgsException.MissingRequiredArgument(
+                                argName = ARG_MEMORY,
+                                detail = "rule add needs the new text",
+                            )
+                            MemoryAction.AddRule(text)
+                        }
+                        "rm" -> {
+                            val id = tokens.getOrNull(2)?.trim().orEmpty()
+                            if (id.isEmpty()) throw CliArgsException.MissingRequiredArgument(
+                                argName = ARG_MEMORY,
+                                detail = "rule rm needs an id",
+                            )
+                            MemoryAction.RemoveRule(id)
+                        }
+                        else -> throw CliArgsException.InvalidArgumentValue(
+                            argName = ARG_MEMORY,
+                            rawValue = raw,
+                            expectedType = "rule add <text> or rule rm <id>",
+                        )
+                    }
+                }
+                "task" -> {
+                    val id = tokens.getOrNull(1)?.trim().orEmpty()
+                    if (id.isEmpty()) throw CliArgsException.MissingRequiredArgument(
+                        argName = ARG_MEMORY,
+                        detail = "task needs an id",
+                    )
+                    if (id.length > MAX_SESSION_NAME_LENGTH || !id.matches(SESSION_NAME_REGEX)) {
+                        throw CliArgsException.InvalidArgumentValue(
+                            argName = ARG_MEMORY,
+                            rawValue = id,
+                            expectedType = "alphanumeric / '_' / '-', up to $MAX_SESSION_NAME_LENGTH chars",
+                        )
+                    }
+                    MemoryAction.SetTask(id)
+                }
+                else -> throw CliArgsException.InvalidArgumentValue(
+                    argName = ARG_MEMORY,
+                    rawValue = raw,
+                    expectedType = "one of: show | profile <text> | rule add <text> | rule rm <id> | task <id>",
+                )
+            }
         }
 
         private fun buildModelProvider(

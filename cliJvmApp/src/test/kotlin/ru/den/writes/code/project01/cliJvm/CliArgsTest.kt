@@ -702,6 +702,128 @@ class CliArgsTest {
         assertEquals("-strategy", ex.argName)
     }
 
+    // --- -memory standalone subcommands -----------------------------
+
+    @Test
+    fun `dash memory show returns Memory Show`() {
+        val parsed = parse("-memory", "show")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.Show, memory.action)
+    }
+
+    @Test
+    fun `dash memory profile captures the rest of the line as text`() {
+        val parsed = parse("-memory", "profile", "I", "write", "Kotlin")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.SetProfile("I write Kotlin"), memory.action)
+    }
+
+    @Test
+    fun `dash memory rule add captures the text after add`() {
+        val parsed = parse("-memory", "rule", "add", "No", "Spring")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.AddRule("No Spring"), memory.action)
+    }
+
+    @Test
+    fun `dash memory rule rm captures the id`() {
+        val parsed = parse("-memory", "rule", "rm", "002")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.RemoveRule("002"), memory.action)
+    }
+
+    @Test
+    fun `dash memory task captures the id`() {
+        val parsed = parse("-memory", "task", "auth-service")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.SetTask("auth-service"), memory.action)
+    }
+
+    @Test
+    fun `dash memory task rejects an invalid id shape`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-memory", "task", "bad/id")  // slash is not in the allowed alphabet
+        }
+        assertEquals("-memory", ex.argName)
+    }
+
+    @Test
+    fun `dash memory rejects an unknown subcommand`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-memory", "wat")
+        }
+        assertEquals("-memory", ex.argName)
+    }
+
+    @Test
+    fun `dash memory and dash oneshot together are mutually exclusive`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-memory", "show", "-oneshot", "-prompt", "hi")
+        }
+        assertTrue(ex.message!!.contains("-memory"))
+    }
+
+    // --- Chat: -memory-mode and -task --------------------------------
+
+    @Test
+    fun `dash memory-mode preamble sets PREAMBLE on Chat`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-memory-mode", "preamble"))
+        assertEquals(ru.den.writes.code.project01.cliJvm.memory.MemoryMode.PREAMBLE, chat.memoryMode)
+    }
+
+    @Test
+    fun `dash memory-mode system sets SYSTEM on Chat`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi", "-memory-mode", "system"))
+        assertEquals(ru.den.writes.code.project01.cliJvm.memory.MemoryMode.SYSTEM, chat.memoryMode)
+    }
+
+    @Test
+    fun `dash memory-mode rejects an unknown value`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-memory-mode", "shrug")
+        }
+        assertEquals("-memory-mode", ex.argName)
+    }
+
+    @Test
+    fun `dash task with dash memory-mode is accepted`() {
+        val chat = assertIs<CliArgs.Chat>(
+            parse("-prompt", "hi", "-memory-mode", "preamble", "-task", "auth")
+        )
+        assertEquals("auth", chat.task)
+    }
+
+    @Test
+    fun `dash task without dash memory-mode is rejected`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-task", "auth")
+        }
+        assertEquals("-task", ex.argName)
+    }
+
+    @Test
+    fun `dash task is rejected alongside oneshot`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-oneshot", "-task", "auth")
+        }
+        assertEquals("-task", ex.argName)
+    }
+
+    @Test
+    fun `dash memory-mode is rejected alongside oneshot`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-oneshot", "-memory-mode", "preamble")
+        }
+        assertEquals("-memory-mode", ex.argName)
+    }
+
+    @Test
+    fun `Chat without dash memory-mode leaves memoryMode null`() {
+        val chat = assertIs<CliArgs.Chat>(parse("-prompt", "hi"))
+        assertNull(chat.memoryMode)
+        assertNull(chat.task)
+    }
+
     private companion object {
         const val DUMMY_GEMINI_KEY = "test-gemini-key"
         const val DUMMY_OPENROUTER_KEY = "test-openrouter-key"

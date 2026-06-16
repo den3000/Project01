@@ -18,6 +18,8 @@ import ru.den.writes.code.project01.cliJvm.db.MIGRATION_2_3
 import ru.den.writes.code.project01.cliJvm.db.MIGRATION_3_4
 import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
+import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess
@@ -32,6 +34,16 @@ private const val REQUEST_TIMEOUT_MS = 300_000L
 private val DB_FILE: File = File(
     System.getProperty("user.home"),
     ".project01-cli/history.db",
+)
+
+/**
+ * Root of the on-disk memory layer (Day-11). Profile, rules and task
+ * notes live under this folder as markdown files — see
+ * [MemoryStore] for the layout.
+ */
+private val MEMORY_ROOT: File = File(
+    System.getProperty("user.home"),
+    ".project01-cli/memory",
 )
 
 suspend fun main(args: Array<String>) {
@@ -86,10 +98,51 @@ suspend fun main(args: Array<String>) {
                 println("Cleared $before messages across all sessions (and any saved summaries / facts).")
             }
             is CliArgs.Inflate -> inflateSession(db, initialArgs)
+            is CliArgs.Memory -> handleMemoryCommand(initialArgs.action)
             is CliArgs.PromptCommand -> runPromptCommand(db, initialArgs)
         }
     } finally {
         db.close()
+    }
+}
+
+/**
+ * Run a `-memory <subcommand>` invocation against the on-disk memory
+ * root. Pure disk operation — no LLM, no session, no DB. Prints a
+ * short status line to stdout (errors to stderr) and returns.
+ */
+private fun handleMemoryCommand(action: CliArgs.MemoryAction) {
+    MEMORY_ROOT.mkdirs()
+    val store = MemoryStore(MEMORY_ROOT)
+    when (action) {
+        is CliArgs.MemoryAction.Show -> {
+            // Use a temporary provider in PREAMBLE mode for describe() —
+            // no task is active when invoked from the CLI; this prints
+            // the dormant snapshot of every layer.
+            println(MemoryProvider(store, initialTaskId = null).describe())
+        }
+        is CliArgs.MemoryAction.SetProfile -> {
+            store.saveProfile(action.text)
+            println("[memory] profile saved (${action.text.length} char(s))")
+        }
+        is CliArgs.MemoryAction.AddRule -> {
+            val rule = store.addRule(action.text)
+            println("[memory] rule ${rule.id} added")
+        }
+        is CliArgs.MemoryAction.RemoveRule -> {
+            val removed = store.removeRule(action.id)
+            if (removed) println("[memory] rule ${action.id} removed")
+            else System.err.println("[memory] no rule with id '${action.id}'")
+        }
+        is CliArgs.MemoryAction.SetTask -> {
+            // Touch-create so subsequent `-memory show` (and the next
+            // chat with `-task <id>`) sees an empty task file rather
+            // than nothing on disk.
+            if (store.loadTask(action.taskId) == null) {
+                store.saveTask(ru.den.writes.code.project01.cliJvm.memory.TaskNotes(taskId = action.taskId))
+            }
+            println("[memory] task '${action.taskId}' ready under ${File(MEMORY_ROOT, MemoryStore.TASKS_DIR).absolutePath}/${action.taskId}.md")
+        }
     }
 }
 
@@ -299,6 +352,17 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 HistoryCompressor(keepLast = chat.keepLast, summarizeEvery = chat.summarizeEvery),
             )
         }
+        // Day-11 memory: only wired in when the user passed -memory-mode.
+        // Without it, Agent receives a null MemoryProvider and the wire
+        // bytes are byte-identical to a pre-Day-11 run.
+        val memory: MemoryProvider? = chat?.memoryMode?.let { mode ->
+            MEMORY_ROOT.mkdirs()
+            MemoryProvider(
+                store = MemoryStore(MEMORY_ROOT),
+                initialMode = mode,
+                initialTaskId = chat.task,
+            )
+        }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile
         if (feedFile != null) {
             // File-driven feed mode: open the reader and hand a feed source
@@ -326,6 +390,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                     promptSource = feedSource,
                     replAfterFeed = stdinAfter,
                     strategy = strategy,
+                    memory = memory,
                 ).run()
             }
         } else {
@@ -336,6 +401,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 llmApi = llmApi,
                 historyStore = historyStore,
                 strategy = strategy,
+                memory = memory,
             ).run()
         }
     }
