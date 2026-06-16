@@ -182,15 +182,20 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   - **3.5:** `gemini-3.5-flash` only — no Pro, no Flash-Lite tier in 3.5
 
   **OpenRouter** ([free-tier roster](https://openrouter.ai/models?max_price=0),
-  default: `openrouter/auto:free`). The free roster changes
-  often — the typed catalog ships a small handful of stable free ids and
-  the meta-router; anything else can be passed as a raw id:
-  - `openrouter/auto:free` (meta-router, picks an available free model
-    at request time)
-  - `deepseek/deepseek-r1:free`
-  - `meta-llama/llama-4-maverick:free`
-  - `google/gemma-3-27b-it:free`
-  - `qwen/qwen3-235b-a22b:free`
+  default: `openrouter/auto`). The free roster rotates fast — these
+  `:free` ids were verified live in June 2026; expect drift, and pass any
+  current id as a raw `-model` (it falls through to `Custom`). The typed
+  catalog ships the meta-router plus a handful of free models:
+  - `openrouter/auto` — meta-router, picks a model at request time. Note:
+    **not** a `:free` id, so it may route to (and bill for) a paid model.
+  - `meta-llama/llama-3.3-70b-instruct:free` (131K ctx)
+  - `google/gemma-4-31b-it:free` (262K ctx)
+  - `qwen/qwen3-coder:free` (1M ctx)
+  - `nvidia/nemotron-3-super-120b-a12b:free` (1M ctx)
+
+  `google/gemma-3-27b-it` is still live but **paid** (~$0.08/$0.16 per 1M
+  tokens) — it's not in the typed catalog, but the price table knows it,
+  so a `-model google/gemma-3-27b-it` run still reports real cost.
 
   **Demo recipes** (after `./gradlew :cliJvmApp:installDist`):
 
@@ -216,7 +221,7 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   # Same idea against a smaller free OpenRouter window — fills up
   # faster, useful for poking at the overflow path without a big file.
   ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp \
-    -provider openrouter -model "google/gemma-3-27b-it:free" \
+    -provider openrouter -model "meta-llama/llama-3.3-70b-instruct:free" \
     -prompt "Comment briefly on each chunk." \
     -feedFile bigfile.txt -chunkChars 5000 -session feed-or
 

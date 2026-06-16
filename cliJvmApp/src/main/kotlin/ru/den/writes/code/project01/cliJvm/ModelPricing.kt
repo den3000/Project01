@@ -78,15 +78,25 @@ internal object PricingRegistry {
             contextWindowTokens = 1_000_000,
         ),
 
-        // ---- OpenRouter free roster (all $0/$0) -------------------------
-        // Context windows are model-dependent; we only fill in ones we've
-        // verified. Unknown stays null so the overflow check just relies
-        // on the API's own 4xx.
-        "openrouter/auto:free"        to ModelPricing(0.0, 0.0, null),
-        "deepseek/deepseek-r1:free"   to ModelPricing(0.0, 0.0, 64_000),
-        "meta-llama/llama-4-maverick:free" to ModelPricing(0.0, 0.0, 256_000),
-        "google/gemma-3-27b-it"  to ModelPricing(0.0, 0.0, 128_000),
-        "qwen/qwen3-235b-a22b:free"   to ModelPricing(0.0, 0.0, 128_000),
+        // ---- OpenRouter -------------------------------------------------
+        // Rates + context windows verified live against
+        // https://openrouter.ai/api/v1/models in June 2026. The `:free`
+        // roster rotates fast, so this list will drift — refresh by hand.
+        //
+        // The `openrouter/auto` meta-router is deliberately absent: it
+        // prices per-request depending on which model it routes to, so
+        // there's no fixed rate to record. Out-of-registry → the footer
+        // shows `cost=$? (no pricing)` and skips the context line, which
+        // is the honest answer for a router.
+        //
+        // Free-tier models bill $0/$0. `google/gemma-3-27b-it` is the one
+        // PAID entry here (its `:free` variant no longer exists) — kept so
+        // a `-model google/gemma-3-27b-it` run still reports a real cost.
+        "meta-llama/llama-3.3-70b-instruct:free" to ModelPricing(0.0, 0.0, 131_072),
+        "google/gemma-4-31b-it:free"  to ModelPricing(0.0, 0.0, 262_144),
+        "qwen/qwen3-coder:free"       to ModelPricing(0.0, 0.0, 1_048_576),
+        "nvidia/nemotron-3-super-120b-a12b:free" to ModelPricing(0.0, 0.0, 1_000_000),
+        "google/gemma-3-27b-it"       to ModelPricing(0.08, 0.16, 131_072),
     )
 
     fun lookup(modelId: String): ModelPricing? = byId[modelId]
