@@ -8,7 +8,6 @@ import io.ktor.client.engine.java.Java
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
-import jdk.internal.agent.Agent
 import kotlinx.serialization.json.Json
 import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
