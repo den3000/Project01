@@ -4,6 +4,7 @@ import ru.den.writes.code.project01.shared.memory.ProfileData
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.RuleEntry
 import ru.den.writes.code.project01.shared.memory.TaskNotes
+import ru.den.writes.code.project01.shared.memory.TaskStage
 import ru.den.writes.code.project01.shared.memory.parseProfileData
 import ru.den.writes.code.project01.shared.memory.renderProfileData
 import java.io.File
@@ -309,7 +310,10 @@ internal class MemoryStore(private val root: File) {
             return TaskNotes(
                 taskId = taskId,
                 goal = sections["goal"]?.takeIf { it.isNotEmpty() },
-                stage = sections["stage"]?.takeIf { it.isNotEmpty() },
+                // Unknown / legacy free-text stage → null (tolerant): the
+                // task simply has no FSM position until one is set.
+                stage = sections["stage"]?.let { TaskStage.byKeyword(it) },
+                paused = sections["paused"]?.trim()?.lowercase() == "true",
                 notes = notes,
             )
         }
@@ -326,10 +330,15 @@ internal class MemoryStore(private val root: File) {
                 appendLine("## Goal")
                 appendLine(it.trim())
             }
-            notes.stage?.takeIf { it.isNotBlank() }?.let {
+            notes.stage?.let {
                 appendLine()
                 appendLine("## Stage")
-                appendLine(it.trim())
+                appendLine(it.keyword)
+            }
+            if (notes.paused) {
+                appendLine()
+                appendLine("## Paused")
+                appendLine("true")
             }
             if (notes.notes.isNotEmpty()) {
                 appendLine()

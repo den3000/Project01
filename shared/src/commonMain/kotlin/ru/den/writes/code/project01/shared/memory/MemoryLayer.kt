@@ -110,7 +110,24 @@ object MemoryLayer {
     private fun renderTask(task: TaskNotes): String? {
         val lines = buildList {
             task.goal?.takeIf { it.isNotBlank() }?.let { add("Goal: ${it.trim()}") }
-            task.stage?.takeIf { it.isNotBlank() }?.let { add("Stage: ${it.trim()}") }
+            task.stage?.let { stage ->
+                add("Stage: ${stage.keyword}")
+                add("Status: ${if (task.paused) "paused" else "active"}")
+                add("Expected action: ${stage.expectedAction}")
+                // The auto-advance protocol: when not paused, tell the model
+                // which stages it may move to and how to signal a move. The
+                // agent reads the [[stage:<next>]] marker back, validates it
+                // against the same table, and advances. Suppressed while paused
+                // (we're deliberately holding) and at a terminal stage.
+                val next = TaskStateMachine.allowedNext(stage)
+                if (!task.paused && next.isNotEmpty()) {
+                    add("Allowed next: ${next.joinToString(", ") { it.keyword }}")
+                    add(
+                        "When this stage is complete, end your reply with a line " +
+                            "[[stage:<next>]] choosing one allowed-next stage; do not skip stages."
+                    )
+                }
+            }
             if (task.notes.isNotEmpty()) {
                 add("Notes:")
                 task.notes.forEach { add("- ${it.trim()}") }

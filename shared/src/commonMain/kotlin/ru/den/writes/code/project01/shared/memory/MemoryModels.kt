@@ -13,14 +13,20 @@ data class RuleEntry(val id: String, val text: String)
 /**
  * Parsed working-memory file for one task.
  *
- * Mirrors the `# Task: <id>` markdown shape on disk. All section fields
- * are optional so a freshly-created task can grow incrementally — empty
- * goal/stage are rendered as no section at all, not `## Goal\n` with a
+ * Mirrors the `# Task: <id>` markdown shape on disk. All fields except
+ * [taskId] are optional so a freshly-created task can grow incrementally —
+ * an empty goal is rendered as no section at all, not `## Goal\n` with a
  * blank body.
+ *
+ * [stage] is the task's finite-state-machine position (see [TaskStage]);
+ * null means "no stage set yet" — a legacy or hand-edited file. [paused] is
+ * an orthogonal flag (pause is allowed at any stage); while it's true the
+ * agent holds the stage instead of auto-advancing.
  */
 data class TaskNotes(
     val taskId: String,
     val goal: String? = null,
-    val stage: String? = null,
+    val stage: TaskStage? = null,
+    val paused: Boolean = false,
     val notes: List<String> = emptyList(),
 )
