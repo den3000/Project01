@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.memory
+package ru.den.writes.code.project01.shared.memory
 
 /**
  * One named slice of the user profile. The four sections cover the
@@ -16,7 +16,7 @@ package ru.den.writes.code.project01.cliJvm.memory
  * inside the wire `[Profile]` block. [markdownHeading] is the on-disk
  * `## Style`-style heading used in `profile.md`.
  */
-internal enum class ProfileSection(
+enum class ProfileSection(
     val keyword: String,
     val displayName: String,
     val markdownHeading: String,
@@ -44,7 +44,7 @@ internal enum class ProfileSection(
  * The class is intentionally a plain data class with pure copy-based
  * mutators; the on-disk side lives in [MemoryStore].
  */
-internal data class ProfileData(
+data class ProfileData(
     val style: List<String> = emptyList(),
     val format: List<String> = emptyList(),
     val constraints: List<String> = emptyList(),
@@ -92,7 +92,7 @@ internal data class ProfileData(
  *   and trimmed; blank lines are skipped; non-bullet lines are still
  *   accepted as single items so a casual `## Style\nкратко` works.
  */
-internal fun parseProfileData(raw: String): ProfileData {
+fun parseProfileData(raw: String): ProfileData {
     if (raw.isBlank()) return ProfileData()
 
     val freeTextLines = mutableListOf<String>()
@@ -138,7 +138,7 @@ internal fun parseProfileData(raw: String): ProfileData {
  * - Empty [ProfileData] renders as `""` so `MemoryStore.saveProfile`
  *   deletes the file rather than leaving an empty stub on disk.
  */
-internal fun renderProfileData(data: ProfileData): String {
+fun renderProfileData(data: ProfileData): String {
     if (data.isEmpty()) return ""
     return buildString {
         data.freeText?.takeIf { it.isNotBlank() }?.let { appendLine(it.trim()) }
@@ -162,7 +162,7 @@ internal fun renderProfileData(data: ProfileData): String {
  * but forgot the body (`profile style`); callers turn that into the
  * appropriate "missing argument" error.
  */
-internal sealed interface ProfileCommand {
+sealed interface ProfileCommand {
     data class Append(val section: ProfileSection, val text: String) : ProfileCommand
     data class ClearSection(val section: ProfileSection) : ProfileCommand
     data object ClearAll : ProfileCommand
@@ -181,7 +181,7 @@ internal sealed interface ProfileCommand {
  *
  * Returns null when [input] is blank — caller signals "needs an argument".
  */
-internal fun parseProfileCommand(input: String): ProfileCommand? {
+fun parseProfileCommand(input: String): ProfileCommand? {
     val trimmed = input.trim()
     if (trimmed.isEmpty()) return null
 
@@ -211,10 +211,10 @@ internal fun parseProfileCommand(input: String): ProfileCommand? {
  * Matches the same alphabet as session ids and task ids, capped at 64
  * characters so file names stay reasonable.
  */
-internal fun isValidProfileName(s: String): Boolean =
+fun isValidProfileName(s: String): Boolean =
     s.isNotEmpty() && s.length <= PROFILE_NAME_MAX_LENGTH && s.matches(PROFILE_NAME_REGEX)
 
-internal const val PROFILE_NAME_MAX_LENGTH: Int = 64
+const val PROFILE_NAME_MAX_LENGTH: Int = 64
 private val PROFILE_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
 
 private val SECTION_HEADER = Regex("^##\\s+(\\w+).*$")

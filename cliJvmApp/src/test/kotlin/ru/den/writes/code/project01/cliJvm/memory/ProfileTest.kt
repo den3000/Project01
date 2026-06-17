@@ -1,5 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.memory
 
+import ru.den.writes.code.project01.shared.memory.ProfileData
+import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.parseProfileData
+import ru.den.writes.code.project01.shared.memory.renderProfileData
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

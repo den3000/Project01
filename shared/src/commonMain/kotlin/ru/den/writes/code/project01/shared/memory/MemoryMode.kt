@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.memory
+package ru.den.writes.code.project01.shared.memory
 
 /**
  * How the memory layer (profile + rules + active task) is woven into the
@@ -19,4 +19,4 @@ package ru.den.writes.code.project01.cliJvm.memory
  * Switchable per-session via the `-memory-mode` CLI flag and `/memory-mode`
  * REPL command.
  */
-internal enum class MemoryMode { PREAMBLE, SYSTEM }
+enum class MemoryMode { PREAMBLE, SYSTEM }

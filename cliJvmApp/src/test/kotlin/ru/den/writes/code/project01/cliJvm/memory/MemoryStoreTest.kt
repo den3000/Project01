@@ -1,5 +1,8 @@
 package ru.den.writes.code.project01.cliJvm.memory
 
+import ru.den.writes.code.project01.shared.memory.ProfileData
+import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.TaskNotes
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test

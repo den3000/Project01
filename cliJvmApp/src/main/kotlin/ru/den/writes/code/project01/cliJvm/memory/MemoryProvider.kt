@@ -1,6 +1,10 @@
 package ru.den.writes.code.project01.cliJvm.memory
 
 import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.project01.shared.memory.MemoryLayer
+import ru.den.writes.code.project01.shared.memory.MemoryMode
+import ru.den.writes.code.project01.shared.memory.ProfileData
+import ru.den.writes.code.project01.shared.memory.ProfileSection
 
 /**
  * Façade the agent uses for memory: holds the mutable mode + active

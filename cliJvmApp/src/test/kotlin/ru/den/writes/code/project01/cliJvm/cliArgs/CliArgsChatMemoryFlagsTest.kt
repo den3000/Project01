@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.cliArgs
 
 import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.CliArgsException
-import ru.den.writes.code.project01.cliJvm.memory.MemoryMode
+import ru.den.writes.code.project01.shared.memory.MemoryMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

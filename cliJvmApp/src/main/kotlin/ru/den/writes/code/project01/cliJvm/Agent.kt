@@ -3,12 +3,14 @@ package ru.den.writes.code.project01.cliJvm
 import kotlinx.coroutines.delay
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.TaskNotes
 import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.TaskNotes
+import ru.den.writes.code.project01.shared.memory.isValidProfileName
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -331,7 +333,7 @@ internal class Agent(
             }
             is BranchCommand.SwitchProfile -> withMemory { mem ->
                 val name = command.name
-                if (!ru.den.writes.code.project01.cliJvm.memory.isValidProfileName(name)) {
+                if (!isValidProfileName(name)) {
                     System.err.println("[memory] invalid profile name '$name' (alphanumeric / '_' / '-', up to 64 chars)")
                 } else {
                     mem.setActiveProfile(name)
@@ -358,7 +360,7 @@ internal class Agent(
                 } else {
                     System.err.println("[profile:$name]")
                     data.freeText?.takeIf { it.isNotBlank() }?.let { System.err.println(it.trim()) }
-                    for (section in ru.den.writes.code.project01.cliJvm.memory.ProfileSection.entries) {
+                    for (section in ProfileSection.entries) {
                         val items = data.items(section)
                         if (items.isEmpty()) continue
                         System.err.println("${section.keyword}: ${items.joinToString(", ")}")
@@ -367,7 +369,7 @@ internal class Agent(
             }
             is BranchCommand.TouchProfile -> withMemory { mem ->
                 val name = command.name
-                if (!ru.den.writes.code.project01.cliJvm.memory.isValidProfileName(name)) {
+                if (!isValidProfileName(name)) {
                     System.err.println("[memory] invalid profile name '$name'")
                 } else {
                     mem.store.touchNamedProfile(name)
@@ -376,7 +378,7 @@ internal class Agent(
             }
             is BranchCommand.AddNamedProfileItem -> withMemory { mem ->
                 val name = command.name
-                if (!ru.den.writes.code.project01.cliJvm.memory.isValidProfileName(name)) {
+                if (!isValidProfileName(name)) {
                     System.err.println("[memory] invalid profile name '$name'")
                 } else if (command.text.isBlank()) {
                     System.err.println("[memory] /profile $name ${command.section.keyword} needs the new text")

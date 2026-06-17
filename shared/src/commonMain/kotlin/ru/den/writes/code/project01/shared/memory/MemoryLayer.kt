@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.memory
+package ru.den.writes.code.project01.shared.memory
 
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
@@ -13,7 +13,7 @@ import ru.den.writes.code.project01.shared.llm.Role
  * so a "memory enabled but nothing saved yet" run leaves the wire bytes
  * identical to a no-memory run.
  */
-internal object MemoryLayer {
+object MemoryLayer {
     const val PROFILE_HEADING: String = "[Profile]"
     const val RULES_HEADING: String = "[Rules]"
     const val TASK_HEADING: String = "[Current Task]"

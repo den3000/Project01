@@ -1,13 +1,13 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.memory.MemoryMode
-import ru.den.writes.code.project01.cliJvm.memory.ProfileCommand
-import ru.den.writes.code.project01.cliJvm.memory.ProfileSection
-import ru.den.writes.code.project01.cliJvm.memory.parseProfileCommand
 import ru.den.writes.code.project01.shared.llm.GeminiModel
 import ru.den.writes.code.project01.shared.llm.HuggingFaceModel
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.OpenRouterModel
+import ru.den.writes.code.project01.shared.memory.MemoryMode
+import ru.den.writes.code.project01.shared.memory.ProfileCommand
+import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.parseProfileCommand
 
 private const val ARG_PREFIX = "-"
 private const val ARG_PROMPT = "${ARG_PREFIX}prompt"
