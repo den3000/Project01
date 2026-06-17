@@ -12,24 +12,32 @@ import kotlin.test.assertTrue
 class SessionListFormatTest {
 
     @Test
-    fun `non-compressed session has no compression segment`() {
-        val line = formatSessionLine(
-            sessionId = "demo-nocomp",
+    fun `when non-compressed session formatted - then no compression segment in line`() {
+        // given
+        val sessionId = "demo-nocomp"
+
+        // when
+        val actual = formatSessionLine(
+            sessionId = sessionId,
             messageCount = 42,
             totalTokens = 106004,
             costUsd = 0.09141,
         )
-        assertEquals(
-            "demo-nocomp\t42 messages\ttotal_tokens=106004\tcost=\$0.09141",
-            line,
-        )
-        assertFalse(line.contains("compressed"))
+
+        // then
+        val expected = "demo-nocomp\t42 messages\ttotal_tokens=106004\tcost=\$0.09141"
+        assertEquals(expected, actual)
+        assertFalse(actual.contains("compressed"))
     }
 
     @Test
-    fun `compressed session appends covered watermark and summarization overhead`() {
-        val line = formatSessionLine(
-            sessionId = "demo-comp",
+    fun `when compressed session formatted - then covered watermark and overhead appended`() {
+        // given
+        val sessionId = "demo-comp"
+
+        // when
+        val actual = formatSessionLine(
+            sessionId = sessionId,
             messageCount = 42,
             totalTokens = 67155,
             costUsd = 0.09869,
@@ -37,29 +45,40 @@ class SessionListFormatTest {
             overheadTokens = 4521,
             overheadCostUsd = 0.00452,
         )
-        assertEquals(
-            "demo-comp\t42 messages\ttotal_tokens=67155\tcost=\$0.09869" +
-                "\tcompressed(covered=38/42, overhead=4521tok \$0.00452)",
-            line,
-        )
+
+        // then
+        val expected = "demo-comp\t42 messages\ttotal_tokens=67155\tcost=\$0.09869" +
+            "\tcompressed(covered=38/42, overhead=4521tok \$0.00452)"
+        assertEquals(expected, actual)
     }
 
     @Test
-    fun `a non-main branch is labelled session slash branch`() {
-        val line = formatSessionLine(
-            sessionId = "demo",
-            branchId = "alt",
+    fun `when session has non-main branch - then formatted as session-slash-branch`() {
+        // given
+        val sessionId = "demo"
+        val branchId = "alt"
+
+        // when
+        val actual = formatSessionLine(
+            sessionId = sessionId,
+            branchId = branchId,
             messageCount = 4,
             totalTokens = 100,
             costUsd = 0.001,
         )
-        assertTrue(line.startsWith("demo/alt\t4 messages"), "got: $line")
+
+        // then
+        assertTrue(actual.startsWith("demo/alt\t4 messages"), "got: $actual")
     }
 
     @Test
-    fun `a facts session appends a facts overhead segment`() {
-        val line = formatSessionLine(
-            sessionId = "demo-facts",
+    fun `when session has facts - then facts overhead segment appended and no compressed segment`() {
+        // given
+        val sessionId = "demo-facts"
+
+        // when
+        val actual = formatSessionLine(
+            sessionId = sessionId,
             messageCount = 12,
             totalTokens = 5000,
             costUsd = 0.005,
@@ -67,7 +86,9 @@ class SessionListFormatTest {
             factsOverheadTokens = 800,
             factsOverheadCostUsd = 0.0008,
         )
-        assertTrue(line.contains("\tfacts(overhead=800tok \$0.00080)"), "got: $line")
-        assertFalse(line.contains("compressed"))
+
+        // then
+        assertTrue(actual.contains("\tfacts(overhead=800tok \$0.00080)"), "got: $actual")
+        assertFalse(actual.contains("compressed"))
     }
 }
