@@ -460,7 +460,7 @@ class AgentTest {
         }
     }
 
-    // --- Day-9 compression -------------------------------------------
+    // --- compression -------------------------------------------------
 
     @Test
     fun `compression folds old turns into a summary pair and shrinks the request`() = runTest {
@@ -630,7 +630,7 @@ class AgentTest {
         }
     }
 
-    // --- Day-10 sticky facts ----------------------------------------
+    // --- sticky facts -----------------------------------------------
 
     @Test
     fun `StickyFacts extracts facts and injects them on subsequent turns`() = runTest {
@@ -710,7 +710,7 @@ class AgentTest {
         }
     }
 
-    // --- Day-10 branching commands ----------------------------------
+    // --- branching commands -----------------------------------------
 
     @Test
     fun `branch then switch forks history and continues on the new branch`() = runTest {
@@ -769,6 +769,7 @@ class AgentTest {
         keepLast = 6,
         summarizeEvery = 10,
         task = null,
+        profile = null,
         memoryMode = null,
     )
 

@@ -108,7 +108,7 @@ class HistoryStoreTest {
         }
     }
 
-    // --- Day-8 token accounting -------------------------------------
+    // --- token accounting -------------------------------------------
 
     @Test
     fun `append with usage updates stats and persists token counts`() = runTest {
@@ -184,7 +184,7 @@ class HistoryStoreTest {
         }
     }
 
-    // --- Day-9 compression: summary persistence + overhead ----------
+    // --- compression: summary persistence + overhead ----------------
 
     @Test
     fun `saveSummary persists the row and folds overhead into stats without a turn`() = runTest {
@@ -327,7 +327,7 @@ class HistoryStoreTest {
         }
     }
 
-    // --- Day-10 branching + facts -----------------------------------
+    // --- branching + facts ------------------------------------------
 
     @Test
     fun `branches of the same session are isolated`() = runTest {

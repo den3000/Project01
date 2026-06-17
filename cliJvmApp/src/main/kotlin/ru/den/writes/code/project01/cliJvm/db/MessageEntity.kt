@@ -5,7 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/** Default branch every session lives on until the user forks one (Day-10 branching). */
+/** Default branch every session lives on until the user forks one. */
 internal const val DEFAULT_BRANCH: String = "main"
 
 /**
@@ -51,7 +51,7 @@ internal data class MessageEntity(
     @ColumnInfo(name = "thoughts_tokens") val thoughtsTokens: Int? = null,
     @ColumnInfo(name = "total_tokens") val totalTokens: Int? = null,
     /**
-     * Conversation branch this row belongs to (Day-10 branching). Added in
+     * Conversation branch this row belongs to. Added in
      * schema v4; pre-v4 rows are backfilled to [DEFAULT_BRANCH]. Together
      * with [sessionId] it scopes every per-conversation query.
      */

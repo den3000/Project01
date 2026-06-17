@@ -4,8 +4,8 @@ package ru.den.writes.code.project01.cliJvm.memory
  * How the memory layer (profile + rules + active task) is woven into the
  * outgoing request.
  *
- * The two modes exist side by side so a Day-11 demo can ship the same
- * prompt through both and compare the model's behaviour:
+ * The two modes exist side by side so the same prompt can be shipped
+ * through both and the model's behaviour compared:
  *
  * - [PREAMBLE] — one synthetic USER → ASSISTANT pair planted at the top of
  *   the wire list, mimicking the existing sticky-facts / rolling-summary

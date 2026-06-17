@@ -61,8 +61,8 @@ internal class SessionStats {
      * Replay accumulated rows into the counters. Used to restore the
      * running totals when resuming an existing session from disk.
      *
-     * Rows without a recorded [Usage] (USER turns, or pre-Day-8 rows
-     * stored under the v1 schema) are silently skipped — they don't
+     * Rows without a recorded [Usage] (USER turns, or rows stored
+     * under the v1 schema) are silently skipped — they don't
      * have token data to attribute. Rows with tokens but unknown
      * `model_id` (or a `model_id` not in [PricingRegistry]) are still
      * counted toward token totals but contribute zero cost; that's
@@ -80,7 +80,7 @@ internal class SessionStats {
 /**
  * Lift a stored [MessageEntity] back into a neutral [Usage], or `null`
  * if any of the four counter columns is missing — that's what
- * pre-Day-8 rows and USER turns look like on disk.
+ * v1-schema rows and USER turns look like on disk.
  */
 private fun MessageEntity.toUsageOrNull(): Usage? {
     val prompt = promptTokens ?: return null

@@ -4,9 +4,9 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 
 /**
- * Persisted rolling-summary state for one session (Day-9 history
- * compression). One row per (session, branch) — `(session_id, branch_id)`
- * is the composite primary key (branch added in schema v4).
+ * Persisted rolling-summary state for one session (history compression).
+ * One row per (session, branch) — `(session_id, branch_id)` is the
+ * composite primary key (branch added in schema v4).
  *
  * Holds the current rolling [summaryText] and the [coveredCount]
  * watermark (how many leading messages of the session the summary
@@ -34,6 +34,6 @@ internal data class SummaryEntity(
     @ColumnInfo(name = "output_tokens") val outputTokens: Int? = null,
     @ColumnInfo(name = "thoughts_tokens") val thoughtsTokens: Int? = null,
     @ColumnInfo(name = "total_tokens") val totalTokens: Int? = null,
-    /** Branch this summary belongs to (Day-10). Part of the composite PK with [sessionId]. */
+    /** Branch this summary belongs to. Part of the composite PK with [sessionId]. */
     @ColumnInfo(name = "branch_id") val branchId: String = DEFAULT_BRANCH,
 )

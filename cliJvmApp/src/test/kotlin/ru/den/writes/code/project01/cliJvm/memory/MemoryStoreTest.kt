@@ -34,6 +34,149 @@ class MemoryStoreTest {
     }
 
     @Test
+    fun `loadProfileData on a legacy free-text profile returns it as freeText`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.saveProfile("Я пишу только на Kotlin")
+        val data = assertNotNull(store.loadProfileData())
+        assertEquals("Я пишу только на Kotlin", data.freeText)
+        assertEquals(emptyList(), data.style)
+    }
+
+    @Test
+    fun `loadProfileData parses structured sections`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.saveProfile(
+            """
+            ## Style
+            - кратко
+            - русский
+            ## Constraints
+            - Kotlin
+            """.trimIndent()
+        )
+        val data = assertNotNull(store.loadProfileData())
+        assertNull(data.freeText)
+        assertEquals(listOf("кратко", "русский"), data.style)
+        assertEquals(listOf("Kotlin"), data.constraints)
+    }
+
+    @Test
+    fun `saveProfileData with empty ProfileData deletes the file`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.saveProfile("anything")
+        store.saveProfileData(ProfileData())
+        assertNull(store.loadProfileData())
+        assertFalse(File(root, MemoryStore.PROFILE_FILE_NAME).exists())
+    }
+
+    @Test
+    fun `addProfileItem appends two bullets and persists them`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.addProfileItem(ProfileSection.STYLE, "кратко")
+        val after = store.addProfileItem(ProfileSection.STYLE, "русский")
+        assertEquals(listOf("кратко", "русский"), after.style)
+        // Re-read from disk to make sure the second write didn't overwrite the first.
+        val reread = assertNotNull(store.loadProfileData())
+        assertEquals(listOf("кратко", "русский"), reread.style)
+    }
+
+    @Test
+    fun `clearProfileSection drops only the chosen section`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.addProfileItem(ProfileSection.STYLE, "a")
+        store.addProfileItem(ProfileSection.FORMAT, "b")
+        store.addProfileItem(ProfileSection.CONSTRAINTS, "c")
+        val after = store.clearProfileSection(ProfileSection.STYLE)
+        assertEquals(emptyList(), after.style)
+        assertEquals(listOf("b"), after.format)
+        assertEquals(listOf("c"), after.constraints)
+        val reread = assertNotNull(store.loadProfileData())
+        assertEquals(emptyList(), reread.style)
+        assertEquals(listOf("b"), reread.format)
+    }
+
+    @Test
+    fun `clearProfile deletes the entire profile file`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.addProfileItem(ProfileSection.STYLE, "a")
+        store.clearProfile()
+        assertNull(store.loadProfileData())
+        assertFalse(File(root, MemoryStore.PROFILE_FILE_NAME).exists())
+    }
+
+    // --- named profiles ---
+
+    @Test
+    fun `listProfileNames is empty when the profiles dir is fresh`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        assertEquals(emptyList(), store.listProfileNames())
+    }
+
+    @Test
+    fun `addNamedProfileItem creates the file and persists between reads`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.addNamedProfileItem("kotlin-senior", ProfileSection.STYLE, "кратко")
+        store.addNamedProfileItem("kotlin-senior", ProfileSection.CONSTRAINTS, "Kotlin")
+        val reread = assertNotNull(store.loadNamedProfile("kotlin-senior"))
+        assertEquals(listOf("кратко"), reread.style)
+        assertEquals(listOf("Kotlin"), reread.constraints)
+    }
+
+    @Test
+    fun `loadNamedProfile returns null for an unknown name`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        assertNull(store.loadNamedProfile("missing"))
+    }
+
+    @Test
+    fun `listProfileNames sorts and skips non-md files`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.touchNamedProfile("zeta")
+        store.touchNamedProfile("alpha")
+        store.touchNamedProfile("middle")
+        File(root, MemoryStore.PROFILES_DIR).resolve("README").writeText("ignore me")
+        assertEquals(listOf("alpha", "middle", "zeta"), store.listProfileNames())
+    }
+
+    @Test
+    fun `clearNamedProfileSection wipes one section and keeps the rest`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.addNamedProfileItem("a", ProfileSection.STYLE, "s")
+        store.addNamedProfileItem("a", ProfileSection.CONSTRAINTS, "c")
+        store.clearNamedProfileSection("a", ProfileSection.STYLE)
+        val data = assertNotNull(store.loadNamedProfile("a"))
+        assertEquals(emptyList(), data.style)
+        assertEquals(listOf("c"), data.constraints)
+    }
+
+    @Test
+    fun `clearNamedProfile removes the file and reports success`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.addNamedProfileItem("a", ProfileSection.STYLE, "s")
+        assertTrue(store.clearNamedProfile("a"))
+        assertNull(store.loadNamedProfile("a"))
+        assertFalse(store.clearNamedProfile("a"))  // second time the file is already gone
+    }
+
+    @Test
+    fun `touchNamedProfile creates an empty file when none exists`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.touchNamedProfile("fresh")
+        assertTrue(File(root, MemoryStore.PROFILES_DIR).resolve("fresh.md").exists())
+        // Empty file → loadNamedProfile still returns null (no content to parse).
+        assertNull(store.loadNamedProfile("fresh"))
+        assertEquals(listOf("fresh"), store.listProfileNames())
+    }
+
+    @Test
+    fun `touchNamedProfile does not overwrite an existing file`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.addNamedProfileItem("a", ProfileSection.STYLE, "keep me")
+        store.touchNamedProfile("a")
+        assertEquals(listOf("keep me"), assertNotNull(store.loadNamedProfile("a")).style)
+    }
+
+    @Test
     fun `addRule numbers entries starting from 001`() = withTempDir { root ->
         val store = MemoryStore(root)
         val a = store.addRule("Only Kotlin")
