@@ -1,11 +1,11 @@
 package ru.den.writes.code.project01.cliJvm.agent
 
+import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.Agent
 import ru.den.writes.code.project01.cliJvm.FactsExtractor
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
-import ru.den.writes.code.project01.cliJvm.Message
-import ru.den.writes.code.project01.cliJvm.Role
 import ru.den.writes.code.project01.cliJvm.StickyFacts
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore

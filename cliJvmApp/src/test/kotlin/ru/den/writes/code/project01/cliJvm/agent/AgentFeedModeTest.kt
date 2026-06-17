@@ -1,11 +1,11 @@
 package ru.den.writes.code.project01.cliJvm.agent
 
+import ru.den.writes.code.project01.shared.llm.LlmResult
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.Agent
 import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.LineFilePromptSource
-import ru.den.writes.code.project01.cliJvm.LlmResult
 import ru.den.writes.code.project01.cliJvm.StdinPromptSource
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore

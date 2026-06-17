@@ -1,6 +1,9 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
+import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.pricing.ModelPricing
+import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 
 /**
  * In-memory running totals for one session.

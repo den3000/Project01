@@ -3,7 +3,10 @@ This is a Kotlin Multiplatform project targeting Android, iOS, Desktop (JVM).
 * [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
   you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
 
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.
+* [/shared](./shared/src) is for code shared across all targets (Android, iOS, Desktop/JVM) — both the
+  Compose Multiplatform UI and the provider-neutral **LLM domain core** the CLI is built on: `llm/`
+  (the `LlmApi` contract, provider catalogs, and the Gemini/OpenRouter/Hugging Face clients), `context/`
+  (rolling-summary compaction), `pricing/`, and `memory/` (profile + rules + task model).
   It contains several subfolders:
   - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
   - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
@@ -270,7 +273,7 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
 Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 
 - Android tests: `./gradlew :shared:testAndroidHostTest`
-- Desktop tests: `./gradlew :shared:jvmTest`
+- Desktop + shared domain-core tests (LLM API, pricing, context, memory): `./gradlew :shared:jvmTest`
 - iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
 - CLI JVM app tests (fast, no network — all providers stubbed via
   `FakeLlmApi`): `./gradlew :cliJvmApp:test`

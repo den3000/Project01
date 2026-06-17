@@ -15,26 +15,33 @@ KMP-проект (пакет `ru.den.writes.code.project01`).
 > - **Не дублировать то, что уже есть в коде** (цены, сигнатуры, версии) —
 >   указатель на файл-источник.
 
-## Карта `cliJvmApp`
-`src/main/kotlin/ru/den/writes/code/project01/cliJvm/`
-- `main.kt` — bootstrap, Room init + миграции (v1→v4), dispatch по `CliArgs`.
-- `CliArgs.kt` — sealed разбор аргументов (ListSessions/Clean/Inflate/Chat/OneShot) + `USAGE`.
-- `Agent.kt` — диалоговый цикл, footer (turn/context/session), REPL branch-команды, session-summary.
-- `LlmApi.kt` — нейтральный интерфейс + `Message`/`Role`/`GenerationParams`/`Usage`/`LlmResult`.
-- `ModelProvider.kt`, `GeminiModel.kt`, `OpenRouterModel.kt` — typed провайдер + модель (+`Custom` escape hatch).
-- `GeminiApi.kt`+`GeminiDto.kt`, `OpenRouterApi.kt`+`OpenRouterDto.kt` — реализации `LlmApi`.
-- `HuggingFaceApi.kt`+`HuggingFaceDto.kt`+`HuggingFaceModel.kt` — третий провайдер: HF Inference Providers через OpenAI-совместимый Router.
-- `ModelPricing.kt` — `PricingRegistry`: цены/окна. **Single source of truth по ценам.**
-- `ContextStrategy.kt` (full/window/summary) + `StickyFacts.kt` (facts) + `HistoryCompressor.kt` — стратегии контекста.
-- `SessionStats.kt`, `PromptSource.kt`.
+## Карта модулей
+**`shared` (commonMain, пакет `ru.den.writes.code.project01.shared.*`)** — портируемое ядро для всех таргетов (jvm/android/ios):
+- `llm/` — `LlmApi` (нейтральный интерфейс + `Message`/`Role`/`GenerationParams`/`Usage`/`LlmResult`), `ModelProvider` (sealed-дискриминатор провайдера).
+- `llm/gemini|openrouter|huggingface/` — по провайдеру: `*Api` (реализация `LlmApi`) + `*Dto` + `*Model` (typed каталог + `Custom`). `HttpClient` инжектится снаружи; ktor-движок (`Java`) — в cliJvmApp, не в shared.
+- `context/` — `HistoryCompressor` (rolling-summary алгоритм, чистый, без `HistoryStore`) + `evenDown` (`EvenDown.kt`).
+- `pricing/` — `ModelPricing`/`PricingRegistry`: цены/окна. **Single source of truth по ценам.**
+- `memory/` — `Profile.kt` (`ProfileSection` style/format/constraints/context + `ProfileData` + `parseProfileData`/`renderProfileData`/`parseProfileCommand`/`isValidProfileName`), `MemoryLayer` (`composePreamble`/`composeSystem`), `MemoryMode` (PREAMBLE/SYSTEM), `MemoryModels.kt` (`RuleEntry`/`TaskNotes`).
+- `util/Logging.kt` — `expect/actual logWarn` для retry-логов `*Api` (jvm/android → `System.err`, ios → `println`).
+- BuildKonfig (ключи API) — тоже в `shared`, см. «Версии и ключи».
+
+**`cliJvmApp` (пакет `ru.den.writes.code.project01.cliJvm.*`, зависит от `:shared`)** — JVM-консольный клиент:
+- `main.kt` — bootstrap, Room init + миграции (v1→v4), `HttpClient(Java)`, dispatch по `CliArgs`.
+- `CliArgs.kt` — sealed разбор аргументов (ListSessions/Clean/Inflate/Chat/OneShot/Memory) + `USAGE`. CLI-специфика, остаётся в cliJvmApp.
+- `Agent.kt` — диалоговый цикл, footer (turn/context/session), REPL branch/memory-команды, session-summary.
+- `ContextStrategy.kt` (full/window/summary, завязан на `HistoryStore`) + `StickyFacts.kt` (`FactsExtractor` + sticky-facts стратегия). `Summary` оборачивает shared-`HistoryCompressor`.
+- `SessionStats.kt` (счётчики сессии, завязан на Room `MessageEntity`), `PromptSource.kt` (stdin/файловый ввод).
 - `db/` — Room: `AppDatabase` (version=4), `MessageDao`, `HistoryStore`, entity'и (messages/summaries/facts).
-- `memory/` — модель памяти ассистента: `MemoryMode` (PREAMBLE/SYSTEM), `MemoryStore` (markdown-файлы под `~/.project01-cli/memory/`: `profile.md`, `profiles/<name>.md`, `rules/NNN-*.md`, `tasks/<id>.md`), `MemoryLayer` (композиция `composePreamble`/`composeSystem`), `MemoryProvider` (фасад с активным режимом + taskId + activeProfileName).
-- `memory/Profile.kt` — структурированный профиль: `ProfileSection` (style/format/constraints/context) + `ProfileData` (4 списка bullet'ов + опц. `freeText` для legacy) + `parseProfileData`/`renderProfileData` (markdown round-trip) + `parseProfileCommand` (общий для CLI и REPL) + `isValidProfileName`.
-- Тесты: `src/test/.../cliJvm/` — `FakeLlmApi`, `TestDb` + `*Test` (offline, без сети).
+- `memory/` — `MemoryStore` (markdown-файлы под `~/.project01-cli/memory/`: `profile.md`, `profiles/<name>.md`, `rules/NNN-*.md`, `tasks/<id>.md`), `MemoryProvider` (фасад: режим + taskId + activeProfileName).
+
+## Тесты (offline, без сети)
+- `shared/src/commonTest/…shared/` — тесты переехавшего ядра: `*ApiTest` (gemini/openrouter/huggingface), `HistoryCompressorTest`, `PricingRegistryTest`, `ProfileTest`, `MemoryLayerTest` + `FakeLlmApi`. Гонять `./gradlew :shared:jvmTest`.
+- `cliJvmApp/src/test/…cliJvm/` — `TestDb` + своя копия `FakeLlmApi` + `*Test` для остающегося кода (db/`HistoryStore`/`Agent`/`MemoryStore`/`CliArgs`/`SessionStats`/`ContextStrategy`/`FactsExtractor`/…).
 
 ## Команды и verification loop
-- **`./gradlew :cliJvmApp:test`** — быстрые offline-тесты. **Гонять после каждой правки**
-  `Agent`/`CliArgs`/`HistoryStore`/`*Api`/strategy.
+- **`./gradlew :cliJvmApp:test`** (cliJvmApp) + **`:shared:jvmTest`** (ядро) — быстрые offline-тесты.
+  **Гонять после каждой правки**: `Agent`/`CliArgs`/`HistoryStore`/`MemoryStore`/`ContextStrategy` → `:cliJvmApp:test`;
+  `*Api`/`HistoryCompressor`/`PricingRegistry`/`Profile`/`MemoryLayer` → `:shared:jvmTest`.
 - `./gradlew :cliJvmApp:installDist` → `./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp …`.
   **ОБЯЗАТЕЛЬНО пересобирать после правки CLI-флагов** — иначе старый бинарь не знает новых
   флагов (симптом: новый флаг «прилипает» к значению предыдущего).

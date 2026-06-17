@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.agent
 
+import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
+import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
-import ru.den.writes.code.project01.cliJvm.GeminiModel
-import ru.den.writes.code.project01.cliJvm.ModelProvider
 import ru.den.writes.code.project01.cliJvm.StdinPromptSource
 import java.io.BufferedReader
 import java.io.StringReader

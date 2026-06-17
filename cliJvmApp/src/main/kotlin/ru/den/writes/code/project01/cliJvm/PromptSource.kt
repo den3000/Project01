@@ -1,10 +1,10 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.memory.MemoryMode
-import ru.den.writes.code.project01.cliJvm.memory.ProfileCommand
-import ru.den.writes.code.project01.cliJvm.memory.ProfileSection
-import ru.den.writes.code.project01.cliJvm.memory.isValidProfileName
-import ru.den.writes.code.project01.cliJvm.memory.parseProfileCommand
+import ru.den.writes.code.project01.shared.memory.MemoryMode
+import ru.den.writes.code.project01.shared.memory.ProfileCommand
+import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.isValidProfileName
+import ru.den.writes.code.project01.shared.memory.parseProfileCommand
 import java.io.BufferedReader
 import java.io.Reader
 

@@ -1,5 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,5 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.project01.shared.llm.Usage
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import kotlin.test.Test

@@ -20,6 +20,16 @@ import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.shared.context.HistoryCompressor
+import ru.den.writes.code.project01.shared.llm.LlmApi
+import ru.den.writes.code.project01.shared.llm.ModelProvider
+import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.llm.gemini.GeminiApi
+import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceApi
+import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterApi
+import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.TaskNotes
+import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess
@@ -153,7 +163,7 @@ private fun handleMemoryCommand(action: CliArgs.MemoryAction) {
             } else {
                 println("[profile:${action.name}]")
                 data.freeText?.takeIf { it.isNotBlank() }?.let { println(it.trim()) }
-                for (section in ru.den.writes.code.project01.cliJvm.memory.ProfileSection.entries) {
+                for (section in ProfileSection.entries) {
                     val items = data.items(section)
                     if (items.isEmpty()) continue
                     println("${section.keyword}: ${items.joinToString(", ")}")
@@ -192,7 +202,7 @@ private fun handleMemoryCommand(action: CliArgs.MemoryAction) {
             // chat with `-task <id>`) sees an empty task file rather
             // than nothing on disk.
             if (store.loadTask(action.taskId) == null) {
-                store.saveTask(ru.den.writes.code.project01.cliJvm.memory.TaskNotes(taskId = action.taskId))
+                store.saveTask(TaskNotes(taskId = action.taskId))
             }
             println("[memory] task '${action.taskId}' ready under ${File(MEMORY_ROOT, MemoryStore.TASKS_DIR).absolutePath}/${action.taskId}.md")
         }
