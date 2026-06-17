@@ -28,7 +28,7 @@ internal object MemoryLayer {
      * prepended to the history tail.
      */
     fun composePreamble(
-        profile: String?,
+        profile: ProfileData?,
         rules: List<RuleEntry>,
         task: TaskNotes?,
     ): List<Message> {
@@ -49,7 +49,7 @@ internal object MemoryLayer {
      * emitting separate messages here keeps logging and tests legible.
      */
     fun composeSystem(
-        profile: String?,
+        profile: ProfileData?,
         rules: List<RuleEntry>,
         task: TaskNotes?,
     ): List<Message> = renderSections(profile, rules, task)
@@ -62,18 +62,49 @@ internal object MemoryLayer {
      * ordering.
      */
     private fun renderSections(
-        profile: String?,
+        profile: ProfileData?,
         rules: List<RuleEntry>,
         task: TaskNotes?,
     ): List<String> = buildList {
-        profile?.takeIf { it.isNotBlank() }?.let {
-            add("$PROFILE_HEADING\n${it.trim()}")
-        }
+        profile?.let(::buildProfileBlock)?.let { add(it) }
         if (rules.isNotEmpty()) {
             val body = rules.joinToString("\n") { "- ${it.text.replace("\n", " ").trim()}" }
             add("$RULES_HEADING\n$body")
         }
         task?.let { renderTask(it) }?.let { add(it) }
+    }
+
+    /**
+     * Format a [ProfileData] as the wire `[Profile]` block:
+     *
+     * - `freeText` (if any) sits directly under the heading — so a
+     *   profile that only has free text renders as `[Profile]\n<text>`,
+     *   byte-identical to the unstructured wire shape.
+     * - Each non-empty section follows as `Style:` / `Format:` /
+     *   `Constraints:` / `Context:` with `- bullets` underneath.
+     * - Empty profile → null so the whole block is omitted.
+     */
+    private fun buildProfileBlock(data: ProfileData): String? {
+        if (data.isEmpty()) return null
+        return buildString {
+            append(PROFILE_HEADING)
+            data.freeText?.takeIf { it.isNotBlank() }?.let {
+                append('\n')
+                append(it.trim())
+            }
+            for (section in ProfileSection.entries) {
+                val items = data.items(section)
+                if (items.isEmpty()) continue
+                append('\n')
+                append(section.displayName)
+                append(':')
+                for (item in items) {
+                    append('\n')
+                    append("- ")
+                    append(item)
+                }
+            }
+        }
     }
 
     private fun renderTask(task: TaskNotes): String? {

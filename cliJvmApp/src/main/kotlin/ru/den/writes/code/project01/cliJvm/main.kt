@@ -125,6 +125,59 @@ private fun handleMemoryCommand(action: CliArgs.MemoryAction) {
             store.saveProfile(action.text)
             println("[memory] profile saved (${action.text.length} char(s))")
         }
+        is CliArgs.MemoryAction.AddProfileItem -> {
+            val updated = store.addProfileItem(action.section, action.text)
+            val count = updated.items(action.section).size
+            println("[memory] profile.${action.section.keyword} += \"${action.text}\" ($count item(s) total)")
+        }
+        is CliArgs.MemoryAction.ClearProfileSection -> {
+            store.clearProfileSection(action.section)
+            println("[memory] profile.${action.section.keyword} cleared")
+        }
+        is CliArgs.MemoryAction.ClearProfile -> {
+            store.clearProfile()
+            println("[memory] profile cleared")
+        }
+        is CliArgs.MemoryAction.ListProfiles -> {
+            val names = store.listProfileNames()
+            if (names.isEmpty()) println("[memory] no named profiles")
+            else {
+                println("[memory] profiles:")
+                names.forEach { println("  - $it") }
+            }
+        }
+        is CliArgs.MemoryAction.ShowProfile -> {
+            val data = store.loadNamedProfile(action.name)
+            if (data == null) {
+                System.err.println("[memory] profile '${action.name}' is empty or absent")
+            } else {
+                println("[profile:${action.name}]")
+                data.freeText?.takeIf { it.isNotBlank() }?.let { println(it.trim()) }
+                for (section in ru.den.writes.code.project01.cliJvm.memory.ProfileSection.entries) {
+                    val items = data.items(section)
+                    if (items.isEmpty()) continue
+                    println("${section.keyword}: ${items.joinToString(", ")}")
+                }
+            }
+        }
+        is CliArgs.MemoryAction.TouchProfile -> {
+            store.touchNamedProfile(action.name)
+            println("[memory] profile '${action.name}' ready under ${File(MEMORY_ROOT, MemoryStore.PROFILES_DIR).absolutePath}/${action.name}.md")
+        }
+        is CliArgs.MemoryAction.AddNamedProfileItem -> {
+            val updated = store.addNamedProfileItem(action.name, action.section, action.text)
+            val count = updated.items(action.section).size
+            println("[memory] profile.${action.name}.${action.section.keyword} += \"${action.text}\" ($count item(s) total)")
+        }
+        is CliArgs.MemoryAction.ClearNamedProfileSection -> {
+            store.clearNamedProfileSection(action.name, action.section)
+            println("[memory] profile.${action.name}.${action.section.keyword} cleared")
+        }
+        is CliArgs.MemoryAction.ClearNamedProfile -> {
+            val removed = store.clearNamedProfile(action.name)
+            if (removed) println("[memory] profile '${action.name}' removed")
+            else System.err.println("[memory] no profile named '${action.name}'")
+        }
         is CliArgs.MemoryAction.AddRule -> {
             val rule = store.addRule(action.text)
             println("[memory] rule ${rule.id} added")
@@ -361,6 +414,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 store = MemoryStore(MEMORY_ROOT),
                 initialMode = mode,
                 initialTaskId = chat.task,
+                initialProfileName = chat.profile,
             )
         }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile

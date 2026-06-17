@@ -769,6 +769,7 @@ class AgentTest {
         keepLast = 6,
         summarizeEvery = 10,
         task = null,
+        profile = null,
         memoryMode = null,
     )
 

@@ -304,6 +304,93 @@ internal class Agent(
                     System.err.println("[memory] profile saved (${command.text.length} char(s))")
                 }
             }
+            is BranchCommand.AddProfileItem -> withMemory { mem ->
+                if (command.text.isBlank()) {
+                    System.err.println("[memory] /profile ${command.section.keyword} needs the new text")
+                } else {
+                    val updated = mem.store.addProfileItem(command.section, command.text)
+                    val count = updated.items(command.section).size
+                    System.err.println(
+                        "[memory] profile.${command.section.keyword} += \"${command.text}\" ($count item(s) total)"
+                    )
+                }
+            }
+            is BranchCommand.ClearProfileSection -> withMemory { mem ->
+                mem.store.clearProfileSection(command.section)
+                System.err.println("[memory] profile.${command.section.keyword} cleared")
+            }
+            BranchCommand.ClearProfile -> withMemory { mem ->
+                mem.store.clearProfile()
+                System.err.println("[memory] profile cleared")
+            }
+            is BranchCommand.SwitchProfile -> withMemory { mem ->
+                val name = command.name
+                if (!ru.den.writes.code.project01.cliJvm.memory.isValidProfileName(name)) {
+                    System.err.println("[memory] invalid profile name '$name' (alphanumeric / '_' / '-', up to 64 chars)")
+                } else {
+                    mem.setActiveProfile(name)
+                    System.err.println("[memory] active profile → $name")
+                }
+            }
+            BranchCommand.ListProfiles -> withMemory { mem ->
+                val names = mem.store.listProfileNames()
+                val active = mem.activeProfileName()
+                if (names.isEmpty()) System.err.println("[memory] no named profiles")
+                else {
+                    System.err.println("[memory] profiles:")
+                    names.forEach { name ->
+                        val marker = if (name == active) "* " else "  "
+                        System.err.println("  $marker$name")
+                    }
+                }
+            }
+            is BranchCommand.ShowProfile -> withMemory { mem ->
+                val name = command.name
+                val data = mem.store.loadNamedProfile(name)
+                if (data == null) {
+                    System.err.println("[memory] profile '$name' is empty or absent")
+                } else {
+                    System.err.println("[profile:$name]")
+                    data.freeText?.takeIf { it.isNotBlank() }?.let { System.err.println(it.trim()) }
+                    for (section in ru.den.writes.code.project01.cliJvm.memory.ProfileSection.entries) {
+                        val items = data.items(section)
+                        if (items.isEmpty()) continue
+                        System.err.println("${section.keyword}: ${items.joinToString(", ")}")
+                    }
+                }
+            }
+            is BranchCommand.TouchProfile -> withMemory { mem ->
+                val name = command.name
+                if (!ru.den.writes.code.project01.cliJvm.memory.isValidProfileName(name)) {
+                    System.err.println("[memory] invalid profile name '$name'")
+                } else {
+                    mem.store.touchNamedProfile(name)
+                    System.err.println("[memory] profile '$name' ready (use /profile-use $name to activate)")
+                }
+            }
+            is BranchCommand.AddNamedProfileItem -> withMemory { mem ->
+                val name = command.name
+                if (!ru.den.writes.code.project01.cliJvm.memory.isValidProfileName(name)) {
+                    System.err.println("[memory] invalid profile name '$name'")
+                } else if (command.text.isBlank()) {
+                    System.err.println("[memory] /profile $name ${command.section.keyword} needs the new text")
+                } else {
+                    val updated = mem.store.addNamedProfileItem(name, command.section, command.text)
+                    val count = updated.items(command.section).size
+                    System.err.println(
+                        "[memory] profile.$name.${command.section.keyword} += \"${command.text}\" ($count item(s) total)"
+                    )
+                }
+            }
+            is BranchCommand.ClearNamedProfileSection -> withMemory { mem ->
+                mem.store.clearNamedProfileSection(command.name, command.section)
+                System.err.println("[memory] profile.${command.name}.${command.section.keyword} cleared")
+            }
+            is BranchCommand.ClearNamedProfile -> withMemory { mem ->
+                val removed = mem.store.clearNamedProfile(command.name)
+                if (removed) System.err.println("[memory] profile '${command.name}' removed")
+                else System.err.println("[memory] no profile named '${command.name}'")
+            }
             is BranchCommand.AddRule -> withMemory { mem ->
                 if (command.text.isBlank()) {
                     System.err.println("[memory] /rule needs the new rule text")

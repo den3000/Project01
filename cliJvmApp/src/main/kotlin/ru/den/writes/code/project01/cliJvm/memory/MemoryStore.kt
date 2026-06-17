@@ -54,6 +54,7 @@ internal class MemoryStore(private val root: File) {
         root.mkdirs()
         rulesDir.mkdirs()
         tasksDir.mkdirs()
+        profilesDir.mkdirs()
     }
 
     /** Returns the on-disk file contents trimmed; null if absent or blank. */
@@ -72,6 +73,119 @@ internal class MemoryStore(private val root: File) {
             profileFile.writeText(trimmed + "\n", Charsets.UTF_8)
         }
     }
+
+    /**
+     * Structured view of the profile. Returns null when the underlying
+     * file is missing or — after parse — turns out empty. Free-form
+     * profiles come back as `ProfileData(freeText = …)`; nothing else fires.
+     */
+    fun loadProfileData(): ProfileData? {
+        val raw = loadProfile() ?: return null
+        val data = parseProfileData(raw)
+        return data.takeUnless { it.isEmpty() }
+    }
+
+    /**
+     * Persist [data] back to `profile.md`. An empty [ProfileData] deletes
+     * the file (via [saveProfile]) so a `cat profile.md` after `clear`
+     * doesn't show a stub.
+     */
+    fun saveProfileData(data: ProfileData) {
+        saveProfile(renderProfileData(data))
+    }
+
+    /**
+     * Append [text] under [section]. Reads the current profile, mutates
+     * via [ProfileData.addItem], writes back. Returns the new state so
+     * callers can echo it without re-reading the disk.
+     */
+    fun addProfileItem(section: ProfileSection, text: String): ProfileData {
+        val updated = (loadProfileData() ?: ProfileData()).addItem(section, text)
+        saveProfileData(updated)
+        return updated
+    }
+
+    /** Empty just [section]; other sections and `freeText` survive. */
+    fun clearProfileSection(section: ProfileSection): ProfileData {
+        val updated = (loadProfileData() ?: ProfileData()).clear(section)
+        saveProfileData(updated)
+        return updated
+    }
+
+    /** Drop the entire profile, including any legacy `freeText`. */
+    fun clearProfile() {
+        saveProfile("")
+    }
+
+    // --- Named profiles --------------------------------------------
+    //
+    // Lives next to `profile.md` (the unnamed default-fallback) under
+    // `profiles/<name>.md`. Same shape as `tasks/<id>.md`: one file per
+    // named profile, plain markdown the user can `cat`/`vim` outside
+    // the CLI. The unnamed `profile.md` is still served by the
+    // `loadProfileData`/`saveProfileData` family above and acts as the
+    // fallback when no named profile is active.
+
+    /** Profile names that have a `profiles/<name>.md` file, sorted. */
+    fun listProfileNames(): List<String> = profilesDir.listFiles()
+        ?.asSequence()
+        ?.filter { it.isFile && it.name.endsWith(".md") }
+        ?.map { it.nameWithoutExtension }
+        ?.sorted()
+        ?.toList()
+        ?: emptyList()
+
+    /** Parse `profiles/<name>.md`; null if the file is absent / blank. */
+    fun loadNamedProfile(name: String): ProfileData? {
+        val file = namedProfileFile(name)
+        if (!file.exists()) return null
+        val raw = file.readText(Charsets.UTF_8).trim()
+        if (raw.isEmpty()) return null
+        return parseProfileData(raw).takeUnless { it.isEmpty() }
+    }
+
+    /**
+     * Overwrite `profiles/<name>.md` from [data]. An empty [ProfileData]
+     * deletes the file — touch-create stays via [touchNamedProfile].
+     */
+    fun saveNamedProfile(name: String, data: ProfileData) {
+        val file = namedProfileFile(name)
+        val rendered = renderProfileData(data).trim()
+        if (rendered.isEmpty()) {
+            file.delete()
+        } else {
+            file.writeText(rendered + "\n", Charsets.UTF_8)
+        }
+    }
+
+    /** Append [text] under [section] in `profiles/<name>.md`. */
+    fun addNamedProfileItem(name: String, section: ProfileSection, text: String): ProfileData {
+        val updated = (loadNamedProfile(name) ?: ProfileData()).addItem(section, text)
+        saveNamedProfile(name, updated)
+        return updated
+    }
+
+    /** Empty just [section] in `profiles/<name>.md`; other sections survive. */
+    fun clearNamedProfileSection(name: String, section: ProfileSection): ProfileData {
+        val updated = (loadNamedProfile(name) ?: ProfileData()).clear(section)
+        saveNamedProfile(name, updated)
+        return updated
+    }
+
+    /** Delete `profiles/<name>.md`; returns true iff a file was removed. */
+    fun clearNamedProfile(name: String): Boolean = namedProfileFile(name).delete()
+
+    /**
+     * Create an empty `profiles/<name>.md` if it doesn't exist yet. Used
+     * by `/profile-use <name>` so a fresh profile shows up in
+     * [listProfileNames] before the first bullet is added.
+     */
+    fun touchNamedProfile(name: String) {
+        val file = namedProfileFile(name)
+        if (!file.exists()) file.writeText("", Charsets.UTF_8)
+    }
+
+    private fun namedProfileFile(name: String): File = File(profilesDir, "$name.md")
 
     /**
      * List rules from `rules/` in ascending id order. File-name shape:
@@ -158,12 +272,14 @@ internal class MemoryStore(private val root: File) {
     private val profileFile: File get() = File(root, PROFILE_FILE_NAME)
     private val rulesDir: File get() = File(root, RULES_DIR)
     private val tasksDir: File get() = File(root, TASKS_DIR)
+    private val profilesDir: File get() = File(root, PROFILES_DIR)
     private fun taskFile(taskId: String): File = File(tasksDir, "$taskId.md")
 
     companion object {
         const val PROFILE_FILE_NAME: String = "profile.md"
         const val RULES_DIR: String = "rules"
         const val TASKS_DIR: String = "tasks"
+        const val PROFILES_DIR: String = "profiles"
 
         private val RULE_FILE_NAME = Regex("^(\\d{3})-[a-z0-9-]+\\.md$")
         private const val SLUG_MAX_LENGTH = 40

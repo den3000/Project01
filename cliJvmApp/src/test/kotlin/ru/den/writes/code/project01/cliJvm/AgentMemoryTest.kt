@@ -6,12 +6,15 @@ import ru.den.writes.code.project01.cliJvm.memory.MemoryLayer
 import ru.den.writes.code.project01.cliJvm.memory.MemoryMode
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.memory.ProfileData
+import ru.den.writes.code.project01.cliJvm.memory.ProfileSection
 import ru.den.writes.code.project01.cliJvm.memory.TaskNotes
 import java.io.BufferedReader
 import java.io.StringReader
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class AgentMemoryTest {
@@ -315,6 +318,225 @@ class AgentMemoryTest {
         }
     }
 
+    // --- personalization --------------------------------------------
+
+    @Test
+    fun `structured profile renders subsection labels into the wire`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root).apply {
+                    saveProfileData(
+                        ProfileData(
+                            style = listOf("кратко", "русский"),
+                            format = listOf("code-first"),
+                            constraints = listOf("Kotlin only"),
+                            context = listOf("Android dev"),
+                        )
+                    )
+                }
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+                val fake = FakeLlmApi().apply { queueText("ok") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
+
+                val frame = fake.calls.single().messages.first().text
+                assertTrue(frame.startsWith(MemoryLayer.PROFILE_HEADING))
+                assertTrue(frame.contains("Style:\n- кратко\n- русский"), "missing style block:\n$frame")
+                assertTrue(frame.contains("Format:\n- code-first"))
+                assertTrue(frame.contains("Constraints:\n- Kotlin only"))
+                assertTrue(frame.contains("Context:\n- Android dev"))
+            }
+        }
+    }
+
+    @Test
+    fun `different profiles produce different wire payloads for the same prompt`() = runTest {
+        suspend fun captureFrame(profile: ProfileData): String {
+            var captured: String? = null
+            TestDb().use { harness ->
+                withTempMemoryRoot { root ->
+                    val memStore = MemoryStore(root).apply { saveProfileData(profile) }
+                    val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+                    val fake = FakeLlmApi().apply { queueText("ok") }
+                    val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                    val chat = newChat(prompt = "Как реализовать кэш?", session = "demo")
+                    Agent(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
+                    captured = fake.calls.single().messages.first().text
+                }
+            }
+            return captured!!
+        }
+
+        val frameA = captureFrame(
+            ProfileData(
+                style = listOf("кратко"),
+                constraints = listOf("Kotlin"),
+                context = listOf("senior KMP dev"),
+            )
+        )
+        val frameB = captureFrame(
+            ProfileData(
+                style = listOf("подробно, с примерами"),
+                constraints = listOf("Python"),
+                context = listOf("junior backend dev"),
+            )
+        )
+
+        assertTrue(frameA != frameB, "the same prompt with different profiles must produce different wire frames")
+        assertTrue(frameA.contains("Style:\n- кратко"))
+        assertTrue(frameB.contains("Style:\n- подробно, с примерами"))
+        assertTrue(frameA.contains("Constraints:\n- Kotlin"))
+        assertTrue(frameB.contains("Constraints:\n- Python"))
+    }
+
+    @Test
+    fun `slash profile section appends a bullet to the store`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root)
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+                val fake = FakeLlmApi().apply { queueText("ok") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(
+                    chat,
+                    fake,
+                    store,
+                    promptSource = stdinSource("/profile style кратко на русском\n/exit\n"),
+                    memory = memory,
+                ).run()
+
+                val data = memStore.loadProfileData()
+                assertEquals(listOf("кратко на русском"), data?.style)
+            }
+        }
+    }
+
+    @Test
+    fun `slash profile clear drops every section including legacy free text`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root).apply {
+                    saveProfile("legacy free text")
+                    addProfileItem(ProfileSection.STYLE, "кратко")
+                }
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+                val fake = FakeLlmApi().apply { queueText("ok") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(
+                    chat,
+                    fake,
+                    store,
+                    promptSource = stdinSource("/profile clear\n/exit\n"),
+                    memory = memory,
+                ).run()
+
+                assertEquals(null, memStore.loadProfileData())
+            }
+        }
+    }
+
+    // --- multi-profile ----------------------------------------------
+
+    @Test
+    fun `dash profile flag pre-selects the active named profile`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root).apply {
+                    addNamedProfileItem("kotlin-senior", ProfileSection.STYLE, "кратко")
+                    addNamedProfileItem("kotlin-senior", ProfileSection.CONSTRAINTS, "Kotlin")
+                }
+                val memory = MemoryProvider(
+                    memStore,
+                    initialMode = MemoryMode.PREAMBLE,
+                    initialProfileName = "kotlin-senior",
+                )
+                val fake = FakeLlmApi().apply { queueText("ok") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
+
+                val frame = fake.calls.single().messages.first().text
+                assertTrue(frame.contains("Style:\n- кратко"))
+                assertTrue(frame.contains("Constraints:\n- Kotlin"))
+            }
+        }
+    }
+
+    @Test
+    fun `slash profile-use switches the active profile and the next turn picks the new wire`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root).apply {
+                    addNamedProfileItem("kotlin-senior", ProfileSection.STYLE, "кратко")
+                    addNamedProfileItem("python-junior", ProfileSection.STYLE, "подробно")
+                }
+                val memory = MemoryProvider(
+                    memStore,
+                    initialMode = MemoryMode.PREAMBLE,
+                    initialProfileName = "kotlin-senior",
+                )
+                val fake = FakeLlmApi().apply {
+                    queueText("ok-1")
+                    queueText("ok-2")
+                }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "first", session = "demo")
+
+                Agent(
+                    chat,
+                    fake,
+                    store,
+                    promptSource = stdinSource("/profile-use python-junior\nsecond\n/exit\n"),
+                    memory = memory,
+                ).run()
+
+                assertEquals(2, fake.calls.size, "expected two LLM turns")
+                val firstFrame = fake.calls[0].messages.first().text
+                val secondFrame = fake.calls[1].messages.first().text
+                assertTrue(firstFrame.contains("Style:\n- кратко"), "first turn should use kotlin-senior:\n$firstFrame")
+                assertTrue(secondFrame.contains("Style:\n- подробно"), "second turn should use python-junior:\n$secondFrame")
+            }
+        }
+    }
+
+    @Test
+    fun `slash profile name section appends to the named profile even when it is not active`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                val memStore = MemoryStore(root)
+                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
+                val fake = FakeLlmApi().apply { queueText("ok") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val chat = newChat(prompt = "hi", session = "demo")
+
+                Agent(
+                    chat,
+                    fake,
+                    store,
+                    promptSource = stdinSource(
+                        "/profile kotlin-senior style кратко\n" +
+                            "/profile kotlin-senior constraints Kotlin\n" +
+                            "/exit\n"
+                    ),
+                    memory = memory,
+                ).run()
+
+                val data = assertNotNull(memStore.loadNamedProfile("kotlin-senior"))
+                assertEquals(listOf("кратко"), data.style)
+                assertEquals(listOf("Kotlin"), data.constraints)
+                // Active profile is still null — unnamed fallback path.
+                assertEquals(null, memory.activeProfileName())
+            }
+        }
+    }
+
     // --- helpers ----------------------------------------------------
 
     private fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.Chat(
@@ -336,6 +558,7 @@ class AgentMemoryTest {
         keepLast = 6,
         summarizeEvery = 10,
         task = null,
+        profile = null,
         memoryMode = null,
     )
 

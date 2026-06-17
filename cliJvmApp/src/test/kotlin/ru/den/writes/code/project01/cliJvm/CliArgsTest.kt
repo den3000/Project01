@@ -719,6 +719,117 @@ class CliArgsTest {
     }
 
     @Test
+    fun `dash memory profile section appends a bullet`() {
+        val parsed = parse("-memory", "profile", "style", "кратко,", "на", "русском")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(
+            CliArgs.MemoryAction.AddProfileItem(
+                ru.den.writes.code.project01.cliJvm.memory.ProfileSection.STYLE,
+                "кратко, на русском",
+            ),
+            memory.action,
+        )
+    }
+
+    @Test
+    fun `dash memory profile section clear clears just one section`() {
+        val parsed = parse("-memory", "profile", "constraints", "clear")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(
+            CliArgs.MemoryAction.ClearProfileSection(
+                ru.den.writes.code.project01.cliJvm.memory.ProfileSection.CONSTRAINTS,
+            ),
+            memory.action,
+        )
+    }
+
+    @Test
+    fun `dash memory profile clear drops everything`() {
+        val parsed = parse("-memory", "profile", "clear")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.ClearProfile, memory.action)
+    }
+
+    @Test
+    fun `dash memory profile section with no text errors out`() {
+        val ex = assertFailsWith<CliArgsException.MissingRequiredArgument> {
+            parse("-memory", "profile", "style")
+        }
+        assertEquals("-memory", ex.argName)
+    }
+
+    @Test
+    fun `dash memory profile-list returns ListProfiles`() {
+        val parsed = parse("-memory", "profile-list")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.ListProfiles, memory.action)
+    }
+
+    @Test
+    fun `dash memory profile-show captures the name`() {
+        val parsed = parse("-memory", "profile-show", "kotlin-senior")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.ShowProfile("kotlin-senior"), memory.action)
+    }
+
+    @Test
+    fun `dash memory profile name only touch-creates the profile`() {
+        val parsed = parse("-memory", "profile", "kotlin-senior")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.TouchProfile("kotlin-senior"), memory.action)
+    }
+
+    @Test
+    fun `dash memory profile name section text appends to named profile`() {
+        val parsed = parse("-memory", "profile", "kotlin-senior", "style", "кратко,", "на", "русском")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(
+            CliArgs.MemoryAction.AddNamedProfileItem(
+                "kotlin-senior",
+                ru.den.writes.code.project01.cliJvm.memory.ProfileSection.STYLE,
+                "кратко, на русском",
+            ),
+            memory.action,
+        )
+    }
+
+    @Test
+    fun `dash memory profile name section clear empties just that section of a named profile`() {
+        val parsed = parse("-memory", "profile", "kotlin-senior", "constraints", "clear")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(
+            CliArgs.MemoryAction.ClearNamedProfileSection(
+                "kotlin-senior",
+                ru.den.writes.code.project01.cliJvm.memory.ProfileSection.CONSTRAINTS,
+            ),
+            memory.action,
+        )
+    }
+
+    @Test
+    fun `dash memory profile name clear drops the named profile`() {
+        val parsed = parse("-memory", "profile", "kotlin-senior", "clear")
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.ClearNamedProfile("kotlin-senior"), memory.action)
+    }
+
+    @Test
+    fun `dash profile requires dash memory-mode`() {
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parse("-prompt", "hi", "-profile", "kotlin-senior")
+        }
+        assertEquals("-profile", ex.argName)
+    }
+
+    @Test
+    fun `dash profile with memory-mode lands on Chat profile field`() {
+        val chat = assertIs<CliArgs.Chat>(
+            parse("-prompt", "hi", "-memory-mode", "preamble", "-profile", "kotlin-senior")
+        )
+        assertEquals("kotlin-senior", chat.profile)
+    }
+
+    @Test
     fun `dash memory rule add captures the text after add`() {
         val parsed = parse("-memory", "rule", "add", "No", "Spring")
         val memory = assertIs<CliArgs.Memory>(parsed)

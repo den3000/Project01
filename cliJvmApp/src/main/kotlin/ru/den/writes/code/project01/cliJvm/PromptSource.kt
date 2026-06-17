@@ -1,6 +1,10 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.memory.MemoryMode
+import ru.den.writes.code.project01.cliJvm.memory.ProfileCommand
+import ru.den.writes.code.project01.cliJvm.memory.ProfileSection
+import ru.den.writes.code.project01.cliJvm.memory.isValidProfileName
+import ru.den.writes.code.project01.cliJvm.memory.parseProfileCommand
 import java.io.BufferedReader
 import java.io.Reader
 
@@ -16,10 +20,10 @@ internal sealed interface PromptResult {
 }
 
 /**
- * A branch-management command typed at the REPL (Day-10) or a
- * memory-management command (Day-11). [StdinPromptSource] only
- * classifies the line into one of these; [Agent] executes the
- * (suspend) DB/disk work, so the source stays pure and synchronous.
+ * A branch-management or memory-management command typed at the REPL.
+ * [StdinPromptSource] only classifies the line into one of these;
+ * [Agent] executes the (suspend) DB/disk work, so the source stays pure
+ * and synchronous.
  */
 internal sealed interface BranchCommand {
     data object Checkpoint : BranchCommand
@@ -29,8 +33,31 @@ internal sealed interface BranchCommand {
 
     /** Print the active mode + the saved profile/rules/task. */
     data object ShowMemory : BranchCommand
-    /** Overwrite `profile.md` with the given text. */
+    /** Overwrite `profile.md` with the given text (legacy free-text path). */
     data class SetProfile(val text: String) : BranchCommand
+    /** Append [text] to a [section] of the unnamed profile. */
+    data class AddProfileItem(val section: ProfileSection, val text: String) : BranchCommand
+    /** Empty one section of the unnamed profile; the rest survive. */
+    data class ClearProfileSection(val section: ProfileSection) : BranchCommand
+    /** Drop the unnamed profile entirely. */
+    data object ClearProfile : BranchCommand
+
+    // --- Named profiles --------------------------------------------
+    /** Switch the active named profile (touch-creates if missing). */
+    data class SwitchProfile(val name: String) : BranchCommand
+    /** List every named profile under `profiles/`. */
+    data object ListProfiles : BranchCommand
+    /** Print one named profile's structure. */
+    data class ShowProfile(val name: String) : BranchCommand
+    /** Touch-create an empty named profile. */
+    data class TouchProfile(val name: String) : BranchCommand
+    /** Append a bullet to [section] of a named profile. */
+    data class AddNamedProfileItem(val name: String, val section: ProfileSection, val text: String) : BranchCommand
+    /** Empty a [section] of a named profile. */
+    data class ClearNamedProfileSection(val name: String, val section: ProfileSection) : BranchCommand
+    /** Delete the named profile file. */
+    data class ClearNamedProfile(val name: String) : BranchCommand
+
     /** Append a new rule under `rules/`. */
     data class AddRule(val text: String) : BranchCommand
     /** Switch the active task id (creates an empty task file if absent). */
@@ -103,6 +130,9 @@ private const val SWITCH_COMMAND = "/switch"
 private const val BRANCHES_COMMAND = "/branches"
 private const val MEMORY_COMMAND = "/memory"
 private const val PROFILE_COMMAND = "/profile"
+private const val PROFILE_USE_COMMAND = "/profile-use"
+private const val PROFILE_LIST_COMMAND = "/profile-list"
+private const val PROFILE_SHOW_COMMAND = "/profile-show"
 private const val RULE_COMMAND = "/rule"
 private const val TASK_COMMAND = "/task"
 private const val TASK_NOTE_COMMAND = "/task-note"
@@ -130,7 +160,9 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
                 "Type a new prompt and press Enter.\n"
                     + "Type $QUIT_COMMAND or $EXIT_COMMAND to leave, $REUSE_COMMAND to resend the last reply.\n"
                     + "Branches: $BRANCHES_COMMAND, $BRANCH_COMMAND <name>, $SWITCH_COMMAND <name>, $CHECKPOINT_COMMAND.\n"
-                    + "Memory: $MEMORY_COMMAND, $PROFILE_COMMAND <text>, $RULE_COMMAND <text>, $TASK_COMMAND <id>, "
+                    + "Memory: $MEMORY_COMMAND, $PROFILE_LIST_COMMAND, $PROFILE_USE_COMMAND <name>, $PROFILE_SHOW_COMMAND <name>,\n"
+                    + "        $PROFILE_COMMAND [<text> | <section> <text> | <section> clear | clear | <name> [<section> [<text>|clear] | clear]],\n"
+                    + "        $RULE_COMMAND <text>, $TASK_COMMAND <id>, "
                     + "$TASK_NOTE_COMMAND <text>, $MEMORY_MODE_COMMAND <preamble|system>."
             )
             print(PROMPT_INDICATOR)
@@ -166,7 +198,10 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
             BRANCH_COMMAND -> BranchCommand.Branch(arg)
             SWITCH_COMMAND -> BranchCommand.Switch(arg)
             MEMORY_COMMAND -> BranchCommand.ShowMemory
-            PROFILE_COMMAND -> BranchCommand.SetProfile(arg)
+            PROFILE_COMMAND -> classifyProfileCommand(arg)
+            PROFILE_USE_COMMAND -> if (arg.isBlank()) null else BranchCommand.SwitchProfile(arg.trim())
+            PROFILE_LIST_COMMAND -> BranchCommand.ListProfiles
+            PROFILE_SHOW_COMMAND -> if (arg.isBlank()) null else BranchCommand.ShowProfile(arg.trim())
             RULE_COMMAND -> BranchCommand.AddRule(arg)
             TASK_COMMAND -> BranchCommand.SetTask(arg)
             TASK_NOTE_COMMAND -> BranchCommand.AppendTaskNote(arg)
@@ -179,6 +214,60 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
         "preamble" -> BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE)
         "system" -> BranchCommand.SetMemoryMode(MemoryMode.SYSTEM)
         else -> null
+    }
+
+    /**
+     * Map a `/profile …` body into the matching [BranchCommand].
+     *
+     * Default-profile shapes (`<section> <text>`, `<section> clear`,
+     * `clear`) come from [parseProfileCommand]. Anything else that starts
+     * with a valid profile-name identifier is treated as a named-profile
+     * sub-command:
+     *
+     * - `<name>` → touch-create
+     * - `<name> clear` → drop the named profile
+     * - `<name> <section> <text>` → append to it
+     * - `<name> <section> clear` → empty the section
+     *
+     * Free text (multiple words that don't fit the named shape) drops
+     * back to `SetProfile`. Blank input is reported back as
+     * `SetProfile("")` so the agent's "needs the new profile text" error
+     * path keeps firing.
+     */
+    private fun classifyProfileCommand(arg: String): BranchCommand {
+        if (arg.isBlank()) return BranchCommand.SetProfile("")
+
+        when (val parsed = parseProfileCommand(arg)) {
+            null -> return BranchCommand.SetProfile("")
+            ProfileCommand.ClearAll -> return BranchCommand.ClearProfile
+            is ProfileCommand.ClearSection -> return BranchCommand.ClearProfileSection(parsed.section)
+            is ProfileCommand.Append -> return BranchCommand.AddProfileItem(parsed.section, parsed.text)
+            is ProfileCommand.SetFreeText -> Unit
+        }
+
+        val tokens = arg.trim().split(Regex("\\s+"))
+        val name = tokens[0]
+        if (!isValidProfileName(name)) return BranchCommand.SetProfile(arg.trim())
+
+        if (tokens.size == 1) return BranchCommand.TouchProfile(name)
+
+        val rest = tokens.drop(1)
+        if (rest.size == 1 && rest[0].equals("clear", ignoreCase = true)) {
+            return BranchCommand.ClearNamedProfile(name)
+        }
+
+        val section = ProfileSection.byKeyword(rest[0])
+            ?: return BranchCommand.SetProfile(arg.trim())
+
+        if (rest.size == 2 && rest[1].equals("clear", ignoreCase = true)) {
+            return BranchCommand.ClearNamedProfileSection(name, section)
+        }
+
+        // Drop the leading "<name> <section>" prefix and keep the
+        // verbatim remainder as the new bullet (blank → Agent reports
+        // "needs text").
+        val text = arg.trim().substringAfter(' ').substringAfter(' ').trim()
+        return BranchCommand.AddNamedProfileItem(name, section, text)
     }
 
     override fun observeReply(reply: String) {

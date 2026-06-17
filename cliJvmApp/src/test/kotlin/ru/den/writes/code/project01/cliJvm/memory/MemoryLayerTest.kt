@@ -10,13 +10,13 @@ class MemoryLayerTest {
     @Test
     fun `composePreamble returns empty when every input is empty`() {
         assertEquals(emptyList(), MemoryLayer.composePreamble(null, emptyList(), null))
-        assertEquals(emptyList(), MemoryLayer.composePreamble("   ", emptyList(), null))
+        assertEquals(emptyList(), MemoryLayer.composePreamble(ProfileData(), emptyList(), null))
     }
 
     @Test
     fun `composePreamble emits exactly one USER then one ASSISTANT pair when any layer is filled`() {
         val msgs = MemoryLayer.composePreamble(
-            profile = "I write Kotlin",
+            profile = ProfileData(freeText = "I write Kotlin"),
             rules = emptyList(),
             task = null,
         )
@@ -30,7 +30,7 @@ class MemoryLayerTest {
     @Test
     fun `composePreamble concatenates filled sections in fixed order`() {
         val msgs = MemoryLayer.composePreamble(
-            profile = "P",
+            profile = ProfileData(freeText = "P"),
             rules = listOf(RuleEntry("001", "R1"), RuleEntry("002", "R2")),
             task = TaskNotes("t", goal = "G", stage = "S", notes = listOf("N1")),
         )
@@ -49,7 +49,7 @@ class MemoryLayerTest {
     @Test
     fun `composeSystem emits one SYSTEM message per non-empty section`() {
         val msgs = MemoryLayer.composeSystem(
-            profile = "P",
+            profile = ProfileData(freeText = "P"),
             rules = listOf(RuleEntry("001", "R1")),
             task = TaskNotes("t", goal = "G"),
         )
@@ -84,5 +84,60 @@ class MemoryLayerTest {
         )
         val text = msgs.single().text
         assertEquals("${MemoryLayer.RULES_HEADING}\n- Line 1 Line 2", text)
+    }
+
+    @Test
+    fun `structured profile renders sub-sections under one Profile heading`() {
+        val msgs = MemoryLayer.composePreamble(
+            profile = ProfileData(
+                style = listOf("кратко", "русский"),
+                format = listOf("code-first"),
+                constraints = listOf("Kotlin"),
+                context = listOf("Android dev"),
+            ),
+            rules = emptyList(),
+            task = null,
+        )
+        val body = msgs.single { it.role == Role.USER }.text
+        assertTrue(body.startsWith(MemoryLayer.PROFILE_HEADING))
+        assertTrue(body.contains("Style:\n- кратко\n- русский"))
+        assertTrue(body.contains("Format:\n- code-first"))
+        assertTrue(body.contains("Constraints:\n- Kotlin"))
+        assertTrue(body.contains("Context:\n- Android dev"))
+        // Sub-sections come in the fixed ProfileSection order.
+        val si = body.indexOf("Style:")
+        val fi = body.indexOf("Format:")
+        val ki = body.indexOf("Constraints:")
+        val ci = body.indexOf("Context:")
+        assertTrue(si < fi && fi < ki && ki < ci, "expected style<format<constraints<context, got $si/$fi/$ki/$ci")
+    }
+
+    @Test
+    fun `composeSystem keeps Profile as one SYSTEM message even with multiple sub-sections`() {
+        val msgs = MemoryLayer.composeSystem(
+            profile = ProfileData(
+                style = listOf("a"),
+                format = listOf("b"),
+                constraints = listOf("c"),
+                context = listOf("d"),
+            ),
+            rules = emptyList(),
+            task = null,
+        )
+        assertEquals(1, msgs.size, "Profile must be ONE Role.SYSTEM message, not one per sub-section")
+        assertEquals(Role.SYSTEM, msgs[0].role)
+        assertTrue(msgs[0].text.contains("Style:\n- a"))
+        assertTrue(msgs[0].text.contains("Context:\n- d"))
+    }
+
+    @Test
+    fun `free-text-only profile renders byte-identical to the unstructured wire shape`() {
+        val msgs = MemoryLayer.composeSystem(
+            profile = ProfileData(freeText = "Я пишу только на Kotlin"),
+            rules = emptyList(),
+            task = null,
+        )
+        // The exact unstructured shape: `[Profile]\n<text>`.
+        assertEquals("${MemoryLayer.PROFILE_HEADING}\nЯ пишу только на Kotlin", msgs.single().text)
     }
 }
