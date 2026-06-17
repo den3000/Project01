@@ -46,18 +46,7 @@ internal class OpenRouterApi(
         params.temperature?.let { println("temperature: $it") }
         println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
-        // endSequence has no native field here — same trick as Gemini,
-        // lower it to a system message asking the model to terminate
-        // with the literal text. Best-effort, not enforced.
-        val systemPrefix = params.endSequence?.let {
-            listOf(
-                OpenRouterMessage(
-                    role = "system",
-                    content = "Always end your response with the literal text: \"$it\"",
-                )
-            )
-        }.orEmpty()
-        val wireMessages = systemPrefix + messages.map { it.toApi() }
+        val wireMessages = buildOpenRouterWireMessages(messages, params.endSequence)
 
         return try {
             val httpResponse = httpClient.post(ENDPOINT) {
@@ -111,12 +100,46 @@ internal class OpenRouterApi(
     }
 }
 
-/** Map a neutral [Message] into the OpenAI-style role/content shape. */
+/** Map a neutral non-SYSTEM [Message] into the OpenAI-style role/content shape. */
 private fun Message.toApi(): OpenRouterMessage =
     OpenRouterMessage(
         role = when (role) {
+            // Filtered out by buildOpenRouterWireMessages — SYSTEM goes
+            // into the single combined system message, not a per-message
+            // wire row. Branch kept for exhaustiveness.
+            Role.SYSTEM -> "system"
             Role.USER -> "user"
             Role.ASSISTANT -> "assistant"
         },
         content = text,
     )
+
+/**
+ * Build the OAI-style `messages` list per the [LlmApi.send] contract:
+ *
+ * - Every `Role.SYSTEM` entry's text is collected (in input order),
+ *   joined with `"\n\n"` separators, and an `endSequence` instruction
+ *   (when set) is appended with the same separator — producing ONE
+ *   `role:"system"` message at the head of the list (canonical
+ *   OpenAI-shape pattern; multiple system messages are accepted by
+ *   OpenRouter, but a single combined block keeps the prompt
+ *   unambiguous on downstream models).
+ * - No system message is emitted when both inputs are empty (the
+ *   byte-identical fallback for callers that only ever passed
+ *   USER/ASSISTANT and no `endSequence`).
+ * - Non-SYSTEM entries follow in their original order, mapped through
+ *   [toApi].
+ */
+internal fun buildOpenRouterWireMessages(
+    messages: List<Message>,
+    endSequence: String?,
+): List<OpenRouterMessage> {
+    val systemTexts = buildList {
+        addAll(messages.filter { it.role == Role.SYSTEM }.map { it.text })
+        endSequence?.let { add("Always end your response with the literal text: \"$it\"") }
+    }
+    val systemPrefix = if (systemTexts.isEmpty()) emptyList()
+    else listOf(OpenRouterMessage(role = "system", content = systemTexts.joinToString("\n\n")))
+    val turnMsgs = messages.filter { it.role != Role.SYSTEM }
+    return systemPrefix + turnMsgs.map { it.toApi() }
+}

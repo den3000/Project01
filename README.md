@@ -250,7 +250,7 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp \
     -prompt "продолжай" -session feed-lite
 
-  # Day-9/10: bound context growth with a strategy. Same line-by-line feed,
+  # Bound context growth with a strategy. Same line-by-line feed,
   # but old turns are folded into a rolling summary instead of resent in
   # full — compare the `context:` line (and `-sessions` overhead) against a
   # plain `-strategy full` run on the same input.

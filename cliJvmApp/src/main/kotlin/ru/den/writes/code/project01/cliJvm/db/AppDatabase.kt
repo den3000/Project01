@@ -12,18 +12,17 @@ import androidx.sqlite.execSQL
  * Schema history:
  * - v1 — original shape: `id`, `session_id`, `role`, `text`.
  * - v2 — adds `model_id` + token-count columns (`prompt_tokens`,
- *   `output_tokens`, `thoughts_tokens`, `total_tokens`) to support the
- *   Day-8 cost-tracking work. All new columns nullable, populated only
- *   for ASSISTANT rows. Migrated by hand via [MIGRATION_1_2] —
- *   straightforward `ALTER TABLE ... ADD COLUMN` per new field, all
- *   nullable so no defaults / backfills required.
- * - v3 — adds the `summaries` table (one row per session) for the Day-9
- *   history-compression feature: the rolling summary + `covered_count`
- *   watermark + cumulative summarization-token columns. Created by
- *   [MIGRATION_2_3]; the `messages` table is untouched, so existing
- *   history is unaffected.
- * - v4 — Day-10 branching + sticky facts: adds a `branch_id` discriminator
- *   to `messages` (composite `(session_id, branch_id)` index) and to
+ *   `output_tokens`, `thoughts_tokens`, `total_tokens`) for cost
+ *   tracking. All new columns nullable, populated only for ASSISTANT
+ *   rows. Migrated by hand via [MIGRATION_1_2] — straightforward `ALTER
+ *   TABLE ... ADD COLUMN` per new field, all nullable so no defaults /
+ *   backfills required.
+ * - v3 — adds the `summaries` table (one row per session) for
+ *   history-compression: the rolling summary + `covered_count` watermark
+ *   + cumulative summarization-token columns. Created by [MIGRATION_2_3];
+ *   the `messages` table is untouched, so existing history is unaffected.
+ * - v4 — branching + sticky facts: adds a `branch_id` discriminator to
+ *   `messages` (composite `(session_id, branch_id)` index) and to
  *   `summaries` (composite PK), and adds the new `facts` table. Created by
  *   [MIGRATION_3_4], which rebuilds the two existing tables.
  *
@@ -60,8 +59,8 @@ internal val MIGRATION_1_2: Migration = object : Migration(1, 2) {
 }
 
 /**
- * v2 → v3 schema migration: creates the `summaries` table for the Day-9
- * history-compression feature. The `messages` table is left untouched.
+ * v2 → v3 schema migration: creates the `summaries` table for
+ * history-compression. The `messages` table is left untouched.
  *
  * The DDL deliberately mirrors the schema Room generates from
  * [SummaryEntity] — column types, `NOT NULL` on the non-null fields, and
@@ -87,7 +86,7 @@ internal val MIGRATION_2_3: Migration = object : Migration(2, 3) {
 }
 
 /**
- * v3 → v4 schema migration (Day-10 branching + sticky facts):
+ * v3 → v4 schema migration (branching + sticky facts):
  *  - adds a NOT-NULL `branch_id` column to `messages` (backfilled to
  *    `'main'`) and swaps its index to the composite `(session_id, branch_id)`;
  *  - adds `branch_id` to `summaries` and widens its primary key to the
@@ -140,7 +139,7 @@ internal val MIGRATION_3_4: Migration = object : Migration(3, 4) {
         connection.execSQL("DROP TABLE `summaries`")
         connection.execSQL("ALTER TABLE `summaries_new` RENAME TO `summaries`")
 
-        // facts: brand-new table (Day-10 sticky facts).
+        // facts: brand-new table for sticky facts.
         connection.execSQL(
             "CREATE TABLE IF NOT EXISTS `facts` (`session_id` TEXT NOT NULL, `branch_id` TEXT NOT NULL, " +
                 "`facts_json` TEXT NOT NULL, `model_id` TEXT, `prompt_tokens` INTEGER, " +

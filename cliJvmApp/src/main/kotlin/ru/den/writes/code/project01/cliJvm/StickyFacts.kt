@@ -5,7 +5,7 @@ import kotlinx.serialization.json.JsonObject
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 
 /**
- * Sticky-facts strategy (Day-10): keeps a compact key-value memory of the
+ * Sticky-facts strategy: keeps a compact key-value memory of the
  * conversation that survives the sliding window. After every user message it
  * asks the model to fold anything important into a JSON facts blob (a separate
  * LLM call, accounted as overhead — not a turn), and on each turn it sends

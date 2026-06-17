@@ -1,6 +1,6 @@
 # Project01 — проектная память
 
-Учебный KMP-проект «AI Adventure Challenge» (пакет `ru.den.writes.code.project01`).
+KMP-проект (пакет `ru.den.writes.code.project01`).
 Рабочая лошадка — **`cliJvmApp`**: JVM-консольный клиент к LLM (Gemini + OpenRouter).
 **Отвечать по-русски.**
 
@@ -28,6 +28,8 @@
 - `ContextStrategy.kt` (full/window/summary) + `StickyFacts.kt` (facts) + `HistoryCompressor.kt` — стратегии контекста.
 - `SessionStats.kt`, `PromptSource.kt`.
 - `db/` — Room: `AppDatabase` (version=4), `MessageDao`, `HistoryStore`, entity'и (messages/summaries/facts).
+- `memory/` — модель памяти ассистента: `MemoryMode` (PREAMBLE/SYSTEM), `MemoryStore` (markdown-файлы под `~/.project01-cli/memory/`: `profile.md`, `profiles/<name>.md`, `rules/NNN-*.md`, `tasks/<id>.md`), `MemoryLayer` (композиция `composePreamble`/`composeSystem`), `MemoryProvider` (фасад с активным режимом + taskId + activeProfileName).
+- `memory/Profile.kt` — структурированный профиль: `ProfileSection` (style/format/constraints/context) + `ProfileData` (4 списка bullet'ов + опц. `freeText` для legacy) + `parseProfileData`/`renderProfileData` (markdown round-trip) + `parseProfileCommand` (общий для CLI и REPL) + `isValidProfileName`.
 - Тесты: `src/test/.../cliJvm/` — `FakeLlmApi`, `TestDb` + `*Test` (offline, без сети).
 
 ## Команды и verification loop
@@ -55,10 +57,20 @@
 - **Не печатать секреты** (значения ключей из `local.properties`/`BuildKonfig`) в транскрипт.
 - `readlnOrNull()` глобально кэширует `System.in` — Agent читает через инжектируемый `PromptSource`.
 - flash-lite TPM 4M — главный боттлнек нагрузочных прогонов (упираешься в rate-limit раньше, чем в переполнение контекста).
+- **`Role.SYSTEM` НЕ персистится в `HistoryStore`** — memory-слой инжектится только в wire-list `Agent.send()` поверх `baseContext`. В `messages`-таблице всегда лежат только `USER`/`ASSISTANT`. Каждый провайдер сам собирает все `Role.SYSTEM` входа в нативный system-блок (Gemini → `SystemInstruction`, OpenAI-shape → один `role="system"` в начале списка); `endSequence` приклеивается к этому же блоку.
+- **`-memory-mode <preamble|system>` — переключатель режима** memory-слоёв; без него memory-провайдер не создаётся и wire-list байт-в-байт совпадает с режимом без памяти. `-task <id>` без `-memory-mode` парсер отвергает.
+- **Структурированный профиль** — `-memory profile <section> <text>` (section ∈ style|format|constraints|context) добавляет bullet, `<section> clear` чистит секцию, `clear` сносит весь unnamed профиль; legacy `-memory profile <free text>` всё ещё работает (если первый токен не keyword — пишет blob в `profile.md`). Аналогично REPL: `/profile <section> <text>` / `/profile clear`. `ProfileData(freeText="X")` рендерится в wire байт-в-байт как `[Profile]\nX` (legacy free-text режим).
+- **Именованные профили** — `profiles/<name>.md` рядом с unnamed `profile.md`. CLI: `-profile <name>` (требует `-memory-mode`) выбирает стартовый активный; `-memory profile <name>` touch-создаёт; `-memory profile <name> <section> <text>` / `<section> clear` / `clear` редактируют именованный; `-memory profile-list` / `profile-show <name>` — просмотр. REPL: `/profile-use <name>` переключает активный, `/profile-list`, `/profile-show <name>`, `/profile <name> <section> <text>` / `/profile <name> clear`. Активный профиль выбирается **поверх** unnamed (fallback на `profile.md` если активного нет) — пользователи с unnamed профилем не сломаны.
 
 ## Стиль работы пользователя
 - По-русски. **Делать только то, что попросили** — без попутных «улучшений»
   (особенно BuildKonfig в `:shared`, который он настроил сам).
+- **НИКОГДА не ссылаться на «день N», «Day-N», «pre-Day-N», «учебный» и название
+  челленджа** в коде, комментариях, docstring'ах, именах тестов, README, CLAUDE.md
+  и любых других файлах проекта. Описывать фичу через её роль (`structured
+  profile`, `named profiles`, `sliding window strategy`), а не через этап, на
+  котором она добавлена. При правке кода — попутно убирать такие метки, если
+  они встречаются рядом.
 - Любит sealed interfaces, DI через конструктор, чистые тестируемые функции, точные комментарии/доки.
 - Не любит speculative refactors / premature abstractions; за хорошо мотивированный рефакторинг — да.
 - Plan-mode для крупных задач: план → разногласия → правки → одобрение → реализация. Диффы читает внимательно.

@@ -15,7 +15,7 @@ import kotlin.test.assertNull
 
 /**
  * Guards the v3 → v4 migration ([MIGRATION_3_4]). Builds a v3 database by hand
- * (the pre-Day-10 schema + `PRAGMA user_version = 3`), then opens it through
+ * (the v3 schema + `PRAGMA user_version = 3`), then opens it through
  * Room with all migrations registered. If the migration's DDL drifts from what
  * Room derives from the entities, Room's schema validation throws on open and
  * this test fails — the byte-match safety net the plan calls out (we run
@@ -58,7 +58,7 @@ class MigrationTest {
         }
     }
 
-    /** Lay down the exact pre-Day-10 (v3) schema + a couple of rows + user_version=3. */
+    /** Lay down the exact v3 schema + a couple of rows + user_version=3. */
     private fun buildV3Database(dbFile: File) {
         val conn = BundledSQLiteDriver().open(dbFile.absolutePath)
         try {

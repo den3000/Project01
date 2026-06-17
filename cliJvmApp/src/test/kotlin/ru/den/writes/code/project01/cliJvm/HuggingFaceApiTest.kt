@@ -190,4 +190,96 @@ class HuggingFaceApiTest {
         assertEquals(0, resp.usage!!.toNeutral().thoughtsTokens)
     }
     //endregion
+
+    //region buildHuggingFaceWireMessages
+
+    @Test
+    fun `when buildHuggingFaceWireMessages called without SYSTEM input or endSequence - then no system message emitted`() {
+        // given
+        val messages = listOf(
+            Message(Role.USER, "hi"),
+            Message(Role.ASSISTANT, "hello"),
+        )
+
+        // when
+        val wire = buildHuggingFaceWireMessages(messages, endSequence = null)
+
+        // then
+        assertEquals(2, wire.size)
+        assertEquals("user", wire[0].role)
+        assertEquals("assistant", wire[1].role)
+    }
+
+    @Test
+    fun `when buildHuggingFaceWireMessages called with only endSequence - then one system message at the head`() {
+        // given
+        val messages = listOf(Message(Role.USER, "hi"))
+        val endSequence = "<<DONE>>"
+
+        // when
+        val wire = buildHuggingFaceWireMessages(messages, endSequence = endSequence)
+
+        // then
+        assertEquals(2, wire.size)
+        assertEquals("system", wire[0].role)
+        val expected = "Always end your response with the literal text: \"<<DONE>>\""
+        assertEquals(expected, wire[0].content)
+    }
+
+    @Test
+    fun `when buildHuggingFaceWireMessages called with multiple SYSTEM messages - then collapsed into one`() {
+        // given
+        val messages = listOf(
+            Message(Role.SYSTEM, "[Profile]\nP"),
+            Message(Role.SYSTEM, "[Rules]\n- R1"),
+            Message(Role.USER, "hi"),
+        )
+
+        // when
+        val wire = buildHuggingFaceWireMessages(messages, endSequence = null)
+
+        // then
+        assertEquals(2, wire.size)
+        assertEquals("system", wire[0].role)
+        assertEquals("[Profile]\nP\n\n[Rules]\n- R1", wire[0].content)
+    }
+
+    @Test
+    fun `when buildHuggingFaceWireMessages called with SYSTEM messages plus endSequence - then endSequence merged into system`() {
+        // given
+        val messages = listOf(
+            Message(Role.SYSTEM, "[Profile]\nP"),
+            Message(Role.USER, "hi"),
+        )
+        val endSequence = "<<DONE>>"
+
+        // when
+        val wire = buildHuggingFaceWireMessages(messages, endSequence = endSequence)
+
+        // then
+        assertEquals(2, wire.size)
+        val expected = "[Profile]\nP\n\nAlways end your response with the literal text: \"<<DONE>>\""
+        assertEquals(expected, wire[0].content)
+    }
+
+    @Test
+    fun `when SYSTEM messages interleaved with USER and ASSISTANT - then all SYSTEM collected at head`() {
+        // given
+        val messages = listOf(
+            Message(Role.USER, "hello"),
+            Message(Role.SYSTEM, "[Rules]\n- R1"),
+            Message(Role.ASSISTANT, "world"),
+        )
+
+        // when
+        val wire = buildHuggingFaceWireMessages(messages, endSequence = null)
+
+        // then
+        assertEquals(3, wire.size)
+        assertEquals("system", wire[0].role)
+        assertEquals("[Rules]\n- R1", wire[0].content)
+        assertEquals("user", wire[1].role)
+        assertEquals("assistant", wire[2].role)
+    }
+    //endregion
 }

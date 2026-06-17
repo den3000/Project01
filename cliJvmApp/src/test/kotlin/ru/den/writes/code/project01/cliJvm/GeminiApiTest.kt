@@ -2,6 +2,7 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class GeminiApiTest {
@@ -88,6 +89,70 @@ class GeminiApiTest {
         // then
         val expected = 5_000L
         assertEquals(expected, actual)
+    }
+    //endregion
+
+    //region buildSystemInstruction
+
+    @Test
+    fun `when buildSystemInstruction called with no SYSTEM input and no endSequence - then null returned`() {
+        // given
+        // Regression guard: no-memory + no-endSequence callers should
+        // hit the same `systemInstruction = null` path they did before.
+        val messages = emptyList<Message>()
+
+        // when
+        val actual = buildSystemInstruction(messages, endSequence = null)
+
+        // then
+        assertNull(actual)
+    }
+
+    @Test
+    fun `when buildSystemInstruction called with only endSequence - then prior behaviour reproduced`() {
+        // given
+        val messages = emptyList<Message>()
+        val endSequence = "<<DONE>>"
+
+        // when
+        val si = buildSystemInstruction(messages, endSequence = endSequence)
+
+        // then
+        assertNotNull(si)
+        val expected = "Always end your response with the literal text: \"<<DONE>>\""
+        assertEquals(expected, si.parts.single().text)
+    }
+
+    @Test
+    fun `when buildSystemInstruction called with multiple SYSTEM messages - then joined with blank-line separator`() {
+        // given
+        val messages = listOf(
+            Message(Role.SYSTEM, "[Profile]\nP"),
+            Message(Role.SYSTEM, "[Rules]\n- R1"),
+        )
+
+        // when
+        val si = buildSystemInstruction(messages, endSequence = null)
+
+        // then
+        assertNotNull(si)
+        val expected = "[Profile]\nP\n\n[Rules]\n- R1"
+        assertEquals(expected, si.parts.single().text)
+    }
+
+    @Test
+    fun `when buildSystemInstruction called with SYSTEM messages plus endSequence - then endSequence appended after blank line`() {
+        // given
+        val messages = listOf(Message(Role.SYSTEM, "[Profile]\nP"))
+        val endSequence = "<<DONE>>"
+
+        // when
+        val si = buildSystemInstruction(messages, endSequence = endSequence)
+
+        // then
+        assertNotNull(si)
+        val expected = "[Profile]\nP\n\nAlways end your response with the literal text: \"<<DONE>>\""
+        assertEquals(expected, si.parts.single().text)
     }
     //endregion
 }

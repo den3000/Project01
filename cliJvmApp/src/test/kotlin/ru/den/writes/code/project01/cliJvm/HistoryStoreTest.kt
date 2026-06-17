@@ -130,7 +130,7 @@ class HistoryStoreTest {
     }
     //endregion
 
-    //region token accounting (Day-8)
+    //region token accounting
 
     @Test
     fun `when append called with usage - then stats updated and token counts persisted`() = runTest {
@@ -219,7 +219,7 @@ class HistoryStoreTest {
     }
     //endregion
 
-    //region compression — summary persistence and overhead (Day-9)
+    //region compression — summary persistence and overhead
 
     @Test
     fun `when saveSummary called - then row persisted and overhead folded into stats without a turn`() = runTest {
@@ -392,7 +392,7 @@ class HistoryStoreTest {
     }
     //endregion
 
-    //region branching and facts (Day-10)
+    //region branching and facts
 
     @Test
     fun `when branches written to same session - then their messages stay isolated`() = runTest {
