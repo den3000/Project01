@@ -1,6 +1,6 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.context
 
-import ru.den.writes.code.project01.shared.context.HistoryCompressor
+import ru.den.writes.code.project01.shared.llm.FakeLlmApi
 import ru.den.writes.code.project01.shared.llm.LlmResult
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role

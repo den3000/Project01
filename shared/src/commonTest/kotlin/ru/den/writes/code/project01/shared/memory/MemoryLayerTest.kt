@@ -1,10 +1,6 @@
-package ru.den.writes.code.project01.cliJvm.memory
+package ru.den.writes.code.project01.shared.memory
 
 import ru.den.writes.code.project01.shared.llm.Role
-import ru.den.writes.code.project01.shared.memory.MemoryLayer
-import ru.den.writes.code.project01.shared.memory.ProfileData
-import ru.den.writes.code.project01.shared.memory.RuleEntry
-import ru.den.writes.code.project01.shared.memory.TaskNotes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
