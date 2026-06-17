@@ -29,6 +29,7 @@ import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceApi
 import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterApi
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskNotes
+import ru.den.writes.code.project01.shared.memory.TaskStage
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import java.io.File
 import java.util.UUID
@@ -199,14 +200,29 @@ private fun handleMemoryCommand(action: CliArgs.MemoryAction) {
         }
         is CliArgs.MemoryAction.SetTask -> {
             // Touch-create so subsequent `-memory show` (and the next
-            // chat with `-task <id>`) sees an empty task file rather
-            // than nothing on disk.
+            // chat with `-task <id>`) sees a task file rather than nothing
+            // on disk. A new task starts at the initial FSM stage.
             if (store.loadTask(action.taskId) == null) {
-                store.saveTask(TaskNotes(taskId = action.taskId))
+                store.saveTask(TaskNotes(taskId = action.taskId, stage = TaskStage.INITIAL))
             }
             println("[memory] task '${action.taskId}' ready under ${File(MEMORY_ROOT, MemoryStore.TASKS_DIR).absolutePath}/${action.taskId}.md")
         }
+        is CliArgs.MemoryAction.PauseTask -> setTaskPaused(store, action.taskId, paused = true)
+        is CliArgs.MemoryAction.ResumeTask -> setTaskPaused(store, action.taskId, paused = false)
     }
+}
+
+/**
+ * Pure-disk pause/resume for `-memory task <id> pause|resume`. Loads (or
+ * touch-creates at the initial stage) the task, flips its `paused` flag, and
+ * writes it back. A paused task holds its stage — the chat agent's auto-advance
+ * skips it — so it can be parked here and picked up later.
+ */
+private fun setTaskPaused(store: MemoryStore, taskId: String, paused: Boolean) {
+    val task = store.loadTask(taskId) ?: TaskNotes(taskId = taskId, stage = TaskStage.INITIAL)
+    store.saveTask(task.copy(paused = paused))
+    val word = if (paused) "paused" else "resumed"
+    println("[memory] task '$taskId' $word (stage ${task.stage?.keyword ?: "(none)"})")
 }
 
 /**

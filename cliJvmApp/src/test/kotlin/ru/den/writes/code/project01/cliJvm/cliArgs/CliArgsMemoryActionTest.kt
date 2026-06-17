@@ -271,6 +271,46 @@ class CliArgsMemoryActionTest {
         // then
         assertEquals("-memory", ex.argName)
     }
+
+    @Test
+    fun `when -memory task with pause - then PauseTask with that id`() {
+        // given
+        val args = arrayOf("-memory", "task", "auth", "pause")
+
+        // when
+        val parsed = parseCliArgsWithDummyKeys(*args)
+
+        // then
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.PauseTask("auth"), memory.action)
+    }
+
+    @Test
+    fun `when -memory task with resume - then ResumeTask with that id`() {
+        // given
+        val args = arrayOf("-memory", "task", "auth", "resume")
+
+        // when
+        val parsed = parseCliArgsWithDummyKeys(*args)
+
+        // then
+        val memory = assertIs<CliArgs.Memory>(parsed)
+        assertEquals(CliArgs.MemoryAction.ResumeTask("auth"), memory.action)
+    }
+
+    @Test
+    fun `when -memory task with unknown verb - then InvalidArgumentValue on -memory`() {
+        // given
+        val args = arrayOf("-memory", "task", "auth", "finish")
+
+        // when
+        val ex = assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parseCliArgsWithDummyKeys(*args)
+        }
+
+        // then
+        assertEquals("-memory", ex.argName)
+    }
     //endregion
 
     private fun parseCliArgsWithDummyKeys(vararg args: String): CliArgs =
