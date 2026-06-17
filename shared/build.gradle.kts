@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.buildKonfig)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -52,9 +53,22 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+
+            // Domain core (LLM API + DTOs), shared across all targets. The
+            // ktor engine is intentionally absent — callers inject an
+            // HttpClient, so the HttpClient type leaks through public *Api
+            // constructors via api(); coroutines likewise (suspend API).
+            // content-negotiation + serialization stay implementation: they
+            // are internal to the *Api / DTO implementations.
+            api(libs.ktor.client.core)
+            api(libs.kotlinx.coroutinesCore)
+            implementation(libs.ktor.client.contentNegotiation)
+            implementation(libs.ktor.serialization.kotlinxJson)
+            implementation(libs.kotlinx.serializationJson)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutinesTest)
         }
     }
 }
