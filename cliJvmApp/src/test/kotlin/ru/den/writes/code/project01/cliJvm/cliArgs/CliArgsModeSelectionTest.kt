@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.cliArgs
 
-import ru.den.writes.code.project01.shared.llm.GeminiModel
+import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind

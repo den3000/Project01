@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.cliArgs
 
-import ru.den.writes.code.project01.shared.llm.GeminiModel
-import ru.den.writes.code.project01.shared.llm.HuggingFaceModel
+import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
+import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceModel
 import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.shared.llm.OpenRouterModel
+import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterModel
 import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test

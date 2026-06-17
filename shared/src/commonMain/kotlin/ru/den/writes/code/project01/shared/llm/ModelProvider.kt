@@ -1,5 +1,9 @@
 package ru.den.writes.code.project01.shared.llm
 
+import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
+import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceModel
+import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterModel
+
 /**
  * Provider bundle: the minimum needed to route a request — endpoint
  * URL, resolved API key, and the typed model.

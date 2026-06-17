@@ -13,7 +13,6 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.delay
 import ru.den.writes.code.project01.shared.llm.GenerationParams
-import ru.den.writes.code.project01.shared.llm.HuggingFaceModel
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.LlmResult
 import ru.den.writes.code.project01.shared.llm.Message

@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.shared.llm
+package ru.den.writes.code.project01.shared.llm.gemini
 
 /**
  * Typed Gemini model identifier.

@@ -17,8 +17,8 @@ KMP-проект (пакет `ru.den.writes.code.project01`).
 
 ## Карта модулей
 **`shared` (commonMain, пакет `ru.den.writes.code.project01.shared.*`)** — портируемое ядро для всех таргетов (jvm/android/ios):
-- `llm/` — `LlmApi` (нейтральный интерфейс + `Message`/`Role`/`GenerationParams`/`Usage`/`LlmResult`), `ModelProvider`, `GeminiModel`/`OpenRouterModel`/`HuggingFaceModel` (typed каталоги + `Custom`).
-- `llm/gemini|openrouter|huggingface/` — `*Api` (реализации `LlmApi`) + `*Dto` по провайдеру. `HttpClient` инжектится снаружи; ktor-движок (`Java`) — в cliJvmApp, не в shared.
+- `llm/` — `LlmApi` (нейтральный интерфейс + `Message`/`Role`/`GenerationParams`/`Usage`/`LlmResult`), `ModelProvider` (sealed-дискриминатор провайдера).
+- `llm/gemini|openrouter|huggingface/` — по провайдеру: `*Api` (реализация `LlmApi`) + `*Dto` + `*Model` (typed каталог + `Custom`). `HttpClient` инжектится снаружи; ktor-движок (`Java`) — в cliJvmApp, не в shared.
 - `context/` — `HistoryCompressor` (rolling-summary алгоритм, чистый, без `HistoryStore`) + `evenDown` (`EvenDown.kt`).
 - `pricing/` — `ModelPricing`/`PricingRegistry`: цены/окна. **Single source of truth по ценам.**
 - `memory/` — `Profile.kt` (`ProfileSection` style/format/constraints/context + `ProfileData` + `parseProfileData`/`renderProfileData`/`parseProfileCommand`/`isValidProfileName`), `MemoryLayer` (`composePreamble`/`composeSystem`), `MemoryMode` (PREAMBLE/SYSTEM), `MemoryModels.kt` (`RuleEntry`/`TaskNotes`).

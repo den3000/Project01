@@ -1,9 +1,9 @@
-package ru.den.writes.code.project01.shared.llm
+package ru.den.writes.code.project01.shared.llm.huggingface
 
 /**
  * Typed Hugging Face Inference Providers model identifier.
  *
- * Mirrors [GeminiModel] / [OpenRouterModel] in shape: a small [Known]
+ * Mirrors [ru.den.writes.code.project01.shared.llm.gemini.GeminiModel] / [ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterModel] in shape: a small [Known]
  * catalog plus a [Custom] escape hatch. Ids on the wire follow HF Hub's
  * `org/repo` convention (e.g. `meta-llama/Llama-3.3-70B-Instruct`) and
  * are forwarded verbatim to the HF Router endpoint.

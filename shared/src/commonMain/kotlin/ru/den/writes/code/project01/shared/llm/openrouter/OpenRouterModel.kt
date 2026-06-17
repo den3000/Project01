@@ -1,9 +1,9 @@
-package ru.den.writes.code.project01.shared.llm
+package ru.den.writes.code.project01.shared.llm.openrouter
 
 /**
  * Typed OpenRouter model identifier.
  *
- * Mirrors [GeminiModel] in shape: a small [Known] catalog plus a
+ * Mirrors [ru.den.writes.code.project01.shared.llm.gemini.GeminiModel] in shape: a small [Known] catalog plus a
  * [Custom] escape hatch. The catalog leans on free-tier (`:free`)
  * models — cheap experimentation is the whole point of going through
  * OpenRouter. The default is [Known.Auto], the meta-router that picks

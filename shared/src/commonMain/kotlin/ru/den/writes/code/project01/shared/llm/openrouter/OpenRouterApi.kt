@@ -14,7 +14,6 @@ import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.LlmResult
 import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.OpenRouterModel
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
 
