@@ -18,7 +18,7 @@ import ru.den.writes.code.project01.cliJvm.db.HistoryStore
  *  - [rebind] — optional re-hydration of per-(session, branch) state, called
  *    on resume and after a branch switch. Default: no-op.
  *
- * Day-9's rolling summary lives on as [Summary], wrapping [HistoryCompressor]
+ * The rolling-summary path lives on as [Summary], wrapping [HistoryCompressor]
  * unchanged. [FullHistory] is the default: send everything, no folding.
  */
 internal sealed interface ContextStrategy {
@@ -46,7 +46,7 @@ internal sealed interface ContextStrategy {
     }
 
     /**
-     * Rolling-summary strategy (Day 9): folds old turns into a single
+     * Rolling-summary strategy: folds old turns into a single
      * summary and sends `[summary pair] + recent tail` instead of the full
      * history. Delegates entirely to [HistoryCompressor] — [onTurn] runs one
      * compaction pass and persists it (the summarization call's tokens land

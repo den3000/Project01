@@ -37,7 +37,7 @@ private val DB_FILE: File = File(
 )
 
 /**
- * Root of the on-disk memory layer (Day-11). Profile, rules and task
+ * Root of the on-disk memory layer. Profile, rules and task
  * notes live under this folder as markdown files — see
  * [MemoryStore] for the layout.
  */
@@ -78,8 +78,8 @@ suspend fun main(args: Array<String>) {
         // session_id discriminator, distinct -session values touch
         // disjoint rows and don't fight for the writer lock either.
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-        // v1→v2: Day-8 token columns; v2→v3: Day-9 `summaries` table;
-        // v3→v4: Day-10 branch_id + `facts` table (see MIGRATION_1_2 /
+        // v1→v2: token columns; v2→v3: `summaries` table;
+        // v3→v4: branch_id + `facts` table (see MIGRATION_1_2 /
         // MIGRATION_2_3 / MIGRATION_3_4). Without these, opening an older
         // DB would throw IllegalStateException at startup.
         .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
@@ -352,9 +352,9 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 HistoryCompressor(keepLast = chat.keepLast, summarizeEvery = chat.summarizeEvery),
             )
         }
-        // Day-11 memory: only wired in when the user passed -memory-mode.
+        // Memory layer: only wired in when the user passed -memory-mode.
         // Without it, Agent receives a null MemoryProvider and the wire
-        // bytes are byte-identical to a pre-Day-11 run.
+        // bytes are byte-identical to a no-memory run.
         val memory: MemoryProvider? = chat?.memoryMode?.let { mode ->
             MEMORY_ROOT.mkdirs()
             MemoryProvider(

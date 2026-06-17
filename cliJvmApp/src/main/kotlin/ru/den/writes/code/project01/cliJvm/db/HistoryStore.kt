@@ -20,7 +20,7 @@ import ru.den.writes.code.project01.cliJvm.Usage
  * Token bookkeeping ([stats]) also lives here: on [load] the running
  * totals are seeded from existing ASSISTANT rows so a resumed session
  * picks up exactly where the last process left off; on [append] with a
- * non-null `usage` the totals tick up. The Day-9 compression summary is
+ * non-null `usage` the totals tick up. The compression summary is
  * persisted here too ([saveSummary] / [loadSummary]); its summarization
  * calls fold into [stats] as overhead (tokens + cost, but not turns) and
  * are re-seeded from the summary row on [load]. Cost is recomputed from
@@ -36,7 +36,7 @@ internal class HistoryStore(
     initialBranch: String = DEFAULT_BRANCH,
 ) {
     /**
-     * Active conversation branch (Day-10). Mutated only by [switchTo], which
+     * Active conversation branch. Mutated only by [switchTo], which
      * re-hydrates the store from disk for the new branch.
      */
     var branchId: String = initialBranch
@@ -95,7 +95,7 @@ internal class HistoryStore(
                 stats.recordOverhead(usage, cost)
             }
         }
-        // Likewise re-seed sticky-facts extraction overhead (Day-10).
+        // Likewise re-seed sticky-facts extraction overhead.
         dao.getFacts(sessionId, branchId)?.let { row ->
             row.overheadUsageOrNull()?.let { usage ->
                 val cost = row.modelId?.let(PricingRegistry::lookup)

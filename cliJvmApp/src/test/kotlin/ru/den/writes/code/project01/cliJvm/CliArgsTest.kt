@@ -524,7 +524,7 @@ class CliArgsTest {
         }
     }
 
-    // --- compression (Day-9) ----------------------------------------
+    // --- compression ------------------------------------------------
 
     @Test
     fun `compress flag enables compression with default knobs`() {
@@ -606,7 +606,7 @@ class CliArgsTest {
         assertEquals("-compress", ex.argName)
     }
 
-    // --- strategy switch (Day-10) -----------------------------------
+    // --- strategy switch --------------------------------------------
 
     @Test
     fun `strategy window selects WINDOW`() {

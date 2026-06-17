@@ -64,7 +64,7 @@ internal class Agent(
      */
     private val strategy: ContextStrategy = ContextStrategy.FullHistory,
     /**
-     * Long-term + working memory façade (Day-11). Non-null when the user
+     * Long-term + working memory façade. Non-null when the user
      * passed `-memory-mode preamble|system`; null otherwise (and for
      * OneShot, which has no memory by design). Read once per turn from
      * [send] and prepended to the wire list either as a USER/ASSISTANT

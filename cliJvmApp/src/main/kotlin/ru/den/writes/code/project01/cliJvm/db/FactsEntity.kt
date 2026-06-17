@@ -5,8 +5,8 @@ import androidx.room.Entity
 
 /**
  * Persisted "sticky facts" — a rolling key-value memory of the conversation
- * (Day-10 Sticky Facts strategy). One row per (session, branch); the
- * composite primary key mirrors [SummaryEntity].
+ * (Sticky Facts strategy). One row per (session, branch); the composite
+ * primary key mirrors [SummaryEntity].
  *
  * [factsJson] is a JSON object string (arbitrary user-derived keys). The
  * token columns + [modelId] record the *cumulative* cost of the

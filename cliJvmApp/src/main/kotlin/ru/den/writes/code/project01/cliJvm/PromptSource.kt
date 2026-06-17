@@ -195,7 +195,7 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
  * When the underlying stream is exhausted, [nextPrompt] returns `null`
  * and the agent loop stops naturally.
  *
- * Used for the Day-8 overflow demo: point this at a large file with a
+ * Used for the overflow demo: point this at a large file with a
  * generous chunk size and the conversation will accumulate context
  * until the model's window can't take any more — at which point the
  * provider returns an error, Agent prints `[error]` and the loop

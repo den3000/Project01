@@ -724,7 +724,7 @@ internal sealed interface CliArgs {
 
             // -memory-mode: enable the memory layer for this Chat. Null
             // (flag absent) leaves memory dormant — wire shape identical
-            // to pre-Day-11. Any other value is a typo.
+            // to a no-memory chat. Any other value is a typo.
             val memoryMode = values[ARG_MEMORY_MODE]?.takeIf { it.isNotBlank() }?.let { raw ->
                 when (raw.lowercase()) {
                     MEMORY_MODE_PREAMBLE -> MemoryMode.PREAMBLE

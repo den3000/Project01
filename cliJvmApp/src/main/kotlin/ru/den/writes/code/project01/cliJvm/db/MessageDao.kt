@@ -113,7 +113,7 @@ internal interface MessageDao {
     @Query("DELETE FROM facts")
     suspend fun clearAllFacts()
 
-    // --- branches (Day-10) ------------------------------------------
+    // --- branches ---------------------------------------------------
 
     /** Distinct branch ids for a session, in order of first appearance. */
     @Query("SELECT branch_id FROM messages WHERE session_id = :sessionId GROUP BY branch_id ORDER BY MIN(id)")

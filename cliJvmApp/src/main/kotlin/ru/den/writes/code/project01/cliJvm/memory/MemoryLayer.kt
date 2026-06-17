@@ -42,10 +42,11 @@ internal object MemoryLayer {
 
     /**
      * Build the SYSTEM-mode layer: one `Role.SYSTEM` message per
-     * non-empty section. Each provider concatenates them into its
-     * native system slot per the `LlmApi` contract, so the on-wire
-     * effect is one system block — but emitting separate messages here
-     * keeps logging and tests legible.
+     * non-empty section (profile is one section, not four sub-messages
+     * — sub-sections live inside the profile block). Each provider
+     * concatenates them into its native system slot per the `LlmApi`
+     * contract, so the on-wire effect is one system block — but
+     * emitting separate messages here keeps logging and tests legible.
      */
     fun composeSystem(
         profile: String?,
