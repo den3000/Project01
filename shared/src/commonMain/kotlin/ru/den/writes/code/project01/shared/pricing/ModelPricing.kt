@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.pricing
 
 import ru.den.writes.code.project01.shared.llm.Usage
 
@@ -14,7 +14,7 @@ import ru.den.writes.code.project01.shared.llm.Usage
  * output rate, hence the cost formula in [PricingRegistry.cost] adds
  * `thoughtsTokens` to `outputTokens` before applying the output rate.
  */
-internal data class ModelPricing(
+data class ModelPricing(
     val inputUsdPer1M: Double,
     val outputUsdPer1M: Double,
     val contextWindowTokens: Int? = null,
@@ -26,7 +26,7 @@ internal data class ModelPricing(
  * when a new model shows up or rates change.
  *
  * Models not in the map produce `null` on [lookup]; the caller
- * (typically [SessionStats.seedFrom] or the per-turn footer printer)
+ * (typically the session-stats seeding or the per-turn footer printer)
  * treats that as "we don't know the cost" and prints a `$? (no pricing)`
  * marker instead of guessing.
  *
@@ -35,7 +35,7 @@ internal data class ModelPricing(
  * - OpenRouter free roster (all 0/0): https://openrouter.ai/models?max_price=0
  * - Hugging Face Router: https://huggingface.co/docs/inference-providers/en/pricing
  */
-internal object PricingRegistry {
+object PricingRegistry {
     private val byId: Map<String, ModelPricing> = mapOf(
         // ---- Gemini text models (paid tier) -----------------------------
         // 2.5 Pro: tiered pricing (≤200K vs >200K). We use the lower tier

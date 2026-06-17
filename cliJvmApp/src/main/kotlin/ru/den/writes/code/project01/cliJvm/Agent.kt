@@ -9,6 +9,7 @@ import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlin.time.Duration.Companion.seconds
@@ -482,8 +483,9 @@ internal class Agent(
         // Warn loudly when we're closing in on the limit. Done outside
         // the structured block so it stands out, and on stderr so it
         // survives stdout redirection during demos.
-        if (usage != null && pricing?.contextWindowTokens != null) {
-            val pct = usage.promptTokens.toDouble() / pricing.contextWindowTokens * 100.0
+        val window = pricing?.contextWindowTokens
+        if (usage != null && window != null) {
+            val pct = usage.promptTokens.toDouble() / window * 100.0
             if (pct >= CONTEXT_WARN_PCT) {
                 System.err.println(
                     "[warning] context window %.1f%% full — next turn may overflow".format(pct)

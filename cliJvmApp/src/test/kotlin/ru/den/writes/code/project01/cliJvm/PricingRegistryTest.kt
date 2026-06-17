@@ -1,6 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.pricing.ModelPricing
+import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

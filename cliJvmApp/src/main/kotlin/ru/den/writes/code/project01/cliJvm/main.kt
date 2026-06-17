@@ -27,6 +27,7 @@ import ru.den.writes.code.project01.shared.llm.Usage
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiApi
 import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceApi
 import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterApi
+import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess
