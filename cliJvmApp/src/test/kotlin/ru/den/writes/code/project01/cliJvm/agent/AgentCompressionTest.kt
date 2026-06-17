@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.agent
 
+import ru.den.writes.code.project01.shared.context.HistoryCompressor
 import ru.den.writes.code.project01.shared.llm.LlmResult
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
@@ -9,7 +10,6 @@ import ru.den.writes.code.project01.cliJvm.Agent
 import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
-import ru.den.writes.code.project01.cliJvm.HistoryCompressor
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import java.io.StringReader

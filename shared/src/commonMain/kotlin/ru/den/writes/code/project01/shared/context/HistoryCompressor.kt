@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.context
 
 import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
@@ -46,7 +46,7 @@ import ru.den.writes.code.project01.shared.llm.Usage
  * @param initialCoveredCount previously-persisted watermark, if resuming.
  *   Snapped down to even.
  */
-internal class HistoryCompressor(
+class HistoryCompressor(
     keepLast: Int,
     summarizeEvery: Int,
     initialSummary: String? = null,
@@ -200,7 +200,7 @@ internal class HistoryCompressor(
  * foldedTo)`, and the summarizer call's token [usage] (for overhead
  * accounting and the `[compaction]` log line).
  */
-internal data class CompactionOutcome(
+data class CompactionOutcome(
     val newSummary: String,
     val newCoveredCount: Int,
     val foldedFrom: Int,
