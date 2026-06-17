@@ -23,6 +23,9 @@ import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.llm.gemini.GeminiApi
+import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceApi
+import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterApi
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess

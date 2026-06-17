@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.llm.huggingface
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -19,6 +19,7 @@ import ru.den.writes.code.project01.shared.llm.LlmResult
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.util.logWarn
 
 private const val ENDPOINT = "https://router.huggingface.co/v1/chat/completions"
 
@@ -50,7 +51,7 @@ private const val MAX_503_BACKOFF_MS: Long = 5_000L
  * One instance is bound to one model — see [GeminiApi]'s notes on
  * sharing the [httpClient].
  */
-internal class HuggingFaceApi(
+class HuggingFaceApi(
     private val httpClient: HttpClient,
     private val apiKey: String,
     private val model: HuggingFaceModel = HuggingFaceModel.Default,
@@ -105,7 +106,7 @@ internal class HuggingFaceApi(
                     ?.times(1000L)
                     ?.coerceIn(0L, MAX_503_BACKOFF_MS)
                     ?: DEFAULT_503_BACKOFF_MS
-                System.err.println("[retry] 503 (cold start) — waiting ${waitMs}ms, retrying once")
+                logWarn("[retry] 503 (cold start) — waiting ${waitMs}ms, retrying once")
                 delay(waitMs)
                 hasRetried = true
                 continue

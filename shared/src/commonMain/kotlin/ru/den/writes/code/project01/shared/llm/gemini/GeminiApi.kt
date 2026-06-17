@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.llm.gemini
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -18,6 +18,7 @@ import ru.den.writes.code.project01.shared.llm.LlmResult
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.util.logWarn
 
 private const val API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 private fun endpointFor(model: GeminiModel): String = "$API_BASE/${model.id}:generateContent"
@@ -56,7 +57,7 @@ private const val DEFAULT_429_BACKOFF_MS: Long = 5_000L
  * (`duration`, `tokens: …`) is the [Agent]'s job — it has the running
  * totals that the per-turn footer needs to reference.
  */
-internal class GeminiApi(
+class GeminiApi(
     private val httpClient: HttpClient,
     private val apiKey: String,
     private val model: GeminiModel = GeminiModel.Default,
@@ -104,7 +105,7 @@ internal class GeminiApi(
                         error = "Request timeout (after retry): ${redactGeminiKey(e.message)}",
                     )
                 }
-                System.err.println("[retry] timeout — retrying once")
+                logWarn("[retry] timeout — retrying once")
                 hasRetried = true
                 continue
             } catch (e: Exception) {
@@ -123,7 +124,7 @@ internal class GeminiApi(
                     )
                 }
                 val waitMs = parseRetryAfterMillis(rawBody) ?: DEFAULT_429_BACKOFF_MS
-                System.err.println("[retry] 429 — waiting ${waitMs}ms, retrying once")
+                logWarn("[retry] 429 — waiting ${waitMs}ms, retrying once")
                 delay(waitMs)
                 hasRetried = true
                 continue

@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.llm.openrouter
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -35,7 +35,7 @@ private const val ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
  * (`duration`, `tokens: …`) is the [Agent]'s job — it has the
  * running totals that the per-turn footer needs to reference.
  */
-internal class OpenRouterApi(
+class OpenRouterApi(
     private val httpClient: HttpClient,
     private val apiKey: String,
     private val model: OpenRouterModel = OpenRouterModel.Default,

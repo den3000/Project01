@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.llm.gemini
 
 import kotlinx.serialization.Serializable
 
