@@ -1,11 +1,11 @@
 package ru.den.writes.code.project01.cliJvm.cliArgs
 
+import ru.den.writes.code.project01.shared.llm.GeminiModel
+import ru.den.writes.code.project01.shared.llm.HuggingFaceModel
+import ru.den.writes.code.project01.shared.llm.ModelProvider
+import ru.den.writes.code.project01.shared.llm.OpenRouterModel
 import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.CliArgsException
-import ru.den.writes.code.project01.cliJvm.GeminiModel
-import ru.den.writes.code.project01.cliJvm.HuggingFaceModel
-import ru.den.writes.code.project01.cliJvm.ModelProvider
-import ru.den.writes.code.project01.cliJvm.OpenRouterModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

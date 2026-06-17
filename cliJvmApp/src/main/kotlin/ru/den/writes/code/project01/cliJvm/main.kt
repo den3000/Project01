@@ -20,6 +20,9 @@ import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.shared.llm.LlmApi
+import ru.den.writes.code.project01.shared.llm.ModelProvider
+import ru.den.writes.code.project01.shared.llm.Usage
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess

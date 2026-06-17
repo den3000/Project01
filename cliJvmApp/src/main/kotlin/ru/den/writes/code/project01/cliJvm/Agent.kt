@@ -4,6 +4,11 @@ import kotlinx.coroutines.delay
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.TaskNotes
+import ru.den.writes.code.project01.shared.llm.GenerationParams
+import ru.den.writes.code.project01.shared.llm.LlmApi
+import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.project01.shared.llm.Usage
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlin.time.Duration.Companion.seconds

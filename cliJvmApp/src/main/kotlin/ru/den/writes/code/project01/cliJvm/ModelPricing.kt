@@ -1,5 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.shared.llm.Usage
+
 /**
  * Per-model pricing and context-window data used to derive cost from
  * a token count.

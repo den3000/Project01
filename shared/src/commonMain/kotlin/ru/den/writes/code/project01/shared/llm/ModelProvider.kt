@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.llm
 
 /**
  * Provider bundle: the minimum needed to route a request — endpoint
@@ -11,7 +11,7 @@ package ru.den.writes.code.project01.cliJvm
  * carrier that lets [CliArgs] expose a single field and `main.kt`
  * dispatch on a `when`.
  */
-internal sealed interface ModelProvider {
+sealed interface ModelProvider {
     /** Full URL of the chat-style endpoint for this provider/model. */
     val endpoint: String
 

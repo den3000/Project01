@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.llm
 
 /**
  * Typed OpenRouter model identifier.
@@ -16,7 +16,7 @@ package ru.den.writes.code.project01.cliJvm
  * In the meantime pass any current id via `-model`; unknown ids fall
  * through to [Custom] and are forwarded verbatim.
  */
-internal sealed interface OpenRouterModel {
+sealed interface OpenRouterModel {
     val id: String
 
     /**

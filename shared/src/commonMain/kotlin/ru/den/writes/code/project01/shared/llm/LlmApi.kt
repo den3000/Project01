@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.llm
 
 /**
  * Provider-agnostic surface for talking to a chat-style LLM.
@@ -13,7 +13,7 @@ package ru.den.writes.code.project01.cliJvm
  * credentials, model id and any provider-specific quirks. Callers
  * supply only the conversation and generation knobs.
  */
-internal interface LlmApi {
+interface LlmApi {
     /**
      * Sends the full conversation as [messages] (the caller appends the
      * current user turn before calling — see the OpenAI-style `messages`
@@ -57,12 +57,12 @@ internal interface LlmApi {
  * only in the wire list assembled per-turn (see the memory layer
  * pipeline).
  */
-internal enum class Role { SYSTEM, USER, ASSISTANT }
+enum class Role { SYSTEM, USER, ASSISTANT }
 
 /**
  * One turn in the running conversation.
  */
-internal data class Message(
+data class Message(
     val role: Role,
     val text: String,
 )
@@ -77,7 +77,7 @@ internal data class Message(
  * to end with this exact string" API across providers; implementations
  * typically lower it to a system instruction.
  */
-internal data class GenerationParams(
+data class GenerationParams(
     val maxTokens: Int? = null,
     val stopSequences: List<String>? = null,
     val endSequence: String? = null,
@@ -92,7 +92,7 @@ internal data class GenerationParams(
  * models. Always 0 for providers (OpenRouter) or responses that fold
  * reasoning into the regular completion count.
  */
-internal data class Usage(
+data class Usage(
     val promptTokens: Int,
     val outputTokens: Int,
     val thoughtsTokens: Int = 0,
@@ -112,7 +112,7 @@ internal data class Usage(
  * have already logged any technical detail above and beyond what fits
  * in [error].
  */
-internal data class LlmResult(
+data class LlmResult(
     val text: String?,
     val usage: Usage? = null,
     val error: String? = null,

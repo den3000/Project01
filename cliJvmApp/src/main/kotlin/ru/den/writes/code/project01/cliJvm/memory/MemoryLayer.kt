@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.memory
 
-import ru.den.writes.code.project01.cliJvm.Message
-import ru.den.writes.code.project01.cliJvm.Role
+import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.project01.shared.llm.Role
 
 /**
  * Pure functions that turn `(profile, rules, task)` into the message slice

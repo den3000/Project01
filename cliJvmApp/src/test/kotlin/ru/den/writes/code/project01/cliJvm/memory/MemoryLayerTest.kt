@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.memory
 
-import ru.den.writes.code.project01.cliJvm.Role
+import ru.den.writes.code.project01.shared.llm.Role
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

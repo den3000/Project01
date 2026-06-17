@@ -1,5 +1,11 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.shared.llm.GenerationParams
+import ru.den.writes.code.project01.shared.llm.LlmApi
+import ru.den.writes.code.project01.shared.llm.LlmResult
+import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.project01.shared.llm.Usage
+
 /**
  * Deterministic [LlmApi] stub for tests.
  *

@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.llm
 
 /**
  * Typed Hugging Face Inference Providers model identifier.
@@ -18,7 +18,7 @@ package ru.den.writes.code.project01.cliJvm
  * model with broad provider coverage on the Router (so cold-start is
  * less of a concern than for niche reasoning variants).
  */
-internal sealed interface HuggingFaceModel {
+sealed interface HuggingFaceModel {
     val id: String
 
     /**

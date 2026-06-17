@@ -1,5 +1,9 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.shared.llm.GeminiModel
+import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.project01.shared.llm.ModelProvider
+import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryLayer

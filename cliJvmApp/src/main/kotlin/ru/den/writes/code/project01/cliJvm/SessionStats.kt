@@ -1,6 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
+import ru.den.writes.code.project01.shared.llm.Usage
 
 /**
  * In-memory running totals for one session.

@@ -3,6 +3,9 @@ package ru.den.writes.code.project01.cliJvm
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.shared.llm.GenerationParams
+import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.project01.shared.llm.Role
 
 /**
  * Sticky-facts strategy: keeps a compact key-value memory of the

@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.project01.shared.llm
 
 /**
  * Typed Gemini model identifier.
@@ -8,7 +8,7 @@ package ru.den.writes.code.project01.cliJvm
  * keeps the door open for any model id the catalog hasn't been updated
  * for yet — Gemini will still receive the literal string in the URL.
  */
-internal sealed interface GeminiModel {
+sealed interface GeminiModel {
     val id: String
 
     /**

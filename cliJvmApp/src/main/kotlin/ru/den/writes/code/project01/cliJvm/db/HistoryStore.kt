@@ -1,10 +1,10 @@
 package ru.den.writes.code.project01.cliJvm.db
 
-import ru.den.writes.code.project01.cliJvm.Message
 import ru.den.writes.code.project01.cliJvm.PricingRegistry
-import ru.den.writes.code.project01.cliJvm.Role
 import ru.den.writes.code.project01.cliJvm.SessionStats
-import ru.den.writes.code.project01.cliJvm.Usage
+import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.project01.shared.llm.Usage
 
 /**
  * Conversation-history persistence for one session, with an in-memory
