@@ -7,71 +7,121 @@ import kotlin.test.assertNull
 
 class HuggingFaceApiTest {
 
-    // --- parseRetryAfterSeconds -------------------------------------
+    //region parseRetryAfterSeconds
 
     @Test
-    fun `parseRetryAfterSeconds picks up an integer value`() {
-        assertEquals(3L, parseRetryAfterSeconds("3"))
+    fun `when parseRetryAfterSeconds called with integer header - then seconds returned`() {
+        // given
+        val header = "3"
+
+        // when
+        val actual = parseRetryAfterSeconds(header)
+
+        // then
+        val expected = 3L
+        assertEquals(expected, actual)
     }
 
     @Test
-    fun `parseRetryAfterSeconds trims whitespace around the value`() {
-        assertEquals(7L, parseRetryAfterSeconds("  7  "))
+    fun `when parseRetryAfterSeconds called with whitespace-padded value - then trimmed value returned`() {
+        // given
+        val header = "  7  "
+
+        // when
+        val actual = parseRetryAfterSeconds(header)
+
+        // then
+        val expected = 7L
+        assertEquals(expected, actual)
     }
 
     @Test
-    fun `parseRetryAfterSeconds returns null on a missing header`() {
-        assertNull(parseRetryAfterSeconds(null))
+    fun `when parseRetryAfterSeconds called with null header - then null returned`() {
+        // given
+        val header: String? = null
+
+        // when
+        val actual = parseRetryAfterSeconds(header)
+
+        // then
+        assertNull(actual)
     }
 
     @Test
-    fun `parseRetryAfterSeconds returns null on an unparseable value`() {
+    fun `when parseRetryAfterSeconds called with unparseable value - then null returned`() {
+        // given
         // HTTP-date form is allowed by RFC 7231 but not parsed here;
         // callers fall back to the default backoff.
-        assertNull(parseRetryAfterSeconds("Wed, 21 Oct 2026 07:28:00 GMT"))
+        val header = "Wed, 21 Oct 2026 07:28:00 GMT"
+
+        // when
+        val actual = parseRetryAfterSeconds(header)
+
+        // then
+        assertNull(actual)
     }
 
     @Test
-    fun `parseRetryAfterSeconds clamps negative values to zero`() {
-        assertEquals(0L, parseRetryAfterSeconds("-5"))
-    }
+    fun `when parseRetryAfterSeconds called with negative value - then clamped to zero`() {
+        // given
+        val header = "-5"
 
-    // --- HuggingFaceUsage.toNeutral ---------------------------------
+        // when
+        val actual = parseRetryAfterSeconds(header)
+
+        // then
+        val expected = 0L
+        assertEquals(expected, actual)
+    }
+    //endregion
+
+    //region HuggingFaceUsage.toNeutral
 
     @Test
-    fun `toNeutral folds reasoning tokens into thoughtsTokens`() {
+    fun `when toNeutral called with reasoning tokens - then folded into thoughtsTokens`() {
+        // given
         val usage = HuggingFaceUsage(
             promptTokens = 120,
             completionTokens = 200,
             totalTokens = 320,
             completionTokensDetails = CompletionTokensDetails(reasoningTokens = 150),
         )
-        val neutral = usage.toNeutral()
+
+        // when
+        val actual = usage.toNeutral()
+
+        // then
         // reasoning is subtracted from completion so outputTokens stays
         // the visible-text-only count — same split GeminiApi uses.
-        assertEquals(120, neutral.promptTokens)
-        assertEquals(50, neutral.outputTokens)
-        assertEquals(150, neutral.thoughtsTokens)
-        assertEquals(320, neutral.totalTokens)
+        assertEquals(120, actual.promptTokens)
+        assertEquals(50, actual.outputTokens)
+        assertEquals(150, actual.thoughtsTokens)
+        assertEquals(320, actual.totalTokens)
     }
 
     @Test
-    fun `toNeutral leaves thoughtsTokens at zero when details are absent`() {
+    fun `when toNeutral called without details - then thoughtsTokens stays zero`() {
+        // given
         val usage = HuggingFaceUsage(
             promptTokens = 30,
             completionTokens = 45,
             totalTokens = 75,
             completionTokensDetails = null,
         )
-        val neutral = usage.toNeutral()
-        assertEquals(30, neutral.promptTokens)
-        assertEquals(45, neutral.outputTokens)
-        assertEquals(0, neutral.thoughtsTokens)
-        assertEquals(75, neutral.totalTokens)
+
+        // when
+        val actual = usage.toNeutral()
+
+        // then
+        assertEquals(30, actual.promptTokens)
+        assertEquals(45, actual.outputTokens)
+        assertEquals(0, actual.thoughtsTokens)
+        assertEquals(75, actual.totalTokens)
     }
 
     @Test
-    fun `toNeutral clamps outputTokens to zero when reasoning exceeds completion`() {
+    fun `when reasoning exceeds completion - then outputTokens clamped to zero`() {
+        // given
         // Pathological case some providers have shipped — completion is
         // smaller than the reported reasoning count. Guard against a
         // negative outputTokens reaching the footer / pricing.
@@ -81,15 +131,21 @@ class HuggingFaceApiTest {
             totalTokens = 15,
             completionTokensDetails = CompletionTokensDetails(reasoningTokens = 8),
         )
-        val neutral = usage.toNeutral()
-        assertEquals(0, neutral.outputTokens)
-        assertEquals(8, neutral.thoughtsTokens)
-    }
 
-    // --- HuggingFaceResponse deserialization -------------------------
+        // when
+        val actual = usage.toNeutral()
+
+        // then
+        assertEquals(0, actual.outputTokens)
+        assertEquals(8, actual.thoughtsTokens)
+    }
+    //endregion
+
+    //region HuggingFaceResponse deserialization
 
     @Test
-    fun `response with reasoning_tokens parses through completionTokensDetails`() {
+    fun `when response carries reasoning_tokens - then parsed through completionTokensDetails`() {
+        // given
         val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
         val raw = """
             {
@@ -102,7 +158,11 @@ class HuggingFaceApiTest {
               }
             }
         """.trimIndent()
+
+        // when
         val resp = json.decodeFromString<HuggingFaceResponse>(raw)
+
+        // then
         assertEquals(18, resp.usage?.completionTokensDetails?.reasoningTokens)
         // And the neutral mapping is what pricing/footer ultimately see.
         val neutral = resp.usage!!.toNeutral()
@@ -112,7 +172,8 @@ class HuggingFaceApiTest {
     }
 
     @Test
-    fun `response without completion_tokens_details still parses`() {
+    fun `when response has no completion_tokens_details - then still parses with thoughtsTokens zero`() {
+        // given
         val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
         val raw = """
             {
@@ -120,86 +181,105 @@ class HuggingFaceApiTest {
               "usage":{"prompt_tokens":3,"completion_tokens":4,"total_tokens":7}
             }
         """.trimIndent()
+
+        // when
         val resp = json.decodeFromString<HuggingFaceResponse>(raw)
+
+        // then
         assertNull(resp.usage?.completionTokensDetails)
         assertEquals(0, resp.usage!!.toNeutral().thoughtsTokens)
     }
+    //endregion
 
-    // --- buildHuggingFaceWireMessages -------------------------------
+    //region buildHuggingFaceWireMessages
 
     @Test
-    fun `wire-builder emits no system message when there is no SYSTEM input and no endSequence`() {
-        val wire = buildHuggingFaceWireMessages(
-            listOf(
-                Message(Role.USER, "hi"),
-                Message(Role.ASSISTANT, "hello"),
-            ),
-            endSequence = null,
+    fun `when buildHuggingFaceWireMessages called without SYSTEM input or endSequence - then no system message emitted`() {
+        // given
+        val messages = listOf(
+            Message(Role.USER, "hi"),
+            Message(Role.ASSISTANT, "hello"),
         )
+
+        // when
+        val wire = buildHuggingFaceWireMessages(messages, endSequence = null)
+
+        // then
         assertEquals(2, wire.size)
         assertEquals("user", wire[0].role)
         assertEquals("assistant", wire[1].role)
     }
 
     @Test
-    fun `wire-builder with only endSequence emits one system message at the head`() {
-        val wire = buildHuggingFaceWireMessages(
-            listOf(Message(Role.USER, "hi")),
-            endSequence = "<<DONE>>",
-        )
+    fun `when buildHuggingFaceWireMessages called with only endSequence - then one system message at the head`() {
+        // given
+        val messages = listOf(Message(Role.USER, "hi"))
+        val endSequence = "<<DONE>>"
+
+        // when
+        val wire = buildHuggingFaceWireMessages(messages, endSequence = endSequence)
+
+        // then
         assertEquals(2, wire.size)
         assertEquals("system", wire[0].role)
-        assertEquals(
-            "Always end your response with the literal text: \"<<DONE>>\"",
-            wire[0].content,
-        )
+        val expected = "Always end your response with the literal text: \"<<DONE>>\""
+        assertEquals(expected, wire[0].content)
     }
 
     @Test
-    fun `wire-builder collapses multiple SYSTEM messages into one`() {
-        val wire = buildHuggingFaceWireMessages(
-            listOf(
-                Message(Role.SYSTEM, "[Profile]\nP"),
-                Message(Role.SYSTEM, "[Rules]\n- R1"),
-                Message(Role.USER, "hi"),
-            ),
-            endSequence = null,
+    fun `when buildHuggingFaceWireMessages called with multiple SYSTEM messages - then collapsed into one`() {
+        // given
+        val messages = listOf(
+            Message(Role.SYSTEM, "[Profile]\nP"),
+            Message(Role.SYSTEM, "[Rules]\n- R1"),
+            Message(Role.USER, "hi"),
         )
+
+        // when
+        val wire = buildHuggingFaceWireMessages(messages, endSequence = null)
+
+        // then
         assertEquals(2, wire.size)
         assertEquals("system", wire[0].role)
         assertEquals("[Profile]\nP\n\n[Rules]\n- R1", wire[0].content)
     }
 
     @Test
-    fun `wire-builder merges SYSTEM messages with endSequence`() {
-        val wire = buildHuggingFaceWireMessages(
-            listOf(
-                Message(Role.SYSTEM, "[Profile]\nP"),
-                Message(Role.USER, "hi"),
-            ),
-            endSequence = "<<DONE>>",
+    fun `when buildHuggingFaceWireMessages called with SYSTEM messages plus endSequence - then endSequence merged into system`() {
+        // given
+        val messages = listOf(
+            Message(Role.SYSTEM, "[Profile]\nP"),
+            Message(Role.USER, "hi"),
         )
+        val endSequence = "<<DONE>>"
+
+        // when
+        val wire = buildHuggingFaceWireMessages(messages, endSequence = endSequence)
+
+        // then
         assertEquals(2, wire.size)
-        assertEquals(
-            "[Profile]\nP\n\nAlways end your response with the literal text: \"<<DONE>>\"",
-            wire[0].content,
-        )
+        val expected = "[Profile]\nP\n\nAlways end your response with the literal text: \"<<DONE>>\""
+        assertEquals(expected, wire[0].content)
     }
 
     @Test
-    fun `wire-builder collects SYSTEM messages even when interleaved`() {
-        val wire = buildHuggingFaceWireMessages(
-            listOf(
-                Message(Role.USER, "hello"),
-                Message(Role.SYSTEM, "[Rules]\n- R1"),
-                Message(Role.ASSISTANT, "world"),
-            ),
-            endSequence = null,
+    fun `when SYSTEM messages interleaved with USER and ASSISTANT - then all SYSTEM collected at head`() {
+        // given
+        val messages = listOf(
+            Message(Role.USER, "hello"),
+            Message(Role.SYSTEM, "[Rules]\n- R1"),
+            Message(Role.ASSISTANT, "world"),
         )
+
+        // when
+        val wire = buildHuggingFaceWireMessages(messages, endSequence = null)
+
+        // then
         assertEquals(3, wire.size)
         assertEquals("system", wire[0].role)
         assertEquals("[Rules]\n- R1", wire[0].content)
         assertEquals("user", wire[1].role)
         assertEquals("assistant", wire[2].role)
     }
+    //endregion
 }

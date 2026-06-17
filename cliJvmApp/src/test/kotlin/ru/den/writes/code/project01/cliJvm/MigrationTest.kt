@@ -24,17 +24,21 @@ import kotlin.test.assertNull
 class MigrationTest {
 
     @Test
-    fun `v3 database upgrades to v4, backfilling branch_id to main and keeping rows`() = runTest {
+    fun `when v3 database opened through Room with migrations - then upgraded to v4 with branch_id backfilled to main`() = runTest {
+        // given
         val dbFile = File.createTempFile("migration-v3-v4", ".db").apply { delete() }
         try {
             buildV3Database(dbFile)
 
+            // when
             val db = Room.databaseBuilder<AppDatabase>(name = dbFile.absolutePath)
                 .setDriver(BundledSQLiteDriver())
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
             try {
                 val dao = db.messageDao()
+
+                // then
                 // The v3 message row survived, with branch_id backfilled to 'main'.
                 val messages = dao.all("s1")
                 assertEquals(1, messages.size)

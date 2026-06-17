@@ -14,8 +14,9 @@ import kotlin.test.assertNull
 class FactsStoreTest {
 
     @Test
-    fun `upsert then getFacts round-trips all fields`() = runTest {
+    fun `when upsertFacts then getFacts called - then all fields round-trip`() = runTest {
         TestDb().use { harness ->
+            // given
             val dao = harness.db.messageDao()
             val row = FactsEntity(
                 sessionId = "s1",
@@ -27,49 +28,82 @@ class FactsStoreTest {
                 thoughtsTokens = 0,
                 totalTokens = 42,
             )
+
+            // when
             dao.upsertFacts(row)
-            assertEquals(row, dao.getFacts("s1", "main"))
+            val actual = dao.getFacts("s1", "main")
+
+            // then
+            val expected = row
+            assertEquals(expected, actual)
         }
     }
 
     @Test
-    fun `getFacts returns null for an unknown session or branch`() = runTest {
+    fun `when getFacts called with unknown session or branch - then null returned`() = runTest {
         TestDb().use { harness ->
+            // given
             val dao = harness.db.messageDao()
             dao.upsertFacts(FactsEntity(sessionId = "s1", branchId = "main", factsJson = "{}"))
-            assertNull(dao.getFacts("s1", "other"))
-            assertNull(dao.getFacts("nope", "main"))
+
+            // when
+            val wrongBranchActual = dao.getFacts("s1", "other")
+            val wrongSessionActual = dao.getFacts("nope", "main")
+
+            // then
+            assertNull(wrongBranchActual)
+            assertNull(wrongSessionActual)
         }
     }
 
     @Test
-    fun `facts are isolated per (session, branch)`() = runTest {
+    fun `when same session has two branches - then facts isolated per branch`() = runTest {
         TestDb().use { harness ->
+            // given
             val dao = harness.db.messageDao()
             dao.upsertFacts(FactsEntity(sessionId = "s", branchId = "main", factsJson = """{"k":"main"}"""))
             dao.upsertFacts(FactsEntity(sessionId = "s", branchId = "alt", factsJson = """{"k":"alt"}"""))
-            assertEquals("""{"k":"main"}""", dao.getFacts("s", "main")?.factsJson)
-            assertEquals("""{"k":"alt"}""", dao.getFacts("s", "alt")?.factsJson)
+
+            // when
+            val mainActual = dao.getFacts("s", "main")?.factsJson
+            val altActual = dao.getFacts("s", "alt")?.factsJson
+
+            // then
+            assertEquals("""{"k":"main"}""", mainActual)
+            assertEquals("""{"k":"alt"}""", altActual)
         }
     }
 
     @Test
-    fun `upsert replaces facts for the same (session, branch)`() = runTest {
+    fun `when upsertFacts called twice for same key - then second value replaces first`() = runTest {
         TestDb().use { harness ->
+            // given
             val dao = harness.db.messageDao()
             dao.upsertFacts(FactsEntity(sessionId = "s", branchId = "main", factsJson = "{}"))
+
+            // when
             dao.upsertFacts(FactsEntity(sessionId = "s", branchId = "main", factsJson = """{"k":"v"}"""))
-            assertEquals("""{"k":"v"}""", dao.getFacts("s", "main")?.factsJson)
+            val actual = dao.getFacts("s", "main")?.factsJson
+
+            // then
+            val expected = """{"k":"v"}"""
+            assertEquals(expected, actual)
         }
     }
 
     @Test
-    fun `clearAllFacts empties the table`() = runTest {
+    fun `when clearAllFacts called - then table is empty`() = runTest {
         TestDb().use { harness ->
+            // given
             val dao = harness.db.messageDao()
             dao.upsertFacts(FactsEntity(sessionId = "s", branchId = "main", factsJson = "{}"))
+
+            // when
             dao.clearAllFacts()
-            assertNull(dao.getFacts("s", "main"))
+            val actual = dao.getFacts("s", "main")
+
+            // then
+            assertNull(actual)
         }
     }
 }
