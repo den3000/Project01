@@ -9,54 +9,75 @@ import kotlin.test.assertTrue
 
 class HistoryCompressorTest {
 
-    // --- planContext (pure) -----------------------------------------
+    //region planContext (pure)
 
     @Test
-    fun `planContext returns messages unchanged when no summary`() {
-        val c = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
-        val m = msgs(8)
-        assertEquals(m, c.planContext(m))
+    fun `when planContext called without summary - then messages returned unchanged`() {
+        // given
+        val compressor = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
+        val messages = buildAlternatingMessages(8)
+
+        // when
+        val actual = compressor.planContext(messages)
+
+        // then
+        val expected = messages
+        assertEquals(expected, actual)
     }
 
     @Test
-    fun `planContext injects summary pair and drops covered prefix`() {
-        val c = HistoryCompressor(
+    fun `when planContext called with summary - then summary pair injected and covered prefix dropped`() {
+        // given
+        val compressor = HistoryCompressor(
             keepLast = 4, summarizeEvery = 10,
             initialSummary = "SUM", initialCoveredCount = 4,
         )
-        val m = msgs(8)
-        assertEquals(
-            listOf(
-                Message(Role.USER, HistoryCompressor.SUMMARY_FRAME_PREFIX + "SUM"),
-                Message(Role.ASSISTANT, HistoryCompressor.ACK_TEXT),
-            ) + m.drop(4),
-            c.planContext(m),
-        )
+        val messages = buildAlternatingMessages(8)
+
+        // when
+        val actual = compressor.planContext(messages)
+
+        // then
+        val expected = listOf(
+            Message(Role.USER, HistoryCompressor.SUMMARY_FRAME_PREFIX + "SUM"),
+            Message(Role.ASSISTANT, HistoryCompressor.ACK_TEXT),
+        ) + messages.drop(4)
+        assertEquals(expected, actual)
     }
 
     @Test
-    fun `planContext with everything folded yields only the summary pair`() {
+    fun `when planContext called with everything folded - then only summary pair returned`() {
+        // given
         // keepLast = 0 + watermark == size → empty tail.
-        val c = HistoryCompressor(
+        val compressor = HistoryCompressor(
             keepLast = 0, summarizeEvery = 10,
             initialSummary = "S", initialCoveredCount = 4,
         )
-        assertEquals(
-            listOf(
-                Message(Role.USER, HistoryCompressor.SUMMARY_FRAME_PREFIX + "S"),
-                Message(Role.ASSISTANT, HistoryCompressor.ACK_TEXT),
-            ),
-            c.planContext(msgs(4)),
+        val messages = buildAlternatingMessages(4)
+
+        // when
+        val actual = compressor.planContext(messages)
+
+        // then
+        val expected = listOf(
+            Message(Role.USER, HistoryCompressor.SUMMARY_FRAME_PREFIX + "S"),
+            Message(Role.ASSISTANT, HistoryCompressor.ACK_TEXT),
         )
+        assertEquals(expected, actual)
     }
 
     @Test
-    fun `planContext output then current user turn alternates roles for Gemini`() {
-        val c = HistoryCompressor(
+    fun `when planContext output appended with user turn - then roles alternate (Gemini-friendly)`() {
+        // given
+        val compressor = HistoryCompressor(
             keepLast = 4, summarizeEvery = 10,
             initialSummary = "S", initialCoveredCount = 2,
         )
-        val wire = c.planContext(msgs(6)) + Message(Role.USER, "q")
+
+        // when
+        val wire = compressor.planContext(buildAlternatingMessages(6)) + Message(Role.USER, "q")
+
+        // then
         assertEquals(Role.USER, wire.first().role)
         wire.zipWithNext().forEach { (a, b) ->
             assertTrue(a.role != b.role, "roles must alternate, got ${a.role} then ${b.role}")
@@ -64,48 +85,64 @@ class HistoryCompressorTest {
     }
 
     @Test
-    fun `planContext falls back to full history when watermark exceeds size`() {
-        val c = HistoryCompressor(
+    fun `when watermark exceeds size - then planContext falls back to full history`() {
+        // given
+        val compressor = HistoryCompressor(
             keepLast = 4, summarizeEvery = 10,
             initialSummary = "S", initialCoveredCount = 100,
         )
-        val m = msgs(4)
-        assertEquals(m, c.planContext(m))
-    }
+        val messages = buildAlternatingMessages(4)
 
-    // --- maybeCompact ------------------------------------------------
+        // when
+        val actual = compressor.planContext(messages)
+
+        // then
+        val expected = messages
+        assertEquals(expected, actual)
+    }
+    //endregion
+
+    //region maybeCompact
 
     @Test
-    fun `maybeCompact returns null below threshold and makes no call`() = runTest {
-        val fake = FakeLlmApi().apply { queueText("summary") }
-        val c = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
-        val m = msgs(8) // foldable = 8 - 6 - 0 = 2 < 10
+    fun `when maybeCompact called below threshold - then null returned and no LLM call made`() = runTest {
+        // given
+        val fakeApi = FakeLlmApi().apply { queueText("summary") }
+        val compressor = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
+        val messages = buildAlternatingMessages(8) // foldable = 8 - 6 - 0 = 2 < 10
 
-        assertNull(c.maybeCompact(m, fake))
-        assertNull(c.summaryText)
-        assertEquals(0, c.coveredCount)
-        assertEquals(0, fake.calls.size)
+        // when
+        val actual = compressor.maybeCompact(messages, fakeApi)
+
+        // then
+        assertNull(actual)
+        assertNull(compressor.summaryText)
+        assertEquals(0, compressor.coveredCount)
+        assertEquals(0, fakeApi.calls.size)
     }
 
     @Test
-    fun `maybeCompact folds oldest range and advances even watermark`() = runTest {
-        val fake = FakeLlmApi().apply { queueText("NEW SUMMARY", promptTokens = 100, outputTokens = 20) }
-        val c = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
-        val m = msgs(16) // foldable = 16 - 6 - 0 = 10 → fold [0, 10)
+    fun `when maybeCompact called above threshold - then oldest range folded and even watermark advanced`() = runTest {
+        // given
+        val fakeApi = FakeLlmApi().apply { queueText("NEW SUMMARY", promptTokens = 100, outputTokens = 20) }
+        val compressor = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
+        val messages = buildAlternatingMessages(16) // foldable = 16 - 6 - 0 = 10 → fold [0, 10)
 
-        val outcome = assertNotNull(c.maybeCompact(m, fake))
+        // when
+        val outcome = assertNotNull(compressor.maybeCompact(messages, fakeApi))
 
-        assertEquals(10, c.coveredCount)
-        assertEquals(0, c.coveredCount % 2)
-        assertEquals("NEW SUMMARY", c.summaryText)
+        // then
+        assertEquals(10, compressor.coveredCount)
+        assertEquals(0, compressor.coveredCount % 2)
+        assertEquals("NEW SUMMARY", compressor.summaryText)
         assertEquals(10, outcome.newCoveredCount)
         assertEquals(0, outcome.foldedFrom)
         assertEquals(10, outcome.foldedTo)
         assertEquals(100, outcome.usage?.promptTokens)
 
         // One stateless USER summarization call containing the folded texts.
-        assertEquals(1, fake.calls.size)
-        val call = fake.calls[0]
+        assertEquals(1, fakeApi.calls.size)
+        val call = fakeApi.calls[0]
         assertEquals(1, call.messages.size)
         assertEquals(Role.USER, call.messages[0].role)
         val prompt = call.messages[0].text
@@ -115,74 +152,97 @@ class HistoryCompressorTest {
     }
 
     @Test
-    fun `maybeCompact snaps an odd fold boundary down to even`() = runTest {
+    fun `when fold boundary would be odd - then snapped down to even`() = runTest {
+        // given
         // Odd-length history (invariant-violating) exercises the defensive
         // even-snap: covered must stay even regardless.
-        val fake = FakeLlmApi().apply { queueText("S") }
-        val c = HistoryCompressor(keepLast = 4, summarizeEvery = 10)
-        val m = msgs(15) // size - keepLast = 11 (odd)
+        val fakeApi = FakeLlmApi().apply { queueText("S") }
+        val compressor = HistoryCompressor(keepLast = 4, summarizeEvery = 10)
+        val messages = buildAlternatingMessages(15) // size - keepLast = 11 (odd)
 
-        assertNotNull(c.maybeCompact(m, fake))
-        assertEquals(10, c.coveredCount) // evenDown(11)
-        assertEquals(0, c.coveredCount % 2)
+        // when
+        val outcome = compressor.maybeCompact(messages, fakeApi)
+
+        // then
+        assertNotNull(outcome)
+        assertEquals(10, compressor.coveredCount) // evenDown(11)
+        assertEquals(0, compressor.coveredCount % 2)
     }
 
     @Test
-    fun `maybeCompact rolls the prior summary into the new one`() = runTest {
-        val fake = FakeLlmApi().apply { queueText("UPDATED") }
-        val c = HistoryCompressor(
+    fun `when maybeCompact has prior summary - then it is rolled into the new summary`() = runTest {
+        // given
+        val fakeApi = FakeLlmApi().apply { queueText("UPDATED") }
+        val compressor = HistoryCompressor(
             keepLast = 6, summarizeEvery = 10,
             initialSummary = "PRIOR", initialCoveredCount = 4,
         )
-        val m = msgs(20) // foldable = 20 - 6 - 4 = 10 → fold [4, 14)
+        val messages = buildAlternatingMessages(20) // foldable = 20 - 6 - 4 = 10 → fold [4, 14)
 
-        val outcome = assertNotNull(c.maybeCompact(m, fake))
-        assertEquals(14, c.coveredCount)
+        // when
+        val outcome = assertNotNull(compressor.maybeCompact(messages, fakeApi))
+
+        // then
+        assertEquals(14, compressor.coveredCount)
         assertEquals("UPDATED", outcome.newSummary)
         assertTrue(
-            fake.calls[0].messages[0].text.contains("PRIOR"),
+            fakeApi.calls[0].messages[0].text.contains("PRIOR"),
             "summarization prompt should carry the prior summary",
         )
     }
 
     @Test
-    fun `maybeCompact leaves state untouched when the summarizer errors`() = runTest {
-        val fake = FakeLlmApi() // empty queue → error result
-        val c = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
-        val m = msgs(16)
+    fun `when summarizer errors - then maybeCompact returns null and state untouched`() = runTest {
+        // given
+        val fakeApi = FakeLlmApi() // empty queue → error result
+        val compressor = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
+        val messages = buildAlternatingMessages(16)
 
-        assertNull(c.maybeCompact(m, fake))
-        assertNull(c.summaryText)
-        assertEquals(0, c.coveredCount)
-        assertEquals(1, fake.calls.size) // the call was attempted but failed
+        // when
+        val actual = compressor.maybeCompact(messages, fakeApi)
+
+        // then
+        assertNull(actual)
+        assertNull(compressor.summaryText)
+        assertEquals(0, compressor.coveredCount)
+        assertEquals(1, fakeApi.calls.size) // the call was attempted but failed
     }
 
     @Test
-    fun `maybeCompact treats a blank reply as failure`() = runTest {
-        val fake = FakeLlmApi().apply { queue(LlmResult(text = "   ")) }
-        val c = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
-        val m = msgs(16)
+    fun `when summarizer reply is blank - then treated as failure`() = runTest {
+        // given
+        val fakeApi = FakeLlmApi().apply { queue(LlmResult(text = "   ")) }
+        val compressor = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
+        val messages = buildAlternatingMessages(16)
 
-        assertNull(c.maybeCompact(m, fake))
-        assertNull(c.summaryText)
-        assertEquals(0, c.coveredCount)
+        // when
+        val actual = compressor.maybeCompact(messages, fakeApi)
+
+        // then
+        assertNull(actual)
+        assertNull(compressor.summaryText)
+        assertEquals(0, compressor.coveredCount)
     }
 
     @Test
-    fun `keepLast is snapped down to even`() = runTest {
-        val fake = FakeLlmApi().apply { queueText("S") }
-        val c = HistoryCompressor(keepLast = 5, summarizeEvery = 10) // 5 → 4
-        val m = msgs(16)
+    fun `when keepLast is odd - then snapped down to even`() = runTest {
+        // given
+        val fakeApi = FakeLlmApi().apply { queueText("S") }
+        val compressor = HistoryCompressor(keepLast = 5, summarizeEvery = 10) // 5 → 4
+        val messages = buildAlternatingMessages(16)
 
-        assertNotNull(c.maybeCompact(m, fake))
+        // when
+        val outcome = compressor.maybeCompact(messages, fakeApi)
+
+        // then
+        assertNotNull(outcome)
         // keepLast effectively 4 → newCovered = evenDown(16 - 4) = 12
-        assertEquals(12, c.coveredCount)
+        assertEquals(12, compressor.coveredCount)
     }
+    //endregion
 
-    // --- helpers -----------------------------------------------------
-
-    /** Build [n] messages as USER/ASSISTANT pairs (even index = USER). */
-    private fun msgs(n: Int): List<Message> = (0 until n).map { i ->
+    /** Build [n] messages as USER/ASSISTANT pairs (even index = USER, odd = ASSISTANT). */
+    private fun buildAlternatingMessages(n: Int): List<Message> = (0 until n).map { i ->
         if (i % 2 == 0) Message(Role.USER, "u$i") else Message(Role.ASSISTANT, "a$i")
     }
 }
