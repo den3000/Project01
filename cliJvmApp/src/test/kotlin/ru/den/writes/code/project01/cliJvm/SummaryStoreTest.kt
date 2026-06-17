@@ -17,8 +17,9 @@ import kotlin.test.assertNull
 class SummaryStoreTest {
 
     @Test
-    fun `upsert then getSummary round-trips all fields`() = runTest {
+    fun `when upsertSummary then getSummary called - then all fields round-trip`() = runTest {
         TestDb().use { harness ->
+            // given
             val dao = harness.db.messageDao()
             val row = SummaryEntity(
                 sessionId = "s1",
@@ -30,69 +31,104 @@ class SummaryStoreTest {
                 thoughtsTokens = 5,
                 totalTokens = 145,
             )
+
+            // when
             dao.upsertSummary(row)
-            assertEquals(row, dao.getSummary("s1"))
+            val actual = dao.getSummary("s1")
+
+            // then
+            val expected = row
+            assertEquals(expected, actual)
         }
     }
 
     @Test
-    fun `getSummary returns null for unknown session`() = runTest {
+    fun `when getSummary called with unknown session - then null returned`() = runTest {
         TestDb().use { harness ->
-            assertNull(harness.db.messageDao().getSummary("nope"))
+            // given
+            val dao = harness.db.messageDao()
+
+            // when
+            val actual = dao.getSummary("nope")
+
+            // then
+            assertNull(actual)
         }
     }
 
     @Test
-    fun `upsert replaces the existing summary for the same session`() = runTest {
+    fun `when upsertSummary called twice for same session - then second replaces first`() = runTest {
         TestDb().use { harness ->
+            // given
             val dao = harness.db.messageDao()
             dao.upsertSummary(SummaryEntity("s1", "first", coveredCount = 4))
+
+            // when
             dao.upsertSummary(
                 SummaryEntity(
                     "s1", "second", coveredCount = 8,
                     promptTokens = 50, outputTokens = 10, totalTokens = 60,
                 )
             )
-            val got = dao.getSummary("s1")
-            assertEquals("second", got?.summaryText)
-            assertEquals(8, got?.coveredCount)
-            assertEquals(50, got?.promptTokens)
+            val actual = dao.getSummary("s1")
+
+            // then
+            assertEquals("second", actual?.summaryText)
+            assertEquals(8, actual?.coveredCount)
+            assertEquals(50, actual?.promptTokens)
         }
     }
 
     @Test
-    fun `summaries are isolated per session id`() = runTest {
+    fun `when two sessions have summaries - then they stay isolated`() = runTest {
         TestDb().use { harness ->
+            // given
             val dao = harness.db.messageDao()
             dao.upsertSummary(SummaryEntity("a", "summary A", coveredCount = 2))
             dao.upsertSummary(SummaryEntity("b", "summary B", coveredCount = 6))
-            assertEquals("summary A", dao.getSummary("a")?.summaryText)
-            assertEquals("summary B", dao.getSummary("b")?.summaryText)
+
+            // when
+            val sessionAActual = dao.getSummary("a")?.summaryText
+            val sessionBActual = dao.getSummary("b")?.summaryText
+
+            // then
+            assertEquals("summary A", sessionAActual)
+            assertEquals("summary B", sessionBActual)
         }
     }
 
     @Test
-    fun `clearAllSummaries empties the table`() = runTest {
+    fun `when clearAllSummaries called - then table is empty`() = runTest {
         TestDb().use { harness ->
+            // given
             val dao = harness.db.messageDao()
             dao.upsertSummary(SummaryEntity("a", "summary A", coveredCount = 2))
             dao.upsertSummary(SummaryEntity("b", "summary B", coveredCount = 6))
+
+            // when
             dao.clearAllSummaries()
+
+            // then
             assertNull(dao.getSummary("a"))
             assertNull(dao.getSummary("b"))
         }
     }
 
     @Test
-    fun `clean clears summaries alongside messages`() = runTest {
+    fun `when clearAll and clearAllSummaries both called - then both messages and summaries wiped`() = runTest {
         // Mirrors the -clean handler: wipe both tables so no orphan summary
         // survives a reused session id.
         TestDb().use { harness ->
+            // given
             val dao = harness.db.messageDao()
             dao.insert(MessageEntity(sessionId = "a", role = "USER", text = "hi"))
             dao.upsertSummary(SummaryEntity("a", "summary A", coveredCount = 2))
+
+            // when
             dao.clearAll()
             dao.clearAllSummaries()
+
+            // then
             assertEquals(0, dao.count())
             assertNull(dao.getSummary("a"))
         }
