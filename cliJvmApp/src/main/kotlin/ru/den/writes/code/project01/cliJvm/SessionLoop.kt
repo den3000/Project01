@@ -11,6 +11,7 @@ import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
 import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskNotes
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import ru.den.writes.code.project01.shared.memory.TaskStateMachine
@@ -84,6 +85,13 @@ internal class SessionLoop(
      * (SYSTEM). Memory entries are NEVER persisted into [historyStore].
      */
     private val memory: MemoryProvider? = null,
+    /**
+     * Per-stage agents: each owns a [TaskBinding] span and answers turns whose
+     * active task stage falls in it. Empty (the default) = single-agent mode,
+     * where [fallbackAgent] handles every turn — byte-identical to before
+     * routing existed.
+     */
+    private val routedAgents: List<RoutedAgent> = emptyList(),
 ) {
     /**
      * The source currently driving prompts. Set inside [send] so
@@ -93,15 +101,25 @@ internal class SessionLoop(
     private var currentSource: PromptSource = promptSource
 
     /**
-     * The portable per-turn core. Built once from this agent's fixed model
-     * surface ([llmApi]) and generation knobs; [send] delegates wire
-     * assembly, the LLM call and stage-signal parsing to it. Session
-     * concerns (history, footer, timing, stage validation) stay here in the
-     * loop, so the responder remains free of any session state.
+     * The default agent: built from this loop's model surface ([llmApi]) and
+     * generation knobs, with no pinned profile. Answers every turn that no
+     * [routedAgents] binding covers (and when there is no task / stage) — so an
+     * empty [routedAgents] reproduces single-agent behaviour exactly.
      */
-    private val responder = AgentResponder(
-        AgentConfig(llmApi = llmApi, params = cliArgs.toGenerationParams()),
+    private val fallbackAgent = RoutedAgent(
+        binding = TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
+        responder = AgentResponder(AgentConfig(llmApi = llmApi, params = cliArgs.toGenerationParams())),
+        profileName = null,
+        modelId = cliArgs.modelProvider.modelId,
     )
+
+    /**
+     * The agent for [stage]: the first routed agent whose binding spans it,
+     * else [fallbackAgent]. A null stage (no active task) always falls back.
+     * Overlapping bindings resolve first-wins, in declaration order.
+     */
+    private fun agentFor(stage: TaskStage?): RoutedAgent =
+        stage?.let { s -> routedAgents.firstOrNull { s in it.binding } } ?: fallbackAgent
 
     /**
      * Drives the conversation.
@@ -208,13 +226,19 @@ internal class SessionLoop(
      *   mode aborts, returns null.
      */
     private suspend fun send(prompt: String): String? {
-        val modelId = cliArgs.modelProvider.modelId
+        // The agent that answers this turn is picked by the active task's
+        // stage; with no routed agents that's always the fallback (parity).
+        val stage = memory?.activeTaskId()?.let { memory.store.loadTask(it)?.stage }
+        val agent = agentFor(stage)
+        val modelId = agent.modelId
         // Per-turn strategy side effect (rolling-summary compaction, facts
         // extraction, …) runs BEFORE the request is built and before this
         // turn's pair is appended: historyStore.messages is even-length here
         // (pairs are appended only on success), which the strategies'
         // role-alternation invariant relies on. No-op for FullHistory.
-        historyStore?.let { strategy.onTurn(TurnContext(it, llmApi, prompt, modelId)) }
+        // Compaction/facts run on the default model regardless of the routed
+        // agent, so TurnContext keeps the default model id.
+        historyStore?.let { strategy.onTurn(TurnContext(it, llmApi, prompt, cliArgs.modelProvider.modelId)) }
         val userTurn = Message(role = Role.USER, text = prompt)
         // planContext turns the stored history into the wire list — full
         // history, a summary pair + tail, a sliding window, etc., depending
@@ -225,13 +249,13 @@ internal class SessionLoop(
         // gets re-shaped by the strategy. Empty list when no MemoryProvider
         // is wired in, or when every layer is empty — byte-identical to
         // the no-memory path.
-        val memoryLayer = memory?.memoryLayer() ?: emptyList()
+        val memoryLayer = memory?.memoryLayerFor(agent.profileName) ?: emptyList()
         // Delegate the turn itself — wire assembly (memoryLayer + baseContext
         // + userTurn), the LLM call and stage-signal parsing — to the portable
         // responder. Timing wraps the whole call so the footer's duration is
         // unchanged.
         val (outcome, duration) = measureTimedValue {
-            responder.respond(baseContext = baseContext, memoryLayer = memoryLayer, userTurn = userTurn)
+            agent.responder.respond(baseContext = baseContext, memoryLayer = memoryLayer, userTurn = userTurn)
         }
         val result = outcome.result
 
