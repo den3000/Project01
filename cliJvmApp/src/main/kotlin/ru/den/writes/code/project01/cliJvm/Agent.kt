@@ -3,6 +3,8 @@ package ru.den.writes.code.project01.cliJvm
 import kotlinx.coroutines.delay
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.project01.shared.agent.AgentConfig
+import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
@@ -89,6 +91,17 @@ internal class Agent(
      * source as we transition from [promptSource] to [replAfterFeed].
      */
     private var currentSource: PromptSource = promptSource
+
+    /**
+     * The portable per-turn core. Built once from this agent's fixed model
+     * surface ([llmApi]) and generation knobs; [send] delegates wire
+     * assembly, the LLM call and stage-signal parsing to it. Session
+     * concerns (history, footer, timing, stage validation) stay here in the
+     * loop, so the responder remains free of any session state.
+     */
+    private val responder = AgentResponder(
+        AgentConfig(llmApi = llmApi, params = cliArgs.toGenerationParams()),
+    )
 
     /**
      * Drives the conversation.
@@ -213,12 +226,14 @@ internal class Agent(
         // is wired in, or when every layer is empty — byte-identical to
         // the no-memory path.
         val memoryLayer = memory?.memoryLayer() ?: emptyList()
-        val (result, duration) = measureTimedValue {
-            llmApi.send(
-                messages = memoryLayer + baseContext + userTurn,
-                params = cliArgs.toGenerationParams(),
-            )
+        // Delegate the turn itself — wire assembly (memoryLayer + baseContext
+        // + userTurn), the LLM call and stage-signal parsing — to the portable
+        // responder. Timing wraps the whole call so the footer's duration is
+        // unchanged.
+        val (outcome, duration) = measureTimedValue {
+            responder.respond(baseContext = baseContext, memoryLayer = memoryLayer, userTurn = userTurn)
         }
+        val result = outcome.result
 
         if (result.error != null) {
             System.err.println("[error] ${result.error}")
@@ -246,7 +261,7 @@ internal class Agent(
         // Auto-advance the active task's stage if the model signalled a move
         // in its reply (validated against the transition table). Runs after
         // the footer so the `[task]` line trails the turn block.
-        maybeAdvanceTaskStage(text)
+        maybeAdvanceTaskStage(outcome.proposedStage)
         delay(16.seconds)
         return text
     }
@@ -488,18 +503,19 @@ internal class Agent(
     }
 
     /**
-     * Auto-advance the active task's stage from the model's [reply]. The model
-     * signals an intended move with a `[[stage:<next>]]` marker; we honour it
-     * only when a task is active, it isn't paused (pause means "hold here"),
-     * the marker maps to a real stage, and the move is allowed by
-     * [TaskStateMachine]. Illegal proposals are reported and ignored — the next
-     * turn's injected `Allowed next:` re-teaches the model. No-op without a
-     * MemoryProvider (OneShot / no `-memory-mode`) or active task.
+     * Auto-advance the active task's stage given the model's [proposed] move
+     * (already parsed from the reply by [AgentResponder]; null when the reply
+     * carried no valid `[[stage:<next>]]` marker). We honour it only when a
+     * task is active, it isn't paused (pause means "hold here"), and the move
+     * is allowed by [TaskStateMachine]. Illegal proposals are reported and
+     * ignored — the next turn's injected `Allowed next:` re-teaches the model.
+     * No-op without a MemoryProvider (OneShot / no `-memory-mode`) or active
+     * task.
      */
-    private fun maybeAdvanceTaskStage(reply: String) {
+    private fun maybeAdvanceTaskStage(proposed: TaskStage?) {
         val mem = memory ?: return
         val id = mem.activeTaskId() ?: return
-        val proposed = TaskStateMachine.parseStageSignal(reply) ?: return
+        if (proposed == null) return
         val task = mem.store.loadTask(id) ?: TaskNotes(id, stage = TaskStage.INITIAL)
         if (task.paused) return
         val from = task.stage
