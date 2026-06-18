@@ -6,17 +6,19 @@ import ru.den.writes.code.project01.shared.llm.LlmApi
 /**
  * Static description of a single agent: the model surface it talks to
  * ([llmApi], which already carries the bound model, transport and
- * credentials) and the generation knobs it applies on every turn
- * ([params]).
+ * credentials), the generation knobs it applies on every turn ([params]),
+ * and the fixed memory profile it speaks with ([profileName]).
  *
- * Deliberately holds no memory (profile / rules / task). The memory layer
- * is read fresh each turn and is mutable at runtime (REPL `/task`,
- * `/memory-mode`, `/profile-use`), so freezing a snapshot here would
- * desync the wire from the live state — the host passes the per-turn
- * memory layer into [AgentResponder.respond] instead. Per-agent memory and
- * a task-stage binding attach here only once a consumer reads them.
+ * [profileName] names a stored profile this agent always uses. `null` means
+ * "not pinned — fall back to the session's live active profile", which is
+ * the single-agent default so REPL `/profile-use` keeps working. Rules and
+ * the current task are NOT held here: they are shared across agents and read
+ * fresh each turn, so the host composes the per-turn memory layer (this
+ * agent's profile + the shared rules + task) and passes it into
+ * [AgentResponder.respond] — the responder itself never reads [profileName].
  */
 data class AgentConfig(
     val llmApi: LlmApi,
     val params: GenerationParams,
+    val profileName: String? = null,
 )

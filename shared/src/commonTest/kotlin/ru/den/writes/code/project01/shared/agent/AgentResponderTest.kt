@@ -85,4 +85,23 @@ class AgentResponderTest {
         // then
         assertEquals(params, api.calls.single().params)
     }
+
+    @Test
+    fun `when config carries a profileName - then responder ignores it and wires unchanged`() = runTest {
+        // given
+        // profileName is host-interpreted (the loop composes the layer for it);
+        // the responder must not read it — the wire stays memoryLayer + userTurn.
+        val api = FakeLlmApi().apply { queueText("ok") }
+        val responder = AgentResponder(
+            AgentConfig(llmApi = api, params = GenerationParams(), profileName = "planner"),
+        )
+        val memoryLayer = listOf(Message(Role.SYSTEM, "p"))
+        val userTurn = Message(Role.USER, "now")
+
+        // when
+        responder.respond(baseContext = emptyList(), memoryLayer = memoryLayer, userTurn = userTurn)
+
+        // then
+        assertEquals(memoryLayer + userTurn, api.calls.single().messages)
+    }
 }
