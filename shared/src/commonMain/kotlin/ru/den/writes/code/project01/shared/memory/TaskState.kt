@@ -116,3 +116,24 @@ object TaskStateMachine {
      */
     private val STAGE_SIGNAL = Regex("""\[\[\s*stage\s*:\s*([a-zA-Z]+)\s*]]""", RegexOption.IGNORE_CASE)
 }
+
+/**
+ * Inclusive span of FSM stages a single agent owns, by [TaskStage] ordinal:
+ * [contains] is true for every stage whose ordinal lies in
+ * `[from.ordinal, to.ordinal]`. A single-stage span has `from == to`.
+ *
+ * Routes a turn to the agent responsible for the task's current stage — the
+ * runner picks the binding that contains the active stage. Pure value type,
+ * kept beside [TaskStage] so it ports wherever the FSM does.
+ */
+data class TaskBinding(val from: TaskStage, val to: TaskStage) {
+    init {
+        require(from.ordinal <= to.ordinal) {
+            "TaskBinding.from must not be after .to: ${from.keyword}..${to.keyword}"
+        }
+    }
+
+    /** True when [stage] falls within this binding's inclusive span. */
+    operator fun contains(stage: TaskStage): Boolean =
+        stage.ordinal in from.ordinal..to.ordinal
+}
