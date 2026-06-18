@@ -43,7 +43,7 @@ private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
  * variant: [CliArgs.Chat] → REPL, [CliArgs.OneShot] → exit after the
  * opening turn.
  */
-internal class Agent(
+internal class SessionLoop(
     private val cliArgs: CliArgs.PromptCommand,
     private val llmApi: LlmApi,
     private val historyStore: HistoryStore?,
@@ -605,7 +605,7 @@ internal class Agent(
 }
 
 /**
- * Threshold (% of context window) above which [Agent.printFooter] emits
+ * Threshold (% of context window) above which [SessionLoop.printFooter] emits
  * a `[warning] context window …% full` line to stderr.
  */
 private const val CONTEXT_WARN_PCT: Double = 90.0

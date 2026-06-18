@@ -3,7 +3,7 @@ package ru.den.writes.code.project01.shared.llm
 /**
  * Provider-agnostic surface for talking to a chat-style LLM.
  *
- * The whole point of this interface is to keep callers (e.g. [Agent])
+ * The whole point of this interface is to keep callers (e.g. [SessionLoop])
  * unaware of which backend they're hitting: Gemini, OpenAI, anything
  * else. All exchange types are neutral — no provider DTOs cross this
  * boundary. Each implementation maps the neutral types to its own

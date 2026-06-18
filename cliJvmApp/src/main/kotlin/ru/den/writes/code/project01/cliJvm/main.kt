@@ -463,7 +463,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 val stdinAfter = StdinPromptSource(
                     java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
                 )
-                Agent(
+                SessionLoop(
                     cliArgs = parsed,
                     llmApi = llmApi,
                     historyStore = historyStore,
@@ -476,7 +476,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
         } else {
             // Stdin REPL: Agent's default StdinPromptSource takes
             // System.in directly.
-            Agent(
+            SessionLoop(
                 cliArgs = parsed,
                 llmApi = llmApi,
                 historyStore = historyStore,

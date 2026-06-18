@@ -3,7 +3,7 @@ package ru.den.writes.code.project01.cliJvm.agent
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.Agent
+import ru.den.writes.code.project01.cliJvm.SessionLoop
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
@@ -24,7 +24,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "hi", session = "alpha")
 
             // when
-            Agent(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
+            SessionLoop(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
 
             // then
             assertEquals(1, fakeApi.calls.size)
@@ -57,7 +57,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "next", session = "alpha")
 
             // when
-            Agent(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
+            SessionLoop(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
 
             // then
             val expected = listOf(
@@ -78,7 +78,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "hi", session = "alpha")
 
             // when
-            Agent(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
+            SessionLoop(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
 
             // then
             assertEquals(0, harness.db.messageDao().count())
@@ -97,7 +97,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "hi", session = "fresh")
 
             // when
-            Agent(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
+            SessionLoop(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
 
             // then
             assertTrue(fakeApi.calls.isNotEmpty())
@@ -119,7 +119,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "start", session = "alpha")
 
             // when
-            Agent(chat, fakeApi, store, promptSource = stdinSource("/reuse\n/exit\n")).run()
+            SessionLoop(chat, fakeApi, store, promptSource = stdinSource("/reuse\n/exit\n")).run()
 
             // then
             assertEquals(2, fakeApi.calls.size)
@@ -141,7 +141,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "start", session = "alpha")
 
             // when
-            Agent(chat, fakeApi, store, promptSource = stdinSource("/reuse\n/exit\n")).run()
+            SessionLoop(chat, fakeApi, store, promptSource = stdinSource("/reuse\n/exit\n")).run()
 
             // then
             // Only the failed opening attempt. /reuse silently skipped
@@ -163,7 +163,7 @@ class AgentChatTest {
 
             // when
             // No /exit — just close the stream immediately after opening.
-            Agent(chat, fakeApi, store, promptSource = stdinSource("")).run()
+            SessionLoop(chat, fakeApi, store, promptSource = stdinSource("")).run()
 
             // then
             // Opening turn went out; REPL didn't try to read anything else.

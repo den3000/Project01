@@ -8,7 +8,7 @@ import ru.den.writes.code.project01.shared.llm.Message
 
 /**
  * How a session's stored history is shaped into the message list sent to
- * the model each turn. [Agent] owns exactly one strategy and consults it at
+ * the model each turn. [SessionLoop] owns exactly one strategy and consults it at
  * the single context-assembly seam in `send()`.
  *
  * Three responsibilities, only the first mandatory:

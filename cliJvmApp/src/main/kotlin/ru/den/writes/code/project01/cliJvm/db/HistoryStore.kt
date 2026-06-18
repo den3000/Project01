@@ -11,7 +11,7 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
  * cache so callers don't have to keep their own copy.
  *
  * Thin wrapper over [MessageDao] that hides Room types from the rest
- * of the codebase. [Agent] depends only on this — it never sees
+ * of the codebase. [SessionLoop] depends only on this — it never sees
  * [MessageEntity] or DAO directly. Translation between the neutral
  * [Message] / [Role] (which cross the [ru.den.writes.code.project01.cliJvm.LlmApi]
  * boundary) and the persisted [MessageEntity] (string `role` column,

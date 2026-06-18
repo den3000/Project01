@@ -3,7 +3,7 @@ package ru.den.writes.code.project01.cliJvm.agent
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.Agent
+import ru.den.writes.code.project01.cliJvm.SessionLoop
 import ru.den.writes.code.project01.cliJvm.FactsExtractor
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.StickyFacts
@@ -29,7 +29,7 @@ class AgentStickyFactsTest {
             val chat = newChat(prompt = "p1", session = "facts")
 
             // when
-            Agent(
+            SessionLoop(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
@@ -79,7 +79,7 @@ class AgentStickyFactsTest {
             val chat = newChat(prompt = "p1", session = "degrade")
 
             // when
-            Agent(
+            SessionLoop(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,

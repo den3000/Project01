@@ -39,7 +39,7 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                Agent(
+                SessionLoop(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
@@ -66,7 +66,7 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                Agent(
+                SessionLoop(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
@@ -92,7 +92,7 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                Agent(
+                SessionLoop(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
@@ -118,7 +118,7 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                Agent(
+                SessionLoop(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
@@ -147,7 +147,7 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                Agent(
+                SessionLoop(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/task-pause\n/task-resume\n/exit\n"),
@@ -171,7 +171,7 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                Agent(
+                SessionLoop(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/task fresh\n/exit\n"),

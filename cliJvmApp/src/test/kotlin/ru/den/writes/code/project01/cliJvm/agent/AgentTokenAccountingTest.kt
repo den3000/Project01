@@ -5,7 +5,7 @@ import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.Agent
+import ru.den.writes.code.project01.cliJvm.SessionLoop
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
@@ -35,7 +35,7 @@ class AgentTokenAccountingTest {
             val chat = newChat(prompt = "hi", session = "tally")
 
             // when
-            Agent(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
+            SessionLoop(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
 
             // then
             assertEquals(1, store.stats.turns)
@@ -64,7 +64,7 @@ class AgentTokenAccountingTest {
             // when
             // Phase 2: open a fresh store, run a turn, check that stats
             // reflect prior + new.
-            Agent(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
+            SessionLoop(chat, fakeApi, store, promptSource = stdinSource("/exit\n")).run()
 
             // then
             assertEquals(2, store.stats.turns)

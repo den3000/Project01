@@ -31,7 +31,7 @@ private const val ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
  * Token accounting reports prompt/output/total only; there is no
  * dedicated «thoughts» counter on this API (thinking tokens, when
  * any, are rolled into `completion_tokens`). The response footer
- * (`duration`, `tokens: …`) is the [Agent]'s job — it has the
+ * (`duration`, `tokens: …`) is the [SessionLoop]'s job — it has the
  * running totals that the per-turn footer needs to reference.
  */
 class OpenRouterApi(
