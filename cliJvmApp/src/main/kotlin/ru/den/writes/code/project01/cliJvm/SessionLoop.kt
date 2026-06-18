@@ -674,7 +674,7 @@ private fun formatCost(usd: Double?, knownPricing: Boolean): String =
  * Lives on the [CliArgs.PromptCommand] super-type so Chat and OneShot
  * share the same conversion.
  */
-private fun CliArgs.PromptCommand.toGenerationParams(): GenerationParams =
+internal fun CliArgs.PromptCommand.toGenerationParams(): GenerationParams =
     GenerationParams(
         maxTokens = maxTokens,
         stopSequences = stopSequences,
