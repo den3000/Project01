@@ -3,6 +3,7 @@ package ru.den.writes.code.project01.shared.memory
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class MemoryLayerTest {
@@ -32,7 +33,7 @@ class MemoryLayerTest {
         val msgs = MemoryLayer.composePreamble(
             profile = ProfileData(freeText = "P"),
             rules = listOf(RuleEntry("001", "R1"), RuleEntry("002", "R2")),
-            task = TaskNotes("t", goal = "G", stage = "S", notes = listOf("N1")),
+            task = TaskNotes("t", goal = "G", stage = TaskStage.EXECUTION, notes = listOf("N1")),
         )
         val body = msgs[0].text
         val pi = body.indexOf(MemoryLayer.PROFILE_HEADING)
@@ -42,8 +43,44 @@ class MemoryLayerTest {
         assertTrue(body.contains("- R1"))
         assertTrue(body.contains("- R2"))
         assertTrue(body.contains("Goal: G"))
-        assertTrue(body.contains("Stage: S"))
+        assertTrue(body.contains("Stage: execution"))
         assertTrue(body.contains("- N1"))
+    }
+
+    @Test
+    fun `task block renders stage, status, expected action and allowed-next`() {
+        // given
+        val msgs = MemoryLayer.composeSystem(
+            profile = null,
+            rules = emptyList(),
+            task = TaskNotes("t", stage = TaskStage.PLANNING),
+        )
+
+        // then
+        val text = msgs.single().text
+        assertTrue(text.startsWith(MemoryLayer.TASK_HEADING))
+        assertTrue(text.contains("Stage: planning"), text)
+        assertTrue(text.contains("Status: active"), text)
+        assertTrue(text.contains("Expected action:"), text)
+        // planning → execution | clarification (insertion order preserved)
+        assertTrue(text.contains("Allowed next: execution, clarification"), text)
+        assertTrue(text.contains("[[stage:<next>]]"), text)
+    }
+
+    @Test
+    fun `paused task omits the allowed-next advance protocol`() {
+        // given
+        val msgs = MemoryLayer.composeSystem(
+            profile = null,
+            rules = emptyList(),
+            task = TaskNotes("t", stage = TaskStage.PLANNING, paused = true),
+        )
+
+        // then
+        val text = msgs.single().text
+        assertTrue(text.contains("Status: paused"), text)
+        assertFalse(text.contains("Allowed next"), text)
+        assertFalse(text.contains("[[stage:"), text)
     }
 
     @Test

@@ -3,6 +3,7 @@ package ru.den.writes.code.project01.cliJvm.memory
 import ru.den.writes.code.project01.shared.memory.ProfileData
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskNotes
+import ru.den.writes.code.project01.shared.memory.TaskStage
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -247,12 +248,27 @@ class MemoryStoreTest {
         val notes = TaskNotes(
             taskId = "auth-service",
             goal = "Сервис авторизации поверх Ktor + JWT",
-            stage = "planning",
+            stage = TaskStage.PLANNING,
+            paused = true,
             notes = listOf("Уже выбран стек: Ktor 3", "Не использовать Spring"),
         )
         store.saveTask(notes)
         val loaded = store.loadTask("auth-service")
         assertEquals(notes, loaded)
+    }
+
+    @Test
+    fun `when parseTaskNotes sees an unknown stage keyword - then stage is null`() {
+        // given
+        // A legacy / hand-edited file whose ## Stage holds free text rather
+        // than a known keyword — tolerated as "no FSM position yet".
+        val raw = "# Task: foo\n## Stage\nin progress maybe\n"
+
+        // when
+        val notes = MemoryStore.parseTaskNotes("foo", raw)
+
+        // then
+        assertNull(notes.stage)
     }
 
     @Test

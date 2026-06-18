@@ -64,6 +64,10 @@ internal sealed interface BranchCommand {
     data class SetTask(val taskId: String) : BranchCommand
     /** Append a note to the currently-active task. */
     data class AppendTaskNote(val note: String) : BranchCommand
+    /** Pause the active task — hold its stage; auto-advance is suppressed. */
+    data object PauseTask : BranchCommand
+    /** Resume the active task — clear the pause flag; auto-advance resumes. */
+    data object ResumeTask : BranchCommand
     /** Flip the memory-injection mode (PREAMBLE ↔ SYSTEM). */
     data class SetMemoryMode(val mode: MemoryMode) : BranchCommand
 }
@@ -136,6 +140,8 @@ private const val PROFILE_SHOW_COMMAND = "/profile-show"
 private const val RULE_COMMAND = "/rule"
 private const val TASK_COMMAND = "/task"
 private const val TASK_NOTE_COMMAND = "/task-note"
+private const val TASK_PAUSE_COMMAND = "/task-pause"
+private const val TASK_RESUME_COMMAND = "/task-resume"
 private const val MEMORY_MODE_COMMAND = "/memory-mode"
 private const val PROMPT_INDICATOR = "> "
 
@@ -162,8 +168,8 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
                     + "Branches: $BRANCHES_COMMAND, $BRANCH_COMMAND <name>, $SWITCH_COMMAND <name>, $CHECKPOINT_COMMAND.\n"
                     + "Memory: $MEMORY_COMMAND, $PROFILE_LIST_COMMAND, $PROFILE_USE_COMMAND <name>, $PROFILE_SHOW_COMMAND <name>,\n"
                     + "        $PROFILE_COMMAND [<text> | <section> <text> | <section> clear | clear | <name> [<section> [<text>|clear] | clear]],\n"
-                    + "        $RULE_COMMAND <text>, $TASK_COMMAND <id>, "
-                    + "$TASK_NOTE_COMMAND <text>, $MEMORY_MODE_COMMAND <preamble|system>."
+                    + "        $RULE_COMMAND <text>, $TASK_COMMAND <id>, $TASK_NOTE_COMMAND <text>,\n"
+                    + "        $TASK_PAUSE_COMMAND, $TASK_RESUME_COMMAND, $MEMORY_MODE_COMMAND <preamble|system>."
             )
             print(PROMPT_INDICATOR)
             System.out.flush()
@@ -205,6 +211,8 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
             RULE_COMMAND -> BranchCommand.AddRule(arg)
             TASK_COMMAND -> BranchCommand.SetTask(arg)
             TASK_NOTE_COMMAND -> BranchCommand.AppendTaskNote(arg)
+            TASK_PAUSE_COMMAND -> BranchCommand.PauseTask
+            TASK_RESUME_COMMAND -> BranchCommand.ResumeTask
             MEMORY_MODE_COMMAND -> parseMemoryMode(arg)
             else -> null
         }

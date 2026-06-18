@@ -10,6 +10,8 @@ import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskNotes
+import ru.den.writes.code.project01.shared.memory.TaskStage
+import ru.den.writes.code.project01.shared.memory.TaskStateMachine
 import ru.den.writes.code.project01.shared.memory.isValidProfileName
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import java.io.BufferedReader
@@ -134,6 +136,22 @@ internal class Agent(
             strategy.rebind(store)
         }
 
+        // Working-memory resume: if a task is active and already has a stage,
+        // announce where we're picking up. The state itself is re-injected
+        // into every turn from disk, so the model continues without
+        // re-explanation — this line is purely for the user.
+        memory?.activeTaskId()?.let { id ->
+            memory.store.loadTask(id)?.let { task ->
+                task.stage?.let { stage ->
+                    System.err.println(
+                        "[task] resuming '$id' — stage ${stage.keyword}" +
+                            (if (task.paused) " (paused)" else "") +
+                            (task.goal?.let { ", goal: $it" } ?: "")
+                    )
+                }
+            }
+        }
+
         send(cliArgs.prompt)
 
         // OneShot mode: single round-trip, no REPL.
@@ -225,6 +243,10 @@ internal class Agent(
 
         println(text)
         printFooter(duration.inWholeMilliseconds, result.usage, modelId)
+        // Auto-advance the active task's stage if the model signalled a move
+        // in its reply (validated against the transition table). Runs after
+        // the footer so the `[task]` line trails the turn block.
+        maybeAdvanceTaskStage(text)
         delay(16.seconds)
         return text
     }
@@ -413,12 +435,16 @@ internal class Agent(
                     System.err.println("[memory] /task needs a task id")
                 } else {
                     mem.setTask(id)
-                    // Touch-create so the file is visible on `/memory` and on disk
-                    // even before the first note is appended.
-                    if (mem.store.loadTask(id) == null) {
-                        mem.store.saveTask(TaskNotes(taskId = id))
-                    }
-                    System.err.println("[memory] active task → $id")
+                    // Touch-create so the file is visible on `/memory` and on
+                    // disk even before the first note is appended. A new task
+                    // starts at the initial FSM stage so it has formalized
+                    // state from turn one.
+                    val created = mem.store.loadTask(id) == null
+                    if (created) mem.store.saveTask(TaskNotes(taskId = id, stage = TaskStage.INITIAL))
+                    System.err.println(
+                        "[memory] active task → $id" +
+                            if (created) " (new, stage ${TaskStage.INITIAL.keyword})" else ""
+                    )
                 }
             }
             is BranchCommand.AppendTaskNote -> withMemory { mem ->
@@ -434,6 +460,8 @@ internal class Agent(
                     }
                 }
             }
+            BranchCommand.PauseTask -> withMemory { mem -> togglePause(mem, paused = true) }
+            BranchCommand.ResumeTask -> withMemory { mem -> togglePause(mem, paused = false) }
             is BranchCommand.SetMemoryMode -> withMemory { mem ->
                 mem.setMode(command.mode)
                 System.err.println("[memory] mode → ${command.mode.name.lowercase()}")
@@ -457,6 +485,53 @@ internal class Agent(
         } else {
             block(mem)
         }
+    }
+
+    /**
+     * Auto-advance the active task's stage from the model's [reply]. The model
+     * signals an intended move with a `[[stage:<next>]]` marker; we honour it
+     * only when a task is active, it isn't paused (pause means "hold here"),
+     * the marker maps to a real stage, and the move is allowed by
+     * [TaskStateMachine]. Illegal proposals are reported and ignored — the next
+     * turn's injected `Allowed next:` re-teaches the model. No-op without a
+     * MemoryProvider (OneShot / no `-memory-mode`) or active task.
+     */
+    private fun maybeAdvanceTaskStage(reply: String) {
+        val mem = memory ?: return
+        val id = mem.activeTaskId() ?: return
+        val proposed = TaskStateMachine.parseStageSignal(reply) ?: return
+        val task = mem.store.loadTask(id) ?: TaskNotes(id, stage = TaskStage.INITIAL)
+        if (task.paused) return
+        val from = task.stage
+        if (proposed == from) return
+        if (!TaskStateMachine.canTransition(from, proposed)) {
+            val allowed = from?.let(TaskStateMachine::allowedNext).orEmpty()
+            System.err.println(
+                "[task] model proposed ${from?.keyword ?: "(none)"} → ${proposed.keyword}, " +
+                    "not allowed (allowed: ${allowed.joinToString(", ") { it.keyword }}) — ignored"
+            )
+            return
+        }
+        mem.store.saveTask(task.copy(stage = proposed))
+        System.err.println("[task] stage: ${from?.keyword ?: "(none)"} → ${proposed.keyword} (auto)")
+    }
+
+    /**
+     * Flip the active task's `paused` flag (`/task-pause` / `/task-resume`).
+     * Paused tasks hold their stage — [maybeAdvanceTaskStage] skips them — so a
+     * task can be parked at any stage and picked up later. No active task → an
+     * explanatory line, no write.
+     */
+    private fun togglePause(mem: MemoryProvider, paused: Boolean) {
+        val id = mem.activeTaskId()
+        if (id == null) {
+            System.err.println("[task] no active task — set one with /task <id>")
+            return
+        }
+        val task = mem.store.loadTask(id) ?: TaskNotes(id, stage = TaskStage.INITIAL)
+        mem.store.saveTask(task.copy(paused = paused))
+        val word = if (paused) "paused" else "resumed"
+        System.err.println("[task] $word — task '$id' at stage ${task.stage?.keyword ?: "(none)"}")
     }
 
     private fun printFooter(durationMs: Long, usage: Usage?, modelId: String) {

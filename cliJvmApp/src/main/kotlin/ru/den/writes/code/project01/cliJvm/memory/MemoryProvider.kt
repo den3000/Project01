@@ -112,9 +112,10 @@ internal class MemoryProvider(
         appendLine("[task]")
         if (task == null) appendLine("(none)")
         else {
-            appendLine("  id    = ${task.taskId}")
-            appendLine("  goal  = ${task.goal ?: "(none)"}")
-            appendLine("  stage = ${task.stage ?: "(none)"}")
+            appendLine("  id     = ${task.taskId}")
+            appendLine("  goal   = ${task.goal ?: "(none)"}")
+            appendLine("  stage  = ${task.stage?.keyword ?: "(none)"}")
+            appendLine("  paused = ${task.paused}")
             if (task.notes.isEmpty()) appendLine("  notes = (none)")
             else {
                 appendLine("  notes =")

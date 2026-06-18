@@ -167,6 +167,10 @@ internal sealed interface CliArgs {
         data class RemoveRule(val id: String) : MemoryAction
         /** Create/select a task file under `tasks/<taskId>.md`. */
         data class SetTask(val taskId: String) : MemoryAction
+        /** Pause the task — hold its FSM stage. */
+        data class PauseTask(val taskId: String) : MemoryAction
+        /** Resume the task — clear the pause flag. */
+        data class ResumeTask(val taskId: String) : MemoryAction
     }
 
     /**
@@ -337,12 +341,12 @@ internal sealed interface CliArgs {
                 "   or: $ARG_MEMORY show | profile-list | profile-show <name>\n" +
                 "                       | profile [<text> | <section> <text> | <section> clear | clear\n" +
                 "                                  | <name> [<section> [<text> | clear] | clear]]\n" +
-                "                       | rule add <text> | rule rm <id> | task <id>\n" +
+                "                       | rule add <text> | rule rm <id> | task <id> [pause | resume]\n" +
                 "                (profile sections: style | format | constraints | context;\n" +
                 "                 unnamed profile = profile.md (fallback when no named profile is active);\n" +
                 "                 named profiles live under profiles/<name>.md; no LLM)\n" +
                 "REPL branch commands: /branches, /branch <name>, /switch <name>, /checkpoint.\n" +
-                "REPL memory commands: /memory, /profile [<text> | <section> <text> | <section> clear | clear], /rule <text>, /task <id>, /task-note <text>, /memory-mode <preamble|system>.\n" +
+                "REPL memory commands: /memory, /profile [<text> | <section> <text> | <section> clear | clear], /rule <text>, /task <id>, /task-note <text>, /task-pause, /task-resume, /memory-mode <preamble|system>.\n" +
                 "Default provider is $PROVIDER_GEMINI. Default chunk size is $DEFAULT_CHUNK_CHARS chars. " +
                 "Strategy tuning defaults: $ARG_KEEP_LAST=$DEFAULT_KEEP_LAST, $ARG_SUMMARIZE_EVERY=$DEFAULT_SUMMARIZE_EVERY."
 
@@ -855,7 +859,8 @@ internal sealed interface CliArgs {
          *  - `profile-show <name>` — print one named profile's structure
          *  - `rule add <text>`
          *  - `rule rm <id>`
-         *  - `task <id>`
+         *  - `task <id>` — create/select a task
+         *  - `task <id> pause` / `task <id> resume` — pause/resume the task
          */
         private fun parseMemoryAction(raw: String): MemoryAction {
             val tokens = raw.trim().split(Regex("\\s+"), limit = 3)
@@ -916,25 +921,11 @@ internal sealed interface CliArgs {
                         )
                     }
                 }
-                "task" -> {
-                    val id = tokens.getOrNull(1)?.trim().orEmpty()
-                    if (id.isEmpty()) throw CliArgsException.MissingRequiredArgument(
-                        argName = ARG_MEMORY,
-                        detail = "task needs an id",
-                    )
-                    if (id.length > MAX_SESSION_NAME_LENGTH || !id.matches(SESSION_NAME_REGEX)) {
-                        throw CliArgsException.InvalidArgumentValue(
-                            argName = ARG_MEMORY,
-                            rawValue = id,
-                            expectedType = "alphanumeric / '_' / '-', up to $MAX_SESSION_NAME_LENGTH chars",
-                        )
-                    }
-                    MemoryAction.SetTask(id)
-                }
+                "task" -> parseMemoryTaskAction(raw.substringAfter(' ', missingDelimiterValue = "").trim())
                 else -> throw CliArgsException.InvalidArgumentValue(
                     argName = ARG_MEMORY,
                     rawValue = raw,
-                    expectedType = "one of: show | profile [<text> | <section> <text> | <section> clear | clear | <name> [<section> [<text>|clear] | clear]] | profile-list | profile-show <name> | rule add <text> | rule rm <id> | task <id>",
+                    expectedType = "one of: show | profile [<text> | <section> <text> | <section> clear | clear | <name> [<section> [<text>|clear] | clear]] | profile-list | profile-show <name> | rule add <text> | rule rm <id> | task <id> [pause | resume]",
                 )
             }
         }
@@ -1003,6 +994,41 @@ internal sealed interface CliArgs {
             // pass the verbatim remainder as the new bullet.
             val text = body.substringAfter(' ').substringAfter(' ').trim()
             return MemoryAction.AddNamedProfileItem(name, section, text)
+        }
+
+        /**
+         * Parse the right-hand side of `-memory task <…>`:
+         *  - `<id>` — create/select the task (a new one starts at the initial stage)
+         *  - `<id> pause` — pause the task (hold its stage)
+         *  - `<id> resume` — resume the task
+         *
+         * Stage transitions themselves aren't a CLI verb: they advance
+         * automatically from the model's reply during a chat. This standalone
+         * op only covers creation and the pause/resume controls.
+         */
+        private fun parseMemoryTaskAction(body: String): MemoryAction {
+            val tokens = body.split(Regex("\\s+")).filter { it.isNotEmpty() }
+            val id = tokens.getOrNull(0) ?: throw CliArgsException.MissingRequiredArgument(
+                argName = ARG_MEMORY,
+                detail = "task needs an id",
+            )
+            if (id.length > MAX_SESSION_NAME_LENGTH || !id.matches(SESSION_NAME_REGEX)) {
+                throw CliArgsException.InvalidArgumentValue(
+                    argName = ARG_MEMORY,
+                    rawValue = id,
+                    expectedType = "alphanumeric / '_' / '-', up to $MAX_SESSION_NAME_LENGTH chars",
+                )
+            }
+            return when {
+                tokens.size == 1 -> MemoryAction.SetTask(id)
+                tokens.size == 2 && tokens[1].equals("pause", ignoreCase = true) -> MemoryAction.PauseTask(id)
+                tokens.size == 2 && tokens[1].equals("resume", ignoreCase = true) -> MemoryAction.ResumeTask(id)
+                else -> throw CliArgsException.InvalidArgumentValue(
+                    argName = ARG_MEMORY,
+                    rawValue = body,
+                    expectedType = "task <id> [pause | resume]",
+                )
+            }
         }
 
         private fun isValidProfileName(s: String): Boolean =
