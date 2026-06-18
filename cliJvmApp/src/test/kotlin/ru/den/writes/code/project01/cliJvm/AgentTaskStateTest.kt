@@ -205,6 +205,7 @@ class AgentTaskStateTest {
         task = null,
         profile = null,
         memoryMode = null,
+        stageAgents = emptyList(),
     )
 
     private fun stdinSource(script: String): StdinPromptSource =
