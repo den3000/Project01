@@ -10,20 +10,15 @@ import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
-import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskNotes
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import ru.den.writes.code.project01.shared.memory.TaskStateMachine
-import ru.den.writes.code.project01.shared.memory.isValidProfileName
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.measureTimedValue
-
-/** Valid branch names: same shape as session names — alphanumerics, '_' or '-'. */
-private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
 
 /**
  * One running conversation, in either REPL (Chat) or fire-and-forget
@@ -112,6 +107,9 @@ internal class SessionLoop(
         profileName = null,
         modelId = cliArgs.modelProvider.modelId,
     )
+
+    /** Runs REPL `/`-commands; this loop prints the returned status lines to stderr. */
+    private val commandRunner = CommandRunner(historyStore, memory, strategy)
 
     /**
      * The agent for [stage]: the first routed agent whose binding spans it,
@@ -311,222 +309,11 @@ internal class SessionLoop(
     }
 
     /**
-     * Execute a REPL branch- or memory-management command. The DB work
-     * (and disk work for memory) is suspend / blocking, so the
-     * `PromptSource` stays pure and only classifies the line. Branch
-     * commands need a persisted session; memory commands need a
-     * configured [memory] provider — each prints an explanatory line
-     * to stderr when its dependency is absent. Output otherwise mirrors
-     * the existing `[branch] …` style.
+     * Execute a REPL branch- / memory-management command by delegating to
+     * [commandRunner] and printing each returned status line to stderr.
      */
     private suspend fun handleBranchCommand(command: BranchCommand) {
-        when (command) {
-            BranchCommand.Checkpoint -> withHistoryStore { store ->
-                System.err.println(
-                    "[checkpoint] branch '${store.branchId}', ${store.messages.size} message(s) — " +
-                        "use /branch <name> to fork a new branch from here"
-                )
-            }
-            BranchCommand.ListBranches -> withHistoryStore { store ->
-                val branches = store.branches()
-                System.err.println(
-                    "[branches] " + branches.joinToString(", ") { if (it == store.branchId) "* $it" else it }
-                )
-            }
-            is BranchCommand.Branch -> withHistoryStore { store ->
-                val name = command.name
-                when {
-                    !name.matches(BRANCH_NAME_REGEX) ->
-                        System.err.println("[branch] invalid name '$name' (letters, digits, '_' or '-')")
-                    name == store.branchId ->
-                        System.err.println("[branch] already on '$name'")
-                    name in store.branches() ->
-                        System.err.println("[branch] '$name' already exists — use /switch $name")
-                    else -> {
-                        val copied = store.messages.size
-                        store.fork(name)
-                        System.err.println(
-                            "[branch] forked '${store.branchId}' → '$name' ($copied message(s) copied); " +
-                                "/switch $name to continue on it"
-                        )
-                    }
-                }
-            }
-            is BranchCommand.Switch -> withHistoryStore { store ->
-                val name = command.name
-                when {
-                    name == store.branchId -> System.err.println("[branch] already on '$name'")
-                    name !in store.branches() ->
-                        System.err.println("[branch] no such branch '$name' (use /branches to list)")
-                    else -> {
-                        store.switchTo(name)
-                        strategy.rebind(store)
-                        System.err.println("[branch] switched to '$name' (${store.messages.size / 2} prior turn(s))")
-                    }
-                }
-            }
-            BranchCommand.ShowMemory -> withMemory { mem ->
-                System.err.println("[memory]\n${mem.describe()}")
-            }
-            is BranchCommand.SetProfile -> withMemory { mem ->
-                if (command.text.isBlank()) {
-                    System.err.println("[memory] /profile needs the new profile text")
-                } else {
-                    mem.store.saveProfile(command.text)
-                    System.err.println("[memory] profile saved (${command.text.length} char(s))")
-                }
-            }
-            is BranchCommand.AddProfileItem -> withMemory { mem ->
-                if (command.text.isBlank()) {
-                    System.err.println("[memory] /profile ${command.section.keyword} needs the new text")
-                } else {
-                    val updated = mem.store.addProfileItem(command.section, command.text)
-                    val count = updated.items(command.section).size
-                    System.err.println(
-                        "[memory] profile.${command.section.keyword} += \"${command.text}\" ($count item(s) total)"
-                    )
-                }
-            }
-            is BranchCommand.ClearProfileSection -> withMemory { mem ->
-                mem.store.clearProfileSection(command.section)
-                System.err.println("[memory] profile.${command.section.keyword} cleared")
-            }
-            BranchCommand.ClearProfile -> withMemory { mem ->
-                mem.store.clearProfile()
-                System.err.println("[memory] profile cleared")
-            }
-            is BranchCommand.SwitchProfile -> withMemory { mem ->
-                val name = command.name
-                if (!isValidProfileName(name)) {
-                    System.err.println("[memory] invalid profile name '$name' (alphanumeric / '_' / '-', up to 64 chars)")
-                } else {
-                    mem.setActiveProfile(name)
-                    System.err.println("[memory] active profile → $name")
-                }
-            }
-            BranchCommand.ListProfiles -> withMemory { mem ->
-                val names = mem.store.listProfileNames()
-                val active = mem.activeProfileName()
-                if (names.isEmpty()) System.err.println("[memory] no named profiles")
-                else {
-                    System.err.println("[memory] profiles:")
-                    names.forEach { name ->
-                        val marker = if (name == active) "* " else "  "
-                        System.err.println("  $marker$name")
-                    }
-                }
-            }
-            is BranchCommand.ShowProfile -> withMemory { mem ->
-                val name = command.name
-                val data = mem.store.loadNamedProfile(name)
-                if (data == null) {
-                    System.err.println("[memory] profile '$name' is empty or absent")
-                } else {
-                    System.err.println("[profile:$name]")
-                    data.freeText?.takeIf { it.isNotBlank() }?.let { System.err.println(it.trim()) }
-                    for (section in ProfileSection.entries) {
-                        val items = data.items(section)
-                        if (items.isEmpty()) continue
-                        System.err.println("${section.keyword}: ${items.joinToString(", ")}")
-                    }
-                }
-            }
-            is BranchCommand.TouchProfile -> withMemory { mem ->
-                val name = command.name
-                if (!isValidProfileName(name)) {
-                    System.err.println("[memory] invalid profile name '$name'")
-                } else {
-                    mem.store.touchNamedProfile(name)
-                    System.err.println("[memory] profile '$name' ready (use /profile-use $name to activate)")
-                }
-            }
-            is BranchCommand.AddNamedProfileItem -> withMemory { mem ->
-                val name = command.name
-                if (!isValidProfileName(name)) {
-                    System.err.println("[memory] invalid profile name '$name'")
-                } else if (command.text.isBlank()) {
-                    System.err.println("[memory] /profile $name ${command.section.keyword} needs the new text")
-                } else {
-                    val updated = mem.store.addNamedProfileItem(name, command.section, command.text)
-                    val count = updated.items(command.section).size
-                    System.err.println(
-                        "[memory] profile.$name.${command.section.keyword} += \"${command.text}\" ($count item(s) total)"
-                    )
-                }
-            }
-            is BranchCommand.ClearNamedProfileSection -> withMemory { mem ->
-                mem.store.clearNamedProfileSection(command.name, command.section)
-                System.err.println("[memory] profile.${command.name}.${command.section.keyword} cleared")
-            }
-            is BranchCommand.ClearNamedProfile -> withMemory { mem ->
-                val removed = mem.store.clearNamedProfile(command.name)
-                if (removed) System.err.println("[memory] profile '${command.name}' removed")
-                else System.err.println("[memory] no profile named '${command.name}'")
-            }
-            is BranchCommand.AddRule -> withMemory { mem ->
-                if (command.text.isBlank()) {
-                    System.err.println("[memory] /rule needs the new rule text")
-                } else {
-                    val rule = mem.store.addRule(command.text)
-                    System.err.println("[memory] rule ${rule.id} added")
-                }
-            }
-            is BranchCommand.SetTask -> withMemory { mem ->
-                val id = command.taskId
-                if (id.isBlank()) {
-                    System.err.println("[memory] /task needs a task id")
-                } else {
-                    mem.setTask(id)
-                    // Touch-create so the file is visible on `/memory` and on
-                    // disk even before the first note is appended. A new task
-                    // starts at the initial FSM stage so it has formalized
-                    // state from turn one.
-                    val created = mem.store.loadTask(id) == null
-                    if (created) mem.store.saveTask(TaskNotes(taskId = id, stage = TaskStage.INITIAL))
-                    System.err.println(
-                        "[memory] active task → $id" +
-                            if (created) " (new, stage ${TaskStage.INITIAL.keyword})" else ""
-                    )
-                }
-            }
-            is BranchCommand.AppendTaskNote -> withMemory { mem ->
-                val active = mem.activeTaskId()
-                when {
-                    active == null ->
-                        System.err.println("[memory] /task-note needs an active task — set one with /task <id>")
-                    command.note.isBlank() ->
-                        System.err.println("[memory] /task-note needs the note text")
-                    else -> {
-                        mem.store.appendTaskNote(active, command.note)
-                        System.err.println("[memory] note appended to task '$active'")
-                    }
-                }
-            }
-            BranchCommand.PauseTask -> withMemory { mem -> togglePause(mem, paused = true) }
-            BranchCommand.ResumeTask -> withMemory { mem -> togglePause(mem, paused = false) }
-            is BranchCommand.SetMemoryMode -> withMemory { mem ->
-                mem.setMode(command.mode)
-                System.err.println("[memory] mode → ${command.mode.name.lowercase()}")
-            }
-        }
-    }
-
-    private inline fun withHistoryStore(block: (HistoryStore) -> Unit) {
-        val store = historyStore
-        if (store == null) {
-            System.err.println("[branch] branch commands need a persisted session")
-        } else {
-            block(store)
-        }
-    }
-
-    private inline fun withMemory(block: (MemoryProvider) -> Unit) {
-        val mem = memory
-        if (mem == null) {
-            System.err.println("[memory] memory commands need -memory-mode <preamble|system> at startup")
-        } else {
-            block(mem)
-        }
+        commandRunner.run(command).forEach { System.err.println(it) }
     }
 
     /**
@@ -557,24 +344,6 @@ internal class SessionLoop(
         }
         mem.store.saveTask(task.copy(stage = proposed))
         System.err.println("[task] stage: ${from?.keyword ?: "(none)"} → ${proposed.keyword} (auto)")
-    }
-
-    /**
-     * Flip the active task's `paused` flag (`/task-pause` / `/task-resume`).
-     * Paused tasks hold their stage — [maybeAdvanceTaskStage] skips them — so a
-     * task can be parked at any stage and picked up later. No active task → an
-     * explanatory line, no write.
-     */
-    private fun togglePause(mem: MemoryProvider, paused: Boolean) {
-        val id = mem.activeTaskId()
-        if (id == null) {
-            System.err.println("[task] no active task — set one with /task <id>")
-            return
-        }
-        val task = mem.store.loadTask(id) ?: TaskNotes(id, stage = TaskStage.INITIAL)
-        mem.store.saveTask(task.copy(paused = paused))
-        val word = if (paused) "paused" else "resumed"
-        System.err.println("[task] $word — task '$id' at stage ${task.stage?.keyword ?: "(none)"}")
     }
 
     private fun printFooter(durationMs: Long, usage: Usage?, modelId: String) {
