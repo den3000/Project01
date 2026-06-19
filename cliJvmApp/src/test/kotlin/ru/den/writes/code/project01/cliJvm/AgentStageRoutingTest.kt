@@ -15,10 +15,13 @@ import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskNotes
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import java.io.BufferedReader
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 import java.io.StringReader
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -179,6 +182,78 @@ class AgentStageRoutingTest {
         }
     }
 
+    //region agent tag
+
+    @Test
+    fun `agentTag renders profile and model, default when profile is null`() {
+        // when - then
+        assertEquals("[[AGENT: interviewer:gemini-2.5-flash]]", agentTag("interviewer", "gemini-2.5-flash"))
+        assertEquals("[[AGENT: default:m]]", agentTag(null, "m"))
+    }
+
+    @Test
+    fun `when multi-agent - then the reply is prefixed with the agent tag`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                // given
+                val memStore = MemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fallback = FakeLlmApi().apply { queueText("fb") }
+                val planner = FakeLlmApi().apply { queueText("the plan") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+
+                // when
+                val out = captureStdout {
+                    SessionLoop(
+                        newChat(prompt = "hi", session = "demo"),
+                        fallback, store,
+                        promptSource = stdinSource("/exit\n"),
+                        memory = memory,
+                        routedAgents = listOf(
+                            routed(
+                                TaskStage.PLANNING, TaskStage.EXECUTION, planner,
+                                profileName = "planner", modelId = "gemini-2.5-flash",
+                            ),
+                        ),
+                    ).run()
+                }
+
+                // then
+                assertTrue(
+                    out.contains("[[AGENT: planner:gemini-2.5-flash]]"),
+                    "reply should carry the agent tag",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `when single-agent - then the reply has no agent tag`() = runTest {
+        TestDb().use { harness ->
+            withTempMemoryRoot { root ->
+                // given
+                val memStore = MemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fake = FakeLlmApi().apply { queueText("plain reply") }
+                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+
+                // when — no routed agents
+                val out = captureStdout {
+                    SessionLoop(
+                        newChat(prompt = "hi", session = "demo"),
+                        fake, store,
+                        promptSource = stdinSource("/exit\n"),
+                        memory = memory,
+                    ).run()
+                }
+
+                // then
+                assertFalse(out.contains("[[AGENT:"), "single-agent output must not carry the tag")
+            }
+        }
+    }
+    //endregion
+
     //region helpers
 
     private fun routed(
@@ -225,6 +300,19 @@ class AgentStageRoutingTest {
         } finally {
             dir.deleteRecursively()
         }
+    }
+
+    private inline fun captureStdout(block: () -> Unit): String {
+        val original = System.out
+        val buf = ByteArrayOutputStream()
+        System.setOut(PrintStream(buf, true, "UTF-8"))
+        try {
+            block()
+        } finally {
+            System.out.flush()
+            System.setOut(original)
+        }
+        return buf.toString("UTF-8")
     }
     //endregion
 }

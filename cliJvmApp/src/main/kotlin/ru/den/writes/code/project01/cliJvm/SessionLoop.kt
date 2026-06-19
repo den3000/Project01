@@ -280,6 +280,9 @@ internal class SessionLoop(
         )
         currentSource.observeReply(text)
 
+        // Multi-agent session: tag each reply with the agent that produced it
+        // (printed, never persisted) so per-stage routing is visible at a glance.
+        if (routedAgents.isNotEmpty()) println(agentTag(agent.profileName, agent.modelId))
         println(text)
         printFooter(duration.inWholeMilliseconds, result.usage, modelId)
         // Auto-advance the active task's stage if the model signalled a move
@@ -633,6 +636,14 @@ internal class SessionLoop(
  * a `[warning] context window …% full` line to stderr.
  */
 private const val CONTEXT_WARN_PCT: Double = 90.0
+
+/**
+ * Display tag naming the agent that produced a reply, e.g.
+ * `[[AGENT: interviewer:gemini-2.5-flash]]`. [SessionLoop] emits it only in
+ * multi-agent sessions; a null profile shows as `default`.
+ */
+internal fun agentTag(profileName: String?, modelId: String): String =
+    "[[AGENT: ${profileName ?: "default"}:$modelId]]"
 
 /**
  * Render the post-turn context-window fill line. Caller is responsible
