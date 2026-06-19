@@ -90,6 +90,22 @@ internal class MemoryProvider(
         ?: store.loadProfileData()
 
     /**
+     * The `constraints` bullets of the profile [agentProfile] speaks with —
+     * the same profile selection [memoryLayerFor] uses (pinned agent profile →
+     * session's active profile → unnamed `profile.md`). The invariant judge
+     * takes these alongside the global rules so it audits the answering agent's
+     * own persona-local constraints too. Empty when that profile has none.
+     */
+    fun constraintsForAgent(agentProfile: String?): List<String> {
+        val profile = if (agentProfile != null) {
+            store.loadNamedProfile(agentProfile) ?: store.loadProfileData()
+        } else {
+            activeProfileData()
+        }
+        return profile?.items(ProfileSection.CONSTRAINTS).orEmpty()
+    }
+
+    /**
      * Render the current memory state as a multi-line block for `/memory`
      * (REPL) and `-memory show` (CLI). Includes the active mode + task
      * id + active named profile so the user can see what would be
