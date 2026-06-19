@@ -363,7 +363,7 @@ internal class SessionLoop(
                 val s = store.stats
                 val sessionCost = if (pricing != null) s.totalCostUsd else null
                 println(
-                    "session: turns=${s.turns} " + formatSessionTokens(s) +
+                    "session: turns=${s.turns} " + formatSessionTokens(s.snapshot()) +
                         "  cost=${formatCost(sessionCost, pricing != null)}"
                 )
             }
@@ -393,7 +393,7 @@ internal class SessionLoop(
         val costStr = if (stats.turns == 0) "$0.00" else "%.5f USD".format(stats.totalCostUsd)
         System.err.println(
             "$label turns=${stats.turns}  " +
-                formatSessionTokens(stats) +
+                formatSessionTokens(stats.snapshot()) +
                 "  cost=$costStr" +
                 (if (pricing == null) "  (current model has no pricing entry)" else "")
         )
@@ -432,9 +432,9 @@ internal fun formatTurnTokens(usage: Usage): String = buildString {
     append("  total=${usage.totalTokens}")
 }
 
-private fun formatSessionTokens(stats: SessionStats): String = buildString {
-    append("prompt=${stats.totalPromptTokens}  output=${stats.totalOutputTokens}")
-    if (stats.totalThoughtsTokens > 0) append("  thoughts=${stats.totalThoughtsTokens}")
+internal fun formatSessionTokens(stats: SessionStatsSnapshot): String = buildString {
+    append("prompt=${stats.promptTokens}  output=${stats.outputTokens}")
+    if (stats.thoughtsTokens > 0) append("  thoughts=${stats.thoughtsTokens}")
     append("  total=${stats.totalTokens}")
 }
 

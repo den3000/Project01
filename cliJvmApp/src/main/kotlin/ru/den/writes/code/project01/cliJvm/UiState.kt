@@ -43,19 +43,13 @@ internal sealed interface UiIntent {
     data object Exit : UiIntent
 }
 
-/** One-shot side effects — not state, so they don't replay on re-render. */
+/**
+ * One-shot side effects — not state, so they don't replay on re-render.
+ * The session summary is NOT an effect: it's a [UiLine.Notice] so its
+ * stderr ordering against the surrounding `[continuing in REPL …]` line is
+ * preserved through the single transcript.
+ */
 internal sealed interface UiEffect {
-    /**
-     * Print a session summary. [label] distinguishes the final summary from
-     * the feed→repl interim one; [modelId] drives the "(no pricing entry)"
-     * note; [stats] are the totals to report.
-     */
-    data class SessionSummary(
-        val stats: SessionStatsSnapshot,
-        val modelId: String,
-        val label: String,
-    ) : UiEffect
-
     /** The session is over; the view should stop. */
     data object Exit : UiEffect
 }
