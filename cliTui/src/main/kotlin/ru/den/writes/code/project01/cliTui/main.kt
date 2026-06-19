@@ -17,6 +17,7 @@ fun main(args: Array<String>) {
         "kotter" -> runKotterChat()
         "mordant" -> runMordantChat()
         "combo" -> runComboChat()
-        else -> System.err.println("usage: cliTui <kotter|mordant|combo>")
+        "mvp" -> runMyChat()
+        else -> System.err.println("usage: cliTui <kotter|mordant|combo|mvp>")
     }
 }
