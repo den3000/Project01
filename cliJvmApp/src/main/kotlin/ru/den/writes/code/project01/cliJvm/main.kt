@@ -36,6 +36,8 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /** Generous request timeout — LLM responses can take a while. */
 private const val REQUEST_TIMEOUT_MS = 300_000L
@@ -470,30 +472,60 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 val stdinAfter = StdinPromptSource(
                     java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
                 )
-                SessionLoop(
+                runSession(
                     cliArgs = parsed,
                     llmApi = llmApi,
                     historyStore = historyStore,
-                    promptSource = feedSource,
-                    replAfterFeed = stdinAfter,
                     strategy = strategy,
                     memory = memory,
                     routedAgents = routedAgents,
-                ).run()
+                    primary = feedSource,
+                    replAfterFeed = stdinAfter,
+                )
             }
         } else {
-            // Stdin REPL: Agent's default StdinPromptSource takes
-            // System.in directly.
-            SessionLoop(
+            // Stdin REPL.
+            runSession(
                 cliArgs = parsed,
                 llmApi = llmApi,
                 historyStore = historyStore,
                 strategy = strategy,
                 memory = memory,
                 routedAgents = routedAgents,
-            ).run()
+                primary = StdinPromptSource(
+                    java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
+                ),
+            )
         }
     }
+}
+
+/**
+ * Assemble the MVI stack — [TurnEngine] + [SessionViewModel] + [PlainView] —
+ * and run it over [primary] (with an optional feed→REPL [replAfterFeed]). The
+ * 16s throttle applies only to a feed source; interactive stdin runs at full
+ * speed.
+ */
+private suspend fun runSession(
+    cliArgs: CliArgs.PromptCommand,
+    llmApi: LlmApi,
+    historyStore: HistoryStore?,
+    strategy: ContextStrategy,
+    memory: MemoryProvider?,
+    routedAgents: List<RoutedAgent>,
+    primary: PromptSource,
+    replAfterFeed: PromptSource? = null,
+) {
+    val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents)
+    val commandRunner = CommandRunner(historyStore, memory, strategy)
+    val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy)
+    val view = PlainView(multiAgent = routedAgents.isNotEmpty())
+    val feedThrottle = if (replAfterFeed != null) 16.seconds else Duration.ZERO
+    view.run(
+        viewModel,
+        PromptSourceIntents(primary, feedThrottle),
+        replAfterFeed?.let { PromptSourceIntents(it) },
+    )
 }
 
 /**
