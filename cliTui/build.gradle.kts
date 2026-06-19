@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     alias(libs.plugins.kotlinJvm)
     application
@@ -19,4 +21,9 @@ application {
 // Прокинуть терминал в `run`, чтобы прототипы читали stdin.
 tasks.named<JavaExec>("run") {
     standardInput = System.`in`
+}
+
+val compileKotlin: KotlinCompile by tasks
+compileKotlin.compilerOptions {
+    freeCompilerArgs.set(listOf("-Xexplicit-backing-fields"))
 }
