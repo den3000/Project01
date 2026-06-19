@@ -4,6 +4,7 @@ import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
+import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
@@ -119,3 +120,18 @@ internal class TurnEngine(
         return StageAdvance.Advanced(from, proposed)
     }
 }
+
+/**
+ * Lift the generation-related flags from the parsed CLI into the neutral
+ * [GenerationParams] that crosses the [LlmApi] boundary. `-prompt` (the
+ * per-turn payload) and `-model` (configured into the concrete [LlmApi]) are
+ * not part of this. Lives on the [CliArgs.PromptCommand] super-type so Chat and
+ * OneShot share the same conversion.
+ */
+internal fun CliArgs.PromptCommand.toGenerationParams(): GenerationParams =
+    GenerationParams(
+        maxTokens = maxTokens,
+        stopSequences = stopSequences,
+        endSequence = endSequence,
+        temperature = temperature,
+    )
