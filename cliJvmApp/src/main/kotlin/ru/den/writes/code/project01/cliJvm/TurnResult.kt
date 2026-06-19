@@ -20,7 +20,9 @@ internal sealed interface TurnResult {
      * sessions and the footer's pricing lookup); [usage] is this turn's token
      * snapshot (null when the provider returned text without counts);
      * [durationMs] is the measured call time; [session] is the running-total
-     * snapshot at this turn; [stageAdvance] is what happened to the task FSM.
+     * snapshot at this turn (null in OneShot — no history to accumulate into,
+     * so the footer prints no `session:` line); [stageAdvance] is what
+     * happened to the task FSM.
      */
     data class Ok(
         val reply: String,
@@ -28,7 +30,7 @@ internal sealed interface TurnResult {
         val profileName: String?,
         val usage: Usage?,
         val durationMs: Long,
-        val session: SessionStatsSnapshot,
+        val session: SessionStatsSnapshot?,
         val stageAdvance: StageAdvance,
     ) : TurnResult
 
@@ -76,6 +78,6 @@ internal sealed interface StageAdvance {
     data class Rejected(
         val from: TaskStage?,
         val proposed: TaskStage,
-        val allowed: List<TaskStage>,
+        val allowed: Set<TaskStage>,
     ) : StageAdvance
 }
