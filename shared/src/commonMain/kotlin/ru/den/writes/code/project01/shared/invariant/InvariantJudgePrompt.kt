@@ -71,8 +71,18 @@ internal object InvariantJudgePrompt {
      * field is NOT trusted. A violation needs a non-blank `explanation`, while
      * `ruleId` is optional (null for constraint breaches and conflicts).
      */
-    fun parseVerdict(replyText: String?): InvariantVerdict {
-        val obj = replyText?.let(::parseObjectOrNull) ?: return InvariantVerdict.CLEAN
+    fun parseVerdict(replyText: String?): InvariantVerdict =
+        parseVerdictOrNull(replyText) ?: InvariantVerdict.CLEAN
+
+    /**
+     * Like [parseVerdict] but returns null when [replyText] isn't a JSON object
+     * at all (null / blank / prose / a bare array) — lets the caller tell a
+     * genuine clean verdict apart from a fail-open fallback (the judge babbled
+     * instead of returning JSON). A valid object with no `violations` array is
+     * still a clean verdict, not a parse failure.
+     */
+    fun parseVerdictOrNull(replyText: String?): InvariantVerdict? {
+        val obj = replyText?.let(::parseObjectOrNull) ?: return null
         val array = obj["violations"] as? JsonArray ?: return InvariantVerdict.CLEAN
         val violations = array.mapNotNull { element ->
             val item = element as? JsonObject ?: return@mapNotNull null

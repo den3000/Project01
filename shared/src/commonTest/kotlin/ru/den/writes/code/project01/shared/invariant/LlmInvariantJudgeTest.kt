@@ -83,4 +83,16 @@ class LlmInvariantJudgeTest {
         assertEquals(1, api.calls.size)
         assertFalse(actual.passed)
     }
+
+    @Test
+    fun `when judge returns prose instead of json - then clean (fail-open)`() = runTest {
+        // given — the judge babbled instead of returning a JSON verdict
+        val api = FakeLlmApi().apply { queueText("The reply looks fine to me, no issues.") }
+
+        // when
+        val actual = LlmInvariantJudge(api).check("anything", rules, constraints = emptyList())
+
+        // then
+        assertTrue(actual.passed)
+    }
 }

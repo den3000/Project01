@@ -4,6 +4,7 @@ import ru.den.writes.code.project01.shared.memory.RuleEntry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -145,6 +146,41 @@ class InvariantJudgePromptTest {
         assertTrue(InvariantJudgePrompt.parseVerdict("   ").passed)
         assertTrue(InvariantJudgePrompt.parseVerdict("Sure, looks fine to me!").passed)
         assertTrue(InvariantJudgePrompt.parseVerdict("[1,2,3]").passed)
+    }
+    //endregion
+
+    //region parseVerdictOrNull — distinguishes fail-open from a clean verdict
+
+    @Test
+    fun `when parseVerdictOrNull gets prose - then null (fail-open signal)`() {
+        // given / when / then — the judge babbled instead of returning JSON
+        assertNull(InvariantJudgePrompt.parseVerdictOrNull("The reply writes code, which breaks the constraint."))
+        assertNull(InvariantJudgePrompt.parseVerdictOrNull(null))
+        assertNull(InvariantJudgePrompt.parseVerdictOrNull("   "))
+    }
+
+    @Test
+    fun `when parseVerdictOrNull gets a valid object - then a verdict (not null)`() {
+        // given
+        val clean = """{"passed": true, "violations": []}"""
+        val flagged = """{"passed": false, "violations": [{"ruleId": "001", "explanation": "x"}]}"""
+
+        // when - then
+        assertTrue(InvariantJudgePrompt.parseVerdictOrNull(clean)!!.passed)
+        assertFalse(InvariantJudgePrompt.parseVerdictOrNull(flagged)!!.passed)
+    }
+
+    @Test
+    fun `when parseVerdictOrNull gets an object without violations array - then clean verdict not null`() {
+        // given — a valid object that just omits the array is a clean verdict, not a parse failure
+        val obj = """{"passed": true}"""
+
+        // when
+        val actual = InvariantJudgePrompt.parseVerdictOrNull(obj)
+
+        // then
+        assertNotNull(actual)
+        assertTrue(actual.passed)
     }
     //endregion
 }

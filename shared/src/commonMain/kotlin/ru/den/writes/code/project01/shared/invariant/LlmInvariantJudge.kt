@@ -5,6 +5,7 @@ import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.memory.RuleEntry
+import ru.den.writes.code.project01.shared.util.logWarn
 
 /**
  * Default [InvariantChecker]: judges a reply with a SEPARATE LLM call.
@@ -39,8 +40,17 @@ class LlmInvariantJudge(
             ),
             params = params,
         )
-        // Fail-open: a transport error (text == null) parses to CLEAN, so a
-        // judge outage degrades to "not blocked" rather than killing the turn.
-        return InvariantJudgePrompt.parseVerdict(result.text)
+        // Diagnostics: surface the judge's raw verdict (the request-header dump
+        // already shows the judge prompt; this shows its answer) so a
+        // "why didn't it fire?" is inspectable without a debugger.
+        logWarn("[invariant-judge] verdict: ${result.text ?: "(no text; error=${result.error})"}")
+        val parsed = InvariantJudgePrompt.parseVerdictOrNull(result.text)
+        // Fail-open: a transport error OR an unparseable (non-JSON) verdict both
+        // degrade to CLEAN. But a non-blank reply that didn't parse is the
+        // silent-masking case — warn loudly instead of hiding it.
+        if (parsed == null && !result.text.isNullOrBlank()) {
+            logWarn("[invariant-judge] verdict was not JSON → fail-open (treated as passed); tighten the prompt/model")
+        }
+        return parsed ?: InvariantVerdict.CLEAN
     }
 }
