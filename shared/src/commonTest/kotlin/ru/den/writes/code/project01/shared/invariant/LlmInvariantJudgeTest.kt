@@ -95,4 +95,18 @@ class LlmInvariantJudgeTest {
         // then
         assertTrue(actual.passed)
     }
+
+    @Test
+    fun `when check runs - then thinking is disabled and the budget is reserved for json`() = runTest {
+        // given
+        val api = FakeLlmApi().apply { queueText("""{"passed": true, "violations": []}""") }
+
+        // when
+        LlmInvariantJudge(api).check("reply", rules, constraints = emptyList())
+
+        // then — thinking off so reasoning can't truncate the verdict
+        val params = api.calls.single().params
+        assertEquals(0, params.thinkingBudget)
+        assertEquals(InvariantJudgePrompt.JUDGE_MAX_TOKENS, params.maxTokens)
+    }
 }

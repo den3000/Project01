@@ -17,14 +17,18 @@ import ru.den.writes.code.project01.shared.util.logWarn
  * the prompt and verdict parsing live in [InvariantJudgePrompt]; this class
  * only does the wire call and stays fail-open.
  *
- * [params] is fixed by the host to a low-temperature, short-output budget so
- * the verdict is stable — it is NOT the user's generation knobs.
+ * [params] is fixed by the host (NOT the user's knobs): low temperature for a
+ * stable verdict, and thinking DISABLED (thinkingBudget = 0) so reasoning can't
+ * eat the output budget and truncate the JSON mid-verdict — the whole budget
+ * goes to the answer. (A thinking judge would burn tokens and, worse, truncate
+ * exactly when it finds a violation, since that's when it reasons most.)
  */
 class LlmInvariantJudge(
     private val llmApi: LlmApi,
     private val params: GenerationParams = GenerationParams(
         maxTokens = InvariantJudgePrompt.JUDGE_MAX_TOKENS,
         temperature = 0.0,
+        thinkingBudget = 0,
     ),
 ) : InvariantChecker {
     override suspend fun check(

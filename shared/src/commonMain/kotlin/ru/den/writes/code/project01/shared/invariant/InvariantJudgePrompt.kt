@@ -14,7 +14,7 @@ import ru.den.writes.code.project01.shared.memory.RuleEntry
  * split as `FactsExtractor` beside `StickyFacts`.
  */
 internal object InvariantJudgePrompt {
-    const val JUDGE_MAX_TOKENS: Int = 512
+    const val JUDGE_MAX_TOKENS: Int = 1024
 
     /**
      * Build the single USER turn that asks the judge to audit [reply] against
