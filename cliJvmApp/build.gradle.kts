@@ -12,6 +12,7 @@ dependencies {
     implementation(libs.ktor.client.contentNegotiation)
     implementation(libs.ktor.serialization.kotlinxJson)
     implementation(libs.kotlinx.serializationJson)
+    implementation(libs.kotlinx.coroutinesCore)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.sqlite.bundled)
     ksp(libs.androidx.room.compiler)
