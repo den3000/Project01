@@ -39,6 +39,9 @@ internal sealed interface UiIntent {
     /** Run a classified `/`-command (see [parseSlashCommand]). */
     data class SlashCommand(val command: BranchCommand) : UiIntent
 
+    /** Resend the last model reply (REPL `/reuse`); a no-op if there's none yet. */
+    data object Reuse : UiIntent
+
     /** Leave the session (REPL `/exit` / EOF). */
     data object Exit : UiIntent
 }

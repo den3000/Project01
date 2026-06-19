@@ -13,6 +13,9 @@ import kotlin.time.Duration
 internal interface IntentSource {
     suspend fun next(): UiIntent?
 
+    /** Signal that the last turn failed — a feed source uses this to abort. */
+    fun onTurnFailed() {}
+
     /** True if the source stopped because it aborted (e.g. a failed feed turn). */
     val terminated: Boolean get() = false
 }
@@ -35,9 +38,12 @@ internal class PromptSourceIntents(
         return when (val r = source.nextPrompt()) {
             is PromptResult.Prompt -> UiIntent.Submit(r.text)
             is PromptResult.Command -> UiIntent.SlashCommand(r.command)
+            PromptResult.Reuse -> UiIntent.Reuse
             PromptResult.Stop -> null
         }
     }
+
+    override fun onTurnFailed() = source.notifyTurnFailed()
 
     override val terminated: Boolean get() = source.terminated
 }

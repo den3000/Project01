@@ -16,6 +16,9 @@ import java.io.Reader
 internal sealed interface PromptResult {
     data class Prompt(val text: String) : PromptResult
     data class Command(val command: BranchCommand) : PromptResult
+
+    /** REPL `/reuse`: resend the last model reply (the view-model holds it). */
+    data object Reuse : PromptResult
     data object Stop : PromptResult
 }
 
@@ -93,14 +96,6 @@ internal interface PromptSource {
     fun nextPrompt(): PromptResult
 
     /**
-     * Hook the agent calls after each successful turn. Lets a source
-     * cache the latest model reply if it needs to (currently only
-     * [StdinPromptSource], for `/reuse`). Default implementation is
-     * a no-op — most sources don't care.
-     */
-    fun observeReply(reply: String) {}
-
-    /**
      * Hook the agent calls when a turn failed (provider returned an
      * error). Default is a no-op — REPL sources just let the user try
      * again. [ChunkedFilePromptSource] uses it to flip an abort flag so
@@ -158,7 +153,6 @@ private const val PROMPT_INDICATOR = "> "
  * production wiring it's `System.in`, which stays open process-wide.
  */
 internal class StdinPromptSource(private val reader: BufferedReader) : PromptSource {
-    private var lastReply: String? = null
 
     override fun nextPrompt(): PromptResult {
         while (true) {
@@ -179,17 +173,10 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
                 line.equals(QUIT_COMMAND, ignoreCase = true)
                 || line.equals(EXIT_COMMAND, ignoreCase = true)
             ) return PromptResult.Stop
-            if (line.equals(REUSE_COMMAND, ignoreCase = true)) {
-                val cached = lastReply?.takeIf { it.isNotEmpty() } ?: continue
-                return PromptResult.Prompt(cached)
-            }
+            if (line.equals(REUSE_COMMAND, ignoreCase = true)) return PromptResult.Reuse
             parseSlashCommand(line)?.let { return PromptResult.Command(it) }
             return PromptResult.Prompt(line)
         }
-    }
-
-    override fun observeReply(reply: String) {
-        lastReply = reply
     }
 }
 

@@ -48,7 +48,7 @@ internal class SessionViewModel(
      */
     suspend fun run(primary: IntentSource, followUp: IntentSource? = null) {
         hydrate()
-        runTurn(cliArgs.prompt)
+        if (!runTurn(cliArgs.prompt)) primary.onTurnFailed()
         if (cliArgs is CliArgs.OneShot) {
             effects.send(UiEffect.Exit)
             return
@@ -72,15 +72,17 @@ internal class SessionViewModel(
         while (true) {
             when (val intent = source.next()) {
                 null, UiIntent.Exit -> return
-                is UiIntent.Submit -> runTurn(intent.text)
+                is UiIntent.Submit -> if (!runTurn(intent.text)) source.onTurnFailed()
+                UiIntent.Reuse -> lastReply?.let { runTurn(it) }
                 is UiIntent.SlashCommand -> runCommand(intent.command)
             }
         }
     }
 
-    private suspend fun runTurn(prompt: String) {
+    /** Run one turn; returns true on success, false on failure (lets a feed source abort). */
+    private suspend fun runTurn(prompt: String): Boolean {
         state.update { it.copy(busy = true) }
-        when (val result = engine.turn(prompt)) {
+        return when (val result = engine.turn(prompt)) {
             is TurnResult.Ok -> {
                 lastReply = result.reply
                 state.update {
@@ -90,9 +92,11 @@ internal class SessionViewModel(
                         stats = result.session ?: it.stats,
                     )
                 }
+                true
             }
-            is TurnResult.Failed -> state.update {
-                it.copy(busy = false, lines = it.lines + UiLine.Error(result.reason))
+            is TurnResult.Failed -> {
+                state.update { it.copy(busy = false, lines = it.lines + UiLine.Error(result.reason)) }
+                false
             }
         }
     }
