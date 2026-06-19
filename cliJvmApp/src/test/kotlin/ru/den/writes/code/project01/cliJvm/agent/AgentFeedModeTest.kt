@@ -2,7 +2,6 @@ package ru.den.writes.code.project01.cliJvm.agent
 
 import ru.den.writes.code.project01.shared.llm.LlmResult
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.SessionLoop
 import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.LineFilePromptSource
@@ -38,7 +37,7 @@ class AgentFeedModeTest {
             )
 
             // when
-            SessionLoop(chat, fakeApi, store, promptSource = source).run()
+            runSessionForTest(chat, fakeApi, store, promptSource = source)
 
             // then
             // Calls: opener + chunk1 + chunk2 (failed). chunk3 never sent.
@@ -63,7 +62,7 @@ class AgentFeedModeTest {
             val source = LineFilePromptSource(BufferedReader(StringReader("turn one\nturn two\n")))
 
             // when
-            SessionLoop(chat, fakeApi, store, promptSource = source).run()
+            runSessionForTest(chat, fakeApi, store, promptSource = source)
 
             // then
             // opening -prompt + 2 lines = 3 turns.
@@ -96,13 +95,13 @@ class AgentFeedModeTest {
             val stdinAfter = StdinPromptSource(BufferedReader(StringReader("after-feed\n/exit\n")))
 
             // when
-            SessionLoop(
+            runSessionForTest(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
                 promptSource = feedSource,
                 replAfterFeed = stdinAfter,
-            ).run()
+            )
 
             // then
             // 1 opener + 2 chunks + 1 stdin prompt = 4 calls. Then /exit
@@ -131,13 +130,13 @@ class AgentFeedModeTest {
             val stdinAfter = StdinPromptSource(BufferedReader(StringReader("manual probe\n/exit\n")))
 
             // when
-            SessionLoop(
+            runSessionForTest(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
                 promptSource = feedSource,
                 replAfterFeed = stdinAfter,
-            ).run()
+            )
 
             // then
             // opener + chunk1 (failed) + manual REPL probe = 3 calls.

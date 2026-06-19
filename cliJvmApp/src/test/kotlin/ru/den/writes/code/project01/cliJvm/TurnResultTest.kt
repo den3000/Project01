@@ -7,8 +7,8 @@ import kotlin.test.assertEquals
 /**
  * [SessionStats.snapshot] immutability + the footer formatters that PlainView
  * will reuse. The formatters' `cost=$X` / `thoughts=` branches aren't reached
- * by [ru.den.writes.code.project01.cliJvm.agent.SessionLoopGoldenTest] (it
- * runs off-registry models on purpose), so they're pinned directly here.
+ * by [ru.den.writes.code.project01.cliJvm.agent.PlainViewGoldenTest] (it runs
+ * off-registry models on purpose), so they're pinned directly here.
  */
 class TurnResultTest {
 

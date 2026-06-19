@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
@@ -39,12 +40,12 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
                     memory = memory,
-                ).run()
+                )
 
                 // then
                 assertEquals(TaskStage.PLANNING, memStore.loadTask("auth")?.stage)
@@ -66,12 +67,12 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
                     memory = memory,
-                ).run()
+                )
 
                 // then
                 assertEquals(TaskStage.CLARIFICATION, memStore.loadTask("auth")?.stage)
@@ -92,12 +93,12 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
                     memory = memory,
-                ).run()
+                )
 
                 // then
                 assertEquals(TaskStage.PLANNING, memStore.loadTask("auth")?.stage)
@@ -118,12 +119,12 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
                     memory = memory,
-                ).run()
+                )
 
                 // then
                 assertEquals(TaskStage.PLANNING, memStore.loadTask("auth")?.stage)
@@ -147,12 +148,12 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/task-pause\n/task-resume\n/exit\n"),
                     memory = memory,
-                ).run()
+                )
 
                 // then
                 assertEquals(false, memStore.loadTask("auth")?.paused)
@@ -171,12 +172,12 @@ class AgentTaskStateTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/task fresh\n/exit\n"),
                     memory = memory,
-                ).run()
+                )
 
                 // then
                 assertEquals(TaskStage.CLARIFICATION, memStore.loadTask("fresh")?.stage)

@@ -6,7 +6,6 @@ import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.SessionLoop
 import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
@@ -35,13 +34,13 @@ class AgentCompressionTest {
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
 
             // when
-            SessionLoop(
+            runSessionForTest(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
                 promptSource = stdinSource("p2\np3\n/exit\n"),
                 strategy = ContextStrategy.Summary(compressor),
-            ).run()
+            )
 
             // then
             // 3 real turns + 1 summarization call.
@@ -85,13 +84,13 @@ class AgentCompressionTest {
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
 
             // when
-            SessionLoop(
+            runSessionForTest(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
                 promptSource = stdinSource("p2\np3\n/exit\n"),
                 strategy = ContextStrategy.Summary(compressor),
-            ).run()
+            )
 
             // then
             assertEquals(4, fakeApi.calls.size)
@@ -133,13 +132,13 @@ class AgentCompressionTest {
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 100)
 
             // when
-            SessionLoop(
+            runSessionForTest(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
                 promptSource = stdinSource("/exit\n"),
                 strategy = ContextStrategy.Summary(compressor),
-            ).run()
+            )
 
             // then
             // Only the single real turn — no summarization call.
@@ -178,13 +177,13 @@ class AgentCompressionTest {
             )
 
             // when
-            SessionLoop(
+            runSessionForTest(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
                 promptSource = feed,
                 strategy = ContextStrategy.Summary(compressor),
-            ).run()
+            )
 
             // then
             // open + chunk1 + (compaction) + chunk2 = 4 calls.

@@ -34,10 +34,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * The byte-for-byte payoff: drives the NEW stack (SessionViewModel + PlainView)
- * over the same scenarios as [SessionLoopGoldenTest] and asserts the SAME
- * literals. If these match, PlainView reproduces the legacy output exactly,
- * which is what makes the commit-9 facade switch safe.
+ * The byte-for-byte payoff: drives the production stack (SessionViewModel +
+ * PlainView) over the core scenarios and pins the exact stdout / stderr. This
+ * is the characterization safety net for "PlainView reproduces the previous
+ * SessionLoop output" — the split a user relies on when redirecting a transcript.
  */
 class PlainViewGoldenTest {
 
