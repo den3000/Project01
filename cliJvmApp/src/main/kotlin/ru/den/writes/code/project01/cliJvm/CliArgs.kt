@@ -23,6 +23,7 @@ private const val ARG_SESSION = "${ARG_PREFIX}session"
 private const val ARG_LIST_SESSIONS = "${ARG_PREFIX}sessions"
 private const val ARG_CLEAN = "${ARG_PREFIX}clean"
 private const val ARG_ONESHOT = "${ARG_PREFIX}oneshot"
+private const val ARG_TUI = "${ARG_PREFIX}tui"
 private const val ARG_FEED_FILE = "${ARG_PREFIX}feedFile"
 private const val ARG_CHUNK_CHARS = "${ARG_PREFIX}chunkChars"
 private const val ARG_FEED_INSTRUCTION = "${ARG_PREFIX}feedInstruction"
@@ -308,6 +309,13 @@ internal sealed interface CliArgs {
          * Requires [memoryMode].
          */
         val stageAgents: List<StageAgentSpec>,
+        /**
+         * `-tui`: opt into the Kotter+Mordant terminal UI. Only honoured for an
+         * interactive Chat on a real TTY (`main` gates on `System.console()`);
+         * feed / oneshot / non-TTY fall back to the plain renderer. Rejected
+         * with `-oneshot` at parse time.
+         */
+        val tui: Boolean,
     ) : PromptCommand
 
     /**
@@ -339,7 +347,7 @@ internal sealed interface CliArgs {
                 "[$ARG_STOP_SEQUENCE <words>] " +
                 "[$ARG_END_SEQUENCE <text>] " +
                 "[$ARG_TEMPERATURE <number 0.0..2.0>] " +
-                "[$ARG_SESSION <name>]\n" +
+                "[$ARG_SESSION <name>] [$ARG_TUI]\n" +
                 "       [$ARG_FEED_FILE <path> [$ARG_CHUNK_CHARS <int> | $ARG_BY_LINE] [$ARG_FEED_INSTRUCTION <text>]]\n" +
                 "       [$ARG_STRATEGY <$STRATEGY_FULL|$STRATEGY_WINDOW|$STRATEGY_FACTS|$STRATEGY_SUMMARY> [$ARG_KEEP_LAST <int>] [$ARG_SUMMARIZE_EVERY <int>]]" +
                 "  (or $ARG_COMPRESS = $ARG_STRATEGY $STRATEGY_SUMMARY)\n" +
@@ -434,6 +442,7 @@ internal sealed interface CliArgs {
                 ARG_PROFILE,
                 ARG_MEMORY_MODE,
                 ARG_STAGE_AGENT,
+                ARG_TUI,
             )
             val values = mutableMapOf<String, String>()
             // -stageAgent repeats (one per stage span), so it can't live in the
@@ -656,7 +665,7 @@ internal sealed interface CliArgs {
                 // are value-less, so a blank-check wouldn't catch them.
                 listOf(
                     ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE, ARG_STRATEGY,
-                    ARG_TASK, ARG_PROFILE, ARG_MEMORY_MODE,
+                    ARG_TASK, ARG_PROFILE, ARG_MEMORY_MODE, ARG_TUI,
                 ).forEach { flag ->
                     if (flag in values) {
                         throw CliArgsException.InvalidArgumentValue(
@@ -890,6 +899,7 @@ internal sealed interface CliArgs {
                 profile = profile,
                 memoryMode = memoryMode,
                 stageAgents = stageAgents,
+                tui = ARG_TUI in values,
             )
         }
 

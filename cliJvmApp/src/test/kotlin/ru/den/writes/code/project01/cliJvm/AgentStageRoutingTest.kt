@@ -289,6 +289,7 @@ class AgentStageRoutingTest {
         profile = null,
         memoryMode = null,
         stageAgents = emptyList(),
+        tui = false,
     )
 
     private fun stdinSource(script: String): StdinPromptSource =

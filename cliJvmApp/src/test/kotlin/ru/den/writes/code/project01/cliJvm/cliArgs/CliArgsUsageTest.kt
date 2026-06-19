@@ -16,7 +16,7 @@ class CliArgsUsageTest {
         val usage = CliArgs.USAGE
         val flags = listOf(
             "-prompt", "-provider", "-maxTokens", "-stopSequence", "-endSequence",
-            "-temperature", "-model", "-session", "-oneshot",
+            "-temperature", "-model", "-session", "-oneshot", "-tui",
             "-sessions", "-clean", "-inflate",
             "-feedFile", "-chunkChars", "-feedInstruction", "-byLine",
             "-compress", "-keepLast", "-summarizeEvery", "-strategy",
