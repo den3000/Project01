@@ -13,6 +13,10 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinxJson)
     implementation(libs.kotlinx.serializationJson)
     implementation(libs.kotlinx.coroutinesCore)
+    // TUI (-tui): Kotter drives the interactive screen, Mordant renders the
+    // stats panel into a string (AnsiLevel.NONE) that Kotter then colours.
+    implementation(libs.kotter)
+    implementation(libs.mordant)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.sqlite.bundled)
     ksp(libs.androidx.room.compiler)
