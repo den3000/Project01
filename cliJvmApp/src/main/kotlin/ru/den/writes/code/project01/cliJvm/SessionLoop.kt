@@ -3,12 +3,15 @@ package ru.den.writes.code.project01.cliJvm
 import kotlinx.coroutines.delay
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.project01.shared.agent.AgentConfig
+import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
 import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskNotes
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import ru.den.writes.code.project01.shared.memory.TaskStateMachine
@@ -41,7 +44,7 @@ private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
  * variant: [CliArgs.Chat] → REPL, [CliArgs.OneShot] → exit after the
  * opening turn.
  */
-internal class Agent(
+internal class SessionLoop(
     private val cliArgs: CliArgs.PromptCommand,
     private val llmApi: LlmApi,
     private val historyStore: HistoryStore?,
@@ -82,6 +85,13 @@ internal class Agent(
      * (SYSTEM). Memory entries are NEVER persisted into [historyStore].
      */
     private val memory: MemoryProvider? = null,
+    /**
+     * Per-stage agents: each owns a [TaskBinding] span and answers turns whose
+     * active task stage falls in it. Empty (the default) = single-agent mode,
+     * where [fallbackAgent] handles every turn — byte-identical to before
+     * routing existed.
+     */
+    private val routedAgents: List<RoutedAgent> = emptyList(),
 ) {
     /**
      * The source currently driving prompts. Set inside [send] so
@@ -89,6 +99,27 @@ internal class Agent(
      * source as we transition from [promptSource] to [replAfterFeed].
      */
     private var currentSource: PromptSource = promptSource
+
+    /**
+     * The default agent: built from this loop's model surface ([llmApi]) and
+     * generation knobs, with no pinned profile. Answers every turn that no
+     * [routedAgents] binding covers (and when there is no task / stage) — so an
+     * empty [routedAgents] reproduces single-agent behaviour exactly.
+     */
+    private val fallbackAgent = RoutedAgent(
+        binding = TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
+        responder = AgentResponder(AgentConfig(llmApi = llmApi, params = cliArgs.toGenerationParams())),
+        profileName = null,
+        modelId = cliArgs.modelProvider.modelId,
+    )
+
+    /**
+     * The agent for [stage]: the first routed agent whose binding spans it,
+     * else [fallbackAgent]. A null stage (no active task) always falls back.
+     * Overlapping bindings resolve first-wins, in declaration order.
+     */
+    private fun agentFor(stage: TaskStage?): RoutedAgent =
+        stage?.let { s -> routedAgents.firstOrNull { s in it.binding } } ?: fallbackAgent
 
     /**
      * Drives the conversation.
@@ -195,13 +226,19 @@ internal class Agent(
      *   mode aborts, returns null.
      */
     private suspend fun send(prompt: String): String? {
-        val modelId = cliArgs.modelProvider.modelId
+        // The agent that answers this turn is picked by the active task's
+        // stage; with no routed agents that's always the fallback (parity).
+        val stage = memory?.activeTaskId()?.let { memory.store.loadTask(it)?.stage }
+        val agent = agentFor(stage)
+        val modelId = agent.modelId
         // Per-turn strategy side effect (rolling-summary compaction, facts
         // extraction, …) runs BEFORE the request is built and before this
         // turn's pair is appended: historyStore.messages is even-length here
         // (pairs are appended only on success), which the strategies'
         // role-alternation invariant relies on. No-op for FullHistory.
-        historyStore?.let { strategy.onTurn(TurnContext(it, llmApi, prompt, modelId)) }
+        // Compaction/facts run on the default model regardless of the routed
+        // agent, so TurnContext keeps the default model id.
+        historyStore?.let { strategy.onTurn(TurnContext(it, llmApi, prompt, cliArgs.modelProvider.modelId)) }
         val userTurn = Message(role = Role.USER, text = prompt)
         // planContext turns the stored history into the wire list — full
         // history, a summary pair + tail, a sliding window, etc., depending
@@ -212,13 +249,15 @@ internal class Agent(
         // gets re-shaped by the strategy. Empty list when no MemoryProvider
         // is wired in, or when every layer is empty — byte-identical to
         // the no-memory path.
-        val memoryLayer = memory?.memoryLayer() ?: emptyList()
-        val (result, duration) = measureTimedValue {
-            llmApi.send(
-                messages = memoryLayer + baseContext + userTurn,
-                params = cliArgs.toGenerationParams(),
-            )
+        val memoryLayer = memory?.memoryLayerFor(agent.profileName) ?: emptyList()
+        // Delegate the turn itself — wire assembly (memoryLayer + baseContext
+        // + userTurn), the LLM call and stage-signal parsing — to the portable
+        // responder. Timing wraps the whole call so the footer's duration is
+        // unchanged.
+        val (outcome, duration) = measureTimedValue {
+            agent.responder.respond(baseContext = baseContext, memoryLayer = memoryLayer, userTurn = userTurn)
         }
+        val result = outcome.result
 
         if (result.error != null) {
             System.err.println("[error] ${result.error}")
@@ -241,12 +280,15 @@ internal class Agent(
         )
         currentSource.observeReply(text)
 
+        // Multi-agent session: tag each reply with the agent that produced it
+        // (printed, never persisted) so per-stage routing is visible at a glance.
+        if (routedAgents.isNotEmpty()) println(agentTag(agent.profileName, agent.modelId))
         println(text)
         printFooter(duration.inWholeMilliseconds, result.usage, modelId)
         // Auto-advance the active task's stage if the model signalled a move
         // in its reply (validated against the transition table). Runs after
         // the footer so the `[task]` line trails the turn block.
-        maybeAdvanceTaskStage(text)
+        maybeAdvanceTaskStage(outcome.proposedStage)
         delay(16.seconds)
         return text
     }
@@ -488,18 +530,19 @@ internal class Agent(
     }
 
     /**
-     * Auto-advance the active task's stage from the model's [reply]. The model
-     * signals an intended move with a `[[stage:<next>]]` marker; we honour it
-     * only when a task is active, it isn't paused (pause means "hold here"),
-     * the marker maps to a real stage, and the move is allowed by
-     * [TaskStateMachine]. Illegal proposals are reported and ignored — the next
-     * turn's injected `Allowed next:` re-teaches the model. No-op without a
-     * MemoryProvider (OneShot / no `-memory-mode`) or active task.
+     * Auto-advance the active task's stage given the model's [proposed] move
+     * (already parsed from the reply by [AgentResponder]; null when the reply
+     * carried no valid `[[stage:<next>]]` marker). We honour it only when a
+     * task is active, it isn't paused (pause means "hold here"), and the move
+     * is allowed by [TaskStateMachine]. Illegal proposals are reported and
+     * ignored — the next turn's injected `Allowed next:` re-teaches the model.
+     * No-op without a MemoryProvider (OneShot / no `-memory-mode`) or active
+     * task.
      */
-    private fun maybeAdvanceTaskStage(reply: String) {
+    private fun maybeAdvanceTaskStage(proposed: TaskStage?) {
         val mem = memory ?: return
         val id = mem.activeTaskId() ?: return
-        val proposed = TaskStateMachine.parseStageSignal(reply) ?: return
+        if (proposed == null) return
         val task = mem.store.loadTask(id) ?: TaskNotes(id, stage = TaskStage.INITIAL)
         if (task.paused) return
         val from = task.stage
@@ -589,10 +632,18 @@ internal class Agent(
 }
 
 /**
- * Threshold (% of context window) above which [Agent.printFooter] emits
+ * Threshold (% of context window) above which [SessionLoop.printFooter] emits
  * a `[warning] context window …% full` line to stderr.
  */
 private const val CONTEXT_WARN_PCT: Double = 90.0
+
+/**
+ * Display tag naming the agent that produced a reply, e.g.
+ * `[[AGENT: interviewer:gemini-2.5-flash]]`. [SessionLoop] emits it only in
+ * multi-agent sessions; a null profile shows as `default`.
+ */
+internal fun agentTag(profileName: String?, modelId: String): String =
+    "[[AGENT: ${profileName ?: "default"}:$modelId]]"
 
 /**
  * Render the post-turn context-window fill line. Caller is responsible
@@ -634,7 +685,7 @@ private fun formatCost(usd: Double?, knownPricing: Boolean): String =
  * Lives on the [CliArgs.PromptCommand] super-type so Chat and OneShot
  * share the same conversion.
  */
-private fun CliArgs.PromptCommand.toGenerationParams(): GenerationParams =
+internal fun CliArgs.PromptCommand.toGenerationParams(): GenerationParams =
     GenerationParams(
         maxTokens = maxTokens,
         stopSequences = stopSequences,

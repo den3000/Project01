@@ -37,7 +37,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
+                SessionLoop(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
 
                 val msgs = fake.calls.single().messages
                 assertEquals(3, msgs.size, "expected [USER frame, ASSISTANT ack, USER prompt]")
@@ -71,7 +71,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
+                SessionLoop(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
 
                 val msgs = fake.calls.single().messages
                 val systemMsgs = msgs.takeWhile { it.role == Role.SYSTEM }
@@ -97,7 +97,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(dao, sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
+                SessionLoop(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
 
                 val rows = dao.all(sessionId = "demo")
                 assertEquals(2, rows.size, "exactly the user prompt and the model reply")
@@ -117,7 +117,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
+                SessionLoop(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
 
                 // No memory frame at all — opening prompt is the lone entry.
                 assertEquals(listOf(Message(Role.USER, "hi")), fake.calls.single().messages)
@@ -139,7 +139,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat, fake, store,
                     promptSource = stdinSource("/memory-mode system\ngo on\n/exit\n"),
                     memory = memory,
@@ -167,7 +167,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat, fake, store,
                     promptSource = stdinSource("/profile I write Kotlin and Compose\n/exit\n"),
                     memory = memory,
@@ -189,7 +189,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat, fake, store,
                     promptSource = stdinSource("/rule No Spring Boot\n/exit\n"),
                     memory = memory,
@@ -214,7 +214,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat, fake, store,
                     promptSource = stdinSource("/task auth\n/task-note Ktor + JWT chosen\n/exit\n"),
                     memory = memory,
@@ -239,7 +239,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat, fake, store,
                     promptSource = stdinSource("/task-note stranded\n/exit\n"),
                     memory = memory,
@@ -261,7 +261,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat, fake, store,
                     promptSource = stdinSource("/profile\n/exit\n"),
                     memory = memory,
@@ -289,7 +289,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat, fake, store,
                     promptSource = stdinSource("/memory-mode shrug\n/exit\n"),
                     memory = memory,
@@ -310,7 +310,7 @@ class AgentMemoryTest {
             val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
             val chat = newChat(prompt = "hi", session = "demo")
 
-            Agent(
+            SessionLoop(
                 chat, fake, store,
                 promptSource = stdinSource("/memory\n/profile yo\n/rule no\n/exit\n"),
                 memory = null,
@@ -343,7 +343,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
+                SessionLoop(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
 
                 val frame = fake.calls.single().messages.first().text
                 assertTrue(frame.startsWith(MemoryLayer.PROFILE_HEADING))
@@ -366,7 +366,7 @@ class AgentMemoryTest {
                     val fake = FakeLlmApi().apply { queueText("ok") }
                     val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                     val chat = newChat(prompt = "Как реализовать кэш?", session = "demo")
-                    Agent(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
+                    SessionLoop(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
                     captured = fake.calls.single().messages.first().text
                 }
             }
@@ -405,7 +405,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat,
                     fake,
                     store,
@@ -432,7 +432,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat,
                     fake,
                     store,
@@ -464,7 +464,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
+                SessionLoop(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory).run()
 
                 val frame = fake.calls.single().messages.first().text
                 assertTrue(frame.contains("Style:\n- кратко"))
@@ -493,7 +493,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "first", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat,
                     fake,
                     store,
@@ -520,7 +520,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                Agent(
+                SessionLoop(
                     chat,
                     fake,
                     store,
@@ -564,6 +564,7 @@ class AgentMemoryTest {
         task = null,
         profile = null,
         memoryMode = null,
+        stageAgents = emptyList(),
     )
 
     private fun stdinSource(script: String): StdinPromptSource =

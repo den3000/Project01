@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.agent
 
 import ru.den.writes.code.project01.shared.llm.LlmResult
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.Agent
+import ru.den.writes.code.project01.cliJvm.SessionLoop
 import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.LineFilePromptSource
@@ -38,7 +38,7 @@ class AgentFeedModeTest {
             )
 
             // when
-            Agent(chat, fakeApi, store, promptSource = source).run()
+            SessionLoop(chat, fakeApi, store, promptSource = source).run()
 
             // then
             // Calls: opener + chunk1 + chunk2 (failed). chunk3 never sent.
@@ -63,7 +63,7 @@ class AgentFeedModeTest {
             val source = LineFilePromptSource(BufferedReader(StringReader("turn one\nturn two\n")))
 
             // when
-            Agent(chat, fakeApi, store, promptSource = source).run()
+            SessionLoop(chat, fakeApi, store, promptSource = source).run()
 
             // then
             // opening -prompt + 2 lines = 3 turns.
@@ -96,7 +96,7 @@ class AgentFeedModeTest {
             val stdinAfter = StdinPromptSource(BufferedReader(StringReader("after-feed\n/exit\n")))
 
             // when
-            Agent(
+            SessionLoop(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
@@ -131,7 +131,7 @@ class AgentFeedModeTest {
             val stdinAfter = StdinPromptSource(BufferedReader(StringReader("manual probe\n/exit\n")))
 
             // when
-            Agent(
+            SessionLoop(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,

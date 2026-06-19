@@ -2,6 +2,7 @@ package ru.den.writes.code.project01.shared.memory
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -206,6 +207,41 @@ class TaskStateTest {
 
         // then
         assertEquals(TaskStage.EXECUTION, actual)
+    }
+    //endregion
+
+    //region stage binding
+
+    @Test
+    fun `when contains queried across the span - then only in-range stages match`() {
+        // given
+        val binding = TaskBinding(TaskStage.PLANNING, TaskStage.VALIDATION)
+        val inRange = setOf(TaskStage.PLANNING, TaskStage.EXECUTION, TaskStage.VALIDATION)
+
+        // when - then
+        // One invariant — "in binding == ordinal within from..to" — over every stage.
+        TaskStage.entries.forEach { stage ->
+            assertEquals(stage in inRange, stage in binding, "contains($stage)")
+        }
+    }
+
+    @Test
+    fun `when from equals to - then only that single stage is in the span`() {
+        // given
+        val binding = TaskBinding(TaskStage.EXECUTION, TaskStage.EXECUTION)
+
+        // when - then
+        TaskStage.entries.forEach { stage ->
+            assertEquals(stage == TaskStage.EXECUTION, stage in binding, "contains($stage)")
+        }
+    }
+
+    @Test
+    fun `when from is after to - then constructing throws`() {
+        // when - then
+        assertFailsWith<IllegalArgumentException> {
+            TaskBinding(TaskStage.EXECUTION, TaskStage.PLANNING)
+        }
     }
     //endregion
 }

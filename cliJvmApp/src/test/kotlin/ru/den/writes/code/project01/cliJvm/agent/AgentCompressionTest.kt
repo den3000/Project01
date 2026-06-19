@@ -6,7 +6,7 @@ import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.Agent
+import ru.den.writes.code.project01.cliJvm.SessionLoop
 import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
@@ -35,7 +35,7 @@ class AgentCompressionTest {
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
 
             // when
-            Agent(
+            SessionLoop(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
@@ -85,7 +85,7 @@ class AgentCompressionTest {
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
 
             // when
-            Agent(
+            SessionLoop(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
@@ -133,7 +133,7 @@ class AgentCompressionTest {
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 100)
 
             // when
-            Agent(
+            SessionLoop(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
@@ -178,7 +178,7 @@ class AgentCompressionTest {
             )
 
             // when
-            Agent(
+            SessionLoop(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,

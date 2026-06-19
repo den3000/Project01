@@ -51,13 +51,27 @@ internal class MemoryProvider(
     }
 
     /**
-     * Compose the per-turn memory slice. Returns an empty list when
-     * every layer is empty so the wire shape stays byte-identical to a
-     * no-memory session. Active named profile (if set) wins over the
-     * unnamed `profile.md`.
+     * Compose the per-turn memory slice for the session's active profile —
+     * identical to [memoryLayerFor] with a null argument (the single-agent
+     * path).
      */
-    fun memoryLayer(): List<Message> {
-        val profile = activeProfileData()
+    fun memoryLayer(): List<Message> = memoryLayerFor(null)
+
+    /**
+     * Compose the per-turn memory slice for an agent pinned to profile
+     * [agentProfile]. `null` falls back to the session's live active profile
+     * (the [memoryLayer] / single-agent path, so REPL `/profile-use` keeps
+     * working). Rules and the current task are always the shared live ones —
+     * only the profile selection is overridden, so per-stage agents differ by
+     * profile, not by rules or task. Returns an empty list when every layer is
+     * empty (byte-identical to a no-memory session).
+     */
+    fun memoryLayerFor(agentProfile: String?): List<Message> {
+        val profile = if (agentProfile != null) {
+            store.loadNamedProfile(agentProfile) ?: store.loadProfileData()
+        } else {
+            activeProfileData()
+        }
         val rules = store.listRules()
         val task = taskId?.let(store::loadTask)
         return when (mode) {

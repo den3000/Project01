@@ -20,6 +20,8 @@ import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.shared.agent.AgentConfig
+import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.context.HistoryCompressor
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.ModelProvider
@@ -400,23 +402,15 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
             requestTimeoutMillis = REQUEST_TIMEOUT_MS
         }
     }.use { client ->
-        val llmApi: LlmApi = when (val mp = parsed.modelProvider) {
-            is ModelProvider.Gemini -> GeminiApi(
-                httpClient = client,
-                apiKey = mp.apiKey,
-                model = mp.model,
-            )
-            is ModelProvider.OpenRouter -> OpenRouterApi(
-                httpClient = client,
-                apiKey = mp.apiKey,
-                model = mp.model,
-            )
-            is ModelProvider.HuggingFace -> HuggingFaceApi(
-                httpClient = client,
-                apiKey = mp.apiKey,
-                model = mp.model,
-            )
+        // One LlmApi per model surface, all sharing the session's HttpClient.
+        // The default agent uses parsed.modelProvider; per-stage agents
+        // (-stageAgent) each get their own below.
+        fun buildLlmApi(mp: ModelProvider): LlmApi = when (mp) {
+            is ModelProvider.Gemini -> GeminiApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
+            is ModelProvider.OpenRouter -> OpenRouterApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
+            is ModelProvider.HuggingFace -> HuggingFaceApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
         }
+        val llmApi: LlmApi = buildLlmApi(parsed.modelProvider)
         // Map the parsed strategy kind to a concrete ContextStrategy, wiring
         // in runtime deps (the compressor, the window size). OneShot has no
         // history, so the `as? Chat` guard yields null → FullHistory.
@@ -443,6 +437,19 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 initialProfileName = chat.profile,
             )
         }
+        // Per-stage agents (-stageAgent): one RoutedAgent per spec, each with
+        // its own LlmApi + fixed profile; generation knobs are shared. Empty
+        // for single-agent sessions, so SessionLoop's fallback handles all.
+        val routedAgents: List<RoutedAgent> = chat?.stageAgents.orEmpty().map { spec ->
+            RoutedAgent(
+                binding = spec.binding,
+                responder = AgentResponder(
+                    AgentConfig(buildLlmApi(spec.provider), parsed.toGenerationParams(), spec.profileName),
+                ),
+                profileName = spec.profileName,
+                modelId = spec.provider.modelId,
+            )
+        }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile
         if (feedFile != null) {
             // File-driven feed mode: open the reader and hand a feed source
@@ -463,7 +470,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 val stdinAfter = StdinPromptSource(
                     java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
                 )
-                Agent(
+                SessionLoop(
                     cliArgs = parsed,
                     llmApi = llmApi,
                     historyStore = historyStore,
@@ -471,17 +478,19 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                     replAfterFeed = stdinAfter,
                     strategy = strategy,
                     memory = memory,
+                    routedAgents = routedAgents,
                 ).run()
             }
         } else {
             // Stdin REPL: Agent's default StdinPromptSource takes
             // System.in directly.
-            Agent(
+            SessionLoop(
                 cliArgs = parsed,
                 llmApi = llmApi,
                 historyStore = historyStore,
                 strategy = strategy,
                 memory = memory,
+                routedAgents = routedAgents,
             ).run()
         }
     }

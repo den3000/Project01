@@ -53,7 +53,7 @@ private const val DEFAULT_429_BACKOFF_MS: Long = 5_000L
  * failures (both attempts fail) return an `LlmResult.error`.
  *
  * Prints the request-header block before sending; the response footer
- * (`duration`, `tokens: …`) is the [Agent]'s job — it has the running
+ * (`duration`, `tokens: …`) is the [SessionLoop]'s job — it has the running
  * totals that the per-turn footer needs to reference.
  */
 class GeminiApi(

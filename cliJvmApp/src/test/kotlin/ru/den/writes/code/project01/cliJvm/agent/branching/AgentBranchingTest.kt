@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.agent.branching
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.Agent
+import ru.den.writes.code.project01.cliJvm.SessionLoop
 import ru.den.writes.code.project01.cliJvm.BranchCommand
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.PromptResult
@@ -32,7 +32,7 @@ class AgentBranchingTest {
             val chat = newChat(prompt = "m1", session = "s")
 
             // when
-            Agent(
+            SessionLoop(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,

@@ -7,6 +7,8 @@ import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterModel
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileCommand
 import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.TaskBinding
+import ru.den.writes.code.project01.shared.memory.TaskStage
 import ru.den.writes.code.project01.shared.memory.parseProfileCommand
 
 private const val ARG_PREFIX = "-"
@@ -34,6 +36,7 @@ private const val ARG_MEMORY = "${ARG_PREFIX}memory"
 private const val ARG_TASK = "${ARG_PREFIX}task"
 private const val ARG_PROFILE = "${ARG_PREFIX}profile"
 private const val ARG_MEMORY_MODE = "${ARG_PREFIX}memory-mode"
+private const val ARG_STAGE_AGENT = "${ARG_PREFIX}stageAgent"
 
 // -memory-mode values (matched case-insensitively).
 private const val MEMORY_MODE_PREAMBLE = "preamble"
@@ -297,6 +300,14 @@ internal sealed interface CliArgs {
          * `/memory-mode`.
          */
         val memoryMode: MemoryMode?,
+        /**
+         * `-stageAgent <from..to>=<provider>:<model>[@<profile>]` (repeatable):
+         * agents bound to FSM stage spans. Each turn routes to the agent whose
+         * span covers the active task stage; uncovered stages use the default
+         * agent built from `-provider`/`-model`/`-profile`. Empty = single-agent.
+         * Requires [memoryMode].
+         */
+        val stageAgents: List<StageAgentSpec>,
     ) : PromptCommand
 
     /**
@@ -333,6 +344,8 @@ internal sealed interface CliArgs {
                 "       [$ARG_STRATEGY <$STRATEGY_FULL|$STRATEGY_WINDOW|$STRATEGY_FACTS|$STRATEGY_SUMMARY> [$ARG_KEEP_LAST <int>] [$ARG_SUMMARIZE_EVERY <int>]]" +
                 "  (or $ARG_COMPRESS = $ARG_STRATEGY $STRATEGY_SUMMARY)\n" +
                 "       [$ARG_MEMORY_MODE <$MEMORY_MODE_PREAMBLE|$MEMORY_MODE_SYSTEM> [$ARG_TASK <id>] [$ARG_PROFILE <name>]]\n" +
+                "       [$ARG_STAGE_AGENT <from..to>=<provider>:<model>[@<profile>] ...]" +
+                "  (repeatable; per-stage model+profile; needs $ARG_MEMORY_MODE; uncovered stages use the default agent)\n" +
                 "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION, no $ARG_FEED_FILE]\n" +
                 "                (single prompt → response → exit; no REPL, no session)\n" +
                 "   or: $ARG_LIST_SESSIONS   (list saved sessions, ignores all other flags)\n" +
@@ -420,13 +433,24 @@ internal sealed interface CliArgs {
                 ARG_TASK,
                 ARG_PROFILE,
                 ARG_MEMORY_MODE,
+                ARG_STAGE_AGENT,
             )
             val values = mutableMapOf<String, String>()
+            // -stageAgent repeats (one per stage span), so it can't live in the
+            // last-wins `values` map — each occurrence accumulates here.
+            val stageAgentRaws = mutableListOf<String>()
             var currentFlag: String? = null
             val buffer = StringBuilder()
 
             fun flush() {
-                currentFlag?.let { values[it] = buffer.toString().trim() }
+                currentFlag?.let { flag ->
+                    val v = buffer.toString().trim()
+                    if (flag == ARG_STAGE_AGENT) {
+                        if (v.isNotEmpty()) stageAgentRaws += v
+                    } else {
+                        values[flag] = v
+                    }
+                }
                 buffer.setLength(0)
             }
 
@@ -453,6 +477,19 @@ internal sealed interface CliArgs {
                     argName = "$ARG_LIST_SESSIONS / $ARG_CLEAN / $ARG_ONESHOT / $ARG_MEMORY",
                     rawValue = "(multiple)",
                     expectedType = "at most one of $ARG_LIST_SESSIONS, $ARG_CLEAN, $ARG_ONESHOT, $ARG_MEMORY at a time",
+                )
+            }
+
+            // -stageAgent is a Chat-only concern: per-stage routing needs a
+            // live session + memory. Reject it in every other mode rather than
+            // silently dropping it.
+            if (stageAgentRaws.isNotEmpty() &&
+                (isList || isClean || isOneShot || isMemoryOp || ARG_INFLATE in values)
+            ) {
+                throw CliArgsException.InvalidArgumentValue(
+                    argName = ARG_STAGE_AGENT,
+                    rawValue = stageAgentRaws.first(),
+                    expectedType = "absent (only valid in chat mode)",
                 )
             }
 
@@ -821,6 +858,18 @@ internal sealed interface CliArgs {
                     expectedType = "absent (requires $ARG_MEMORY_MODE)",
                 )
             }
+            // -stageAgent: per-stage routing. Like -task/-profile it needs the
+            // memory layer on — routing keys off the active task's stage.
+            val stageAgents = stageAgentRaws.map { raw ->
+                parseStageAgentSpec(raw, geminiApiKey, openRouterApiKey, huggingFaceApiKey)
+            }
+            if (stageAgents.isNotEmpty() && memoryMode == null) {
+                throw CliArgsException.InvalidArgumentValue(
+                    argName = ARG_STAGE_AGENT,
+                    rawValue = stageAgentRaws.first(),
+                    expectedType = "absent (requires $ARG_MEMORY_MODE)",
+                )
+            }
 
             return Chat(
                 prompt = prompt,
@@ -840,6 +889,7 @@ internal sealed interface CliArgs {
                 task = task,
                 profile = profile,
                 memoryMode = memoryMode,
+                stageAgents = stageAgents,
             )
         }
 
@@ -1090,6 +1140,58 @@ internal sealed interface CliArgs {
                 rawValue = providerRaw,
                 expectedType = "one of: $PROVIDER_GEMINI, $PROVIDER_OPENROUTER, $PROVIDER_HUGGINGFACE",
             )
+        }
+
+        /**
+         * Parse one `-stageAgent <from..to>=<provider>:<model>[@<profile>]`.
+         * Model ids carry `/` and `:` but never `=` or `@`, so: split the range
+         * off at the first `=`, peel an optional `@profile` off the end, then
+         * take the provider up to the first `:` and the model as the rest
+         * (inner colons stay in the model id).
+         */
+        private fun parseStageAgentSpec(
+            raw: String,
+            geminiApiKey: String,
+            openRouterApiKey: String,
+            huggingFaceApiKey: String,
+        ): StageAgentSpec {
+            val expected = "<from..to>=<provider>:<model>[@<profile>]"
+            fun bad(detail: String): Nothing = throw CliArgsException.InvalidArgumentValue(
+                argName = ARG_STAGE_AGENT, rawValue = raw, expectedType = detail,
+            )
+
+            val eq = raw.indexOf('=')
+            if (eq <= 0 || eq >= raw.length - 1) bad(expected)
+            val rangeRaw = raw.substring(0, eq)
+            var spec = raw.substring(eq + 1)
+
+            // Optional @profile suffix — model ids never contain '@'.
+            var profileName: String? = null
+            val at = spec.indexOf('@')
+            if (at >= 0) {
+                val p = spec.substring(at + 1)
+                if (!isValidProfileName(p)) {
+                    bad("profile after '@' must be alphanumeric / '_' / '-', up to $MAX_SESSION_NAME_LENGTH chars")
+                }
+                profileName = p
+                spec = spec.substring(0, at)
+            }
+
+            // provider:model — provider up to the first ':', model is the rest.
+            val colon = spec.indexOf(':')
+            if (colon <= 0 || colon >= spec.length - 1) bad(expected)
+            val providerRaw = spec.substring(0, colon)
+            val modelRaw = spec.substring(colon + 1)
+
+            // from..to (single stage when there is no "..").
+            val parts = rangeRaw.split("..")
+            if (parts.size > 2) bad("stage range must be <stage> or <from>..<to>")
+            val from = TaskStage.byKeyword(parts.first()) ?: bad("unknown stage '${parts.first()}'")
+            val to = if (parts.size == 1) from else TaskStage.byKeyword(parts[1]) ?: bad("unknown stage '${parts[1]}'")
+            if (from.ordinal > to.ordinal) bad("stage range from must not be after to: $rangeRaw")
+
+            val provider = buildModelProvider(providerRaw, modelRaw, geminiApiKey, openRouterApiKey, huggingFaceApiKey)
+            return StageAgentSpec(TaskBinding(from, to), provider, profileName)
         }
     }
 }

@@ -7,7 +7,7 @@ import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
 
 /**
- * Optional history-compression strategy for [Agent].
+ * Optional history-compression strategy for [SessionLoop].
  *
  * Keeps the most recent [keepLast] messages verbatim and folds everything
  * older into a single rolling [summaryText]. At request-build time the
@@ -17,7 +17,7 @@ import ru.den.writes.code.project01.shared.llm.Usage
  * [maybeCompact]); nothing about the wire format or provider DTOs changes.
  *
  * ## Even-length invariant (load-bearing)
- * The message log [Agent] hands us is always **even-length and USER-first**:
+ * The message log [SessionLoop] hands us is always **even-length and USER-first**:
  * turns are appended as a (user, assistant) pair and only on success, so
  * between turns the list is `[USER, ASSISTANT, …, USER, ASSISTANT]`. We
  * rely on that to keep Gemini's "alternate user/model, start with user"

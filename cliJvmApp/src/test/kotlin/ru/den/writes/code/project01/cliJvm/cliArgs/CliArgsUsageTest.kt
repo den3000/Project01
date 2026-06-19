@@ -20,6 +20,7 @@ class CliArgsUsageTest {
             "-sessions", "-clean", "-inflate",
             "-feedFile", "-chunkChars", "-feedInstruction", "-byLine",
             "-compress", "-keepLast", "-summarizeEvery", "-strategy",
+            "-stageAgent",
         )
 
         // when - then
