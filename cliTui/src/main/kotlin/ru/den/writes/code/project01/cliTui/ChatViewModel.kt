@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.update
 /**
  * UI-agnostic ядро чата (MVI). Не знает ни про Kotter, ни про Mordant, ни про
  * plain-вывод — только состояние, интенты и one-shot эффекты. Любой вид
- * ([runMviChat] / [runPlainChat]) шлёт интенты и рендерит [ChatUiState] по-своему.
+ * ([runTuiChat] / [runPlainChat]) шлёт интенты и рендерит [ChatUiState] по-своему.
  */
 
 /** Что вид шлёт в VM. Семантика, а не сырые клавиши — VM не знает про Kotter. */

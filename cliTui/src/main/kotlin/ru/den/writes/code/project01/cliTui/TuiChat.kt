@@ -17,13 +17,13 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * Kotter+Mordant вид поверх [ChatViewModel] (MVI): ввод → интент → VM обновляет
- * состояние → секция перерисовывается. Единственный писатель состояния — VM,
- * поэтому конкурентные коллекторы Kotter (`onKeyPressed`/`onInputEntered`) не
- * дерутся за общую var. Состояние чистое ([ChatLine]/[PickerState]) — здесь оно
- * мапится в [KotterView] для рендера.
+ * TUI-вид (Kotter+Mordant) поверх [ChatViewModel]: ввод → интент → VM обновляет
+ * состояние → секция перерисовывается. Plain-собрат — [runPlainChat] поверх того
+ * же VM. Единственный писатель состояния — VM, поэтому конкурентные коллекторы
+ * Kotter (`onKeyPressed`/`onInputEntered`) не дерутся за общую var. Состояние
+ * чистое ([ChatLine]/[PickerState]) — здесь оно мапится в [KotterView] для рендера.
  */
-fun runMviChat(vm: ChatViewModel) = session {
+fun runTuiChat(vm: ChatViewModel) = session {
     val widgets = Terminal(ansiLevel = AnsiLevel.NONE, width = 60)
     var ui by liveVarOf(vm.state.value)
     val work = CoroutineScope(Dispatchers.Default)
