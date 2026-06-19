@@ -22,7 +22,7 @@ KMP-проект (пакет `ru.den.writes.code.project01`).
 - `context/` — `HistoryCompressor` (rolling-summary алгоритм, чистый, без `HistoryStore`) + `evenDown` (`EvenDown.kt`).
 - `pricing/` — `ModelPricing`/`PricingRegistry`: цены/окна. **Single source of truth по ценам.**
 - `memory/` — `Profile.kt` (`ProfileSection` style/format/constraints/context + `ProfileData` + `parseProfileData`/`renderProfileData`/`parseProfileCommand`/`isValidProfileName`), `MemoryLayer` (`composePreamble`/`composeSystem`), `MemoryMode` (PREAMBLE/SYSTEM), `MemoryModels.kt` (`RuleEntry`/`TaskNotes`), `TaskState.kt` (`TaskStage` clarification→planning→execution→validation→done + `TaskStateMachine`: `allowedNext`/`canTransition`/`parseStageSignal`).
-- `agent/` — `AgentConfig` (`LlmApi` + `GenerationParams`) + `AgentResponder.respond` (один ход без сессионного состояния: wire-list `memoryLayer+baseContext+userTurn` → `LlmApi`, парс stage-сигнала через `TaskStateMachine`) + `TurnOutcome`. Портируемое ядро, которое гоняет раннер.
+- `agent/` — `AgentConfig` (`LlmApi` + `GenerationParams` + опц. `profileName`) + `AgentResponder.respond` (один ход без сессионного состояния: wire-list `memoryLayer+baseContext+userTurn` → `LlmApi`, парс stage-сигнала через `TaskStateMachine`) + `TurnOutcome`. Портируемое ядро, которое гоняет раннер.
 - `util/Logging.kt` — `expect/actual logWarn` для retry-логов `*Api` (jvm/android → `System.err`, ios → `println`).
 - BuildKonfig (ключи API) — тоже в `shared`, см. «Версии и ключи».
 

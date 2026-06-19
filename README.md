@@ -150,6 +150,57 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
     where it left off. Their extra LLM calls are billed as **overhead**,
     surfaced separately in `-sessions`. Watch the footer's `context:` line
     relative to a `full` run to see a strategy holding prompt growth down.
+  - Memory layer (Chat mode only) — a persistent profile + rules + task that
+    ride along in every request, stored on disk under `~/.project01-cli/memory/`
+    and **never written into the conversation history** (injected per turn, not
+    saved as messages). Off by default. Manage the files offline with the
+    standalone `-memory` op; turn injection on for a chat with `-memory-mode`.
+    - `-memory-mode <preamble|system>` → enable the layer. `preamble` injects
+      it as one USER/ASSISTANT framing pair (any provider); `system` emits
+      `Role.SYSTEM` messages the provider lifts into its native system slot.
+      Without it the wire is byte-identical to a no-memory run; `-task` /
+      `-profile` / `-stageAgent` all require it.
+    - `-profile <name>` → start with this named profile active (swap mid-session
+      with `/profile-use <name>`).
+    - `-task <id>` → activate a working-memory task (create it first with
+      `-memory task <id>`); the task carries an FSM stage.
+    - `-memory <sub>` → standalone, no-LLM management (its own mode, not a
+      chat): `show`; `profile [<section> <text> | <section> clear | clear]` for
+      the unnamed `profile.md`; `profile <name> […]` for `profiles/<name>.md`;
+      `profile-list` / `profile-show <name>`; `rule add <text>` / `rule rm <id>`;
+      `task <id> [pause | resume]`. Profile sections: `style`, `format`,
+      `constraints`, `context`. REPL equivalents: `/memory`, `/profile …`,
+      `/profile-use`, `/rule`, `/task`, `/task-note`, `/task-pause`,
+      `/task-resume`, `/memory-mode`.
+
+    Three kinds of memory, by scope:
+    - **Profile** — a persona's instructions (the four sections above). Unnamed
+      `profile.md` is the fallback; named profiles are selectable and can be
+      pinned per agent (see per-stage). A profile's `constraints` are
+      persona-local: they apply only while that profile is active.
+    - **Rules** — global invariants (architecture, stack, business rules): one
+      flat numbered list injected on **every** turn regardless of the active
+      profile, so they survive profile switches and hold across all per-stage
+      agents. The home for "must never violate" constraints.
+    - **Task FSM** — a task moves `clarification → planning → execution →
+      validation → done` (one step back allowed; `done` is terminal). The stage
+      is injected each turn; the model advances it by ending a reply with a
+      `[[stage:<next>]]` marker, which the CLI validates against the transition
+      table before applying. `/task-pause` holds the stage.
+  - Per-stage agents (Chat mode + `-memory-mode` + an active task) — answer
+    different stages of a task with different models **and** profiles.
+    - `-stageAgent <from..to>=<provider>:<model>[@<profile>]` (repeatable) →
+      bind an agent to an inclusive span of FSM stages. Each turn is routed to
+      the agent whose span covers the task's current stage; uncovered stages
+      (and any turn with no active task) use the default agent from
+      `-provider`/`-model`/`-profile`. The model id keeps its `/` and `:` (the
+      provider is the text before the first `:`); `@<profile>` pins a named
+      profile to that agent (create it first; omit to use the session's active
+      profile). Requires `-memory-mode`; rejected in non-chat modes.
+    - In a multi-agent session each reply is prefixed with
+      `[[AGENT: <profile>:<model>]]` (printed, never persisted; `default` when
+      the agent has no pinned profile) so you can see which agent answered each
+      turn. Single-agent sessions print no tag.
   - Generation knobs (persist across REPL iterations — only the prompt
     changes between turns):
     - `-provider <gemini|openrouter|huggingface>` → picks which API to
@@ -263,6 +314,21 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
     -feedFile bigfile.txt -byLine \
     -strategy summary -keepLast 6 -summarizeEvery 6 \
     -session feed-summary
+
+  # Per-stage agents: a different model + profile per task stage. Create the
+  # task and named profiles offline first, then route stages to agents
+  # (needs -memory-mode + the active task).
+  ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -memory task jwt
+  ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp \
+    -memory profile interviewer constraints "Ask first; no code yet."
+  ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp \
+    -memory profile coder constraints "Kotlin + Ktor only; no Spring."
+  ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp \
+    -prompt "Help me build JWT login." \
+    -session jwt-demo -memory-mode system -task jwt \
+    -stageAgent clarification..planning=gemini:gemini-2.5-flash@interviewer \
+    -stageAgent execution..done=gemini:gemini-2.5-flash-lite@coder
+  # → every reply is prefixed with [[AGENT: <profile>:<model>]].
 
   # Inventory: per-session message count + total tokens + cost.
   ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -sessions
