@@ -20,6 +20,7 @@ import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.tui.TuiView
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.context.HistoryCompressor
@@ -484,7 +485,8 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 )
             }
         } else {
-            // Stdin REPL.
+            // Stdin REPL — TUI when -tui and a real TTY, else plain.
+            val tuiRequested = (parsed as? CliArgs.Chat)?.tui ?: false
             runSession(
                 cliArgs = parsed,
                 llmApi = llmApi,
@@ -495,6 +497,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 primary = StdinPromptSource(
                     java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
                 ),
+                view = pickView(tuiRequested, System.console() != null),
             )
         }
     }
@@ -515,18 +518,38 @@ private suspend fun runSession(
     routedAgents: List<RoutedAgent>,
     primary: PromptSource,
     replAfterFeed: PromptSource? = null,
+    view: ViewKind = ViewKind.PLAIN,
 ) {
     val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents)
     val commandRunner = CommandRunner(historyStore, memory, strategy)
     val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy)
-    val view = PlainView(multiAgent = routedAgents.isNotEmpty())
-    val feedThrottle = if (replAfterFeed != null) 16.seconds else Duration.ZERO
-    view.run(
-        viewModel,
-        PromptSourceIntents(primary, feedThrottle),
-        replAfterFeed?.let { PromptSourceIntents(it) },
-    )
+    val multiAgent = routedAgents.isNotEmpty()
+    when (view) {
+        ViewKind.TUI -> {
+            // Kotter drives input; the view-model's loop pulls intents the key
+            // handlers push into the channel. No feed throttle interactively.
+            TuiView(multiAgent).run(viewModel, ChannelIntentSource())
+        }
+        ViewKind.PLAIN -> {
+            val feedThrottle = if (replAfterFeed != null) 16.seconds else Duration.ZERO
+            PlainView(multiAgent).run(
+                viewModel,
+                PromptSourceIntents(primary, feedThrottle),
+                replAfterFeed?.let { PromptSourceIntents(it) },
+            )
+        }
+    }
 }
+
+/** Which renderer drives a session. */
+internal enum class ViewKind { TUI, PLAIN }
+
+/**
+ * TUI only for an opted-in Chat on a real TTY; feed / oneshot / non-TTY (pipe,
+ * IDE, CI) all render plain. Pure so the choice is unit-testable.
+ */
+internal fun pickView(tui: Boolean, hasConsole: Boolean): ViewKind =
+    if (tui && hasConsole) ViewKind.TUI else ViewKind.PLAIN
 
 /**
  * Eight-char hex slice off a random UUID — readable on screen, easy to
