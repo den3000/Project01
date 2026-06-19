@@ -82,6 +82,13 @@ data class GenerationParams(
     val stopSequences: List<String>? = null,
     val endSequence: String? = null,
     val temperature: Double? = null,
+    /**
+     * Gemini thinking budget — tokens the model may spend reasoning before the
+     * visible answer. null = leave the provider default (thinking on); 0 =
+     * disable thinking on Gemini 2.5 Flash so the whole [maxTokens] goes to the
+     * answer instead of being eaten by reasoning. Other providers ignore it.
+     */
+    val thinkingBudget: Int? = null,
 )
 
 /**
