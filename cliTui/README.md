@@ -1,18 +1,20 @@
 # cliTui — песочница сравнения TUI-библиотек
 
-Изолированный модуль для оценки terminal UI на Kotlin/JVM поверх одной заглушки
-чата ([`DemoResponder`](src/main/kotlin/ru/den/writes/code/project01/cliTui/DemoResponder.kt) —
-эхо по словам, без сети и токенов). Рабочий `:cliJvmApp` не затронут — модуль
-самостоятельный, чистый JVM (без Compose).
+Изолированный модуль для оценки terminal UI на Kotlin/JVM. Рабочий `:cliJvmApp` не
+затронут — модуль самостоятельный, чистый JVM (без Compose).
 
-Один бинарь, три режима (идентичный сценарий: лента сообщений + ввод + footer
-turn/session/context):
+**Сравнение завершено: выбран combo (Kotter-каркас + Mordant-виджеты).** Отдельные
+экспонаты (`KotterChat`/`MordantChat`/`ComboChat` + заглушка `DemoResponder`) сведены
+в один **MVI-стек** (см. git history). Текущая раскладка:
 
-| Файл | Режим |
-|------|-------|
-| [`KotterChat.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/KotterChat.kt)  | declarative TUI без Compose (Varabyte) |
-| [`MordantChat.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/MordantChat.kt) | богатый вывод + цикл ввода (AJ Alt) |
-| [`ComboChat.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/ComboChat.kt)    | **Kotter-каркас + Mordant-виджеты** |
+| Файл | Роль |
+|------|------|
+| [`ChatViewModel.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/ChatViewModel.kt) | UI-agnostic ядро (состояние + интенты + эффекты) |
+| [`TuiChat.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/TuiChat.kt) | TUI-вид: Kotter + Mordant |
+| [`KotterView.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/KotterView.kt) | словарь рендера TUI |
+| [`PlainChat.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/PlainChat.kt) | plain-вид (тот же VM, без либ) |
+
+Сравнение, которое к этому привело, — ниже (историческое, по факту прогона).
 
 ### Mosaic выброшен
 
@@ -28,7 +30,8 @@ turn/session/context):
 
 ```bash
 ./gradlew :cliTui:installDist
-./cliTui/build/install/cliTui/bin/cliTui combo    # или kotter / mordant
+./cliTui/build/install/cliTui/bin/cliTui          # TUI-вид (Kotter+Mordant)
+./cliTui/build/install/cliTui/bin/cliTui plain    # plain-вид
 ```
 
 Печатай текст → Enter отправляет → ответ «стримится» по словам → footer со
@@ -68,5 +71,6 @@ Mordant-таблицу выбора **на месте** `stats` (стрелки/
 статичный вывод. Триггер `multiline` показывает многострочный ответ с
 выравниванием продолжений.
 
-Реальную проводку LLM (`LlmApi`) в combo — отдельным шагом (типы в `cliJvmApp`
-сейчас `internal`, нужно поднять видимость тонкого фасада).
+Поверх combo-рендера затем встал **MVI-каркас** (UI-agnostic `ChatViewModel` +
+plain-фолбэк над тем же VM). Перенос в боевой `cliJvmApp` (по MVI, без подъёма
+`LlmApi` наружу) описан в [`INTEGRATION.md`](INTEGRATION.md).
