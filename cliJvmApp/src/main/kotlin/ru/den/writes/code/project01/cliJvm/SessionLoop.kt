@@ -657,7 +657,7 @@ internal fun formatContextFill(promptTokens: Int, windowTokens: Int): String {
     return "context: %d / %d (%.1f%%)".format(promptTokens, windowTokens, pct)
 }
 
-private fun formatTurnTokens(usage: Usage): String = buildString {
+internal fun formatTurnTokens(usage: Usage): String = buildString {
     append("prompt=${usage.promptTokens}  output=${usage.outputTokens}")
     if (usage.thoughtsTokens > 0) append("  thoughts=${usage.thoughtsTokens}")
     append("  total=${usage.totalTokens}")
@@ -669,7 +669,7 @@ private fun formatSessionTokens(stats: SessionStats): String = buildString {
     append("  total=${stats.totalTokens}")
 }
 
-private fun formatCost(usd: Double?, knownPricing: Boolean): String =
+internal fun formatCost(usd: Double?, knownPricing: Boolean): String =
     when {
         !knownPricing -> "$? (no pricing)"
         usd == null -> "$? (no pricing)"
