@@ -6,6 +6,8 @@ import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.StdinPromptSource
 import java.io.BufferedReader
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 import java.io.StringReader
 
 /**
@@ -51,3 +53,44 @@ internal fun dummyGeminiProvider(
 /** Pre-loaded stdin source that hands the REPL the given script line by line. */
 internal fun stdinSource(script: String): StdinPromptSource =
     StdinPromptSource(BufferedReader(StringReader(script)))
+
+/**
+ * Process output captured during a run, split by stream. [stdout] carries
+ * the reply + per-turn footer; [stderr] carries the `[session]` / `[task]`
+ * / `[warning]` / `[error]` / `[branch]` / `[memory]` lines. The split is the
+ * contract a user relies on when redirecting a transcript (`> out 2> log`),
+ * so the golden tests assert on both halves.
+ */
+internal data class CapturedOutput(val stdout: String, val stderr: String)
+
+/**
+ * Run [block] with `System.out` / `System.err` redirected into buffers and
+ * return what each captured (originals restored even on throw). `inline` so
+ * the lambda may call `suspend` functions when invoked inside `runTest`.
+ * Used by the characterization golden tests that pin the exact output before
+ * the MVI refactor relocates rendering into a view.
+ */
+internal inline fun captureStdoutStderr(block: () -> Unit): CapturedOutput {
+    val originalOut = System.out
+    val originalErr = System.err
+    val outBuf = ByteArrayOutputStream()
+    val errBuf = ByteArrayOutputStream()
+    System.setOut(PrintStream(outBuf, true, "UTF-8"))
+    System.setErr(PrintStream(errBuf, true, "UTF-8"))
+    try {
+        block()
+    } finally {
+        System.out.flush()
+        System.err.flush()
+        System.setOut(originalOut)
+        System.setErr(originalErr)
+    }
+    return CapturedOutput(outBuf.toString("UTF-8"), errBuf.toString("UTF-8"))
+}
+
+/**
+ * Replace the non-deterministic `duration: <n> ms` footer line with a fixed
+ * placeholder so golden comparisons don't flake on per-run timing.
+ */
+internal fun String.maskDuration(): String =
+    replace(Regex("""duration: \d+ ms"""), "duration: <ms> ms")
