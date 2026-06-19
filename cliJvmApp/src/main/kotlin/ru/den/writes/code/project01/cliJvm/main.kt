@@ -23,6 +23,7 @@ import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.context.HistoryCompressor
+import ru.den.writes.code.project01.shared.invariant.LlmInvariantJudge
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.Usage
@@ -450,6 +451,15 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 modelId = spec.provider.modelId,
             )
         }
+        // Per-stage invariant judges (-judgeAgent): one RoutedJudge per spec,
+        // each an LlmInvariantJudge on its own model surface. Empty unless the
+        // user opted in (which also requires -stageAgent).
+        val routedJudges: List<RoutedJudge> = chat?.judgeAgents.orEmpty().map { spec ->
+            RoutedJudge(
+                binding = spec.binding,
+                checker = LlmInvariantJudge(buildLlmApi(spec.provider)),
+            )
+        }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile
         if (feedFile != null) {
             // File-driven feed mode: open the reader and hand a feed source
@@ -479,6 +489,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                     strategy = strategy,
                     memory = memory,
                     routedAgents = routedAgents,
+                    routedJudges = routedJudges,
                 ).run()
             }
         } else {
@@ -491,6 +502,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 strategy = strategy,
                 memory = memory,
                 routedAgents = routedAgents,
+                routedJudges = routedJudges,
             ).run()
         }
     }

@@ -565,6 +565,7 @@ class AgentMemoryTest {
         profile = null,
         memoryMode = null,
         stageAgents = emptyList(),
+        judgeAgents = emptyList(),
     )
 
     private fun stdinSource(script: String): StdinPromptSource =
