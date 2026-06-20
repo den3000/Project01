@@ -5,6 +5,7 @@ import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
+import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
 import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
@@ -92,6 +93,13 @@ internal class SessionLoop(
      * routing existed.
      */
     private val routedAgents: List<RoutedAgent> = emptyList(),
+    /**
+     * Per-stage invariant judges: each owns a [TaskBinding] span and audits the
+     * reply of any turn whose active task stage falls in it. Empty (the
+     * default) = no judging — byte-identical to before. Needs per-stage agents
+     * plus an active task to route on (enforced at parse time, see `CliArgs`).
+     */
+    private val routedJudges: List<RoutedJudge> = emptyList(),
 ) {
     /**
      * The source currently driving prompts. Set inside [send] so
@@ -120,6 +128,35 @@ internal class SessionLoop(
      */
     private fun agentFor(stage: TaskStage?): RoutedAgent =
         stage?.let { s -> routedAgents.firstOrNull { s in it.binding } } ?: fallbackAgent
+
+    /**
+     * The per-stage judge whose binding spans [stage], or null when none does.
+     * Same first-wins, declaration-order resolution as [agentFor].
+     */
+    private fun judgeFor(stage: TaskStage): RoutedJudge? =
+        routedJudges.firstOrNull { stage in it.binding }
+
+    /**
+     * Run the per-stage invariant judge over [reply] and return its verdict.
+     * Returns [InvariantVerdict.CLEAN] (a no-op, so this is byte-identical to
+     * before when judging is off) whenever there is nothing to judge with: no
+     * judges wired, no memory layer, no active task [stage], or no judge spans
+     * that stage. Otherwise the judge audits [reply] against the global rules
+     * plus the `constraints` of the profile [agentProfile] answered with.
+     */
+    private suspend fun maybeJudge(
+        reply: String,
+        stage: TaskStage?,
+        agentProfile: String?,
+    ): InvariantVerdict {
+        if (routedJudges.isEmpty()) return InvariantVerdict.CLEAN
+        val mem = memory ?: return InvariantVerdict.CLEAN
+        val activeStage = stage ?: return InvariantVerdict.CLEAN
+        val judge = judgeFor(activeStage) ?: return InvariantVerdict.CLEAN
+        val rules = mem.store.listRules()
+        val constraints = mem.constraintsForAgent(agentProfile)
+        return judge.checker.check(reply, rules, constraints)
+    }
 
     /**
      * Drives the conversation.
@@ -272,12 +309,19 @@ internal class SessionLoop(
             return null
         }
 
-        historyStore?.append(userTurn)
-        historyStore?.append(
-            Message(role = Role.ASSISTANT, text = text),
-            usage = result.usage,
-            modelId = modelId,
-        )
+        // Independent invariant judge (per-stage). A breach suppresses the
+        // turn: the reply is still shown, but it is NOT persisted (so the
+        // violation doesn't poison later context) and the task stage is held.
+        // No judge for this stage / judging off → CLEAN, identical to before.
+        val verdict = maybeJudge(text, stage, agent.profileName)
+        if (verdict.passed) {
+            historyStore?.append(userTurn)
+            historyStore?.append(
+                Message(role = Role.ASSISTANT, text = text),
+                usage = result.usage,
+                modelId = modelId,
+            )
+        }
         currentSource.observeReply(text)
 
         // Multi-agent session: tag each reply with the agent that produced it
@@ -285,10 +329,17 @@ internal class SessionLoop(
         if (routedAgents.isNotEmpty()) println(agentTag(agent.profileName, agent.modelId))
         println(text)
         printFooter(duration.inWholeMilliseconds, result.usage, modelId)
+        if (!verdict.passed) {
+            verdict.violations.forEach {
+                System.err.println("[invariant] violated ${it.ruleId ?: "constraint"}: ${it.explanation}")
+            }
+            System.err.println("[invariant] reply not saved to history; task stage held")
+        }
         // Auto-advance the active task's stage if the model signalled a move
-        // in its reply (validated against the transition table). Runs after
-        // the footer so the `[task]` line trails the turn block.
-        maybeAdvanceTaskStage(outcome.proposedStage)
+        // in its reply (validated against the transition table). A judge breach
+        // holds the stage by passing null. Runs after the footer so the `[task]`
+        // line trails the turn block.
+        maybeAdvanceTaskStage(if (verdict.passed) outcome.proposedStage else null)
         delay(16.seconds)
         return text
     }

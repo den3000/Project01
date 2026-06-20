@@ -198,12 +198,13 @@ private fun Message.toContentOrNull(): Content? = when (role) {
  * trailing marker) and is handled via [buildSystemInstruction]. Returns
  * `null` when nothing is set so the field is omitted from the request body.
  */
-private fun GenerationParams.toGenerationConfig(): GenerationConfig? {
-    if (maxTokens == null && stopSequences == null && temperature == null) return null
+internal fun GenerationParams.toGenerationConfig(): GenerationConfig? {
+    if (maxTokens == null && stopSequences == null && temperature == null && thinkingBudget == null) return null
     return GenerationConfig(
         maxOutputTokens = maxTokens,
         stopSequences = stopSequences,
         temperature = temperature,
+        thinkingConfig = thinkingBudget?.let { ThinkingConfig(thinkingBudget = it) },
     )
 }
 

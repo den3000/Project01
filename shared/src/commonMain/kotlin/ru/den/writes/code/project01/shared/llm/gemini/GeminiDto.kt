@@ -42,6 +42,17 @@ internal data class GenerationConfig(
     val maxOutputTokens: Int? = null,
     val stopSequences: List<String>? = null,
     val temperature: Double? = null,
+    val thinkingConfig: ThinkingConfig? = null,
+)
+
+/**
+ * Gemini `thinkingConfig`. [thinkingBudget] caps reasoning tokens; 0 disables
+ * thinking on Gemini 2.5 Flash so the budget isn't spent before the answer.
+ * Omitted from the body (null) leaves the model's default.
+ */
+@Serializable
+internal data class ThinkingConfig(
+    val thinkingBudget: Int? = null,
 )
 
 @Serializable

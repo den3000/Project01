@@ -37,6 +37,7 @@ internal fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.C
     profile = null,
     memoryMode = null,
     stageAgents = emptyList(),
+    judgeAgents = emptyList(),
 )
 
 /**

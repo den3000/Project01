@@ -201,6 +201,22 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
       `[[AGENT: <profile>:<model>]]` (printed, never persisted; `default` when
       the agent has no pinned profile) so you can see which agent answered each
       turn. Single-agent sessions print no tag.
+  - Invariant judge (Chat + per-stage agents + an active task) — a second,
+    **independent** enforcement line for the `rules` invariants, beyond just
+    injecting them into the prompt. After each reply the judge whose span
+    covers the active stage audits it in a separate, context-free LLM call (no
+    history — so it isn't pulled by the same pressure that produced a breach).
+    - `-judgeAgent <from..to>=<provider>:<model>` (repeatable) → bind a judge
+      to an FSM stage span. Persona-less — model + span only, no `@profile`.
+      Requires at least one `-stageAgent` (and so `-memory-mode`).
+    - The judge checks the reply against the global `rules` **plus** the
+      `constraints` of the profile the answering agent spoke with, and also
+      flags any of those constraints that contradict the rules.
+    - On a violation the reply is still printed, then an `[invariant] …` banner
+      names what broke — but the turn is NOT saved to history (so the breach
+      doesn't poison later context) and the task stage is held. A clean verdict
+      (or a stage no judge spans) leaves the turn untouched. Fail-open: a
+      judge-call error degrades to "not blocked".
   - Generation knobs (persist across REPL iterations — only the prompt
     changes between turns):
     - `-provider <gemini|openrouter|huggingface>` → picks which API to

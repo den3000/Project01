@@ -37,6 +37,7 @@ private const val ARG_TASK = "${ARG_PREFIX}task"
 private const val ARG_PROFILE = "${ARG_PREFIX}profile"
 private const val ARG_MEMORY_MODE = "${ARG_PREFIX}memory-mode"
 private const val ARG_STAGE_AGENT = "${ARG_PREFIX}stageAgent"
+private const val ARG_JUDGE_AGENT = "${ARG_PREFIX}judgeAgent"
 
 // -memory-mode values (matched case-insensitively).
 private const val MEMORY_MODE_PREAMBLE = "preamble"
@@ -308,6 +309,15 @@ internal sealed interface CliArgs {
          * Requires [memoryMode].
          */
         val stageAgents: List<StageAgentSpec>,
+        /**
+         * `-judgeAgent <from..to>=<provider>:<model>` (repeatable): per-stage
+         * invariant judges. After each turn the judge whose span covers the
+         * active task stage audits the reply against the global rules plus the
+         * answering agent's profile constraints; a breach suppresses the turn
+         * (shown, not persisted; stage held). Empty = no judging. Requires at
+         * least one [stageAgents] entry (and thus [memoryMode]).
+         */
+        val judgeAgents: List<StageJudgeSpec>,
     ) : PromptCommand
 
     /**
@@ -346,6 +356,8 @@ internal sealed interface CliArgs {
                 "       [$ARG_MEMORY_MODE <$MEMORY_MODE_PREAMBLE|$MEMORY_MODE_SYSTEM> [$ARG_TASK <id>] [$ARG_PROFILE <name>]]\n" +
                 "       [$ARG_STAGE_AGENT <from..to>=<provider>:<model>[@<profile>] ...]" +
                 "  (repeatable; per-stage model+profile; needs $ARG_MEMORY_MODE; uncovered stages use the default agent)\n" +
+                "       [$ARG_JUDGE_AGENT <from..to>=<provider>:<model> ...]" +
+                "  (repeatable; per-stage invariant judge; needs $ARG_STAGE_AGENT)\n" +
                 "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION, no $ARG_FEED_FILE]\n" +
                 "                (single prompt → response → exit; no REPL, no session)\n" +
                 "   or: $ARG_LIST_SESSIONS   (list saved sessions, ignores all other flags)\n" +
@@ -434,11 +446,14 @@ internal sealed interface CliArgs {
                 ARG_PROFILE,
                 ARG_MEMORY_MODE,
                 ARG_STAGE_AGENT,
+                ARG_JUDGE_AGENT,
             )
             val values = mutableMapOf<String, String>()
             // -stageAgent repeats (one per stage span), so it can't live in the
             // last-wins `values` map — each occurrence accumulates here.
             val stageAgentRaws = mutableListOf<String>()
+            // -judgeAgent likewise repeats (one judge per stage span).
+            val judgeAgentRaws = mutableListOf<String>()
             var currentFlag: String? = null
             val buffer = StringBuilder()
 
@@ -447,6 +462,8 @@ internal sealed interface CliArgs {
                     val v = buffer.toString().trim()
                     if (flag == ARG_STAGE_AGENT) {
                         if (v.isNotEmpty()) stageAgentRaws += v
+                    } else if (flag == ARG_JUDGE_AGENT) {
+                        if (v.isNotEmpty()) judgeAgentRaws += v
                     } else {
                         values[flag] = v
                     }
@@ -489,6 +506,16 @@ internal sealed interface CliArgs {
                 throw CliArgsException.InvalidArgumentValue(
                     argName = ARG_STAGE_AGENT,
                     rawValue = stageAgentRaws.first(),
+                    expectedType = "absent (only valid in chat mode)",
+                )
+            }
+            // -judgeAgent is likewise Chat-only.
+            if (judgeAgentRaws.isNotEmpty() &&
+                (isList || isClean || isOneShot || isMemoryOp || ARG_INFLATE in values)
+            ) {
+                throw CliArgsException.InvalidArgumentValue(
+                    argName = ARG_JUDGE_AGENT,
+                    rawValue = judgeAgentRaws.first(),
                     expectedType = "absent (only valid in chat mode)",
                 )
             }
@@ -870,6 +897,20 @@ internal sealed interface CliArgs {
                     expectedType = "absent (requires $ARG_MEMORY_MODE)",
                 )
             }
+            // -judgeAgent: per-stage invariant judges, persona-less (model +
+            // stage span only). They only make sense alongside per-stage agents,
+            // so require at least one -stageAgent (which already implies
+            // -memory-mode).
+            val judgeAgents = judgeAgentRaws.map { raw ->
+                parseJudgeAgentSpec(raw, geminiApiKey, openRouterApiKey, huggingFaceApiKey)
+            }
+            if (judgeAgents.isNotEmpty() && stageAgents.isEmpty()) {
+                throw CliArgsException.InvalidArgumentValue(
+                    argName = ARG_JUDGE_AGENT,
+                    rawValue = judgeAgentRaws.first(),
+                    expectedType = "absent (requires $ARG_STAGE_AGENT)",
+                )
+            }
 
             return Chat(
                 prompt = prompt,
@@ -890,6 +931,7 @@ internal sealed interface CliArgs {
                 profile = profile,
                 memoryMode = memoryMode,
                 stageAgents = stageAgents,
+                judgeAgents = judgeAgents,
             )
         }
 
@@ -1192,6 +1234,48 @@ internal sealed interface CliArgs {
 
             val provider = buildModelProvider(providerRaw, modelRaw, geminiApiKey, openRouterApiKey, huggingFaceApiKey)
             return StageAgentSpec(TaskBinding(from, to), provider, profileName)
+        }
+
+        /**
+         * Parse one `-judgeAgent <from..to>=<provider>:<model>` into a
+         * [StageJudgeSpec]. Same `<from..to>=<provider>:<model>` grammar as
+         * [parseStageAgentSpec] minus the `@profile` suffix — a judge has no
+         * persona. Inner colons stay in the model id.
+         */
+        private fun parseJudgeAgentSpec(
+            raw: String,
+            geminiApiKey: String,
+            openRouterApiKey: String,
+            huggingFaceApiKey: String,
+        ): StageJudgeSpec {
+            val expected = "<from..to>=<provider>:<model>"
+            fun bad(detail: String): Nothing = throw CliArgsException.InvalidArgumentValue(
+                argName = ARG_JUDGE_AGENT, rawValue = raw, expectedType = detail,
+            )
+
+            val eq = raw.indexOf('=')
+            if (eq <= 0 || eq >= raw.length - 1) bad(expected)
+            val rangeRaw = raw.substring(0, eq)
+            val spec = raw.substring(eq + 1)
+            // A judge has no persona — reject a stray @profile rather than
+            // folding it into the model id.
+            if ('@' in spec) bad("judge takes no @profile — use $expected")
+
+            // provider:model — provider up to the first ':', model is the rest.
+            val colon = spec.indexOf(':')
+            if (colon <= 0 || colon >= spec.length - 1) bad(expected)
+            val providerRaw = spec.substring(0, colon)
+            val modelRaw = spec.substring(colon + 1)
+
+            // from..to (single stage when there is no "..").
+            val parts = rangeRaw.split("..")
+            if (parts.size > 2) bad("stage range must be <stage> or <from>..<to>")
+            val from = TaskStage.byKeyword(parts.first()) ?: bad("unknown stage '${parts.first()}'")
+            val to = if (parts.size == 1) from else TaskStage.byKeyword(parts[1]) ?: bad("unknown stage '${parts[1]}'")
+            if (from.ordinal > to.ordinal) bad("stage range from must not be after to: $rangeRaw")
+
+            val provider = buildModelProvider(providerRaw, modelRaw, geminiApiKey, openRouterApiKey, huggingFaceApiKey)
+            return StageJudgeSpec(TaskBinding(from, to), provider)
         }
     }
 }

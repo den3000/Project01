@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.shared.llm.gemini
 
+import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlin.test.Test
@@ -155,6 +156,45 @@ class GeminiApiTest {
         assertNotNull(si)
         val expected = "[Profile]\nP\n\nAlways end your response with the literal text: \"<<DONE>>\""
         assertEquals(expected, si.parts.single().text)
+    }
+    //endregion
+
+    //region toGenerationConfig — thinkingBudget
+
+    @Test
+    fun `when thinkingBudget set - then thinkingConfig carries it`() {
+        // given
+        val params = GenerationParams(maxTokens = 1024, thinkingBudget = 0)
+
+        // when
+        val config = params.toGenerationConfig()
+
+        // then
+        assertNotNull(config)
+        assertEquals(0, config.thinkingConfig?.thinkingBudget)
+        assertEquals(1024, config.maxOutputTokens)
+    }
+
+    @Test
+    fun `when thinkingBudget null - then thinkingConfig omitted`() {
+        // given — regression: callers that don't set it keep the prior body
+        val params = GenerationParams(maxTokens = 512, temperature = 0.5)
+
+        // when
+        val config = params.toGenerationConfig()
+
+        // then
+        assertNotNull(config)
+        assertNull(config.thinkingConfig)
+    }
+
+    @Test
+    fun `when nothing set at all - then null config`() {
+        // given
+        val params = GenerationParams()
+
+        // when - then
+        assertNull(params.toGenerationConfig())
     }
     //endregion
 }
