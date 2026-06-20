@@ -17,6 +17,13 @@ internal data class UiState(
 
 /** One rendered unit in the transcript. */
 internal sealed interface UiLine {
+    /**
+     * The user's submitted prompt, echoed into the transcript. The TUI renders
+     * it (raw mode suppresses the terminal echo); PlainView skips it (the
+     * terminal already shows the typed line, so echoing would double it).
+     */
+    data class User(val text: String) : UiLine
+
     /** A completed turn: reply + footer (+ any task-stage move). */
     data class Turn(val outcome: TurnResult.Ok) : UiLine
 

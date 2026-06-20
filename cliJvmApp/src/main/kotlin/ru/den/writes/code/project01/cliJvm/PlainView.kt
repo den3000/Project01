@@ -52,6 +52,8 @@ internal class PlainView(private val multiAgent: Boolean) {
     }
 
     private fun render(line: UiLine) = when (line) {
+        // The terminal already echoed the typed line; re-printing would double it.
+        is UiLine.User -> Unit
         is UiLine.Turn -> renderTurn(line.outcome)
         is UiLine.Error -> System.err.println("[error] ${line.reason}")
         is UiLine.Notice -> System.err.println(line.text)

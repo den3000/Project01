@@ -38,6 +38,15 @@ class TuiViewTest {
         // when - then
         assertEquals(listOf("assistant │ "), wrapWords("assistant", "", width = 80))
     }
+
+    @Test
+    fun `when text has explicit newlines - then they are preserved with aligned continuations`() {
+        // when — a markdown-style list keeps its line breaks
+        val out = wrapWords("assistant", "line one\nline two", width = 80)
+
+        // then
+        assertEquals(listOf("assistant │ line one", "            line two"), out)
+    }
     //endregion
 
     //region toIntent

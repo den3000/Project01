@@ -81,7 +81,7 @@ internal class SessionViewModel(
 
     /** Run one turn; returns true on success, false on failure (lets a feed source abort). */
     private suspend fun runTurn(prompt: String): Boolean {
-        state.update { it.copy(busy = true) }
+        state.update { it.copy(busy = true, lines = it.lines + UiLine.User(prompt)) }
         return when (val result = engine.turn(prompt)) {
             is TurnResult.Ok -> {
                 lastReply = result.reply
