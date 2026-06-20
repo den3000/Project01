@@ -38,7 +38,7 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 private const val WRAP_PREFIX_WIDTH = 12
 
 /** Cap on the wrap column so wide terminals keep a readable fixed format. */
-private const val MAX_CONTENT_WIDTH = 80
+private const val MAX_CONTENT_WIDTH = 120
 
 /**
  * Kotter + Mordant terminal UI over [SessionViewModel]. The transcript scrolls
@@ -112,7 +112,7 @@ internal class TuiView(private val multiAgent: Boolean) {
         val pricing = PricingRegistry.lookup(o.modelId)
         val cost = pricing?.let { PricingRegistry.cost(usage, it) }
         val line = formatTurnTokens(usage) + "  cost=${formatCost(cost, pricing != null)}"
-        wrapWords("turn", line, width).forEach { textLine(it) }
+        wrapWords("turn ${o.session?.turns ?: 1}", line, width).forEach { textLine(it) }
     }
 
     private fun RenderScope.renderStats(terminal: Terminal, s: SessionStatsSnapshot) {
@@ -142,7 +142,8 @@ internal fun toIntent(text: String): UiIntent? = when {
  */
 internal fun wrapWords(label: String, text: String, width: Int): List<String> {
     val prefix = label.padEnd(WRAP_PREFIX_WIDTH - 2) + "│ "
-    val indent = " ".repeat(WRAP_PREFIX_WIDTH)
+    // Continuations repeat the bar so the whole entry reads as one column.
+    val indent = " ".repeat(WRAP_PREFIX_WIDTH - 2) + "│ "
     val avail = (width - WRAP_PREFIX_WIDTH).coerceAtLeast(1)
     val wrapped = mutableListOf<String>()
     for (paragraph in text.split('\n')) {

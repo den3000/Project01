@@ -30,7 +30,7 @@ class TuiViewTest {
         // then — prefix is 12 chars; continuations indent 12 spaces under the │
         assertTrue(out.size > 1, "expected a wrap, got $out")
         assertTrue(out.first().startsWith("assistant │ "))
-        assertTrue(out.drop(1).all { it.startsWith(" ".repeat(12)) }, "continuations should be indented: $out")
+        assertTrue(out.drop(1).all { it.startsWith(" ".repeat(10) + "│ ") }, "continuations align under the bar: $out")
     }
 
     @Test
@@ -45,7 +45,7 @@ class TuiViewTest {
         val out = wrapWords("assistant", "line one\nline two", width = 80)
 
         // then
-        assertEquals(listOf("assistant │ line one", "            line two"), out)
+        assertEquals(listOf("assistant │ line one", "          │ line two"), out)
     }
     //endregion
 
