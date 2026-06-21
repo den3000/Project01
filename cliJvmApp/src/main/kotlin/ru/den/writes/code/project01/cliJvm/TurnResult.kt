@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
 import ru.den.writes.code.project01.shared.llm.Usage
 import ru.den.writes.code.project01.shared.memory.TaskStage
 
@@ -22,7 +23,9 @@ internal sealed interface TurnResult {
      * [durationMs] is the measured call time; [session] is the running-total
      * snapshot at this turn (null in OneShot — no history to accumulate into,
      * so the footer prints no `session:` line); [stageAdvance] is what
-     * happened to the task FSM.
+     * happened to the task FSM; [verdict] is the per-stage invariant judge's
+     * verdict — [InvariantVerdict.CLEAN] unless a judge flagged a breach, in
+     * which case the turn was shown but NOT persisted and the stage was held.
      */
     data class Ok(
         val reply: String,
@@ -32,6 +35,7 @@ internal sealed interface TurnResult {
         val durationMs: Long,
         val session: SessionStatsSnapshot?,
         val stageAdvance: StageAdvance,
+        val verdict: InvariantVerdict = InvariantVerdict.CLEAN,
     ) : TurnResult
 
     /** The turn failed (provider error or empty response). [reason] is the message. */

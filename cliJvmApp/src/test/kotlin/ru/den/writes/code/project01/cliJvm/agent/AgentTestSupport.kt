@@ -10,6 +10,7 @@ import ru.den.writes.code.project01.cliJvm.PlainView
 import ru.den.writes.code.project01.cliJvm.PromptSource
 import ru.den.writes.code.project01.cliJvm.PromptSourceIntents
 import ru.den.writes.code.project01.cliJvm.RoutedAgent
+import ru.den.writes.code.project01.cliJvm.RoutedJudge
 import ru.den.writes.code.project01.cliJvm.SessionViewModel
 import ru.den.writes.code.project01.cliJvm.StdinPromptSource
 import ru.den.writes.code.project01.cliJvm.TurnEngine
@@ -52,6 +53,7 @@ internal fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.C
     memoryMode = null,
     stageAgents = emptyList(),
     tui = false,
+    judgeAgents = emptyList(),
 )
 
 /**
@@ -81,8 +83,9 @@ internal suspend fun runSessionForTest(
     strategy: ContextStrategy = ContextStrategy.FullHistory,
     memory: MemoryProvider? = null,
     routedAgents: List<RoutedAgent> = emptyList(),
+    routedJudges: List<RoutedJudge> = emptyList(),
 ) {
-    val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents)
+    val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges)
     val commandRunner = CommandRunner(historyStore, memory, strategy)
     val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy)
     val view = PlainView(multiAgent = routedAgents.isNotEmpty())

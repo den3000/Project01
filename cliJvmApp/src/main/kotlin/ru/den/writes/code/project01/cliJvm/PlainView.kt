@@ -3,6 +3,7 @@ package ru.den.writes.code.project01.cliJvm
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 
 /** The 72-char `<<<…` footer rule. */
@@ -63,7 +64,22 @@ internal class PlainView(private val multiAgent: Boolean) {
         if (multiAgent) println(agentTag(o.profileName, o.modelId))
         println(o.reply)
         printFooter(o)
+        renderInvariant(o.verdict)
         renderStageAdvance(o.stageAdvance)
+    }
+
+    /**
+     * Independent-judge breach banner — printed only when the per-stage judge
+     * flagged [verdict]. Like the footer/`[task]` split it goes to stderr (so it
+     * survives a stdout redirect), after the footer and before the `[task]`
+     * line. A CLEAN verdict prints nothing — byte-identical to judging off.
+     */
+    private fun renderInvariant(verdict: InvariantVerdict) {
+        if (verdict.passed) return
+        verdict.violations.forEach {
+            System.err.println("[invariant] violated ${it.ruleId ?: "constraint"}: ${it.explanation}")
+        }
+        System.err.println("[invariant] reply not saved to history; task stage held")
     }
 
     private fun printFooter(o: TurnResult.Ok) {

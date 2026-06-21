@@ -208,6 +208,7 @@ class AgentTaskStateTest {
         memoryMode = null,
         stageAgents = emptyList(),
         tui = false,
+        judgeAgents = emptyList(),
     )
 
     private fun stdinSource(script: String): StdinPromptSource =

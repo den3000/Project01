@@ -32,6 +32,7 @@ import ru.den.writes.code.project01.cliJvm.formatCost
 import ru.den.writes.code.project01.cliJvm.parseSlashCommand
 import ru.den.writes.code.project01.cliJvm.formatSessionTokens
 import ru.den.writes.code.project01.cliJvm.formatTurnTokens
+import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 
 /** Column width of the wrapped-reply prefix, e.g. `"assistant │ "`. */
@@ -100,6 +101,7 @@ internal class TuiView(private val multiAgent: Boolean) {
                 if (multiAgent) magenta { textLine(agentTag(o.profileName, o.modelId)) }
                 wrapWords("assistant", o.reply, width).forEach { green { textLine(it) } }
                 renderTurnStats(o, width)
+                renderInvariant(o.verdict)
             }
             is UiLine.Error -> red { textLine("⚠ ${line.reason}") }
             is UiLine.Notice -> yellow { textLine(line.text) }
@@ -113,6 +115,20 @@ internal class TuiView(private val multiAgent: Boolean) {
         val cost = pricing?.let { PricingRegistry.cost(usage, it) }
         val line = formatTurnTokens(usage) + "  cost=${formatCost(cost, pricing != null)}"
         wrapWords("turn ${o.session?.turns ?: 1}", line, width).forEach { textLine(it) }
+    }
+
+    /**
+     * Independent-judge breach lines in the transcript — shown only when the
+     * per-stage judge flagged [verdict] (the reply was displayed but NOT
+     * persisted and the stage was held). Red, mirroring [UiLine.Error]; a CLEAN
+     * verdict renders nothing. Wording mirrors `PlainView` for parity.
+     */
+    private fun RenderScope.renderInvariant(verdict: InvariantVerdict) {
+        if (verdict.passed) return
+        verdict.violations.forEach {
+            red { textLine("⚠ [invariant] violated ${it.ruleId ?: "constraint"}: ${it.explanation}") }
+        }
+        red { textLine("⚠ [invariant] reply not saved to history; task stage held") }
     }
 
     private fun RenderScope.renderStats(terminal: Terminal, s: SessionStatsSnapshot) {

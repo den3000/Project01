@@ -4,6 +4,7 @@ import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
+import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
 import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
@@ -31,6 +32,13 @@ internal class TurnEngine(
     private val strategy: ContextStrategy = ContextStrategy.FullHistory,
     private val memory: MemoryProvider? = null,
     private val routedAgents: List<RoutedAgent> = emptyList(),
+    /**
+     * Per-stage invariant judges: each owns a [TaskBinding] span and audits the
+     * reply of any turn whose active task stage falls in it. Empty (the
+     * default) = no judging — byte-identical to before. Needs per-stage agents
+     * plus an active task to route on (enforced at parse time, see [CliArgs]).
+     */
+    private val routedJudges: List<RoutedJudge> = emptyList(),
 ) {
     /**
      * The default agent: this engine's model surface + generation knobs, no
@@ -48,6 +56,35 @@ internal class TurnEngine(
     /** The agent for [stage]: first routed binding that spans it, else the fallback. */
     private fun agentFor(stage: TaskStage?): RoutedAgent =
         stage?.let { s -> routedAgents.firstOrNull { s in it.binding } } ?: fallbackAgent
+
+    /**
+     * The per-stage judge whose binding spans [stage], or null when none does.
+     * Same first-wins, declaration-order resolution as [agentFor].
+     */
+    private fun judgeFor(stage: TaskStage): RoutedJudge? =
+        routedJudges.firstOrNull { stage in it.binding }
+
+    /**
+     * Run the per-stage invariant judge over [reply] and return its verdict.
+     * Returns [InvariantVerdict.CLEAN] (a no-op, so this is byte-identical to
+     * before when judging is off) whenever there is nothing to judge with: no
+     * judges wired, no memory layer, no active task [stage], or no judge spans
+     * that stage. Otherwise the judge audits [reply] against the global rules
+     * plus the `constraints` of the profile [agentProfile] answered with.
+     */
+    private suspend fun maybeJudge(
+        reply: String,
+        stage: TaskStage?,
+        agentProfile: String?,
+    ): InvariantVerdict {
+        if (routedJudges.isEmpty()) return InvariantVerdict.CLEAN
+        val mem = memory ?: return InvariantVerdict.CLEAN
+        val activeStage = stage ?: return InvariantVerdict.CLEAN
+        val judge = judgeFor(activeStage) ?: return InvariantVerdict.CLEAN
+        val rules = mem.store.listRules()
+        val constraints = mem.constraintsForAgent(agentProfile)
+        return judge.checker.check(reply, rules, constraints)
+    }
 
     /**
      * Run one turn for [prompt]. Builds «memory layer + planned history +
@@ -80,13 +117,21 @@ internal class TurnEngine(
         result.error?.let { return TurnResult.Failed(it) }
         val text = result.text ?: return TurnResult.Failed("empty response with no usage")
 
-        historyStore?.append(userTurn)
-        historyStore?.append(
-            Message(role = Role.ASSISTANT, text = text),
-            usage = result.usage,
-            modelId = modelId,
-        )
-        val stageAdvance = advanceTaskStage(outcome.proposedStage)
+        // Independent invariant judge (per-stage). A breach suppresses the turn:
+        // the reply still reaches the view, but it is NOT persisted (so the
+        // violation doesn't poison later context) and the task stage is held.
+        // No judge for this stage / judging off → CLEAN, identical to before.
+        val verdict = maybeJudge(text, stage, agent.profileName)
+        if (verdict.passed) {
+            historyStore?.append(userTurn)
+            historyStore?.append(
+                Message(role = Role.ASSISTANT, text = text),
+                usage = result.usage,
+                modelId = modelId,
+            )
+        }
+        // A breach holds the stage by proposing null to the FSM.
+        val stageAdvance = advanceTaskStage(if (verdict.passed) outcome.proposedStage else null)
         return TurnResult.Ok(
             reply = text,
             modelId = modelId,
@@ -95,6 +140,7 @@ internal class TurnEngine(
             durationMs = duration.inWholeMilliseconds,
             session = historyStore?.stats?.snapshot(),
             stageAdvance = stageAdvance,
+            verdict = verdict,
         )
     }
 

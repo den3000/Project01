@@ -24,6 +24,7 @@ import ru.den.writes.code.project01.cliJvm.tui.TuiView
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.context.HistoryCompressor
+import ru.den.writes.code.project01.shared.invariant.LlmInvariantJudge
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.Usage
@@ -453,6 +454,15 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 modelId = spec.provider.modelId,
             )
         }
+        // Per-stage invariant judges (-judgeAgent): one RoutedJudge per spec,
+        // each an LlmInvariantJudge on its own model surface. Empty unless the
+        // user opted in (which also requires -stageAgent).
+        val routedJudges: List<RoutedJudge> = chat?.judgeAgents.orEmpty().map { spec ->
+            RoutedJudge(
+                binding = spec.binding,
+                checker = LlmInvariantJudge(buildLlmApi(spec.provider)),
+            )
+        }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile
         if (feedFile != null) {
             // File-driven feed mode: open the reader and hand a feed source
@@ -480,6 +490,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                     strategy = strategy,
                     memory = memory,
                     routedAgents = routedAgents,
+                    routedJudges = routedJudges,
                     primary = feedSource,
                     replAfterFeed = stdinAfter,
                 )
@@ -494,6 +505,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 strategy = strategy,
                 memory = memory,
                 routedAgents = routedAgents,
+                routedJudges = routedJudges,
                 primary = StdinPromptSource(
                     java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
                 ),
@@ -516,11 +528,12 @@ private suspend fun runSession(
     strategy: ContextStrategy,
     memory: MemoryProvider?,
     routedAgents: List<RoutedAgent>,
+    routedJudges: List<RoutedJudge>,
     primary: PromptSource,
     replAfterFeed: PromptSource? = null,
     view: ViewKind = ViewKind.PLAIN,
 ) {
-    val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents)
+    val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges)
     val commandRunner = CommandRunner(historyStore, memory, strategy)
     val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy)
     val multiAgent = routedAgents.isNotEmpty()
