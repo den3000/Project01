@@ -1,8 +1,8 @@
 package ru.den.writes.code.project01.cliJvm.tui
 
 import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.Overlay
 import ru.den.writes.code.project01.cliJvm.PickerKind
-import ru.den.writes.code.project01.cliJvm.PickerState
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -108,7 +108,7 @@ class TuiViewTest {
     @Test
     fun `when rendering options - then rows are numbered and the cursor is marked`() {
         // given
-        val view = PickerTuiView(PickerState(PickerKind.Profile, listOf("home", "work"), cursor = 1))
+        val view = PickerTuiView(Overlay.Picker(PickerKind.Profile, listOf("home", "work"), cursor = 1))
 
         // when - then
         assertEquals(listOf("  1. home", "▶ 2. work"), view.optionLines())

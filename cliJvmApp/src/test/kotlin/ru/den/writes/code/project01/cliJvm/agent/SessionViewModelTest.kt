@@ -7,6 +7,7 @@ import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.IntentSource
+import ru.den.writes.code.project01.cliJvm.Overlay
 import ru.den.writes.code.project01.cliJvm.PickerKind
 import ru.den.writes.code.project01.cliJvm.SessionViewModel
 import ru.den.writes.code.project01.cliJvm.TestDb
@@ -180,10 +181,10 @@ class SessionViewModelTest {
             vm.run(intents(UiIntent.OpenPicker(PickerKind.Branch), UiIntent.Exit))
 
             // then
-            val picker = vm.state.value.picker
+            val overlay = vm.state.value.overlay
             assertTrue(
-                picker != null && picker.kind == PickerKind.Branch && "main" in picker.options,
-                "expected a branch picker listing 'main', was $picker",
+                overlay is Overlay.Picker && overlay.kind == PickerKind.Branch && "main" in overlay.options,
+                "expected a branch picker listing 'main', was $overlay",
             )
         }
     }
@@ -197,10 +198,10 @@ class SessionViewModelTest {
             val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home", "work"))
 
             // when
-            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.PickerDown, UiIntent.Exit))
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.OverlayDown, UiIntent.Exit))
 
             // then
-            assertEquals(1, vm.state.value.picker?.cursor)
+            assertEquals(1, vm.state.value.overlay?.cursor)
         }
     }
 
@@ -217,7 +218,7 @@ class SessionViewModelTest {
             vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.Submit("2"), UiIntent.Exit))
 
             // then — picker closed, the existing SwitchProfile command ran
-            assertNull(vm.state.value.picker)
+            assertNull(vm.state.value.overlay)
             assertTrue(
                 vm.state.value.lines.any { it is UiLine.Notice && it.text == "[memory] active profile → work" },
                 "lines: ${vm.state.value.lines}",
@@ -238,7 +239,7 @@ class SessionViewModelTest {
             vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.Exit))
 
             // then
-            assertNull(vm.state.value.picker)
+            assertNull(vm.state.value.overlay)
             assertTrue(
                 vm.state.value.lines.any {
                     it is UiLine.Notice && it.text.startsWith("[memory] memory commands need")
@@ -257,10 +258,10 @@ class SessionViewModelTest {
             val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
 
             // when
-            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.PickerCancel, UiIntent.Exit))
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.OverlayCancel, UiIntent.Exit))
 
             // then
-            assertNull(vm.state.value.picker)
+            assertNull(vm.state.value.overlay)
             assertNull(memory.activeProfileName())
         }
     }

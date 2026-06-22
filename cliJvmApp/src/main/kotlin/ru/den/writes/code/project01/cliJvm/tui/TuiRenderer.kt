@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import ru.den.writes.code.project01.cliJvm.ChannelIntentSource
+import ru.den.writes.code.project01.cliJvm.Overlay
 import ru.den.writes.code.project01.cliJvm.PickerKind
 import ru.den.writes.code.project01.cliJvm.SessionViewModel
 import ru.den.writes.code.project01.cliJvm.UiIntent
@@ -50,11 +51,12 @@ internal class TuiRenderer {
         section {
             width = minOf(this.width, MAX_CONTENT_WIDTH)
             if (ui.busy) yellow { textLine("… thinking") }
-            // An open picker takes the panel's slot; the input line stays so a
+            // An open overlay takes the panel's slot; the input line stays so a
             // choice can be a number or an arrow + Enter.
-            val picker = ui.picker
-            if (picker != null) PickerTuiView(picker).renderIn(this, widgets, width)
-            else ui.stats?.let { SessionPanelTuiView(it).renderIn(this, widgets, width) }
+            when (val overlay = ui.overlay) {
+                null -> ui.stats?.let { SessionPanelTuiView(it).renderIn(this, widgets, width) }
+                is Overlay.Picker -> PickerTuiView(overlay).renderIn(this, widgets, width)
+            }
             text("> "); input()
         }.runUntilSignal {
             var printed = 0
@@ -76,20 +78,20 @@ internal class TuiRenderer {
             // so normal typing is untouched. Enter stays on onInputEntered (no
             // race with the input collector).
             onKeyPressed {
-                if (ui.picker == null) return@onKeyPressed
+                if (ui.overlay == null) return@onKeyPressed
                 when (key) {
-                    Keys.Up -> source.offer(UiIntent.PickerUp)
-                    Keys.Down -> source.offer(UiIntent.PickerDown)
-                    Keys.Escape -> source.offer(UiIntent.PickerCancel)
+                    Keys.Up -> source.offer(UiIntent.OverlayUp)
+                    Keys.Down -> source.offer(UiIntent.OverlayDown)
+                    Keys.Escape -> source.offer(UiIntent.OverlayCancel)
                     else -> Unit
                 }
             }
             onInputEntered {
                 val text = input.trim()
                 clearInput()
-                // With a picker open, even an empty Enter is a selection (the
+                // With an overlay open, even an empty Enter is a selection (the
                 // cursor row), so bypass toIntent's blank → null.
-                if (ui.picker != null) source.offer(UiIntent.Submit(text))
+                if (ui.overlay != null) source.offer(UiIntent.Submit(text))
                 else toIntent(text)?.let { source.offer(it) }
             }
         }

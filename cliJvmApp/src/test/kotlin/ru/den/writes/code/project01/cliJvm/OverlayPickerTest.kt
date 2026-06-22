@@ -5,13 +5,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Pure navigation / selection logic of [PickerState] — no terminal, no
+ * Pure navigation / selection logic of [Overlay.Picker] — no terminal, no
  * view-model. The cursor wraps both ways; selection maps the input box to a row
  * (empty → the cursor, a 1-based number → that row, anything else → null).
  */
-class PickerStateTest {
+class OverlayPickerTest {
 
-    private val picker = PickerState(PickerKind.Profile, listOf("a", "b", "c"), cursor = 0)
+    private val picker = Overlay.Picker(PickerKind.Profile, listOf("a", "b", "c"), cursor = 0)
 
     //region moved
 
@@ -39,7 +39,7 @@ class PickerStateTest {
     @Test
     fun `when moved on an empty list - then it stays put`() {
         // given
-        val empty = PickerState(PickerKind.Task, emptyList())
+        val empty = Overlay.Picker(PickerKind.Task, emptyList())
 
         // when - then
         assertEquals(empty, empty.moved(+1))

@@ -5,7 +5,7 @@ import com.github.ajalt.mordant.widgets.Panel
 import com.varabyte.kotter.foundation.text.magenta
 import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.runtime.render.RenderScope
-import ru.den.writes.code.project01.cliJvm.PickerState
+import ru.den.writes.code.project01.cliJvm.Overlay
 
 /**
  * The open modal picker pinned in the bottom block (not a transcript line): its
@@ -14,7 +14,7 @@ import ru.den.writes.code.project01.cliJvm.PickerState
  * replaces. [optionLines] is pure, so the row formatting is unit-testable off an
  * instance (the `session`/`Panel` machinery needs a real terminal).
  */
-internal data class PickerTuiView(val picker: PickerState) : TuiView {
+internal data class PickerTuiView(val picker: Overlay.Picker) : TuiView {
     /** One numbered row per option; the cursor row is marked with ▶. */
     fun optionLines(): List<String> = picker.options.mapIndexed { i, opt ->
         val pointer = if (i == picker.cursor) "▶" else " "

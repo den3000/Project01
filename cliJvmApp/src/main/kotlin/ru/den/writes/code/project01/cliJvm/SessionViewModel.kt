@@ -75,15 +75,16 @@ internal class SessionViewModel(
         while (true) {
             when (val intent = source.next()) {
                 null, UiIntent.Exit -> return
-                is UiIntent.Submit ->
-                    if (state.value.picker != null) selectPicker(intent.text)
-                    else if (!runTurn(intent.text)) source.onTurnFailed()
+                is UiIntent.Submit -> when (val overlay = state.value.overlay) {
+                    null -> if (!runTurn(intent.text)) source.onTurnFailed()
+                    is Overlay.Picker -> selectPicker(overlay, intent.text)
+                }
                 UiIntent.Reuse -> lastReply?.let { runTurn(it) }
                 is UiIntent.SlashCommand -> runCommand(intent.command)
                 is UiIntent.OpenPicker -> openPicker(intent.kind)
-                UiIntent.PickerUp -> state.update { it.copy(picker = it.picker?.moved(-1)) }
-                UiIntent.PickerDown -> state.update { it.copy(picker = it.picker?.moved(+1)) }
-                UiIntent.PickerCancel -> state.update { it.copy(picker = null) }
+                UiIntent.OverlayUp -> state.update { it.copy(overlay = it.overlay?.moved(-1)) }
+                UiIntent.OverlayDown -> state.update { it.copy(overlay = it.overlay?.moved(+1)) }
+                UiIntent.OverlayCancel -> state.update { it.copy(overlay = null) }
             }
         }
     }
@@ -160,20 +161,19 @@ internal class SessionViewModel(
                     else -> "[memory] nothing to pick"
                 }
             )
-            else -> state.update { it.copy(picker = PickerState(kind, options)) }
+            else -> state.update { it.copy(overlay = Overlay.Picker(kind, options)) }
         }
     }
 
     /**
-     * Resolve the open picker against the typed [text] (empty → cursor row, a
+     * Resolve the open [picker] against the typed [text] (empty → cursor row, a
      * 1-based number → that row, anything else → cancel). A valid choice closes
      * the picker and runs the mapped [BranchCommand] through the same
      * [CommandRunner] the REPL uses — the picker adds no new domain logic.
      */
-    private suspend fun selectPicker(text: String) {
-        val picker = state.value.picker ?: return
+    private suspend fun selectPicker(picker: Overlay.Picker, text: String) {
         val idx = picker.selectionIndex(text)
-        state.update { it.copy(picker = null) }
+        state.update { it.copy(overlay = null) }
         if (idx != null) runCommand(pickerCommand(picker.kind, picker.options[idx]))
     }
 
