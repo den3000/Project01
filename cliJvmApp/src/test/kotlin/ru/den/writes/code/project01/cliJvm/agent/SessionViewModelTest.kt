@@ -5,6 +5,7 @@ import ru.den.writes.code.project01.cliJvm.BranchCommand
 import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
+import ru.den.writes.code.project01.cliJvm.commandCatalog
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.IntentSource
 import ru.den.writes.code.project01.cliJvm.Overlay
@@ -263,6 +264,79 @@ class SessionViewModelTest {
             // then
             assertNull(vm.state.value.overlay)
             assertNull(memory.activeProfileName())
+        }
+    }
+    //endregion
+
+    //region palette
+
+    @Test
+    fun `when the palette opens - then it lists the command catalog`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store)
+
+            // when
+            vm.run(intents(UiIntent.OpenPalette, UiIntent.Exit))
+
+            // then
+            val overlay = vm.state.value.overlay
+            assertTrue(overlay is Overlay.Palette && overlay.entries == commandCatalog(), "was $overlay")
+        }
+    }
+
+    @Test
+    fun `when a no-argument command is chosen from the palette - then it runs`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store)
+            val row = commandCatalog().indexOfFirst { it.name == "/checkpoint" } + 1
+
+            // when
+            vm.run(intents(UiIntent.OpenPalette, UiIntent.Submit("$row"), UiIntent.Exit))
+
+            // then
+            assertNull(vm.state.value.overlay)
+            assertTrue(vm.state.value.lines.any { it is UiLine.Notice && it.text.startsWith("[checkpoint]") })
+        }
+    }
+
+    @Test
+    fun `when a picker command is chosen from the palette - then that picker opens`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home"))
+            val row = commandCatalog().indexOfFirst { it.name == "/profile-use" } + 1
+
+            // when
+            vm.run(intents(UiIntent.OpenPalette, UiIntent.Submit("$row"), UiIntent.Exit))
+
+            // then — the palette handed off to the profile picker
+            val overlay = vm.state.value.overlay
+            assertTrue(overlay is Overlay.Picker && overlay.kind == PickerKind.Profile, "was $overlay")
+        }
+    }
+
+    @Test
+    fun `when a free-text command is chosen from the palette - then a prefill effect is emitted`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store)
+            val row = commandCatalog().indexOfFirst { it.name == "/rule" } + 1
+
+            // when
+            vm.run(intents(UiIntent.OpenPalette, UiIntent.Submit("$row"), UiIntent.Exit))
+
+            // then — the first effect is the prefill stub
+            assertEquals(UiEffect.Prefill("/rule "), vm.effects.receive())
         }
     }
     //endregion

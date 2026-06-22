@@ -56,6 +56,7 @@ internal class TuiRenderer {
             when (val overlay = ui.overlay) {
                 null -> ui.stats?.let { SessionPanelTuiView(it).renderIn(this, widgets, width) }
                 is Overlay.Picker -> PickerTuiView(overlay).renderIn(this, widgets, width)
+                is Overlay.Palette -> PaletteTuiView(overlay).renderIn(this, widgets, width)
             }
             text("> "); input()
         }.runUntilSignal {

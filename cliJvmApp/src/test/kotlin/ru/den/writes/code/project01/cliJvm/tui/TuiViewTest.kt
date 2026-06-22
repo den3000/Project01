@@ -1,7 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.tui
 
 import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.CommandEntry
 import ru.den.writes.code.project01.cliJvm.Overlay
+import ru.den.writes.code.project01.cliJvm.PaletteAction
 import ru.den.writes.code.project01.cliJvm.PickerKind
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import kotlin.test.Test
@@ -112,6 +114,27 @@ class TuiViewTest {
 
         // when - then
         assertEquals(listOf("  1. home", "▶ 2. work"), view.optionLines())
+    }
+    //endregion
+
+    //region PaletteTuiView
+
+    @Test
+    fun `when rendering palette rows - then each shows name and help with the cursor marked`() {
+        // given
+        val palette = Overlay.Palette(
+            listOf(
+                CommandEntry("/checkpoint", "show the branch", PaletteAction.Run(BranchCommand.Checkpoint)),
+                CommandEntry("/rule", "add a rule", PaletteAction.Prefill("/rule ")),
+            ),
+            cursor = 0,
+        )
+
+        // when - then
+        assertEquals(
+            listOf("▶ 1. /checkpoint — show the branch", "  2. /rule — add a rule"),
+            PaletteTuiView(palette).optionLines(),
+        )
     }
     //endregion
 }

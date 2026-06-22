@@ -78,10 +78,12 @@ internal class SessionViewModel(
                 is UiIntent.Submit -> when (val overlay = state.value.overlay) {
                     null -> if (!runTurn(intent.text)) source.onTurnFailed()
                     is Overlay.Picker -> selectPicker(overlay, intent.text)
+                    is Overlay.Palette -> selectPalette(overlay, intent.text)
                 }
                 UiIntent.Reuse -> lastReply?.let { runTurn(it) }
                 is UiIntent.SlashCommand -> runCommand(intent.command)
                 is UiIntent.OpenPicker -> openPicker(intent.kind)
+                UiIntent.OpenPalette -> openPalette()
                 UiIntent.OverlayUp -> state.update { it.copy(overlay = it.overlay?.moved(-1)) }
                 UiIntent.OverlayDown -> state.update { it.copy(overlay = it.overlay?.moved(+1)) }
                 UiIntent.OverlayCancel -> state.update { it.copy(overlay = null) }
@@ -183,6 +185,27 @@ internal class SessionViewModel(
         PickerKind.Task -> BranchCommand.SetTask(option)
         PickerKind.Branch -> BranchCommand.Switch(option)
         PickerKind.MemoryMode -> BranchCommand.SetMemoryMode(MemoryMode.valueOf(option.uppercase()))
+    }
+
+    /** Open the command palette over the full catalog (static — no dependency to gate on). */
+    private fun openPalette() = state.update { it.copy(overlay = Overlay.Palette(commandCatalog())) }
+
+    /**
+     * Resolve the open command [palette] against [text] (same row-selection rule
+     * as a picker). A chosen entry runs its command, opens a picker, pre-fills
+     * the input (a [UiEffect.Prefill] the TUI consumes), or resends the last
+     * reply — every action routes through machinery that already exists.
+     */
+    private suspend fun selectPalette(palette: Overlay.Palette, text: String) {
+        val entry = palette.selectionIndex(text)?.let { palette.entries.getOrNull(it) }
+        state.update { it.copy(overlay = null) }
+        when (val action = entry?.action) {
+            null -> Unit
+            is PaletteAction.Run -> runCommand(action.command)
+            is PaletteAction.Pick -> openPicker(action.kind)
+            is PaletteAction.Prefill -> effects.send(UiEffect.Prefill(action.stub))
+            PaletteAction.Reuse -> lastReply?.let { runTurn(it) }
+        }
     }
 
     /** Resume banners: prior-turn count + accumulated totals, and the active task's stage. */

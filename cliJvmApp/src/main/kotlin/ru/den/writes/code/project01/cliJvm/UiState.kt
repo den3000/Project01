@@ -46,29 +46,68 @@ internal enum class PickerKind(val title: String) {
 internal sealed interface Overlay {
     val cursor: Int
 
+    /** Number of selectable rows — the bound for [selectionIndex]. */
+    val size: Int
+
     /** Move the cursor by [delta], wrapping at both ends. */
     fun moved(delta: Int): Overlay
 
     /**
-     * Pick one option from a list, applying an existing command. [selectionIndex]
-     * maps the input box to a row (empty → the cursor, a 1-based number → that
-     * row, anything else → null); the view-model maps the chosen option to the
-     * [BranchCommand] that applies it.
+     * Map the input box to a row: empty → the cursor, a 1-based number → that
+     * row, anything else → null. Shared by every overlay — selection works the
+     * same regardless of what the chosen row then does.
+     */
+    fun selectionIndex(text: String): Int? = when {
+        text.isEmpty() -> cursor
+        (text.toIntOrNull() ?: 0) in 1..size -> text.toInt() - 1
+        else -> null
+    }
+
+    /**
+     * Pick one option from a list, applying an existing command: the view-model
+     * maps the chosen [options] entry to the [BranchCommand] for its [kind].
      */
     data class Picker(
         val kind: PickerKind,
         val options: List<String>,
         override val cursor: Int = 0,
     ) : Overlay {
+        override val size: Int get() = options.size
         override fun moved(delta: Int): Picker =
             if (options.isEmpty()) this else copy(cursor = (cursor + delta).mod(options.size))
-
-        fun selectionIndex(text: String): Int? = when {
-            text.isEmpty() -> cursor
-            (text.toIntOrNull() ?: 0) in 1..options.size -> text.toInt() - 1
-            else -> null
-        }
     }
+
+    /**
+     * The command palette: every `/`-command as a [CommandEntry] so the many
+     * commands are discoverable. A selected entry runs its command, opens a
+     * picker, or pre-fills the input — see [PaletteAction].
+     */
+    data class Palette(
+        val entries: List<CommandEntry>,
+        override val cursor: Int = 0,
+    ) : Overlay {
+        override val size: Int get() = entries.size
+        override fun moved(delta: Int): Palette =
+            if (entries.isEmpty()) this else copy(cursor = (cursor + delta).mod(entries.size))
+    }
+}
+
+/** One row in the [Overlay.Palette]: the command [name], a one-line [help], and what selecting it does. */
+internal data class CommandEntry(val name: String, val help: String, val action: PaletteAction)
+
+/** What selecting a [CommandEntry] does — all over commands / intents that already exist. */
+internal sealed interface PaletteAction {
+    /** Run a no-argument command (e.g. `/checkpoint`, `/branches`). */
+    data class Run(val command: BranchCommand) : PaletteAction
+
+    /** Open a picker for a command that chooses from a set (e.g. `/profile-use`). */
+    data class Pick(val kind: PickerKind) : PaletteAction
+
+    /** Pre-fill the input with [stub] so the user types the argument (e.g. `/rule `). */
+    data class Prefill(val stub: String) : PaletteAction
+
+    /** Resend the last model reply (`/reuse`). */
+    data object Reuse : PaletteAction
 }
 
 /**
@@ -166,6 +205,9 @@ internal sealed interface UiIntent {
     /** Open a modal picker of the given [kind] (TUI only). */
     data class OpenPicker(val kind: PickerKind) : UiIntent
 
+    /** Open the command palette (TUI only). */
+    data object OpenPalette : UiIntent
+
     /** Move the open overlay's cursor up / down (wraps). No-op if none is open. */
     data object OverlayUp : UiIntent
     data object OverlayDown : UiIntent
@@ -183,4 +225,11 @@ internal sealed interface UiIntent {
 internal sealed interface UiEffect {
     /** The session is over; the view should stop. */
     data object Exit : UiEffect
+
+    /**
+     * Pre-fill the TUI input line with [text] — a command stub (e.g. `/rule `)
+     * the user completes with an argument. Emitted when a free-text command is
+     * chosen from the palette; the TUI consumes it, other views ignore it.
+     */
+    data class Prefill(val text: String) : UiEffect
 }

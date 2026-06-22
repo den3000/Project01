@@ -218,6 +218,32 @@ private fun parseMemoryMode(arg: String): BranchCommand? = when (arg.lowercase()
 }
 
 /**
+ * Every `/`-command as a palette row — the single source the TUI command
+ * palette lists. Names reuse the parser's constants so the palette and
+ * [parseSlashCommand] can't drift. Ordered pickers → no-arg → free-text
+ * (prefill). `/exit` / `/quit` are omitted (one keystroke away, handled before
+ * this), as is the bare prompt.
+ */
+internal fun commandCatalog(): List<CommandEntry> = listOf(
+    CommandEntry(PROFILE_USE_COMMAND, "switch the active named profile", PaletteAction.Pick(PickerKind.Profile)),
+    CommandEntry(TASK_COMMAND, "set or switch the active task", PaletteAction.Pick(PickerKind.Task)),
+    CommandEntry(SWITCH_COMMAND, "switch the session branch", PaletteAction.Pick(PickerKind.Branch)),
+    CommandEntry(MEMORY_MODE_COMMAND, "switch the memory injection mode", PaletteAction.Pick(PickerKind.MemoryMode)),
+    CommandEntry(CHECKPOINT_COMMAND, "show the current branch and message count", PaletteAction.Run(BranchCommand.Checkpoint)),
+    CommandEntry(BRANCHES_COMMAND, "list the session's branches", PaletteAction.Run(BranchCommand.ListBranches)),
+    CommandEntry(MEMORY_COMMAND, "show the active memory layer", PaletteAction.Run(BranchCommand.ShowMemory)),
+    CommandEntry(PROFILE_LIST_COMMAND, "list the named profiles", PaletteAction.Run(BranchCommand.ListProfiles)),
+    CommandEntry(TASK_PAUSE_COMMAND, "pause the active task (hold its stage)", PaletteAction.Run(BranchCommand.PauseTask)),
+    CommandEntry(TASK_RESUME_COMMAND, "resume the active task", PaletteAction.Run(BranchCommand.ResumeTask)),
+    CommandEntry(REUSE_COMMAND, "resend the last model reply", PaletteAction.Reuse),
+    CommandEntry(RULE_COMMAND, "add a memory rule", PaletteAction.Prefill("$RULE_COMMAND ")),
+    CommandEntry(TASK_NOTE_COMMAND, "append a note to the active task", PaletteAction.Prefill("$TASK_NOTE_COMMAND ")),
+    CommandEntry(BRANCH_COMMAND, "fork a new branch from here", PaletteAction.Prefill("$BRANCH_COMMAND ")),
+    CommandEntry(PROFILE_COMMAND, "edit a profile section", PaletteAction.Prefill("$PROFILE_COMMAND ")),
+    CommandEntry(PROFILE_SHOW_COMMAND, "show a named profile", PaletteAction.Prefill("$PROFILE_SHOW_COMMAND ")),
+)
+
+/**
  * Map a `/profile …` body into the matching [BranchCommand].
  *
  * Default-profile shapes (`<section> <text>`, `<section> clear`,
