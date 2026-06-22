@@ -130,7 +130,7 @@ internal class SessionViewModel(
                 val s = store.stats
                 appendNotice(
                     "[session] resumed: ${store.messages.size / 2} prior turn(s), " +
-                        "tokens so far: total=${s.totalTokens}, cost=${formatCost(s.totalCostUsd, knownPricing = true)}"
+                        "tokens so far: total=${s.totalTokens}, cost=${"$%.5f".format(s.totalCostUsd)}"
                 )
             }
             strategy.rebind(store)
@@ -163,6 +163,11 @@ internal class SessionViewModel(
 private fun formatSummary(s: SessionStatsSnapshot, modelId: String, label: String): String {
     val pricing = PricingRegistry.lookup(modelId)
     val costStr = if (s.turns == 0) "$0.00" else "%.5f USD".format(s.costUsd)
-    return "$label turns=${s.turns}  " + formatSessionTokens(s) + "  cost=$costStr" +
+    val tokens = buildString {
+        append("prompt=${s.promptTokens}  output=${s.outputTokens}")
+        if (s.thoughtsTokens > 0) append("  thoughts=${s.thoughtsTokens}")
+        append("  total=${s.totalTokens}")
+    }
+    return "$label turns=${s.turns}  $tokens  cost=$costStr" +
         (if (pricing == null) "  (current model has no pricing entry)" else "")
 }

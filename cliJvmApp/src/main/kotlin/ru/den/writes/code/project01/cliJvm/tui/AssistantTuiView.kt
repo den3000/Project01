@@ -6,7 +6,6 @@ import com.varabyte.kotter.foundation.text.magenta
 import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.runtime.render.RenderScope
 import ru.den.writes.code.project01.cliJvm.AgentRef
-import ru.den.writes.code.project01.cliJvm.agentTag
 
 /**
  * The model's reply as an `"assistant │ …"` column. In a multi-agent session
@@ -19,7 +18,7 @@ internal data class AssistantTuiView(val reply: String, val agent: AgentRef?) : 
             wrapWords("assistant", reply, width).forEach { green { textLine(it) } }
             return
         }
-        val tag = agentTag(agent.profileName, agent.modelId)
+        val tag = "[[AGENT: ${agent.profileName ?: "default"}:${agent.modelId}]]"
         val tagRows = wrapWords("assistant", tag, width).size
         wrapWords("assistant", "$tag\n$reply", width).forEachIndexed { i, l ->
             if (i < tagRows) magenta { textLine(l) } else green { textLine(l) }

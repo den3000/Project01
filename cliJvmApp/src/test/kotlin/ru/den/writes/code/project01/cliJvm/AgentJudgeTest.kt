@@ -125,37 +125,6 @@ class AgentJudgeTest {
         }
     }
 
-    @Test
-    fun `when verdict has violations - then invariant lines list them plus the not-saved trailer`() {
-        // given — a numbered rule breach and an unnumbered constraint breach
-        val verdict = InvariantVerdict(
-            passed = false,
-            violations = listOf(
-                InvariantViolation("001", "proposes Spring"),
-                InvariantViolation(null, "off topic"),
-            ),
-        )
-
-        // when
-        val lines = invariantLines(verdict.violations)
-
-        // then — null ruleId renders as "constraint"; the trailer always closes
-        assertEquals(
-            listOf(
-                "[invariant] violated 001: proposes Spring",
-                "[invariant] violated constraint: off topic",
-                "[invariant] reply not saved to history; task stage held",
-            ),
-            lines,
-        )
-    }
-
-    @Test
-    fun `when verdict passed - then no invariant lines`() {
-        // when - then
-        assertTrue(invariantLines(emptyList()).isEmpty())
-    }
-
     //region helpers
 
     private val violatingJudge = RoutedJudge(

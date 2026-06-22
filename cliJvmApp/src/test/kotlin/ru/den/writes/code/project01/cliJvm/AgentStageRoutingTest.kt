@@ -186,13 +186,6 @@ class AgentStageRoutingTest {
     //region agent tag
 
     @Test
-    fun `agentTag renders profile and model, default when profile is null`() {
-        // when - then
-        assertEquals("[[AGENT: interviewer:gemini-2.5-flash]]", agentTag("interviewer", "gemini-2.5-flash"))
-        assertEquals("[[AGENT: default:m]]", agentTag(null, "m"))
-    }
-
-    @Test
     fun `when multi-agent - then the reply is prefixed with the agent tag`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->

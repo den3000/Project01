@@ -1,10 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.plain
 
 import ru.den.writes.code.project01.cliJvm.SessionStatsSnapshot
-import ru.den.writes.code.project01.cliJvm.formatContextFill
-import ru.den.writes.code.project01.cliJvm.formatCost
-import ru.den.writes.code.project01.cliJvm.formatSessionTokens
-import ru.den.writes.code.project01.cliJvm.formatTurnTokens
 import ru.den.writes.code.project01.shared.llm.Usage
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 
@@ -33,16 +29,14 @@ internal data class TurnPlainView(
         add("duration: $durationMs ms")
         if (usage != null) {
             val cost = pricing?.let { PricingRegistry.cost(usage, it) }
-            add("turn:    " + formatTurnTokens(usage) + "  cost=${formatCost(cost, pricing != null)}")
+            add("turn:    ${tokenLine(usage.promptTokens, usage.outputTokens, usage.thoughtsTokens, usage.totalTokens)}  cost=${costText(cost)}")
             pricing?.contextWindowTokens?.let { window ->
-                add(formatContextFill(usage.promptTokens, window))
+                val pct = usage.promptTokens.toDouble() / window * 100.0
+                add("context: %d / %d (%.1f%%)".format(usage.promptTokens, window, pct))
             }
             session?.let { s ->
                 val sessionCost = if (pricing != null) s.costUsd else null
-                add(
-                    "session: turns=${s.turns} " + formatSessionTokens(s) +
-                        "  cost=${formatCost(sessionCost, pricing != null)}"
-                )
+                add("session: turns=${s.turns} ${tokenLine(s.promptTokens, s.outputTokens, s.thoughtsTokens, s.totalTokens)}  cost=${costText(sessionCost)}")
             }
         }
         add(rule)
@@ -56,5 +50,15 @@ internal data class TurnPlainView(
                 add("[warning] context window %.1f%% full — next turn may overflow".format(pct))
             }
         }
+    }
+
+    /** `$0.12345` for a known price, else `$? (no pricing)` — matches the prior `formatCost`. */
+    private fun costText(usd: Double?): String =
+        if (pricing != null && usd != null) "$%.5f".format(usd) else "$? (no pricing)"
+
+    private fun tokenLine(prompt: Int, output: Int, thoughts: Int, total: Int): String = buildString {
+        append("prompt=$prompt  output=$output")
+        if (thoughts > 0) append("  thoughts=$thoughts")
+        append("  total=$total")
     }
 }

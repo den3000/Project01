@@ -6,7 +6,6 @@ import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.foundation.text.yellow
 import com.varabyte.kotter.runtime.render.RenderScope
 import ru.den.writes.code.project01.cliJvm.SessionStatsSnapshot
-import ru.den.writes.code.project01.cliJvm.formatSessionTokens
 
 /**
  * The live session-totals panel pinned in the bottom block (not a transcript
@@ -15,8 +14,13 @@ import ru.den.writes.code.project01.cliJvm.formatSessionTokens
  */
 internal data class SessionPanelTuiView(val stats: SessionStatsSnapshot) : TuiView {
     override fun RenderScope.render(terminal: Terminal, width: Int) {
-        val content = "turns=${stats.turns}  " + formatSessionTokens(stats) + "  cost=$%.5f".format(stats.costUsd)
-        val panel = terminal.render(Panel(content = content, title = "session"))
+        val tokens = buildString {
+            append("prompt=${stats.promptTokens}  output=${stats.outputTokens}")
+            if (stats.thoughtsTokens > 0) append("  thoughts=${stats.thoughtsTokens}")
+            append("  total=${stats.totalTokens}")
+        }
+        val costStr = "$%.5f".format(stats.costUsd)
+        val panel = terminal.render(Panel(content = "turns=${stats.turns}  $tokens  cost=$costStr", title = "session"))
         yellow { panel.trimEnd().lineSequence().forEach { textLine(it) } }
     }
 }
