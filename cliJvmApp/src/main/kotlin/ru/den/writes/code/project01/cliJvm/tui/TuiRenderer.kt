@@ -53,7 +53,10 @@ internal class TuiRenderer {
             var printed = 0
             work.launch {
                 vm.state.collect { state ->
-                    state.lines.drop(printed).forEach { line -> aside { line.toTuiView().renderIn(this, widgets, width) } }
+                    state.lines.drop(printed).forEach { line ->
+                        val view = line.toTuiView() ?: return@forEach
+                        aside { view.renderIn(this, widgets, width) }
+                    }
                     printed = state.lines.size
                     ui = state
                 }
@@ -73,15 +76,18 @@ internal class TuiRenderer {
     }
 }
 
-/** A transcript [UiLine] → its TUI renderer. */
-private fun UiLine.toTuiView(): TuiView = when (this) {
+/** A transcript [UiLine] → its TUI renderer, or null for lines the TUI drops. */
+private fun UiLine.toTuiView(): TuiView? = when (this) {
     is UiLine.User -> UserTuiView(text)
     is UiLine.Assistant -> AssistantTuiView(reply, agent)
     is UiLine.Turn -> TurnTuiView(usage, modelId, session)
     is UiLine.Judge -> JudgeTuiView(judgeModelId, violations)
     is UiLine.Stage -> StageTuiView(advance)
+    is UiLine.State -> StateTuiView(text)
     is UiLine.Error -> ErrorTuiView(reason)
     is UiLine.Notice -> NoticeTuiView(text)
+    // The final summary is dropped here — the live stats panel already shows the totals.
+    is UiLine.Summary -> null
 }
 
 /**

@@ -46,7 +46,7 @@ class SessionViewModelTest {
             assertTrue(lines.any { it is UiLine.Assistant && it.reply == "reply" })
             assertFalse(vm.state.value.busy)
             assertEquals("reply", vm.lastReply)
-            assertTrue(lines.any { it is UiLine.Notice && it.text.startsWith("[session-summary]") })
+            assertTrue(lines.any { it is UiLine.Summary && it.text.startsWith("[session-summary]") })
             assertEquals(UiEffect.Exit, vm.effects.receive())
         }
     }
@@ -73,7 +73,7 @@ class SessionViewModelTest {
             // then
             val first = vm.state.value.lines.first()
             assertTrue(
-                first is UiLine.Notice && first.text.startsWith("[session] resumed: 1 prior turn(s)"),
+                first is UiLine.State && first.text.startsWith("[session] resumed: 1 prior turn(s)"),
                 "expected the resumed banner first, was $first",
             )
         }
@@ -128,12 +128,19 @@ class SessionViewModelTest {
             // when — both sources stop immediately
             vm.run(primary = intents(), followUp = intents())
 
-            // then
-            val notices = vm.state.value.lines.filterIsInstance<UiLine.Notice>().map { it.text }
-            val interim = notices.indexOfFirst { it.startsWith("[feed done — interim summary]") }
-            val continuing = notices.indexOfFirst { it.startsWith("[continuing in REPL") }
-            val finalIdx = notices.indexOfFirst { it.startsWith("[session-summary]") }
-            assertTrue(interim >= 0 && continuing > interim && finalIdx > continuing, "notices: $notices")
+            // then — interim summary + continuing notice, then the final Summary line, in order
+            val texts = vm.state.value.lines.mapNotNull {
+                when (it) {
+                    is UiLine.Notice -> it.text
+                    is UiLine.Summary -> it.text
+                    is UiLine.State -> it.text
+                    else -> null
+                }
+            }
+            val interim = texts.indexOfFirst { it.startsWith("[feed done — interim summary]") }
+            val continuing = texts.indexOfFirst { it.startsWith("[continuing in REPL") }
+            val finalIdx = texts.indexOfFirst { it.startsWith("[session-summary]") }
+            assertTrue(interim >= 0 && continuing > interim && finalIdx > continuing, "texts: $texts")
         }
     }
 
@@ -149,7 +156,7 @@ class SessionViewModelTest {
         // then
         val lines = vm.state.value.lines
         assertTrue(lines.any { it is UiLine.Turn })
-        assertFalse(lines.any { it is UiLine.Notice && it.text.startsWith("[session-summary]") })
+        assertFalse(lines.any { it is UiLine.Summary })
         assertEquals(UiEffect.Exit, vm.effects.receive())
     }
 

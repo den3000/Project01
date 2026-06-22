@@ -49,6 +49,8 @@ private fun UiLine.toPlainView(): PlainView = when (this) {
     is UiLine.Turn -> TurnPlainView(usage, modelId, durationMs, session)
     is UiLine.Judge -> JudgePlainView(violations)
     is UiLine.Stage -> StagePlainView(advance)
+    is UiLine.State -> StatePlainView(text)
+    is UiLine.Summary -> SummaryPlainView(text)
     is UiLine.Error -> ErrorPlainView(reason)
     is UiLine.Notice -> NoticePlainView(text)
 }

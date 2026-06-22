@@ -60,12 +60,12 @@ internal class SessionViewModel(
             if (followUp != null) {
                 val label =
                     if (primary.terminated) "[feed aborted — interim summary]" else "[feed done — interim summary]"
-                emitSummary(label)
+                emitSummary(label, final = false)
                 appendNotice("[continuing in REPL — type /exit or /quit to leave]")
                 drive(followUp)
             }
         } finally {
-            emitSummary("[session-summary]")
+            emitSummary("[session-summary]", final = true)
             effects.send(UiEffect.Exit)
         }
     }
@@ -122,13 +122,16 @@ internal class SessionViewModel(
 
     private fun appendNotice(text: String) = state.update { it.copy(lines = it.lines + UiLine.Notice(text)) }
 
+    /** A session-state line (resume banner now; profile / task-state changes later) — its own `state` lane. */
+    private fun appendState(text: String) = state.update { it.copy(lines = it.lines + UiLine.State(text)) }
+
     /** Resume banners: prior-turn count + accumulated totals, and the active task's stage. */
     private suspend fun hydrate() {
         historyStore?.let { store ->
             store.load()
             if (store.messages.isNotEmpty()) {
                 val s = store.stats
-                appendNotice(
+                appendState(
                     "[session] resumed: ${store.messages.size / 2} prior turn(s), " +
                         "tokens so far: total=${s.totalTokens}, cost=${"$%.5f".format(s.totalCostUsd)}"
                 )
@@ -138,7 +141,7 @@ internal class SessionViewModel(
         memory?.activeTaskId()?.let { id ->
             memory.store.loadTask(id)?.let { task ->
                 task.stage?.let { stage ->
-                    appendNotice(
+                    appendState(
                         "[task] resuming '$id' — stage ${stage.keyword}" +
                             (if (task.paused) " (paused)" else "") +
                             (task.goal?.let { ", goal: $it" } ?: "")
@@ -148,10 +151,16 @@ internal class SessionViewModel(
         }
     }
 
-    /** Append a session-summary line (final or feed-interim). No-op without history. */
-    private fun emitSummary(label: String) {
+    /**
+     * Append a summary line. The [final] summary becomes a [UiLine.Summary] (the
+     * TUI drops it — its stats panel already shows the totals); a feed-interim
+     * summary stays a [UiLine.Notice]. No-op without history.
+     */
+    private fun emitSummary(label: String, final: Boolean) {
         val stats = historyStore?.stats?.snapshot() ?: return
-        appendNotice(formatSummary(stats, cliArgs.modelProvider.modelId, label))
+        val text = formatSummary(stats, cliArgs.modelProvider.modelId, label)
+        val line = if (final) UiLine.Summary(text) else UiLine.Notice(text)
+        state.update { it.copy(lines = it.lines + line) }
     }
 }
 

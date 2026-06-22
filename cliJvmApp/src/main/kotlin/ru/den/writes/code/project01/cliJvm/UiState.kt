@@ -72,9 +72,22 @@ internal sealed interface UiLine {
     data class Error(val reason: String) : UiLine
 
     /**
-     * A pre-formatted status line (resume banner, branch / memory command
-     * result, session summary). Carries its own `[tag]` prefix; PlainView sends
-     * it to stderr, the TUI drops it into the transcript.
+     * A session-state change — the resume banner now; profile / task-state
+     * changes later. Pre-formatted with its own `[tag]`; PlainView → stderr, the
+     * TUI shows it in a `state │ …` column.
+     */
+    data class State(val text: String) : UiLine
+
+    /**
+     * The final session summary. PlainView → stderr; the TUI drops it — its live
+     * stats panel already shows the totals.
+     */
+    data class Summary(val text: String) : UiLine
+
+    /**
+     * A pre-formatted status line that's neither state nor summary: a
+     * `/`-command result, the feed→REPL transition, an interim feed summary.
+     * Carries its own `[tag]`; PlainView → stderr, the TUI shows a plain line.
      */
     data class Notice(val text: String) : UiLine
 }
