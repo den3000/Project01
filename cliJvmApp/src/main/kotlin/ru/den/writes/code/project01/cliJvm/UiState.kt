@@ -16,7 +16,47 @@ internal data class UiState(
     val busy: Boolean = false,
     /** Latest running totals, for the TUI stats panel. Null before the first turn. */
     val stats: SessionStatsSnapshot? = null,
+    /**
+     * An open modal picker, or null. TUI-only: while non-null the live section
+     * shows it instead of the stats panel, and typed input selects rather than
+     * submits a turn. PlainView ignores it (it reads only [lines]).
+     */
+    val picker: PickerState? = null,
 )
+
+/**
+ * What a modal picker selects. Each kind carries its panel title and tells the
+ * view-model which existing [BranchCommand] a chosen option maps to — the picker
+ * is a TUI-only input modality over commands that already exist, not new logic.
+ */
+internal enum class PickerKind(val title: String) {
+    Profile("profile  ↑↓ · Enter · Esc"),
+    Task("task  ↑↓ · Enter · Esc"),
+    Branch("branch  ↑↓ · Enter · Esc"),
+    MemoryMode("memory-mode  ↑↓ · Enter · Esc"),
+}
+
+/**
+ * Pure state of an open modal picker: the [options] and a [cursor] into them.
+ * Navigation and selection are pure functions so the view-model (the single
+ * writer) drives them without touching the terminal — ported from the cliTui
+ * spike. [moved] wraps around both ends; [selectionIndex] maps the input box to
+ * a choice (empty → the cursor row, a 1-based number → that row, else null).
+ */
+internal data class PickerState(
+    val kind: PickerKind,
+    val options: List<String>,
+    val cursor: Int = 0,
+) {
+    fun moved(delta: Int): PickerState =
+        if (options.isEmpty()) this else copy(cursor = (cursor + delta).mod(options.size))
+
+    fun selectionIndex(text: String): Int? = when {
+        text.isEmpty() -> cursor
+        (text.toIntOrNull() ?: 0) in 1..options.size -> text.toInt() - 1
+        else -> null
+    }
+}
 
 /**
  * The answering agent's identity, attached to an [UiLine.Assistant] only when a
@@ -94,7 +134,11 @@ internal sealed interface UiLine {
 
 /** What a view sends to the view-model. Semantics, not raw keys. */
 internal sealed interface UiIntent {
-    /** Send [text] as the next user turn. */
+    /**
+     * Send [text] as the next user turn — or, when a picker is open, select from
+     * it (empty → the cursor row, a number → that row). The view-model branches
+     * on [UiState.picker], so a view needn't know which mode it's in.
+     */
     data class Submit(val text: String) : UiIntent
 
     /** Run a classified `/`-command (see [parseSlashCommand]). */
@@ -105,6 +149,16 @@ internal sealed interface UiIntent {
 
     /** Leave the session (REPL `/exit` / EOF). */
     data object Exit : UiIntent
+
+    /** Open a modal picker of the given [kind] (TUI only). */
+    data class OpenPicker(val kind: PickerKind) : UiIntent
+
+    /** Move the open picker's cursor up / down (wraps). No-op if none is open. */
+    data object PickerUp : UiIntent
+    data object PickerDown : UiIntent
+
+    /** Close the open picker without selecting. No-op if none is open. */
+    data object PickerCancel : UiIntent
 }
 
 /**

@@ -7,6 +7,7 @@ import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.IntentSource
+import ru.den.writes.code.project01.cliJvm.PickerKind
 import ru.den.writes.code.project01.cliJvm.SessionViewModel
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.TurnEngine
@@ -14,13 +15,18 @@ import ru.den.writes.code.project01.cliJvm.UiEffect
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import ru.den.writes.code.project01.cliJvm.UiLine
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.memory.MemoryMode
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -160,6 +166,106 @@ class SessionViewModelTest {
         assertEquals(UiEffect.Exit, vm.effects.receive())
     }
 
+    //region picker
+
+    @Test
+    fun `when a branch picker opens - then its options list the branches`() = runTest {
+        TestDb().use { harness ->
+            // given — the opening turn populates 'main' with messages
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val vm = newVm(newChat("hi", "s"), fake, store)
+
+            // when
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Branch), UiIntent.Exit))
+
+            // then
+            val picker = vm.state.value.picker
+            assertTrue(
+                picker != null && picker.kind == PickerKind.Branch && "main" in picker.options,
+                "expected a branch picker listing 'main', was $picker",
+            )
+        }
+    }
+
+    @Test
+    fun `when the picker cursor moves down - then the cursor advances`() = runTest {
+        TestDb().use { harness ->
+            // given — two profiles so the cursor has somewhere to go
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home", "work"))
+
+            // when
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.PickerDown, UiIntent.Exit))
+
+            // then
+            assertEquals(1, vm.state.value.picker?.cursor)
+        }
+    }
+
+    @Test
+    fun `when a profile is picked by number - then the active profile switches`() = runTest {
+        TestDb().use { harness ->
+            // given — listProfileNames is sorted, so row 2 is 'work'
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val memory = tempMemory("home", "work")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
+
+            // when — open, then pick row 2
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.Submit("2"), UiIntent.Exit))
+
+            // then — picker closed, the existing SwitchProfile command ran
+            assertNull(vm.state.value.picker)
+            assertTrue(
+                vm.state.value.lines.any { it is UiLine.Notice && it.text == "[memory] active profile → work" },
+                "lines: ${vm.state.value.lines}",
+            )
+            assertEquals("work", memory.activeProfileName())
+        }
+    }
+
+    @Test
+    fun `when a profile picker opens without memory - then it explains and stays closed`() = runTest {
+        TestDb().use { harness ->
+            // given — no memory provider
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store)
+
+            // when
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.Exit))
+
+            // then
+            assertNull(vm.state.value.picker)
+            assertTrue(
+                vm.state.value.lines.any {
+                    it is UiLine.Notice && it.text.startsWith("[memory] memory commands need")
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `when the picker is cancelled - then it closes and runs no command`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val memory = tempMemory("home")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
+
+            // when
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.PickerCancel, UiIntent.Exit))
+
+            // then
+            assertNull(vm.state.value.picker)
+            assertNull(memory.activeProfileName())
+        }
+    }
+    //endregion
+
     //region helpers
 
     private fun newVm(
@@ -167,10 +273,18 @@ class SessionViewModelTest {
         api: LlmApi,
         store: HistoryStore?,
         strategy: ContextStrategy = ContextStrategy.FullHistory,
+        memory: MemoryProvider? = null,
     ): SessionViewModel {
-        val engine = TurnEngine(chat, api, store, strategy)
-        val runner = CommandRunner(store, memory = null, strategy = strategy)
-        return SessionViewModel(chat, engine, runner, store, memory = null, strategy = strategy, multiAgent = false)
+        val engine = TurnEngine(chat, api, store, strategy, memory)
+        val runner = CommandRunner(store, memory = memory, strategy = strategy)
+        return SessionViewModel(chat, engine, runner, store, memory = memory, strategy = strategy, multiAgent = false)
+    }
+
+    /** A memory provider over a throwaway temp dir, pre-seeded with named profiles. */
+    private fun tempMemory(vararg profiles: String): MemoryProvider {
+        val root = Files.createTempDirectory("project01-vm-picker-").toFile().apply { deleteOnExit() }
+        val store = MemoryStore(root).apply { profiles.forEach { touchNamedProfile(it) } }
+        return MemoryProvider(store, MemoryMode.PREAMBLE)
     }
 
     private fun oneShot(prompt: String): CliArgs.OneShot = CliArgs.OneShot(

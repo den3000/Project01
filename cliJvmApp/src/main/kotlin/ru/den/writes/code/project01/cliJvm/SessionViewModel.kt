@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 
 /**
@@ -74,9 +75,15 @@ internal class SessionViewModel(
         while (true) {
             when (val intent = source.next()) {
                 null, UiIntent.Exit -> return
-                is UiIntent.Submit -> if (!runTurn(intent.text)) source.onTurnFailed()
+                is UiIntent.Submit ->
+                    if (state.value.picker != null) selectPicker(intent.text)
+                    else if (!runTurn(intent.text)) source.onTurnFailed()
                 UiIntent.Reuse -> lastReply?.let { runTurn(it) }
                 is UiIntent.SlashCommand -> runCommand(intent.command)
+                is UiIntent.OpenPicker -> openPicker(intent.kind)
+                UiIntent.PickerUp -> state.update { it.copy(picker = it.picker?.moved(-1)) }
+                UiIntent.PickerDown -> state.update { it.copy(picker = it.picker?.moved(+1)) }
+                UiIntent.PickerCancel -> state.update { it.copy(picker = null) }
             }
         }
     }
@@ -124,6 +131,59 @@ internal class SessionViewModel(
 
     /** A session-state line (resume banner now; profile / task-state changes later) — its own `state` lane. */
     private fun appendState(text: String) = state.update { it.copy(lines = it.lines + UiLine.State(text)) }
+
+    /**
+     * Open a modal picker, populating its options from the live session: named
+     * profiles / task ids / branches / memory modes. A missing dependency (no
+     * memory provider, no persisted session) or an empty list yields an
+     * explanatory notice instead — wording mirrors [CommandRunner] so the TUI
+     * picker and the REPL command agree.
+     */
+    private suspend fun openPicker(kind: PickerKind) {
+        val options: List<String>? = when (kind) {
+            PickerKind.Profile -> memory?.store?.listProfileNames()
+            PickerKind.Task -> memory?.store?.listTaskIds()
+            PickerKind.MemoryMode -> memory?.let { MemoryMode.entries.map { m -> m.name.lowercase() } }
+            PickerKind.Branch -> historyStore?.branches()
+        }
+        when {
+            options == null -> appendNotice(
+                when (kind) {
+                    PickerKind.Branch -> "[branch] branch commands need a persisted session"
+                    else -> "[memory] memory commands need -memory-mode <preamble|system> at startup"
+                }
+            )
+            options.isEmpty() -> appendNotice(
+                when (kind) {
+                    PickerKind.Profile -> "[memory] no named profiles — create one with /profile <name> <section> <text>"
+                    PickerKind.Task -> "[memory] no tasks yet — create one with /task <id>"
+                    else -> "[memory] nothing to pick"
+                }
+            )
+            else -> state.update { it.copy(picker = PickerState(kind, options)) }
+        }
+    }
+
+    /**
+     * Resolve the open picker against the typed [text] (empty → cursor row, a
+     * 1-based number → that row, anything else → cancel). A valid choice closes
+     * the picker and runs the mapped [BranchCommand] through the same
+     * [CommandRunner] the REPL uses — the picker adds no new domain logic.
+     */
+    private suspend fun selectPicker(text: String) {
+        val picker = state.value.picker ?: return
+        val idx = picker.selectionIndex(text)
+        state.update { it.copy(picker = null) }
+        if (idx != null) runCommand(pickerCommand(picker.kind, picker.options[idx]))
+    }
+
+    /** Map a picked option to the existing command that applies it. */
+    private fun pickerCommand(kind: PickerKind, option: String): BranchCommand = when (kind) {
+        PickerKind.Profile -> BranchCommand.SwitchProfile(option)
+        PickerKind.Task -> BranchCommand.SetTask(option)
+        PickerKind.Branch -> BranchCommand.Switch(option)
+        PickerKind.MemoryMode -> BranchCommand.SetMemoryMode(MemoryMode.valueOf(option.uppercase()))
+    }
 
     /** Resume banners: prior-turn count + accumulated totals, and the active task's stage. */
     private suspend fun hydrate() {
