@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.agent.branching
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.SessionLoop
+import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.project01.cliJvm.BranchCommand
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.PromptResult
@@ -32,12 +32,12 @@ class AgentBranchingTest {
             val chat = newChat(prompt = "m1", session = "s")
 
             // when
-            SessionLoop(
+            runSessionForTest(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
                 promptSource = stdinSource("/branch alt\n/switch alt\na1\n/exit\n"),
-            ).run()
+            )
 
             // then
             // Branch commands make no LLM calls — only the two real turns do.

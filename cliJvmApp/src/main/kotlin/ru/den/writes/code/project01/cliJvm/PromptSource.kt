@@ -16,6 +16,9 @@ import java.io.Reader
 internal sealed interface PromptResult {
     data class Prompt(val text: String) : PromptResult
     data class Command(val command: BranchCommand) : PromptResult
+
+    /** REPL `/reuse`: resend the last model reply (the view-model holds it). */
+    data object Reuse : PromptResult
     data object Stop : PromptResult
 }
 
@@ -93,14 +96,6 @@ internal interface PromptSource {
     fun nextPrompt(): PromptResult
 
     /**
-     * Hook the agent calls after each successful turn. Lets a source
-     * cache the latest model reply if it needs to (currently only
-     * [StdinPromptSource], for `/reuse`). Default implementation is
-     * a no-op — most sources don't care.
-     */
-    fun observeReply(reply: String) {}
-
-    /**
      * Hook the agent calls when a turn failed (provider returned an
      * error). Default is a no-op — REPL sources just let the user try
      * again. [ChunkedFilePromptSource] uses it to flip an abort flag so
@@ -158,7 +153,6 @@ private const val PROMPT_INDICATOR = "> "
  * production wiring it's `System.in`, which stays open process-wide.
  */
 internal class StdinPromptSource(private val reader: BufferedReader) : PromptSource {
-    private var lastReply: String? = null
 
     override fun nextPrompt(): PromptResult {
         while (true) {
@@ -179,108 +173,102 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
                 line.equals(QUIT_COMMAND, ignoreCase = true)
                 || line.equals(EXIT_COMMAND, ignoreCase = true)
             ) return PromptResult.Stop
-            if (line.equals(REUSE_COMMAND, ignoreCase = true)) {
-                val cached = lastReply?.takeIf { it.isNotEmpty() } ?: continue
-                return PromptResult.Prompt(cached)
-            }
-            parseBranchCommand(line)?.let { return PromptResult.Command(it) }
+            if (line.equals(REUSE_COMMAND, ignoreCase = true)) return PromptResult.Reuse
+            parseSlashCommand(line)?.let { return PromptResult.Command(it) }
             return PromptResult.Prompt(line)
         }
     }
+}
 
-    /**
-     * Classify a `/branch`-family or `/memory`-family command, or null
-     * if [line] isn't one. The lone exception is `/memory-mode` which
-     * needs a `preamble` / `system` argument — anything else falls
-     * through as a normal prompt (the agent's footer makes the typo
-     * obvious; we'd rather not eat the line silently).
-     */
-    private fun parseBranchCommand(line: String): BranchCommand? {
-        val parts = line.split(Regex("\\s+"), limit = 2)
-        val arg = parts.getOrNull(1)?.trim().orEmpty()
-        return when (parts[0].lowercase()) {
-            CHECKPOINT_COMMAND -> BranchCommand.Checkpoint
-            BRANCHES_COMMAND -> BranchCommand.ListBranches
-            BRANCH_COMMAND -> BranchCommand.Branch(arg)
-            SWITCH_COMMAND -> BranchCommand.Switch(arg)
-            MEMORY_COMMAND -> BranchCommand.ShowMemory
-            PROFILE_COMMAND -> classifyProfileCommand(arg)
-            PROFILE_USE_COMMAND -> if (arg.isBlank()) null else BranchCommand.SwitchProfile(arg.trim())
-            PROFILE_LIST_COMMAND -> BranchCommand.ListProfiles
-            PROFILE_SHOW_COMMAND -> if (arg.isBlank()) null else BranchCommand.ShowProfile(arg.trim())
-            RULE_COMMAND -> BranchCommand.AddRule(arg)
-            TASK_COMMAND -> BranchCommand.SetTask(arg)
-            TASK_NOTE_COMMAND -> BranchCommand.AppendTaskNote(arg)
-            TASK_PAUSE_COMMAND -> BranchCommand.PauseTask
-            TASK_RESUME_COMMAND -> BranchCommand.ResumeTask
-            MEMORY_MODE_COMMAND -> parseMemoryMode(arg)
-            else -> null
-        }
-    }
-
-    private fun parseMemoryMode(arg: String): BranchCommand? = when (arg.lowercase()) {
-        "preamble" -> BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE)
-        "system" -> BranchCommand.SetMemoryMode(MemoryMode.SYSTEM)
+/**
+ * Classify a `/branch`-family or `/memory`-family command typed at the REPL,
+ * or null if [line] isn't one. Top-level so both [StdinPromptSource] and the
+ * TUI intent source share one classifier instead of duplicating it. The lone
+ * exception is `/memory-mode`, which needs a `preamble` / `system` argument —
+ * anything else falls through as a normal prompt (the agent's footer makes
+ * the typo obvious; we'd rather not eat the line silently).
+ */
+internal fun parseSlashCommand(line: String): BranchCommand? {
+    val parts = line.split(Regex("\\s+"), limit = 2)
+    val arg = parts.getOrNull(1)?.trim().orEmpty()
+    return when (parts[0].lowercase()) {
+        CHECKPOINT_COMMAND -> BranchCommand.Checkpoint
+        BRANCHES_COMMAND -> BranchCommand.ListBranches
+        BRANCH_COMMAND -> BranchCommand.Branch(arg)
+        SWITCH_COMMAND -> BranchCommand.Switch(arg)
+        MEMORY_COMMAND -> BranchCommand.ShowMemory
+        PROFILE_COMMAND -> classifyProfileCommand(arg)
+        PROFILE_USE_COMMAND -> if (arg.isBlank()) null else BranchCommand.SwitchProfile(arg.trim())
+        PROFILE_LIST_COMMAND -> BranchCommand.ListProfiles
+        PROFILE_SHOW_COMMAND -> if (arg.isBlank()) null else BranchCommand.ShowProfile(arg.trim())
+        RULE_COMMAND -> BranchCommand.AddRule(arg)
+        TASK_COMMAND -> BranchCommand.SetTask(arg)
+        TASK_NOTE_COMMAND -> BranchCommand.AppendTaskNote(arg)
+        TASK_PAUSE_COMMAND -> BranchCommand.PauseTask
+        TASK_RESUME_COMMAND -> BranchCommand.ResumeTask
+        MEMORY_MODE_COMMAND -> parseMemoryMode(arg)
         else -> null
     }
+}
 
-    /**
-     * Map a `/profile …` body into the matching [BranchCommand].
-     *
-     * Default-profile shapes (`<section> <text>`, `<section> clear`,
-     * `clear`) come from [parseProfileCommand]. Anything else that starts
-     * with a valid profile-name identifier is treated as a named-profile
-     * sub-command:
-     *
-     * - `<name>` → touch-create
-     * - `<name> clear` → drop the named profile
-     * - `<name> <section> <text>` → append to it
-     * - `<name> <section> clear` → empty the section
-     *
-     * Free text (multiple words that don't fit the named shape) drops
-     * back to `SetProfile`. Blank input is reported back as
-     * `SetProfile("")` so the agent's "needs the new profile text" error
-     * path keeps firing.
-     */
-    private fun classifyProfileCommand(arg: String): BranchCommand {
-        if (arg.isBlank()) return BranchCommand.SetProfile("")
+private fun parseMemoryMode(arg: String): BranchCommand? = when (arg.lowercase()) {
+    "preamble" -> BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE)
+    "system" -> BranchCommand.SetMemoryMode(MemoryMode.SYSTEM)
+    else -> null
+}
 
-        when (val parsed = parseProfileCommand(arg)) {
-            null -> return BranchCommand.SetProfile("")
-            ProfileCommand.ClearAll -> return BranchCommand.ClearProfile
-            is ProfileCommand.ClearSection -> return BranchCommand.ClearProfileSection(parsed.section)
-            is ProfileCommand.Append -> return BranchCommand.AddProfileItem(parsed.section, parsed.text)
-            is ProfileCommand.SetFreeText -> Unit
-        }
+/**
+ * Map a `/profile …` body into the matching [BranchCommand].
+ *
+ * Default-profile shapes (`<section> <text>`, `<section> clear`,
+ * `clear`) come from [parseProfileCommand]. Anything else that starts
+ * with a valid profile-name identifier is treated as a named-profile
+ * sub-command:
+ *
+ * - `<name>` → touch-create
+ * - `<name> clear` → drop the named profile
+ * - `<name> <section> <text>` → append to it
+ * - `<name> <section> clear` → empty the section
+ *
+ * Free text (multiple words that don't fit the named shape) drops
+ * back to `SetProfile`. Blank input is reported back as
+ * `SetProfile("")` so the agent's "needs the new profile text" error
+ * path keeps firing.
+ */
+private fun classifyProfileCommand(arg: String): BranchCommand {
+    if (arg.isBlank()) return BranchCommand.SetProfile("")
 
-        val tokens = arg.trim().split(Regex("\\s+"))
-        val name = tokens[0]
-        if (!isValidProfileName(name)) return BranchCommand.SetProfile(arg.trim())
-
-        if (tokens.size == 1) return BranchCommand.TouchProfile(name)
-
-        val rest = tokens.drop(1)
-        if (rest.size == 1 && rest[0].equals("clear", ignoreCase = true)) {
-            return BranchCommand.ClearNamedProfile(name)
-        }
-
-        val section = ProfileSection.byKeyword(rest[0])
-            ?: return BranchCommand.SetProfile(arg.trim())
-
-        if (rest.size == 2 && rest[1].equals("clear", ignoreCase = true)) {
-            return BranchCommand.ClearNamedProfileSection(name, section)
-        }
-
-        // Drop the leading "<name> <section>" prefix and keep the
-        // verbatim remainder as the new bullet (blank → Agent reports
-        // "needs text").
-        val text = arg.trim().substringAfter(' ').substringAfter(' ').trim()
-        return BranchCommand.AddNamedProfileItem(name, section, text)
+    when (val parsed = parseProfileCommand(arg)) {
+        null -> return BranchCommand.SetProfile("")
+        ProfileCommand.ClearAll -> return BranchCommand.ClearProfile
+        is ProfileCommand.ClearSection -> return BranchCommand.ClearProfileSection(parsed.section)
+        is ProfileCommand.Append -> return BranchCommand.AddProfileItem(parsed.section, parsed.text)
+        is ProfileCommand.SetFreeText -> Unit
     }
 
-    override fun observeReply(reply: String) {
-        lastReply = reply
+    val tokens = arg.trim().split(Regex("\\s+"))
+    val name = tokens[0]
+    if (!isValidProfileName(name)) return BranchCommand.SetProfile(arg.trim())
+
+    if (tokens.size == 1) return BranchCommand.TouchProfile(name)
+
+    val rest = tokens.drop(1)
+    if (rest.size == 1 && rest[0].equals("clear", ignoreCase = true)) {
+        return BranchCommand.ClearNamedProfile(name)
     }
+
+    val section = ProfileSection.byKeyword(rest[0])
+        ?: return BranchCommand.SetProfile(arg.trim())
+
+    if (rest.size == 2 && rest[1].equals("clear", ignoreCase = true)) {
+        return BranchCommand.ClearNamedProfileSection(name, section)
+    }
+
+    // Drop the leading "<name> <section>" prefix and keep the
+    // verbatim remainder as the new bullet (blank → Agent reports
+    // "needs text").
+    val text = arg.trim().substringAfter(' ').substringAfter(' ').trim()
+    return BranchCommand.AddNamedProfileItem(name, section, text)
 }
 
 /**

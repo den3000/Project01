@@ -5,7 +5,6 @@ import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.SessionLoop
 import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.TestDb
@@ -36,7 +35,7 @@ class AgentOneShotTest {
             )
 
             // when
-            SessionLoop(oneShot, fakeApi, historyStore = null, promptSource = stdinSource("")).run()
+            runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = stdinSource(""))
 
             // then
             assertEquals(1, fakeApi.calls.size)
@@ -62,7 +61,7 @@ class AgentOneShotTest {
         )
 
         // when
-        SessionLoop(oneShot, fakeApi, historyStore = null, promptSource = stdinSource("")).run()
+        runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = stdinSource(""))
 
         // then
         val expected = GenerationParams(

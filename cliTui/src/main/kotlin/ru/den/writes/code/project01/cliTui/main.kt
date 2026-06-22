@@ -1,22 +1,18 @@
 package ru.den.writes.code.project01.cliTui
 
 /**
- * Песочница для сравнения TUI-подходов поверх одной заглушки чата
- * ([DemoResponder]). Один бинарь, три режима — выбираются первым аргументом:
+ * Песочница TUI: один MVI-стек (UI-agnostic [ChatViewModel]) с двумя видами над
+ * ним — вид выбирается первым аргументом:
  *
- *   cliTui kotter    # declarative TUI без Compose (Varabyte)
- *   cliTui mordant   # богатый вывод + простой цикл ввода (AJ Alt)
- *   cliTui combo     # Kotter-каркас + Mordant-виджеты (footer-Panel)
+ *   cliTui          # TUI-вид: Kotter+Mordant (declarative)
+ *   cliTui plain    # plain-вид: тот же VM, без Kotter/Mordant — фолбэк
  *
- * Mosaic (Compose-TUI) выброшен: на macOS-терминале его нативный raw-ввод не
- * перехватывал клавиатуру (символы шли в обычное терминальное эхо). История —
- * в git и в README.
+ * Полигон для механики либ; боевая интеграция в cliJvmApp — см. INTEGRATION.md.
  */
 fun main(args: Array<String>) {
+    val vm = ChatViewModel()
     when (args.firstOrNull()) {
-        "kotter" -> runKotterChat()
-        "mordant" -> runMordantChat()
-        "combo" -> runComboChat()
-        else -> System.err.println("usage: cliTui <kotter|mordant|combo>")
+        "plain" -> runPlainChat(vm)
+        else -> runTuiChat(vm)
     }
 }

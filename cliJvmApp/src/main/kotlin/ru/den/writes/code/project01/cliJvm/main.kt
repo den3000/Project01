@@ -20,6 +20,8 @@ import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.plain.PlainRenderer
+import ru.den.writes.code.project01.cliJvm.tui.TuiRenderer
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.context.HistoryCompressor
@@ -37,6 +39,8 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import java.io.File
 import java.util.UUID
 import kotlin.system.exitProcess
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /** Generous request timeout — LLM responses can take a while. */
 private const val REQUEST_TIMEOUT_MS = 300_000L
@@ -458,6 +462,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
             RoutedJudge(
                 binding = spec.binding,
                 checker = LlmInvariantJudge(buildLlmApi(spec.provider)),
+                modelId = spec.provider.modelId,
             )
         }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile
@@ -480,22 +485,22 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 val stdinAfter = StdinPromptSource(
                     java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
                 )
-                SessionLoop(
+                runSession(
                     cliArgs = parsed,
                     llmApi = llmApi,
                     historyStore = historyStore,
-                    promptSource = feedSource,
-                    replAfterFeed = stdinAfter,
                     strategy = strategy,
                     memory = memory,
                     routedAgents = routedAgents,
                     routedJudges = routedJudges,
-                ).run()
+                    primary = feedSource,
+                    replAfterFeed = stdinAfter,
+                )
             }
         } else {
-            // Stdin REPL: Agent's default StdinPromptSource takes
-            // System.in directly.
-            SessionLoop(
+            // Stdin REPL — TUI when -tui and a real TTY, else plain.
+            val tuiRequested = (parsed as? CliArgs.Chat)?.tui ?: false
+            runSession(
                 cliArgs = parsed,
                 llmApi = llmApi,
                 historyStore = historyStore,
@@ -503,10 +508,63 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 memory = memory,
                 routedAgents = routedAgents,
                 routedJudges = routedJudges,
-            ).run()
+                primary = StdinPromptSource(
+                    java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
+                ),
+                view = pickView(tuiRequested, System.console() != null),
+            )
         }
     }
 }
+
+/**
+ * Assemble the MVI stack — [TurnEngine] + [SessionViewModel] + [PlainView] —
+ * and run it over [primary] (with an optional feed→REPL [replAfterFeed]). The
+ * 16s throttle applies only to a feed source; interactive stdin runs at full
+ * speed.
+ */
+private suspend fun runSession(
+    cliArgs: CliArgs.PromptCommand,
+    llmApi: LlmApi,
+    historyStore: HistoryStore?,
+    strategy: ContextStrategy,
+    memory: MemoryProvider?,
+    routedAgents: List<RoutedAgent>,
+    routedJudges: List<RoutedJudge>,
+    primary: PromptSource,
+    replAfterFeed: PromptSource? = null,
+    view: ViewKind = ViewKind.PLAIN,
+) {
+    val multiAgent = routedAgents.isNotEmpty()
+    val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges)
+    val commandRunner = CommandRunner(historyStore, memory, strategy)
+    val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy, multiAgent)
+    when (view) {
+        ViewKind.TUI -> {
+            // Kotter drives input; the view-model's loop pulls intents the key
+            // handlers push into the channel. No feed throttle interactively.
+            TuiRenderer().run(viewModel, ChannelIntentSource())
+        }
+        ViewKind.PLAIN -> {
+            val feedThrottle = if (replAfterFeed != null) 16.seconds else Duration.ZERO
+            PlainRenderer().run(
+                viewModel,
+                PromptSourceIntents(primary, feedThrottle),
+                replAfterFeed?.let { PromptSourceIntents(it) },
+            )
+        }
+    }
+}
+
+/** Which renderer drives a session. */
+internal enum class ViewKind { TUI, PLAIN }
+
+/**
+ * TUI only for an opted-in Chat on a real TTY; feed / oneshot / non-TTY (pipe,
+ * IDE, CI) all render plain. Pure so the choice is unit-testable.
+ */
+internal fun pickView(tui: Boolean, hasConsole: Boolean): ViewKind =
+    if (tui && hasConsole) ViewKind.TUI else ViewKind.PLAIN
 
 /**
  * Eight-char hex slice off a random UUID — readable on screen, easy to

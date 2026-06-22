@@ -3,7 +3,6 @@ package ru.den.writes.code.project01.cliJvm.agent
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.SessionLoop
 import ru.den.writes.code.project01.cliJvm.FactsExtractor
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.StickyFacts
@@ -29,13 +28,13 @@ class AgentStickyFactsTest {
             val chat = newChat(prompt = "p1", session = "facts")
 
             // when
-            SessionLoop(
+            runSessionForTest(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
                 promptSource = stdinSource("p2\n/exit\n"),
                 strategy = StickyFacts(keepLast = 2),
-            ).run()
+            )
 
             // then
             // Per turn: extraction call first, then the main turn → 4 calls.
@@ -79,13 +78,13 @@ class AgentStickyFactsTest {
             val chat = newChat(prompt = "p1", session = "degrade")
 
             // when
-            SessionLoop(
+            runSessionForTest(
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
                 promptSource = stdinSource("p2\n/exit\n"),
                 strategy = StickyFacts(keepLast = 2),
-            ).run()
+            )
 
             // then
             assertEquals(4, fakeApi.calls.size)

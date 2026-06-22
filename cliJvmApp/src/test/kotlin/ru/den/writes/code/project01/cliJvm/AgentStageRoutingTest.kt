@@ -1,6 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
+import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
@@ -25,7 +26,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Per-stage agent routing in [SessionLoop]: a turn goes to the agent whose
+ * Per-stage agent routing (via [TurnEngine]): a turn goes to the agent whose
  * [TaskBinding] covers the active task stage, otherwise the fallback. With no
  * routed agents the fallback handles every turn — single-agent parity.
  */
@@ -44,12 +45,12 @@ class AgentStageRoutingTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
                     promptSource = stdinSource("/exit\n"),
                     memory = memory,
-                ).run()
+                )
 
                 // then
                 assertEquals(1, fallback.calls.size)
@@ -71,13 +72,13 @@ class AgentStageRoutingTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
                     promptSource = stdinSource("/exit\n"),
                     memory = memory,
                     routedAgents = listOf(routed(TaskStage.PLANNING, TaskStage.EXECUTION, planner)),
-                ).run()
+                )
 
                 // then
                 assertEquals(1, planner.calls.size, "routed agent should answer")
@@ -100,13 +101,13 @@ class AgentStageRoutingTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
                     promptSource = stdinSource("/exit\n"),
                     memory = memory,
                     routedAgents = listOf(routed(TaskStage.EXECUTION, TaskStage.VALIDATION, later)),
-                ).run()
+                )
 
                 // then
                 assertEquals(1, fallback.calls.size, "an uncovered stage falls back")
@@ -130,7 +131,7 @@ class AgentStageRoutingTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
                     promptSource = stdinSource("/exit\n"),
@@ -138,7 +139,7 @@ class AgentStageRoutingTest {
                     routedAgents = listOf(
                         routed(TaskStage.PLANNING, TaskStage.EXECUTION, planner, profileName = "planner"),
                     ),
-                ).run()
+                )
 
                 // then
                 val wire = planner.calls.single().messages.joinToString("\n") { it.text }
@@ -163,7 +164,7 @@ class AgentStageRoutingTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when — two user turns: the opening prompt, then one more line.
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
                     promptSource = stdinSource("go on\n/exit\n"),
@@ -172,7 +173,7 @@ class AgentStageRoutingTest {
                         routed(TaskStage.PLANNING, TaskStage.PLANNING, planner),
                         routed(TaskStage.EXECUTION, TaskStage.VALIDATION, executor),
                     ),
-                ).run()
+                )
 
                 // then
                 assertEquals(1, planner.calls.size, "turn 1 (planning) routes to the planner")
@@ -183,13 +184,6 @@ class AgentStageRoutingTest {
     }
 
     //region agent tag
-
-    @Test
-    fun `agentTag renders profile and model, default when profile is null`() {
-        // when - then
-        assertEquals("[[AGENT: interviewer:gemini-2.5-flash]]", agentTag("interviewer", "gemini-2.5-flash"))
-        assertEquals("[[AGENT: default:m]]", agentTag(null, "m"))
-    }
 
     @Test
     fun `when multi-agent - then the reply is prefixed with the agent tag`() = runTest {
@@ -204,7 +198,7 @@ class AgentStageRoutingTest {
 
                 // when
                 val out = captureStdout {
-                    SessionLoop(
+                    runSessionForTest(
                         newChat(prompt = "hi", session = "demo"),
                         fallback, store,
                         promptSource = stdinSource("/exit\n"),
@@ -215,7 +209,7 @@ class AgentStageRoutingTest {
                                 profileName = "planner", modelId = "gemini-2.5-flash",
                             ),
                         ),
-                    ).run()
+                    )
                 }
 
                 // then
@@ -239,12 +233,12 @@ class AgentStageRoutingTest {
 
                 // when — no routed agents
                 val out = captureStdout {
-                    SessionLoop(
+                    runSessionForTest(
                         newChat(prompt = "hi", session = "demo"),
                         fake, store,
                         promptSource = stdinSource("/exit\n"),
                         memory = memory,
-                    ).run()
+                    )
                 }
 
                 // then
@@ -288,6 +282,7 @@ class AgentStageRoutingTest {
         profile = null,
         memoryMode = null,
         stageAgents = emptyList(),
+        tui = false,
         judgeAgents = emptyList(),
     )
 

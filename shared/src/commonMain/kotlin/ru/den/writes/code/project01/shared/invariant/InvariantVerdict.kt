@@ -21,7 +21,7 @@ data class InvariantViolation(
  * [passed] is true exactly when [violations] is empty — the reply honoured
  * every active invariant (global `rules` plus the answering agent's
  * `constraints`) and those constraints did not contradict the rules. A
- * non-empty list makes the host suppress the turn (see `SessionLoop`): the
+ * non-empty list makes the host suppress the turn (see `TurnEngine`): the
  * reply is shown but not persisted, and the task stage is held.
  */
 data class InvariantVerdict(

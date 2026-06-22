@@ -3,9 +3,11 @@ package ru.den.writes.code.project01.cliJvm.cliArgs
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.cliJvm.CliArgs
+import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
@@ -90,6 +92,7 @@ class CliArgsModeSelectionTest {
         assertEquals(2500, chat.chunkChars)
         assertEquals("", chat.feedInstruction)
         assertEquals(false, chat.byLine)
+        assertEquals(false, chat.tui)
         assertEquals(ContextStrategyKind.FULL, chat.strategy)
         assertEquals(6, chat.keepLast)
         assertEquals(10, chat.summarizeEvery)
@@ -137,6 +140,30 @@ class CliArgsModeSelectionTest {
         // then
         val chat = assertIs<CliArgs.Chat>(parsed)
         assertEquals("tell me a joke", chat.prompt)
+    }
+
+    @Test
+    fun `when -tui passed - then Chat opts into the TUI`() {
+        // given
+        val args = arrayOf("-prompt", "hi", "-tui")
+
+        // when
+        val parsed = parseCliArgsWithDummyKeys(*args)
+
+        // then
+        val chat = assertIs<CliArgs.Chat>(parsed)
+        assertEquals(true, chat.tui)
+    }
+
+    @Test
+    fun `when -tui combined with -oneshot - then rejected`() {
+        // given — the TUI needs a REPL; oneshot has none
+        val args = arrayOf("-prompt", "hi", "-oneshot", "-tui")
+
+        // when - then
+        assertFailsWith<CliArgsException.InvalidArgumentValue> {
+            parseCliArgsWithDummyKeys(*args)
+        }
     }
     //endregion
 

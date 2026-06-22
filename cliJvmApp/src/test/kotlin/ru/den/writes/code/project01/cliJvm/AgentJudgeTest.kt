@@ -1,6 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
+import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
@@ -41,13 +42,13 @@ class AgentJudgeTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "build auth", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
                     memory = memory,
                     routedJudges = listOf(violatingJudge),
-                ).run()
+                )
 
                 // then — stage held, turn dropped from history
                 assertEquals(TaskStage.CLARIFICATION, memStore.loadTask("auth")?.stage)
@@ -70,13 +71,13 @@ class AgentJudgeTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "build auth", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
                     memory = memory,
                     routedJudges = listOf(cleanJudge),
-                ).run()
+                )
 
                 // then — clean verdict leaves the turn untouched
                 assertEquals(TaskStage.PLANNING, memStore.loadTask("auth")?.stage)
@@ -104,16 +105,17 @@ class AgentJudgeTest {
                         calls++
                         InvariantVerdict(passed = false, violations = listOf(InvariantViolation("001", "x")))
                     },
+                    modelId = "test-judge",
                 )
 
                 // when
-                SessionLoop(
+                runSessionForTest(
                     newChat(prompt = "go", session = "demo"),
                     fake, store,
                     promptSource = stdinSource("/exit\n"),
                     memory = memory,
                     routedJudges = listOf(narrowJudge),
-                ).run()
+                )
 
                 // then — stage uncovered → no judge call, turn proceeds normally
                 assertEquals(0, calls)
@@ -130,11 +132,13 @@ class AgentJudgeTest {
         InvariantChecker { _, _, _ ->
             InvariantVerdict(passed = false, violations = listOf(InvariantViolation("001", "proposes Spring")))
         },
+        modelId = "test-judge",
     )
 
     private val cleanJudge = RoutedJudge(
         TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
         InvariantChecker { _, _, _ -> InvariantVerdict.CLEAN },
+        modelId = "test-judge",
     )
 
     private fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.Chat(
@@ -156,6 +160,7 @@ class AgentJudgeTest {
         profile = null,
         memoryMode = null,
         stageAgents = emptyList(),
+        tui = false,
         judgeAgents = emptyList(),
     )
 
