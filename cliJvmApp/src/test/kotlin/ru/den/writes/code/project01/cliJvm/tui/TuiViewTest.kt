@@ -103,6 +103,13 @@ class TuiViewTest {
         // when - then — the argument form is untouched, only the bare form opens a picker
         assertEquals(UiIntent.SlashCommand(BranchCommand.SwitchProfile("work")), toIntent("/profile-use work"))
     }
+
+    @Test
+    fun `when help or question mark - then OpenPalette`() {
+        // when - then
+        assertEquals(UiIntent.OpenPalette, toIntent("/help"))
+        assertEquals(UiIntent.OpenPalette, toIntent("/?"))
+    }
     //endregion
 
     //region PickerTuiView

@@ -6,6 +6,7 @@ import com.varabyte.kotter.foundation.input.Keys
 import com.varabyte.kotter.foundation.input.input
 import com.varabyte.kotter.foundation.input.onInputEntered
 import com.varabyte.kotter.foundation.input.onKeyPressed
+import com.varabyte.kotter.foundation.input.setInput
 import com.varabyte.kotter.foundation.liveVarOf
 import com.varabyte.kotter.foundation.render.aside
 import com.varabyte.kotter.foundation.runUntilSignal
@@ -21,6 +22,7 @@ import ru.den.writes.code.project01.cliJvm.ChannelIntentSource
 import ru.den.writes.code.project01.cliJvm.Overlay
 import ru.den.writes.code.project01.cliJvm.PickerKind
 import ru.den.writes.code.project01.cliJvm.SessionViewModel
+import ru.den.writes.code.project01.cliJvm.UiEffect
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import ru.den.writes.code.project01.cliJvm.UiLine
 import ru.den.writes.code.project01.cliJvm.parseSlashCommand
@@ -61,6 +63,17 @@ internal class TuiRenderer {
             text("> "); input()
         }.runUntilSignal {
             var printed = 0
+            // Capture the RunScope so the effect consumer (a background coroutine)
+            // can call setInput, which is documented as safe to call asynchronously.
+            val run = this
+            work.launch {
+                // Palette prefill: drop a command stub into the input line. Exit is
+                // handled by vm.run returning + signal(), so it's a no-op here.
+                for (effect in vm.effects) when (effect) {
+                    is UiEffect.Prefill -> run.setInput(effect.text)
+                    UiEffect.Exit -> Unit
+                }
+            }
             work.launch {
                 vm.state.collect { state ->
                     state.lines.drop(printed).forEach { line ->
@@ -117,16 +130,17 @@ private fun UiLine.toTuiView(): TuiView? = when (this) {
 
 /**
  * Classify a typed line into a [UiIntent]: `/exit`|`/quit` → Exit, `/reuse` →
- * Reuse, an argument-less command that has a picker (`/profile-use`, `/task`,
- * `/switch`, `/memory-mode`) → OpenPicker, any other recognised `/`-command →
- * SlashCommand, anything else → Submit. Blank input → null (ignored). The bare
- * picker forms are intercepted here, before [parseSlashCommand], so the stdin
- * REPL (which doesn't share this) keeps their plain behaviour.
+ * Reuse, `/help`|`/?` → OpenPalette, an argument-less command that has a picker
+ * (`/profile-use`, `/task`, `/switch`, `/memory-mode`) → OpenPicker, any other
+ * recognised `/`-command → SlashCommand, anything else → Submit. Blank input →
+ * null (ignored). The bare picker / palette forms are intercepted here, before
+ * [parseSlashCommand], so the stdin REPL (which doesn't share this) is untouched.
  */
 internal fun toIntent(text: String): UiIntent? = when {
     text.isEmpty() -> null
     text.equals("/exit", ignoreCase = true) || text.equals("/quit", ignoreCase = true) -> UiIntent.Exit
     text.equals("/reuse", ignoreCase = true) -> UiIntent.Reuse
+    text.equals("/help", ignoreCase = true) || text == "/?" -> UiIntent.OpenPalette
     text.equals("/profile-use", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Profile)
     text.equals("/task", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Task)
     text.equals("/switch", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Branch)
