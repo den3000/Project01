@@ -75,11 +75,7 @@ internal class PlainView(private val multiAgent: Boolean) {
      * line. A CLEAN verdict prints nothing — byte-identical to judging off.
      */
     private fun renderInvariant(verdict: InvariantVerdict) {
-        if (verdict.passed) return
-        verdict.violations.forEach {
-            System.err.println("[invariant] violated ${it.ruleId ?: "constraint"}: ${it.explanation}")
-        }
-        System.err.println("[invariant] reply not saved to history; task stage held")
+        invariantLines(verdict).forEach { System.err.println(it) }
     }
 
     private fun printFooter(o: TurnResult.Ok) {

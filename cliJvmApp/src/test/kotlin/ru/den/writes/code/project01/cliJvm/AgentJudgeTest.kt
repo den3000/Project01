@@ -105,6 +105,7 @@ class AgentJudgeTest {
                         calls++
                         InvariantVerdict(passed = false, violations = listOf(InvariantViolation("001", "x")))
                     },
+                    modelId = "test-judge",
                 )
 
                 // when
@@ -124,6 +125,37 @@ class AgentJudgeTest {
         }
     }
 
+    @Test
+    fun `when verdict has violations - then invariant lines list them plus the not-saved trailer`() {
+        // given — a numbered rule breach and an unnumbered constraint breach
+        val verdict = InvariantVerdict(
+            passed = false,
+            violations = listOf(
+                InvariantViolation("001", "proposes Spring"),
+                InvariantViolation(null, "off topic"),
+            ),
+        )
+
+        // when
+        val lines = invariantLines(verdict)
+
+        // then — null ruleId renders as "constraint"; the trailer always closes
+        assertEquals(
+            listOf(
+                "[invariant] violated 001: proposes Spring",
+                "[invariant] violated constraint: off topic",
+                "[invariant] reply not saved to history; task stage held",
+            ),
+            lines,
+        )
+    }
+
+    @Test
+    fun `when verdict passed - then no invariant lines`() {
+        // when - then
+        assertTrue(invariantLines(InvariantVerdict.CLEAN).isEmpty())
+    }
+
     //region helpers
 
     private val violatingJudge = RoutedJudge(
@@ -131,11 +163,13 @@ class AgentJudgeTest {
         InvariantChecker { _, _, _ ->
             InvariantVerdict(passed = false, violations = listOf(InvariantViolation("001", "proposes Spring")))
         },
+        modelId = "test-judge",
     )
 
     private val cleanJudge = RoutedJudge(
         TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
         InvariantChecker { _, _, _ -> InvariantVerdict.CLEAN },
+        modelId = "test-judge",
     )
 
     private fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.Chat(

@@ -65,28 +65,6 @@ internal class TurnEngine(
         routedJudges.firstOrNull { stage in it.binding }
 
     /**
-     * Run the per-stage invariant judge over [reply] and return its verdict.
-     * Returns [InvariantVerdict.CLEAN] (a no-op, so this is byte-identical to
-     * before when judging is off) whenever there is nothing to judge with: no
-     * judges wired, no memory layer, no active task [stage], or no judge spans
-     * that stage. Otherwise the judge audits [reply] against the global rules
-     * plus the `constraints` of the profile [agentProfile] answered with.
-     */
-    private suspend fun maybeJudge(
-        reply: String,
-        stage: TaskStage?,
-        agentProfile: String?,
-    ): InvariantVerdict {
-        if (routedJudges.isEmpty()) return InvariantVerdict.CLEAN
-        val mem = memory ?: return InvariantVerdict.CLEAN
-        val activeStage = stage ?: return InvariantVerdict.CLEAN
-        val judge = judgeFor(activeStage) ?: return InvariantVerdict.CLEAN
-        val rules = mem.store.listRules()
-        val constraints = mem.constraintsForAgent(agentProfile)
-        return judge.checker.check(reply, rules, constraints)
-    }
-
-    /**
      * Run one turn for [prompt]. Builds «memory layer + planned history +
      * user turn», calls the routed agent, persists both sides on success,
      * applies any legal task-stage move, and returns an immutable [TurnResult].
@@ -117,11 +95,18 @@ internal class TurnEngine(
         result.error?.let { return TurnResult.Failed(it) }
         val text = result.text ?: return TurnResult.Failed("empty response with no usage")
 
-        // Independent invariant judge (per-stage). A breach suppresses the turn:
-        // the reply still reaches the view, but it is NOT persisted (so the
-        // violation doesn't poison later context) and the task stage is held.
-        // No judge for this stage / judging off → CLEAN, identical to before.
-        val verdict = maybeJudge(text, stage, agent.profileName)
+        // Independent invariant judge (per-stage): resolve the judge spanning
+        // the active stage and run it. A breach suppresses the turn — the reply
+        // still reaches the view, but it is NOT persisted (so the violation
+        // doesn't poison later context) and the task stage is held. No judge /
+        // no memory / no stage → CLEAN, identical to before.
+        val mem = memory
+        val judge = if (mem != null) stage?.let(::judgeFor) else null
+        val verdict = if (judge != null && mem != null) {
+            judge.checker.check(text, mem.store.listRules(), mem.constraintsForAgent(agent.profileName))
+        } else {
+            InvariantVerdict.CLEAN
+        }
         if (verdict.passed) {
             historyStore?.append(userTurn)
             historyStore?.append(
@@ -141,6 +126,7 @@ internal class TurnEngine(
             session = historyStore?.stats?.snapshot(),
             stageAdvance = stageAdvance,
             verdict = verdict,
+            judgeModelId = judge?.modelId,
         )
     }
 

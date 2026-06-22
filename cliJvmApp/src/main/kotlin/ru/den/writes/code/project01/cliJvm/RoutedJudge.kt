@@ -12,4 +12,6 @@ import ru.den.writes.code.project01.shared.memory.TaskBinding
 internal class RoutedJudge(
     val binding: TaskBinding,
     val checker: InvariantChecker,
+    /** The judge's model id — tags the breach banner in the TUI `judge` column. */
+    val modelId: String,
 )

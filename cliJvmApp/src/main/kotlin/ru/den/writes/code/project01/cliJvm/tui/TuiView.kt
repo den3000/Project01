@@ -32,7 +32,7 @@ import ru.den.writes.code.project01.cliJvm.formatCost
 import ru.den.writes.code.project01.cliJvm.parseSlashCommand
 import ru.den.writes.code.project01.cliJvm.formatSessionTokens
 import ru.den.writes.code.project01.cliJvm.formatTurnTokens
-import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
+import ru.den.writes.code.project01.cliJvm.invariantLines
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 
 /** Column width of the wrapped-reply prefix, e.g. `"assistant │ "`. */
@@ -98,13 +98,30 @@ internal class TuiView(private val multiAgent: Boolean) {
             is UiLine.User -> wrapWords("you", line.text, width).forEach { cyan { textLine(it) } }
             is UiLine.Turn -> {
                 val o = line.outcome
-                if (multiAgent) magenta { textLine(agentTag(o.profileName, o.modelId)) }
-                wrapWords("assistant", o.reply, width).forEach { green { textLine(it) } }
+                renderAssistant(o, width)
                 renderTurnStats(o, width)
-                renderInvariant(o.verdict)
+                renderJudge(o, width)
             }
             is UiLine.Error -> red { textLine("⚠ ${line.reason}") }
             is UiLine.Notice -> yellow { textLine(line.text) }
+        }
+    }
+
+    /**
+     * The assistant's reply as an `"assistant │ …"` column. In a multi-agent
+     * session the `[[AGENT:]]` tag rides as the first line of the column
+     * (magenta) and the reply follows under the bar (green); single-agent
+     * prints just the reply (parity with the no-tag path).
+     */
+    private fun RenderScope.renderAssistant(o: TurnResult.Ok, width: Int) {
+        if (!multiAgent) {
+            wrapWords("assistant", o.reply, width).forEach { green { textLine(it) } }
+            return
+        }
+        val tag = agentTag(o.profileName, o.modelId)
+        val tagRows = wrapWords("assistant", tag, width).size
+        wrapWords("assistant", "$tag\n${o.reply}", width).forEachIndexed { i, l ->
+            if (i < tagRows) magenta { textLine(l) } else green { textLine(l) }
         }
     }
 
@@ -118,17 +135,20 @@ internal class TuiView(private val multiAgent: Boolean) {
     }
 
     /**
-     * Independent-judge breach lines in the transcript — shown only when the
-     * per-stage judge flagged [verdict] (the reply was displayed but NOT
-     * persisted and the stage was held). Red, mirroring [UiLine.Error]; a CLEAN
-     * verdict renders nothing. Wording mirrors `PlainView` for parity.
+     * Independent-judge breach block — shown only when the per-stage judge
+     * flagged [o]'s verdict (the reply was displayed but NOT persisted and the
+     * stage was held). A `"judge │ …"` column: the judge's `[[AGENT:]]` tag on
+     * the first line (magenta), a blank spacer, then the breach lines (red),
+     * sharing [invariantLines] with `PlainView`. A clean verdict renders nothing.
      */
-    private fun RenderScope.renderInvariant(verdict: InvariantVerdict) {
-        if (verdict.passed) return
-        verdict.violations.forEach {
-            red { textLine("⚠ [invariant] violated ${it.ruleId ?: "constraint"}: ${it.explanation}") }
+    private fun RenderScope.renderJudge(o: TurnResult.Ok, width: Int) {
+        val lines = invariantLines(o.verdict)
+        if (lines.isEmpty()) return
+        val tag = "[[AGENT: ${o.judgeModelId ?: "?"}]]"
+        val tagRows = wrapWords("judge", tag, width).size
+        wrapWords("judge", "$tag\n\n" + lines.joinToString("\n"), width).forEachIndexed { i, l ->
+            if (i < tagRows) magenta { textLine(l) } else red { textLine(l) }
         }
-        red { textLine("⚠ [invariant] reply not saved to history; task stage held") }
     }
 
     private fun RenderScope.renderStats(terminal: Terminal, s: SessionStatsSnapshot) {

@@ -461,6 +461,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
             RoutedJudge(
                 binding = spec.binding,
                 checker = LlmInvariantJudge(buildLlmApi(spec.provider)),
+                modelId = spec.provider.modelId,
             )
         }
         val feedFile = (parsed as? CliArgs.Chat)?.feedFile

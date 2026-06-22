@@ -25,7 +25,9 @@ internal sealed interface TurnResult {
      * so the footer prints no `session:` line); [stageAdvance] is what
      * happened to the task FSM; [verdict] is the per-stage invariant judge's
      * verdict — [InvariantVerdict.CLEAN] unless a judge flagged a breach, in
-     * which case the turn was shown but NOT persisted and the stage was held.
+     * which case the turn was shown but NOT persisted and the stage was held;
+     * [judgeModelId] is the model of the judge that ran (null when none did) —
+     * the TUI tags the breach block with it.
      */
     data class Ok(
         val reply: String,
@@ -36,6 +38,7 @@ internal sealed interface TurnResult {
         val session: SessionStatsSnapshot?,
         val stageAdvance: StageAdvance,
         val verdict: InvariantVerdict = InvariantVerdict.CLEAN,
+        val judgeModelId: String? = null,
     ) : TurnResult
 
     /** The turn failed (provider error or empty response). [reason] is the message. */

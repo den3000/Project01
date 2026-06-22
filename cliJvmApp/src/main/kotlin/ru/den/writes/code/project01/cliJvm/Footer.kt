@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
 import ru.den.writes.code.project01.shared.llm.Usage
 
 /**
@@ -14,6 +15,21 @@ import ru.den.writes.code.project01.shared.llm.Usage
  */
 internal fun agentTag(profileName: String?, modelId: String): String =
     "[[AGENT: ${profileName ?: "default"}:$modelId]]"
+
+/**
+ * The breach lines an invariant [verdict] produces, in render order: one
+ * `[invariant] violated …` per violation, then the `reply not saved …`
+ * trailer. Shared by [PlainView] (stderr) and the TUI `judge` column so the
+ * two never drift. Empty when the verdict passed.
+ */
+internal fun invariantLines(verdict: InvariantVerdict): List<String> =
+    if (verdict.passed) {
+        emptyList()
+    } else {
+        verdict.violations.map {
+            "[invariant] violated ${it.ruleId ?: "constraint"}: ${it.explanation}"
+        } + "[invariant] reply not saved to history; task stage held"
+    }
 
 /**
  * Render the post-turn context-window fill line. Caller invokes this only when
