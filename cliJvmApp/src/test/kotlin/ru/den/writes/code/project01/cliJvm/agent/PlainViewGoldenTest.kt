@@ -7,7 +7,7 @@ import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.IntentSource
-import ru.den.writes.code.project01.cliJvm.PlainView
+import ru.den.writes.code.project01.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.project01.cliJvm.RoutedAgent
 import ru.den.writes.code.project01.cliJvm.SessionViewModel
 import ru.den.writes.code.project01.cliJvm.TestDb
@@ -224,10 +224,11 @@ class PlainViewGoldenTest {
         memory: MemoryProvider? = null,
         routedAgents: List<RoutedAgent> = emptyList(),
     ): CapturedOutput {
+        val multiAgent = routedAgents.isNotEmpty()
         val engine = TurnEngine(chat, api, store, ContextStrategy.FullHistory, memory, routedAgents)
         val runner = CommandRunner(store, memory, ContextStrategy.FullHistory)
-        val vm = SessionViewModel(chat, engine, runner, store, memory, ContextStrategy.FullHistory)
-        val view = PlainView(multiAgent = routedAgents.isNotEmpty())
+        val vm = SessionViewModel(chat, engine, runner, store, memory, ContextStrategy.FullHistory, multiAgent)
+        val view = PlainRenderer()
         return captureStdoutStderr { view.run(vm, primary, followUp) }
     }
 

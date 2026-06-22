@@ -29,6 +29,8 @@ internal class SessionViewModel(
     private val historyStore: HistoryStore?,
     private val memory: MemoryProvider?,
     private val strategy: ContextStrategy,
+    /** Mirrors `routedAgents.isNotEmpty()` — drives whether a reply carries an [AgentRef] tag. */
+    private val multiAgent: Boolean,
 ) {
     val state: StateFlow<UiState>
         field = MutableStateFlow(UiState())
@@ -88,7 +90,7 @@ internal class SessionViewModel(
                 state.update {
                     it.copy(
                         busy = false,
-                        lines = it.lines + UiLine.Turn(result),
+                        lines = it.lines + result.toLines(),
                         stats = result.session ?: it.stats,
                     )
                 }
@@ -99,6 +101,19 @@ internal class SessionViewModel(
                 false
             }
         }
+    }
+
+    /**
+     * Decompose a finished turn into presentation lines (oldest first, so
+     * PlainView's stdout/stderr ordering is preserved): the reply (+ agent
+     * identity in multi-agent), the stats footer, then — only when they
+     * happened — a judge breach and a task-stage move.
+     */
+    private fun TurnResult.Ok.toLines(): List<UiLine> = buildList {
+        add(UiLine.Assistant(reply, if (multiAgent) AgentRef(profileName, modelId) else null))
+        add(UiLine.Turn(usage, modelId, durationMs, session))
+        if (!verdict.passed) add(UiLine.Judge(judgeModelId, verdict.violations))
+        if (stageAdvance != StageAdvance.None) add(UiLine.Stage(stageAdvance))
     }
 
     private suspend fun runCommand(command: BranchCommand) {

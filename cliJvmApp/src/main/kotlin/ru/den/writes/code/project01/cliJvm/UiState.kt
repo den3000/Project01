@@ -1,10 +1,13 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.shared.invariant.InvariantViolation
+import ru.den.writes.code.project01.shared.llm.Usage
+
 /**
- * Immutable UI state for one running session. Observed by a view (PlainView /
- * TuiView) and written ONLY by `SessionViewModel` — a single writer means the
- * TUI's concurrent input collectors never race over a shared `var`. Snapshots
- * all the way down (see [TurnResult] / [SessionStatsSnapshot]).
+ * Immutable UI state for one running session. Observed by a renderer (PlainView /
+ * TuiView family) and written ONLY by `SessionViewModel` — a single writer means
+ * the TUI's concurrent input collectors never race over a shared `var`. Snapshots
+ * all the way down (see [SessionStatsSnapshot]).
  */
 internal data class UiState(
     /** The transcript so far, oldest first. */
@@ -15,7 +18,19 @@ internal data class UiState(
     val stats: SessionStatsSnapshot? = null,
 )
 
-/** One rendered unit in the transcript. */
+/**
+ * The answering agent's identity, attached to an [UiLine.Assistant] only when a
+ * tag should show (multi-agent sessions). Its presence — not a driver flag — is
+ * what tells a view to render the `[[AGENT:]]` tag.
+ */
+internal data class AgentRef(val profileName: String?, val modelId: String)
+
+/**
+ * One rendered unit in the transcript. Each variant carries exactly the data its
+ * view needs to draw it — no reference to the domain [TurnResult]. The
+ * view-model decomposes a finished turn into [Assistant] + [Turn] (+ [Judge] /
+ * [Stage]); a view maps each variant to its renderer.
+ */
 internal sealed interface UiLine {
     /**
      * The user's submitted prompt, echoed into the transcript. The TUI renders
@@ -24,16 +39,42 @@ internal sealed interface UiLine {
      */
     data class User(val text: String) : UiLine
 
-    /** A completed turn: reply + footer (+ any task-stage move). */
-    data class Turn(val outcome: TurnResult.Ok) : UiLine
+    /**
+     * The model's reply plus the answering agent's identity. [agent] is non-null
+     * only in a multi-agent session, in which case the view shows the
+     * `[[AGENT:]]` tag; null prints just the reply.
+     */
+    data class Assistant(val reply: String, val agent: AgentRef?) : UiLine
+
+    /**
+     * The per-turn stats footer: token [usage] (null when the provider returned
+     * text without counts), [modelId] (for the pricing lookup), call
+     * [durationMs], and the running [session] snapshot (null in OneShot).
+     */
+    data class Turn(
+        val usage: Usage?,
+        val modelId: String,
+        val durationMs: Long,
+        val session: SessionStatsSnapshot?,
+    ) : UiLine
+
+    /**
+     * An invariant-judge breach: [judgeModelId] is the model that flagged it (the
+     * TUI tags the block with it; PlainView ignores it) and [violations] are the
+     * breaches. Emitted only on a breach (so [violations] is never empty).
+     */
+    data class Judge(val judgeModelId: String?, val violations: List<InvariantViolation>) : UiLine
+
+    /** A task-stage FSM move. Emitted only when the stage changed or a move was rejected. */
+    data class Stage(val advance: StageAdvance) : UiLine
 
     /** A failed turn: the provider error. */
     data class Error(val reason: String) : UiLine
 
     /**
      * A pre-formatted status line (resume banner, branch / memory command
-     * result, …). Carries its own `[tag]` prefix; PlainView sends it to
-     * stderr, TuiView drops it into the transcript.
+     * result, session summary). Carries its own `[tag]` prefix; PlainView sends
+     * it to stderr, the TUI drops it into the transcript.
      */
     data class Notice(val text: String) : UiLine
 }

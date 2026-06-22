@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
+import ru.den.writes.code.project01.shared.invariant.InvariantViolation
 import ru.den.writes.code.project01.shared.llm.Usage
 
 /**
@@ -17,16 +17,15 @@ internal fun agentTag(profileName: String?, modelId: String): String =
     "[[AGENT: ${profileName ?: "default"}:$modelId]]"
 
 /**
- * The breach lines an invariant [verdict] produces, in render order: one
+ * The breach lines a list of [violations] produces, in render order: one
  * `[invariant] violated …` per violation, then the `reply not saved …`
- * trailer. Shared by [PlainView] (stderr) and the TUI `judge` column so the
- * two never drift. Empty when the verdict passed.
+ * trailer. Empty when there are no violations.
  */
-internal fun invariantLines(verdict: InvariantVerdict): List<String> =
-    if (verdict.passed) {
+internal fun invariantLines(violations: List<InvariantViolation>): List<String> =
+    if (violations.isEmpty()) {
         emptyList()
     } else {
-        verdict.violations.map {
+        violations.map {
             "[invariant] violated ${it.ruleId ?: "constraint"}: ${it.explanation}"
         } + "[invariant] reply not saved to history; task stage held"
     }

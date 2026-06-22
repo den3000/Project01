@@ -43,7 +43,7 @@ class SessionViewModelTest {
 
             // then
             val lines = vm.state.value.lines
-            assertTrue(lines.any { it is UiLine.Turn && it.outcome.reply == "reply" })
+            assertTrue(lines.any { it is UiLine.Assistant && it.reply == "reply" })
             assertFalse(vm.state.value.busy)
             assertEquals("reply", vm.lastReply)
             assertTrue(lines.any { it is UiLine.Notice && it.text.startsWith("[session-summary]") })
@@ -163,7 +163,7 @@ class SessionViewModelTest {
     ): SessionViewModel {
         val engine = TurnEngine(chat, api, store, strategy)
         val runner = CommandRunner(store, memory = null, strategy = strategy)
-        return SessionViewModel(chat, engine, runner, store, memory = null, strategy = strategy)
+        return SessionViewModel(chat, engine, runner, store, memory = null, strategy = strategy, multiAgent = false)
     }
 
     private fun oneShot(prompt: String): CliArgs.OneShot = CliArgs.OneShot(

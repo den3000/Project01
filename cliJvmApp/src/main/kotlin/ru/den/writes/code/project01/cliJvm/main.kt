@@ -20,7 +20,8 @@ import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
-import ru.den.writes.code.project01.cliJvm.tui.TuiView
+import ru.den.writes.code.project01.cliJvm.plain.PlainRenderer
+import ru.den.writes.code.project01.cliJvm.tui.TuiRenderer
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.context.HistoryCompressor
@@ -534,19 +535,19 @@ private suspend fun runSession(
     replAfterFeed: PromptSource? = null,
     view: ViewKind = ViewKind.PLAIN,
 ) {
+    val multiAgent = routedAgents.isNotEmpty()
     val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges)
     val commandRunner = CommandRunner(historyStore, memory, strategy)
-    val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy)
-    val multiAgent = routedAgents.isNotEmpty()
+    val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy, multiAgent)
     when (view) {
         ViewKind.TUI -> {
             // Kotter drives input; the view-model's loop pulls intents the key
             // handlers push into the channel. No feed throttle interactively.
-            TuiView(multiAgent).run(viewModel, ChannelIntentSource())
+            TuiRenderer().run(viewModel, ChannelIntentSource())
         }
         ViewKind.PLAIN -> {
             val feedThrottle = if (replAfterFeed != null) 16.seconds else Duration.ZERO
-            PlainView(multiAgent).run(
+            PlainRenderer().run(
                 viewModel,
                 PromptSourceIntents(primary, feedThrottle),
                 replAfterFeed?.let { PromptSourceIntents(it) },

@@ -14,18 +14,21 @@ import kotlin.test.assertTrue
  */
 class TuiViewTest {
 
+    /** `wrapWords` is a default method on the sealed [TuiView]; call it off any variant. */
+    private val wrap: TuiView = UserTuiView("")
+
     //region wrapWords
 
     @Test
     fun `when text fits the width - then a single prefixed line`() {
         // when - then
-        assertEquals(listOf("assistant │ short reply"), wrapWords("assistant", "short reply", width = 80))
+        assertEquals(listOf("assistant │ short reply"), wrap.wrapWords("assistant", "short reply", width = 80))
     }
 
     @Test
     fun `when text exceeds the width - then continuations align under the bar`() {
         // when
-        val out = wrapWords("assistant", "one two three four five", width = 24)
+        val out = wrap.wrapWords("assistant", "one two three four five", width = 24)
 
         // then — prefix is 12 chars; continuations indent 12 spaces under the │
         assertTrue(out.size > 1, "expected a wrap, got $out")
@@ -36,13 +39,13 @@ class TuiViewTest {
     @Test
     fun `when text is empty - then just the prefix`() {
         // when - then
-        assertEquals(listOf("assistant │ "), wrapWords("assistant", "", width = 80))
+        assertEquals(listOf("assistant │ "), wrap.wrapWords("assistant", "", width = 80))
     }
 
     @Test
     fun `when text has explicit newlines - then they are preserved with aligned continuations`() {
         // when — a markdown-style list keeps its line breaks
-        val out = wrapWords("assistant", "line one\nline two", width = 80)
+        val out = wrap.wrapWords("assistant", "line one\nline two", width = 80)
 
         // then
         assertEquals(listOf("assistant │ line one", "          │ line two"), out)

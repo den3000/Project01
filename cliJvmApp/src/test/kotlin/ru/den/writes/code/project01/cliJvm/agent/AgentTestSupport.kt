@@ -6,7 +6,7 @@ import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
-import ru.den.writes.code.project01.cliJvm.PlainView
+import ru.den.writes.code.project01.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.project01.cliJvm.PromptSource
 import ru.den.writes.code.project01.cliJvm.PromptSourceIntents
 import ru.den.writes.code.project01.cliJvm.RoutedAgent
@@ -85,10 +85,11 @@ internal suspend fun runSessionForTest(
     routedAgents: List<RoutedAgent> = emptyList(),
     routedJudges: List<RoutedJudge> = emptyList(),
 ) {
+    val multiAgent = routedAgents.isNotEmpty()
     val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges)
     val commandRunner = CommandRunner(historyStore, memory, strategy)
-    val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy)
-    val view = PlainView(multiAgent = routedAgents.isNotEmpty())
+    val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy, multiAgent)
+    val view = PlainRenderer()
     view.run(viewModel, PromptSourceIntents(promptSource), replAfterFeed?.let { PromptSourceIntents(it) })
 }
 

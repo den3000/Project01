@@ -137,7 +137,7 @@ class AgentJudgeTest {
         )
 
         // when
-        val lines = invariantLines(verdict)
+        val lines = invariantLines(verdict.violations)
 
         // then — null ruleId renders as "constraint"; the trailer always closes
         assertEquals(
@@ -153,7 +153,7 @@ class AgentJudgeTest {
     @Test
     fun `when verdict passed - then no invariant lines`() {
         // when - then
-        assertTrue(invariantLines(InvariantVerdict.CLEAN).isEmpty())
+        assertTrue(invariantLines(emptyList()).isEmpty())
     }
 
     //region helpers
