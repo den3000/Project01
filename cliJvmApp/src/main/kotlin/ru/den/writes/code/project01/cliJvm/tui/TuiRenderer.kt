@@ -2,8 +2,10 @@ package ru.den.writes.code.project01.cliJvm.tui
 
 import com.github.ajalt.mordant.rendering.AnsiLevel
 import com.github.ajalt.mordant.terminal.Terminal
+import com.varabyte.kotter.foundation.input.Keys
 import com.varabyte.kotter.foundation.input.input
 import com.varabyte.kotter.foundation.input.onInputEntered
+import com.varabyte.kotter.foundation.input.onKeyPressed
 import com.varabyte.kotter.foundation.liveVarOf
 import com.varabyte.kotter.foundation.render.aside
 import com.varabyte.kotter.foundation.runUntilSignal
@@ -16,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import ru.den.writes.code.project01.cliJvm.ChannelIntentSource
+import ru.den.writes.code.project01.cliJvm.PickerKind
 import ru.den.writes.code.project01.cliJvm.SessionViewModel
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import ru.den.writes.code.project01.cliJvm.UiLine
@@ -47,7 +50,11 @@ internal class TuiRenderer {
         section {
             width = minOf(this.width, MAX_CONTENT_WIDTH)
             if (ui.busy) yellow { textLine("… thinking") }
-            ui.stats?.let { SessionPanelTuiView(it).renderIn(this, widgets, width) }
+            // An open picker takes the panel's slot; the input line stays so a
+            // choice can be a number or an arrow + Enter.
+            val picker = ui.picker
+            if (picker != null) PickerTuiView(picker).renderIn(this, widgets, width)
+            else ui.stats?.let { SessionPanelTuiView(it).renderIn(this, widgets, width) }
             text("> "); input()
         }.runUntilSignal {
             var printed = 0
@@ -65,10 +72,25 @@ internal class TuiRenderer {
                 vm.run(source)
                 signal()
             }
+            // Arrow / Esc drive an open picker; when none is open they're inert
+            // so normal typing is untouched. Enter stays on onInputEntered (no
+            // race with the input collector).
+            onKeyPressed {
+                if (ui.picker == null) return@onKeyPressed
+                when (key) {
+                    Keys.Up -> source.offer(UiIntent.PickerUp)
+                    Keys.Down -> source.offer(UiIntent.PickerDown)
+                    Keys.Escape -> source.offer(UiIntent.PickerCancel)
+                    else -> Unit
+                }
+            }
             onInputEntered {
                 val text = input.trim()
                 clearInput()
-                toIntent(text)?.let { source.offer(it) }
+                // With a picker open, even an empty Enter is a selection (the
+                // cursor row), so bypass toIntent's blank → null.
+                if (ui.picker != null) source.offer(UiIntent.Submit(text))
+                else toIntent(text)?.let { source.offer(it) }
             }
         }
         work.cancel()
@@ -92,12 +114,19 @@ private fun UiLine.toTuiView(): TuiView? = when (this) {
 
 /**
  * Classify a typed line into a [UiIntent]: `/exit`|`/quit` → Exit, `/reuse` →
- * Reuse, a recognised `/`-command → SlashCommand, anything else → Submit.
- * Blank input → null (ignored). Shares [parseSlashCommand] with the stdin REPL.
+ * Reuse, an argument-less command that has a picker (`/profile-use`, `/task`,
+ * `/switch`, `/memory-mode`) → OpenPicker, any other recognised `/`-command →
+ * SlashCommand, anything else → Submit. Blank input → null (ignored). The bare
+ * picker forms are intercepted here, before [parseSlashCommand], so the stdin
+ * REPL (which doesn't share this) keeps their plain behaviour.
  */
 internal fun toIntent(text: String): UiIntent? = when {
     text.isEmpty() -> null
     text.equals("/exit", ignoreCase = true) || text.equals("/quit", ignoreCase = true) -> UiIntent.Exit
     text.equals("/reuse", ignoreCase = true) -> UiIntent.Reuse
+    text.equals("/profile-use", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Profile)
+    text.equals("/task", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Task)
+    text.equals("/switch", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Branch)
+    text.equals("/memory-mode", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.MemoryMode)
     else -> parseSlashCommand(text)?.let { UiIntent.SlashCommand(it) } ?: UiIntent.Submit(text)
 }

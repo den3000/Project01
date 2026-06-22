@@ -1,6 +1,8 @@
 package ru.den.writes.code.project01.cliJvm.tui
 
 import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.PickerKind
+import ru.den.writes.code.project01.cliJvm.PickerState
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -83,6 +85,33 @@ class TuiViewTest {
     fun `when plain text - then Submit`() {
         // when - then
         assertEquals(UiIntent.Submit("hello there"), toIntent("hello there"))
+    }
+
+    @Test
+    fun `when an argument-less picker command - then OpenPicker of that kind`() {
+        // when - then
+        assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profile-use"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Task), toIntent("/task"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/switch"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.MemoryMode), toIntent("/memory-mode"))
+    }
+
+    @Test
+    fun `when a picker command carries an argument - then it stays a SlashCommand`() {
+        // when - then — the argument form is untouched, only the bare form opens a picker
+        assertEquals(UiIntent.SlashCommand(BranchCommand.SwitchProfile("work")), toIntent("/profile-use work"))
+    }
+    //endregion
+
+    //region PickerTuiView
+
+    @Test
+    fun `when rendering options - then rows are numbered and the cursor is marked`() {
+        // given
+        val view = PickerTuiView(PickerState(PickerKind.Profile, listOf("home", "work"), cursor = 1))
+
+        // when - then
+        assertEquals(listOf("  1. home", "▶ 2. work"), view.optionLines())
     }
     //endregion
 }
