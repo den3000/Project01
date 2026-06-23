@@ -1,6 +1,10 @@
 package ru.den.writes.code.project01.cliJvm.tui
 
 import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.CommandEntry
+import ru.den.writes.code.project01.cliJvm.Overlay
+import ru.den.writes.code.project01.cliJvm.PaletteAction
+import ru.den.writes.code.project01.cliJvm.PickerKind
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -83,6 +87,63 @@ class TuiViewTest {
     fun `when plain text - then Submit`() {
         // when - then
         assertEquals(UiIntent.Submit("hello there"), toIntent("hello there"))
+    }
+
+    @Test
+    fun `when an argument-less picker command - then OpenPicker of that kind`() {
+        // when - then
+        assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profile-use"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profiles"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Task), toIntent("/task"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/switch"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/branches"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.MemoryMode), toIntent("/memory-mode"))
+    }
+
+    @Test
+    fun `when a picker command carries an argument - then it stays a SlashCommand`() {
+        // when - then — the argument form is untouched, only the bare form opens a picker
+        assertEquals(UiIntent.SlashCommand(BranchCommand.SwitchProfile("work")), toIntent("/profile-use work"))
+    }
+
+    @Test
+    fun `when help or question mark - then OpenPalette`() {
+        // when - then
+        assertEquals(UiIntent.OpenPalette, toIntent("/help"))
+        assertEquals(UiIntent.OpenPalette, toIntent("/?"))
+    }
+    //endregion
+
+    //region PickerTuiView
+
+    @Test
+    fun `when rendering options - then rows are numbered and the cursor is marked`() {
+        // given
+        val view = PickerTuiView(Overlay.Picker(PickerKind.Profile, listOf("home", "work"), cursor = 1))
+
+        // when - then
+        assertEquals(listOf("  1. home", "▶ 2. work"), view.optionLines())
+    }
+    //endregion
+
+    //region PaletteTuiView
+
+    @Test
+    fun `when rendering palette rows - then each shows name and help with the cursor marked`() {
+        // given
+        val palette = Overlay.Palette(
+            listOf(
+                CommandEntry("/checkpoint", "show the branch", PaletteAction.Run(BranchCommand.Checkpoint)),
+                CommandEntry("/rule", "add a rule", PaletteAction.Prefill("/rule ")),
+            ),
+            cursor = 0,
+        )
+
+        // when - then
+        assertEquals(
+            listOf("▶ 1. /checkpoint — show the branch", "  2. /rule — add a rule"),
+            PaletteTuiView(palette).optionLines(),
+        )
     }
     //endregion
 }

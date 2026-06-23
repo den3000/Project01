@@ -5,8 +5,11 @@ import ru.den.writes.code.project01.cliJvm.BranchCommand
 import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
+import ru.den.writes.code.project01.cliJvm.commandCatalog
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.IntentSource
+import ru.den.writes.code.project01.cliJvm.Overlay
+import ru.den.writes.code.project01.cliJvm.PickerKind
 import ru.den.writes.code.project01.cliJvm.SessionViewModel
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.TurnEngine
@@ -14,13 +17,18 @@ import ru.den.writes.code.project01.cliJvm.UiEffect
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import ru.den.writes.code.project01.cliJvm.UiLine
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.project01.shared.memory.MemoryMode
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -100,7 +108,7 @@ class SessionViewModelTest {
     }
 
     @Test
-    fun `when a slash command runs - then its notice is appended`() = runTest {
+    fun `when a slash command runs - then its result lands in the state lane`() = runTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi().apply { queueText("reply") }
@@ -110,9 +118,9 @@ class SessionViewModelTest {
             // when
             vm.run(intents(UiIntent.SlashCommand(BranchCommand.Checkpoint), UiIntent.Exit))
 
-            // then
+            // then — a command result is a state line, so the TUI columns it like the resume banner
             assertTrue(
-                vm.state.value.lines.any { it is UiLine.Notice && it.text.startsWith("[checkpoint] branch 'main'") },
+                vm.state.value.lines.any { it is UiLine.State && it.text.startsWith("[checkpoint] branch 'main'") },
             )
         }
     }
@@ -160,6 +168,179 @@ class SessionViewModelTest {
         assertEquals(UiEffect.Exit, vm.effects.receive())
     }
 
+    //region picker
+
+    @Test
+    fun `when a branch picker opens - then its options list the branches`() = runTest {
+        TestDb().use { harness ->
+            // given — the opening turn populates 'main' with messages
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val vm = newVm(newChat("hi", "s"), fake, store)
+
+            // when
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Branch), UiIntent.Exit))
+
+            // then
+            val overlay = vm.state.value.overlay
+            assertTrue(
+                overlay is Overlay.Picker && overlay.kind == PickerKind.Branch && "main" in overlay.options,
+                "expected a branch picker listing 'main', was $overlay",
+            )
+        }
+    }
+
+    @Test
+    fun `when the picker cursor moves down - then the cursor advances`() = runTest {
+        TestDb().use { harness ->
+            // given — two profiles so the cursor has somewhere to go
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home", "work"))
+
+            // when
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.OverlayDown, UiIntent.Exit))
+
+            // then
+            assertEquals(1, vm.state.value.overlay?.cursor)
+        }
+    }
+
+    @Test
+    fun `when a profile is picked by number - then the active profile switches`() = runTest {
+        TestDb().use { harness ->
+            // given — listProfileNames is sorted, so row 2 is 'work'
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val memory = tempMemory("home", "work")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
+
+            // when — open, then pick row 2
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.Submit("2"), UiIntent.Exit))
+
+            // then — picker closed, the existing SwitchProfile command ran
+            assertNull(vm.state.value.overlay)
+            assertTrue(
+                vm.state.value.lines.any { it is UiLine.State && it.text == "[memory] active profile → work" },
+                "lines: ${vm.state.value.lines}",
+            )
+            assertEquals("work", memory.activeProfileName())
+        }
+    }
+
+    @Test
+    fun `when a profile picker opens without memory - then it explains and stays closed`() = runTest {
+        TestDb().use { harness ->
+            // given — no memory provider
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store)
+
+            // when
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.Exit))
+
+            // then
+            assertNull(vm.state.value.overlay)
+            assertTrue(
+                vm.state.value.lines.any {
+                    it is UiLine.State && it.text.startsWith("[memory] memory commands need")
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `when the picker is cancelled - then it closes and runs no command`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val memory = tempMemory("home")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
+
+            // when
+            vm.run(intents(UiIntent.OpenPicker(PickerKind.Profile), UiIntent.OverlayCancel, UiIntent.Exit))
+
+            // then
+            assertNull(vm.state.value.overlay)
+            assertNull(memory.activeProfileName())
+        }
+    }
+    //endregion
+
+    //region palette
+
+    @Test
+    fun `when the palette opens - then it lists the command catalog`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store)
+
+            // when
+            vm.run(intents(UiIntent.OpenPalette, UiIntent.Exit))
+
+            // then
+            val overlay = vm.state.value.overlay
+            assertTrue(overlay is Overlay.Palette && overlay.entries == commandCatalog(), "was $overlay")
+        }
+    }
+
+    @Test
+    fun `when a no-argument command is chosen from the palette - then it runs`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store)
+            val row = commandCatalog().indexOfFirst { it.name == "/checkpoint" } + 1
+
+            // when
+            vm.run(intents(UiIntent.OpenPalette, UiIntent.Submit("$row"), UiIntent.Exit))
+
+            // then
+            assertNull(vm.state.value.overlay)
+            assertTrue(vm.state.value.lines.any { it is UiLine.State && it.text.startsWith("[checkpoint]") })
+        }
+    }
+
+    @Test
+    fun `when a picker command is chosen from the palette - then that picker opens`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home"))
+            val row = commandCatalog().indexOfFirst { it.name == "/profiles" } + 1
+
+            // when
+            vm.run(intents(UiIntent.OpenPalette, UiIntent.Submit("$row"), UiIntent.Exit))
+
+            // then — the palette handed off to the profile picker
+            val overlay = vm.state.value.overlay
+            assertTrue(overlay is Overlay.Picker && overlay.kind == PickerKind.Profile, "was $overlay")
+        }
+    }
+
+    @Test
+    fun `when a free-text command is chosen from the palette - then a prefill effect is emitted`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val vm = newVm(newChat("hi", "s"), fake, store)
+            val row = commandCatalog().indexOfFirst { it.name == "/rule" } + 1
+
+            // when
+            vm.run(intents(UiIntent.OpenPalette, UiIntent.Submit("$row"), UiIntent.Exit))
+
+            // then — the first effect is the prefill stub
+            assertEquals(UiEffect.Prefill("/rule "), vm.effects.receive())
+        }
+    }
+    //endregion
+
     //region helpers
 
     private fun newVm(
@@ -167,10 +348,18 @@ class SessionViewModelTest {
         api: LlmApi,
         store: HistoryStore?,
         strategy: ContextStrategy = ContextStrategy.FullHistory,
+        memory: MemoryProvider? = null,
     ): SessionViewModel {
-        val engine = TurnEngine(chat, api, store, strategy)
-        val runner = CommandRunner(store, memory = null, strategy = strategy)
-        return SessionViewModel(chat, engine, runner, store, memory = null, strategy = strategy, multiAgent = false)
+        val engine = TurnEngine(chat, api, store, strategy, memory)
+        val runner = CommandRunner(store, memory = memory, strategy = strategy)
+        return SessionViewModel(chat, engine, runner, store, memory = memory, strategy = strategy, multiAgent = false)
+    }
+
+    /** A memory provider over a throwaway temp dir, pre-seeded with named profiles. */
+    private fun tempMemory(vararg profiles: String): MemoryProvider {
+        val root = Files.createTempDirectory("project01-vm-picker-").toFile().apply { deleteOnExit() }
+        val store = MemoryStore(root).apply { profiles.forEach { touchNamedProfile(it) } }
+        return MemoryProvider(store, MemoryMode.PREAMBLE)
     }
 
     private fun oneShot(prompt: String): CliArgs.OneShot = CliArgs.OneShot(

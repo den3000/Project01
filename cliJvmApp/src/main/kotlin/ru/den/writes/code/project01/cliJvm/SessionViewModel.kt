@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 
 /**
@@ -74,9 +75,18 @@ internal class SessionViewModel(
         while (true) {
             when (val intent = source.next()) {
                 null, UiIntent.Exit -> return
-                is UiIntent.Submit -> if (!runTurn(intent.text)) source.onTurnFailed()
+                is UiIntent.Submit -> when (val overlay = state.value.overlay) {
+                    null -> if (!runTurn(intent.text)) source.onTurnFailed()
+                    is Overlay.Picker -> selectPicker(overlay, intent.text)
+                    is Overlay.Palette -> selectPalette(overlay, intent.text)
+                }
                 UiIntent.Reuse -> lastReply?.let { runTurn(it) }
                 is UiIntent.SlashCommand -> runCommand(intent.command)
+                is UiIntent.OpenPicker -> openPicker(intent.kind)
+                UiIntent.OpenPalette -> openPalette()
+                UiIntent.OverlayUp -> state.update { it.copy(overlay = it.overlay?.moved(-1)) }
+                UiIntent.OverlayDown -> state.update { it.copy(overlay = it.overlay?.moved(+1)) }
+                UiIntent.OverlayCancel -> state.update { it.copy(overlay = null) }
             }
         }
     }
@@ -116,14 +126,94 @@ internal class SessionViewModel(
         if (stageAdvance != StageAdvance.None) add(UiLine.Stage(stageAdvance))
     }
 
+    /**
+     * Run a `/`-command and lay its status line(s) into the `state` lane — the
+     * TUI shows them as a `state │ …` column, consistent with the resume banner
+     * (a command result is a session-state report). PlainView is unaffected:
+     * State and Notice both go to stderr verbatim.
+     */
     private suspend fun runCommand(command: BranchCommand) {
-        commandRunner.run(command).forEach { appendNotice(it) }
+        commandRunner.run(command).forEach { appendState(it) }
     }
 
+    /** A transient notice (feed→REPL transition, interim feed summary) — a plain line, no `state │` column. */
     private fun appendNotice(text: String) = state.update { it.copy(lines = it.lines + UiLine.Notice(text)) }
 
-    /** A session-state line (resume banner now; profile / task-state changes later) — its own `state` lane. */
+    /** A session-state line (resume banner, `/`-command results, picker status) — its own `state │` lane. */
     private fun appendState(text: String) = state.update { it.copy(lines = it.lines + UiLine.State(text)) }
+
+    /**
+     * Open a modal picker, populating its options from the live session: named
+     * profiles / task ids / branches / memory modes. A missing dependency (no
+     * memory provider, no persisted session) or an empty list yields an
+     * explanatory notice instead — wording mirrors [CommandRunner] so the TUI
+     * picker and the REPL command agree.
+     */
+    private suspend fun openPicker(kind: PickerKind) {
+        val options: List<String>? = when (kind) {
+            PickerKind.Profile -> memory?.store?.listProfileNames()
+            PickerKind.Task -> memory?.store?.listTaskIds()
+            PickerKind.MemoryMode -> memory?.let { MemoryMode.entries.map { m -> m.name.lowercase() } }
+            PickerKind.Branch -> historyStore?.branches()
+        }
+        when {
+            options == null -> appendState(
+                when (kind) {
+                    PickerKind.Branch -> "[branch] branch commands need a persisted session"
+                    else -> "[memory] memory commands need -memory-mode <preamble|system> at startup"
+                }
+            )
+            options.isEmpty() -> appendState(
+                when (kind) {
+                    PickerKind.Profile -> "[memory] no named profiles — create one with /profile <name> <section> <text>"
+                    PickerKind.Task -> "[memory] no tasks yet — create one with /task <id>"
+                    else -> "[memory] nothing to pick"
+                }
+            )
+            else -> state.update { it.copy(overlay = Overlay.Picker(kind, options)) }
+        }
+    }
+
+    /**
+     * Resolve the open [picker] against the typed [text] (empty → cursor row, a
+     * 1-based number → that row, anything else → cancel). A valid choice closes
+     * the picker and runs the mapped [BranchCommand] through the same
+     * [CommandRunner] the REPL uses — the picker adds no new domain logic.
+     */
+    private suspend fun selectPicker(picker: Overlay.Picker, text: String) {
+        val idx = picker.selectionIndex(text)
+        state.update { it.copy(overlay = null) }
+        if (idx != null) runCommand(pickerCommand(picker.kind, picker.options[idx]))
+    }
+
+    /** Map a picked option to the existing command that applies it. */
+    private fun pickerCommand(kind: PickerKind, option: String): BranchCommand = when (kind) {
+        PickerKind.Profile -> BranchCommand.SwitchProfile(option)
+        PickerKind.Task -> BranchCommand.SetTask(option)
+        PickerKind.Branch -> BranchCommand.Switch(option)
+        PickerKind.MemoryMode -> BranchCommand.SetMemoryMode(MemoryMode.valueOf(option.uppercase()))
+    }
+
+    /** Open the command palette over the full catalog (static — no dependency to gate on). */
+    private fun openPalette() = state.update { it.copy(overlay = Overlay.Palette(commandCatalog())) }
+
+    /**
+     * Resolve the open command [palette] against [text] (same row-selection rule
+     * as a picker). A chosen entry runs its command, opens a picker, pre-fills
+     * the input (a [UiEffect.Prefill] the TUI consumes), or resends the last
+     * reply — every action routes through machinery that already exists.
+     */
+    private suspend fun selectPalette(palette: Overlay.Palette, text: String) {
+        val entry = palette.selectionIndex(text)?.let { palette.entries.getOrNull(it) }
+        state.update { it.copy(overlay = null) }
+        when (val action = entry?.action) {
+            null -> Unit
+            is PaletteAction.Run -> runCommand(action.command)
+            is PaletteAction.Pick -> openPicker(action.kind)
+            is PaletteAction.Prefill -> effects.send(UiEffect.Prefill(action.stub))
+            PaletteAction.Reuse -> lastReply?.let { runTurn(it) }
+        }
+    }
 
     /** Resume banners: prior-turn count + accumulated totals, and the active task's stage. */
     private suspend fun hydrate() {
