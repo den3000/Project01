@@ -6,8 +6,8 @@ import com.varabyte.kotter.foundation.text.yellow
 import com.varabyte.kotter.runtime.render.RenderScope
 
 /**
- * A session-state line as a `"state │ …"` column (yellow): the resume banner
- * now, profile / task-state changes later. The text keeps its own `[tag]`.
+ * A session-state line as a `"state │ …"` column (yellow): the resume banner,
+ * a `/`-command result, or a picker's status. The text keeps its own `[tag]`.
  */
 internal data class StateTuiView(val text: String) : TuiView {
     override fun RenderScope.render(terminal: Terminal, width: Int) {

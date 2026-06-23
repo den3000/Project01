@@ -126,13 +126,20 @@ internal class SessionViewModel(
         if (stageAdvance != StageAdvance.None) add(UiLine.Stage(stageAdvance))
     }
 
+    /**
+     * Run a `/`-command and lay its status line(s) into the `state` lane — the
+     * TUI shows them as a `state │ …` column, consistent with the resume banner
+     * (a command result is a session-state report). PlainView is unaffected:
+     * State and Notice both go to stderr verbatim.
+     */
     private suspend fun runCommand(command: BranchCommand) {
-        commandRunner.run(command).forEach { appendNotice(it) }
+        commandRunner.run(command).forEach { appendState(it) }
     }
 
+    /** A transient notice (feed→REPL transition, interim feed summary) — a plain line, no `state │` column. */
     private fun appendNotice(text: String) = state.update { it.copy(lines = it.lines + UiLine.Notice(text)) }
 
-    /** A session-state line (resume banner now; profile / task-state changes later) — its own `state` lane. */
+    /** A session-state line (resume banner, `/`-command results, picker status) — its own `state │` lane. */
     private fun appendState(text: String) = state.update { it.copy(lines = it.lines + UiLine.State(text)) }
 
     /**
@@ -150,13 +157,13 @@ internal class SessionViewModel(
             PickerKind.Branch -> historyStore?.branches()
         }
         when {
-            options == null -> appendNotice(
+            options == null -> appendState(
                 when (kind) {
                     PickerKind.Branch -> "[branch] branch commands need a persisted session"
                     else -> "[memory] memory commands need -memory-mode <preamble|system> at startup"
                 }
             )
-            options.isEmpty() -> appendNotice(
+            options.isEmpty() -> appendState(
                 when (kind) {
                     PickerKind.Profile -> "[memory] no named profiles — create one with /profile <name> <section> <text>"
                     PickerKind.Task -> "[memory] no tasks yet — create one with /task <id>"

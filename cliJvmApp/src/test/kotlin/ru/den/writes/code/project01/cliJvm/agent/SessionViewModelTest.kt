@@ -108,7 +108,7 @@ class SessionViewModelTest {
     }
 
     @Test
-    fun `when a slash command runs - then its notice is appended`() = runTest {
+    fun `when a slash command runs - then its result lands in the state lane`() = runTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi().apply { queueText("reply") }
@@ -118,9 +118,9 @@ class SessionViewModelTest {
             // when
             vm.run(intents(UiIntent.SlashCommand(BranchCommand.Checkpoint), UiIntent.Exit))
 
-            // then
+            // then — a command result is a state line, so the TUI columns it like the resume banner
             assertTrue(
-                vm.state.value.lines.any { it is UiLine.Notice && it.text.startsWith("[checkpoint] branch 'main'") },
+                vm.state.value.lines.any { it is UiLine.State && it.text.startsWith("[checkpoint] branch 'main'") },
             )
         }
     }
@@ -221,7 +221,7 @@ class SessionViewModelTest {
             // then — picker closed, the existing SwitchProfile command ran
             assertNull(vm.state.value.overlay)
             assertTrue(
-                vm.state.value.lines.any { it is UiLine.Notice && it.text == "[memory] active profile → work" },
+                vm.state.value.lines.any { it is UiLine.State && it.text == "[memory] active profile → work" },
                 "lines: ${vm.state.value.lines}",
             )
             assertEquals("work", memory.activeProfileName())
@@ -243,7 +243,7 @@ class SessionViewModelTest {
             assertNull(vm.state.value.overlay)
             assertTrue(
                 vm.state.value.lines.any {
-                    it is UiLine.Notice && it.text.startsWith("[memory] memory commands need")
+                    it is UiLine.State && it.text.startsWith("[memory] memory commands need")
                 },
             )
         }
@@ -301,7 +301,7 @@ class SessionViewModelTest {
 
             // then
             assertNull(vm.state.value.overlay)
-            assertTrue(vm.state.value.lines.any { it is UiLine.Notice && it.text.startsWith("[checkpoint]") })
+            assertTrue(vm.state.value.lines.any { it is UiLine.State && it.text.startsWith("[checkpoint]") })
         }
     }
 

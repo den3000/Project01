@@ -164,9 +164,9 @@ internal sealed interface UiLine {
     data class Error(val reason: String) : UiLine
 
     /**
-     * A session-state change — the resume banner now; profile / task-state
-     * changes later. Pre-formatted with its own `[tag]`; PlainView → stderr, the
-     * TUI shows it in a `state │ …` column.
+     * A session-state line: the resume banner, a `/`-command result, or a
+     * picker's status (e.g. why it couldn't open). Pre-formatted with its own
+     * `[tag]`; PlainView → stderr, the TUI shows it in a `state │ …` column.
      */
     data class State(val text: String) : UiLine
 
@@ -177,9 +177,9 @@ internal sealed interface UiLine {
     data class Summary(val text: String) : UiLine
 
     /**
-     * A pre-formatted status line that's neither state nor summary: a
-     * `/`-command result, the feed→REPL transition, an interim feed summary.
-     * Carries its own `[tag]`; PlainView → stderr, the TUI shows a plain line.
+     * A transient notice that's neither session state nor summary: the feed→REPL
+     * transition or an interim feed summary. Carries its own `[tag]`; PlainView →
+     * stderr, the TUI shows a plain line (no `state │` column).
      */
     data class Notice(val text: String) : UiLine
 }
