@@ -3,13 +3,16 @@ package ru.den.writes.code.project01.mcpLab
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.StdioClientTransport
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import java.io.IOException
 import kotlin.system.exitProcess
+import kotlin.time.Duration.Companion.milliseconds
 
 private val USAGE: String = """
     mcpLab — MCP client: connect to an MCP server over stdio and list its tools.
@@ -37,9 +40,11 @@ suspend fun main(args: Array<String>) {
     // The subprocess' stdout/stdin carry the JSON-RPC stream; its stderr (logs)
     // is forwarded to ours so server logging can't corrupt the protocol channel.
     val process = try {
-        ProcessBuilder(command)
-            .redirectError(ProcessBuilder.Redirect.INHERIT)
-            .start()
+        withContext(Dispatchers.IO) {
+            ProcessBuilder(command)
+                .redirectError(ProcessBuilder.Redirect.INHERIT)
+                .start()
+        }
     } catch (e: IOException) {
         System.err.println("[mcpLab] cannot start server '${command.first()}': ${e.message}")
         exitProcess(1)
@@ -55,7 +60,7 @@ suspend fun main(args: Array<String>) {
     try {
         // Bound the wait: a server that starts but never speaks MCP (wrong
         // command, crash mid-handshake) must not hang the probe forever.
-        withTimeout(CONNECT_TIMEOUT_MS) {
+        withTimeout(CONNECT_TIMEOUT_MS.milliseconds) {
             client.connect(transport)
             val tools = client.listTools().tools.map { ToolInfo(it.name, it.description) }
             println("Connected to: ${command.joinToString(" ")}")
