@@ -2,6 +2,7 @@ package ru.den.writes.code.project01.shared.agent
 
 import ru.den.writes.code.project01.shared.llm.LlmResult
 import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.project01.shared.llm.ToolCall
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import ru.den.writes.code.project01.shared.memory.TaskStateMachine
 
@@ -17,6 +18,21 @@ import ru.den.writes.code.project01.shared.memory.TaskStateMachine
 data class TurnOutcome(
     val result: LlmResult,
     val proposedStage: TaskStage?,
+    /**
+     * Tool calls the responder executed before [result] was produced (empty
+     * for a plain turn). The exchange itself is ephemeral — not persisted — so
+     * this is what a view/log uses to show that a tool ran.
+     */
+    val executedToolCalls: List<ExecutedToolCall> = emptyList(),
+)
+
+/**
+ * One tool call the responder executed during a turn, paired with the textual
+ * [output] it fed back to the model.
+ */
+data class ExecutedToolCall(
+    val call: ToolCall,
+    val output: String,
 )
 
 /**
