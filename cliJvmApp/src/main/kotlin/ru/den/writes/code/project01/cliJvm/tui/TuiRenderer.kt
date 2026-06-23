@@ -131,8 +131,8 @@ private fun UiLine.toTuiView(): TuiView? = when (this) {
 /**
  * Classify a typed line into a [UiIntent]: `/exit`|`/quit` → Exit, `/reuse` →
  * Reuse, `/help`|`/?` → OpenPalette, an argument-less command that has a picker
- * (`/profile-use`, `/task`, `/switch`, `/memory-mode`) → OpenPicker, any other
- * recognised `/`-command → SlashCommand, anything else → Submit. Blank input →
+ * (`/profile-use`, `/task`, `/switch`|`/branches`, `/memory-mode`) → OpenPicker,
+ * any other recognised `/`-command → SlashCommand, anything else → Submit. Blank →
  * null (ignored). The bare picker / palette forms are intercepted here, before
  * [parseSlashCommand], so the stdin REPL (which doesn't share this) is untouched.
  */
@@ -143,7 +143,8 @@ internal fun toIntent(text: String): UiIntent? = when {
     text.equals("/help", ignoreCase = true) || text == "/?" -> UiIntent.OpenPalette
     text.equals("/profile-use", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Profile)
     text.equals("/task", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Task)
-    text.equals("/switch", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Branch)
+    text.equals("/switch", ignoreCase = true) || text.equals("/branches", ignoreCase = true) ->
+        UiIntent.OpenPicker(PickerKind.Branch)
     text.equals("/memory-mode", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.MemoryMode)
     else -> parseSlashCommand(text)?.let { UiIntent.SlashCommand(it) } ?: UiIntent.Submit(text)
 }

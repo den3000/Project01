@@ -227,10 +227,9 @@ private fun parseMemoryMode(arg: String): BranchCommand? = when (arg.lowercase()
 internal fun commandCatalog(): List<CommandEntry> = listOf(
     CommandEntry(PROFILE_USE_COMMAND, "switch the active named profile", PaletteAction.Pick(PickerKind.Profile)),
     CommandEntry(TASK_COMMAND, "set or switch the active task", PaletteAction.Pick(PickerKind.Task)),
-    CommandEntry(SWITCH_COMMAND, "switch the session branch", PaletteAction.Pick(PickerKind.Branch)),
+    CommandEntry(BRANCHES_COMMAND, "switch the session branch", PaletteAction.Pick(PickerKind.Branch)),
     CommandEntry(MEMORY_MODE_COMMAND, "switch the memory injection mode", PaletteAction.Pick(PickerKind.MemoryMode)),
     CommandEntry(CHECKPOINT_COMMAND, "show the current branch and message count", PaletteAction.Run(BranchCommand.Checkpoint)),
-    CommandEntry(BRANCHES_COMMAND, "list the session's branches", PaletteAction.Run(BranchCommand.ListBranches)),
     CommandEntry(MEMORY_COMMAND, "show the active memory layer", PaletteAction.Run(BranchCommand.ShowMemory)),
     CommandEntry(PROFILE_LIST_COMMAND, "list the named profiles", PaletteAction.Run(BranchCommand.ListProfiles)),
     CommandEntry(TASK_PAUSE_COMMAND, "pause the active task (hold its stage)", PaletteAction.Run(BranchCommand.PauseTask)),

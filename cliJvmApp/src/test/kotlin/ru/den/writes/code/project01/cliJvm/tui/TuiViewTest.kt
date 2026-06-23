@@ -95,6 +95,7 @@ class TuiViewTest {
         assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profile-use"))
         assertEquals(UiIntent.OpenPicker(PickerKind.Task), toIntent("/task"))
         assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/switch"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/branches"))
         assertEquals(UiIntent.OpenPicker(PickerKind.MemoryMode), toIntent("/memory-mode"))
     }
 

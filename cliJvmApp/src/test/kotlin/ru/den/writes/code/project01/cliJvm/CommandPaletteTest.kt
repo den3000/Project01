@@ -26,7 +26,7 @@ class CommandPaletteTest {
         // when - then
         assertEquals(PaletteAction.Pick(PickerKind.Profile), actionOf("/profile-use"))
         assertEquals(PaletteAction.Pick(PickerKind.Task), actionOf("/task"))
-        assertEquals(PaletteAction.Pick(PickerKind.Branch), actionOf("/switch"))
+        assertEquals(PaletteAction.Pick(PickerKind.Branch), actionOf("/branches"))
         assertEquals(PaletteAction.Pick(PickerKind.MemoryMode), actionOf("/memory-mode"))
     }
 
