@@ -28,6 +28,8 @@ import ru.den.writes.code.project01.shared.context.HistoryCompressor
 import ru.den.writes.code.project01.shared.invariant.LlmInvariantJudge
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.ModelProvider
+import ru.den.writes.code.project01.shared.llm.ToolDefinition
+import ru.den.writes.code.project01.shared.llm.ToolExecutor
 import ru.den.writes.code.project01.shared.llm.Usage
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiApi
 import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceApi
@@ -465,26 +467,55 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 modelId = spec.provider.modelId,
             )
         }
-        val feedFile = (parsed as? CliArgs.Chat)?.feedFile
-        if (feedFile != null) {
-            // File-driven feed mode: open the reader and hand a feed source
-            // to Agent — line-by-line (-byLine) or fixed-size character
-            // chunks. After the file is fully read, Agent transitions to
-            // `replAfterFeed` so the user can keep chatting until they type
-            // /exit. `use` closes the reader when Agent.run() returns.
-            File(feedFile).bufferedReader(Charsets.UTF_8).use { reader ->
-                val feedSource: PromptSource = if (parsed.byLine) {
-                    LineFilePromptSource(reader = reader, instruction = parsed.feedInstruction)
-                } else {
-                    ChunkedFilePromptSource(
-                        reader = reader,
-                        chunkChars = parsed.chunkChars,
-                        instruction = parsed.feedInstruction,
+        // MCP tool server (-mcpServer): spawn it, connect, and read its tool
+        // declarations once. Null when the flag is absent → no tools offered,
+        // wire byte-identical to before. Closed in the finally below.
+        val mcpClient: McpToolClient? = chat?.mcpServer?.let { cmd ->
+            McpToolClient(cmd.split(Regex("\\s+")).filter { it.isNotEmpty() }).also { it.connect() }
+        }
+        val toolDefs = mcpClient?.listToolDefinitions().orEmpty()
+        if (mcpClient != null) {
+            System.err.println("[mcp] ${chat?.mcpServer} → tools: ${toolDefs.joinToString { it.name }}")
+        }
+
+        try {
+            val feedFile = (parsed as? CliArgs.Chat)?.feedFile
+            if (feedFile != null) {
+                // File-driven feed mode: open the reader and hand a feed source
+                // to Agent — line-by-line (-byLine) or fixed-size character
+                // chunks. After the file is fully read, Agent transitions to
+                // `replAfterFeed` so the user can keep chatting until they type
+                // /exit. `use` closes the reader when Agent.run() returns.
+                File(feedFile).bufferedReader(Charsets.UTF_8).use { reader ->
+                    val feedSource: PromptSource = if (parsed.byLine) {
+                        LineFilePromptSource(reader = reader, instruction = parsed.feedInstruction)
+                    } else {
+                        ChunkedFilePromptSource(
+                            reader = reader,
+                            chunkChars = parsed.chunkChars,
+                            instruction = parsed.feedInstruction,
+                        )
+                    }
+                    val stdinAfter = StdinPromptSource(
+                        java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
+                    )
+                    runSession(
+                        cliArgs = parsed,
+                        llmApi = llmApi,
+                        historyStore = historyStore,
+                        strategy = strategy,
+                        memory = memory,
+                        routedAgents = routedAgents,
+                        routedJudges = routedJudges,
+                        primary = feedSource,
+                        replAfterFeed = stdinAfter,
+                        toolDefs = toolDefs,
+                        toolExecutor = mcpClient,
                     )
                 }
-                val stdinAfter = StdinPromptSource(
-                    java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
-                )
+            } else {
+                // Stdin REPL — TUI when -tui and a real TTY, else plain.
+                val tuiRequested = (parsed as? CliArgs.Chat)?.tui ?: false
                 runSession(
                     cliArgs = parsed,
                     llmApi = llmApi,
@@ -493,26 +524,16 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                     memory = memory,
                     routedAgents = routedAgents,
                     routedJudges = routedJudges,
-                    primary = feedSource,
-                    replAfterFeed = stdinAfter,
+                    primary = StdinPromptSource(
+                        java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
+                    ),
+                    view = pickView(tuiRequested, System.console() != null),
+                    toolDefs = toolDefs,
+                    toolExecutor = mcpClient,
                 )
             }
-        } else {
-            // Stdin REPL — TUI when -tui and a real TTY, else plain.
-            val tuiRequested = (parsed as? CliArgs.Chat)?.tui ?: false
-            runSession(
-                cliArgs = parsed,
-                llmApi = llmApi,
-                historyStore = historyStore,
-                strategy = strategy,
-                memory = memory,
-                routedAgents = routedAgents,
-                routedJudges = routedJudges,
-                primary = StdinPromptSource(
-                    java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
-                ),
-                view = pickView(tuiRequested, System.console() != null),
-            )
+        } finally {
+            mcpClient?.close()
         }
     }
 }
@@ -534,9 +555,13 @@ private suspend fun runSession(
     primary: PromptSource,
     replAfterFeed: PromptSource? = null,
     view: ViewKind = ViewKind.PLAIN,
+    toolDefs: List<ToolDefinition> = emptyList(),
+    toolExecutor: ToolExecutor? = null,
 ) {
     val multiAgent = routedAgents.isNotEmpty()
-    val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges)
+    val engine = TurnEngine(
+        cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor,
+    )
     val commandRunner = CommandRunner(historyStore, memory, strategy)
     val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy, multiAgent)
     when (view) {
