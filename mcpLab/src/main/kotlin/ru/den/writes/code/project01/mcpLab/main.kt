@@ -22,6 +22,7 @@ private val USAGE: String = """
                               (${DEFAULT_SERVER_COMMAND.joinToString(" ")})
       mcpLab <cmd> [args...]  spawn <cmd> as the MCP server, e.g.
                               mcpLab npx -y @dangahagan/weather-mcp@latest
+      mcpLab --serve          run the built-in Open-Meteo weather MCP server
       mcpLab -h | --help      show this help
 """.trimIndent()
 
@@ -29,9 +30,15 @@ private val USAGE: String = """
 private const val CONNECT_TIMEOUT_MS = 60_000L
 
 suspend fun main(args: Array<String>) {
-    if (args.firstOrNull() in setOf("-h", "--help")) {
-        println(USAGE)
-        return
+    when (args.firstOrNull()) {
+        "-h", "--help" -> {
+            println(USAGE)
+            return
+        }
+        "--serve" -> {
+            runWeatherServer()
+            return
+        }
     }
 
     val command = parseServerCommand(args)
