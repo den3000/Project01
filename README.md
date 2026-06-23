@@ -350,6 +350,13 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -sessions
   ```
 
+- MCP client sandbox — **`mcpLab`** connects to an existing MCP server over
+  stdio and prints its advertised tools, built on the official
+  [Kotlin MCP SDK](https://github.com/modelcontextprotocol/kotlin-sdk). A small
+  experiments module kept separate from the LLM CLI. Quick start:
+  `./gradlew :mcpLab:installDist && ./mcpLab/build/install/mcpLab/bin/mcpLab`.
+  Full docs: [mcpLab/README.md](./mcpLab/README.md).
+
 ### Running tests
 
 Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
