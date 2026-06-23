@@ -24,7 +24,7 @@ class CommandPaletteTest {
     @Test
     fun `when a command chooses from a set - then it maps to a picker of that kind`() {
         // when - then
-        assertEquals(PaletteAction.Pick(PickerKind.Profile), actionOf("/profile-use"))
+        assertEquals(PaletteAction.Pick(PickerKind.Profile), actionOf("/profiles"))
         assertEquals(PaletteAction.Pick(PickerKind.Task), actionOf("/task"))
         assertEquals(PaletteAction.Pick(PickerKind.Branch), actionOf("/branches"))
         assertEquals(PaletteAction.Pick(PickerKind.MemoryMode), actionOf("/memory-mode"))

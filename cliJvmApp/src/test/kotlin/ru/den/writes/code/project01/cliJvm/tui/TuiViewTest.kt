@@ -93,6 +93,7 @@ class TuiViewTest {
     fun `when an argument-less picker command - then OpenPicker of that kind`() {
         // when - then
         assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profile-use"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profiles"))
         assertEquals(UiIntent.OpenPicker(PickerKind.Task), toIntent("/task"))
         assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/switch"))
         assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/branches"))

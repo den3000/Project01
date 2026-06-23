@@ -88,9 +88,9 @@ class SlashCommandParserTest {
     }
 
     @Test
-    fun `when profile-list - then ListProfiles`() {
+    fun `when profiles - then ListProfiles`() {
         // when - then
-        assertEquals(BranchCommand.ListProfiles, parseSlashCommand("/profile-list"))
+        assertEquals(BranchCommand.ListProfiles, parseSlashCommand("/profiles"))
     }
     //endregion
 

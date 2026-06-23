@@ -130,7 +130,7 @@ private const val BRANCHES_COMMAND = "/branches"
 private const val MEMORY_COMMAND = "/memory"
 private const val PROFILE_COMMAND = "/profile"
 private const val PROFILE_USE_COMMAND = "/profile-use"
-private const val PROFILE_LIST_COMMAND = "/profile-list"
+private const val PROFILES_COMMAND = "/profiles"
 private const val PROFILE_SHOW_COMMAND = "/profile-show"
 private const val RULE_COMMAND = "/rule"
 private const val TASK_COMMAND = "/task"
@@ -160,7 +160,7 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
                 "Type a new prompt and press Enter.\n"
                     + "Type $QUIT_COMMAND or $EXIT_COMMAND to leave, $REUSE_COMMAND to resend the last reply.\n"
                     + "Branches: $BRANCHES_COMMAND, $BRANCH_COMMAND <name>, $SWITCH_COMMAND <name>, $CHECKPOINT_COMMAND.\n"
-                    + "Memory: $MEMORY_COMMAND, $PROFILE_LIST_COMMAND, $PROFILE_USE_COMMAND <name>, $PROFILE_SHOW_COMMAND <name>,\n"
+                    + "Memory: $MEMORY_COMMAND, $PROFILES_COMMAND, $PROFILE_USE_COMMAND <name>, $PROFILE_SHOW_COMMAND <name>,\n"
                     + "        $PROFILE_COMMAND [<text> | <section> <text> | <section> clear | clear | <name> [<section> [<text>|clear] | clear]],\n"
                     + "        $RULE_COMMAND <text>, $TASK_COMMAND <id>, $TASK_NOTE_COMMAND <text>,\n"
                     + "        $TASK_PAUSE_COMMAND, $TASK_RESUME_COMMAND, $MEMORY_MODE_COMMAND <preamble|system>."
@@ -199,7 +199,7 @@ internal fun parseSlashCommand(line: String): BranchCommand? {
         MEMORY_COMMAND -> BranchCommand.ShowMemory
         PROFILE_COMMAND -> classifyProfileCommand(arg)
         PROFILE_USE_COMMAND -> if (arg.isBlank()) null else BranchCommand.SwitchProfile(arg.trim())
-        PROFILE_LIST_COMMAND -> BranchCommand.ListProfiles
+        PROFILES_COMMAND -> BranchCommand.ListProfiles
         PROFILE_SHOW_COMMAND -> if (arg.isBlank()) null else BranchCommand.ShowProfile(arg.trim())
         RULE_COMMAND -> BranchCommand.AddRule(arg)
         TASK_COMMAND -> BranchCommand.SetTask(arg)
@@ -225,13 +225,12 @@ private fun parseMemoryMode(arg: String): BranchCommand? = when (arg.lowercase()
  * this), as is the bare prompt.
  */
 internal fun commandCatalog(): List<CommandEntry> = listOf(
-    CommandEntry(PROFILE_USE_COMMAND, "switch the active named profile", PaletteAction.Pick(PickerKind.Profile)),
+    CommandEntry(PROFILES_COMMAND, "switch the active named profile", PaletteAction.Pick(PickerKind.Profile)),
     CommandEntry(TASK_COMMAND, "set or switch the active task", PaletteAction.Pick(PickerKind.Task)),
     CommandEntry(BRANCHES_COMMAND, "switch the session branch", PaletteAction.Pick(PickerKind.Branch)),
     CommandEntry(MEMORY_MODE_COMMAND, "switch the memory injection mode", PaletteAction.Pick(PickerKind.MemoryMode)),
     CommandEntry(CHECKPOINT_COMMAND, "show the current branch and message count", PaletteAction.Run(BranchCommand.Checkpoint)),
     CommandEntry(MEMORY_COMMAND, "show the active memory layer", PaletteAction.Run(BranchCommand.ShowMemory)),
-    CommandEntry(PROFILE_LIST_COMMAND, "list the named profiles", PaletteAction.Run(BranchCommand.ListProfiles)),
     CommandEntry(TASK_PAUSE_COMMAND, "pause the active task (hold its stage)", PaletteAction.Run(BranchCommand.PauseTask)),
     CommandEntry(TASK_RESUME_COMMAND, "resume the active task", PaletteAction.Run(BranchCommand.ResumeTask)),
     CommandEntry(REUSE_COMMAND, "resend the last model reply", PaletteAction.Reuse),
