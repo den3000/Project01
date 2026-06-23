@@ -1,11 +1,15 @@
 package ru.den.writes.code.project01.shared.agent
 
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import ru.den.writes.code.project01.shared.llm.FakeLlmApi
 import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmResult
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.project01.shared.llm.ToolCall
+import ru.den.writes.code.project01.shared.llm.ToolExecutor
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -103,5 +107,75 @@ class AgentResponderTest {
 
         // then
         assertEquals(memoryLayer + userTurn, api.calls.single().messages)
+    }
+
+    @Test
+    fun `when model returns a tool call - then executor runs it and the result is fed back`() = runTest {
+        // given
+        val args = buildJsonObject { put("city", "Paris") }
+        val api = FakeLlmApi().apply {
+            queue(LlmResult(text = null, toolCalls = listOf(ToolCall("current_weather", args))))
+            queueText("It is sunny in Paris.")
+        }
+        val executor = RecordingExecutor("Paris: 18C")
+        val responder = AgentResponder(AgentConfig(llmApi = api, params = GenerationParams(), toolExecutor = executor))
+
+        // when
+        val outcome = responder.respond(emptyList(), emptyList(), Message(Role.USER, "weather in Paris?"))
+
+        // then
+        assertEquals(listOf(ToolCall("current_weather", args)), executor.calls)
+        assertEquals("It is sunny in Paris.", outcome.result.text)
+        assertEquals(
+            listOf(ExecutedToolCall(ToolCall("current_weather", args), "Paris: 18C")),
+            outcome.executedToolCalls,
+        )
+        // The second send carried the model's call turn + the tool result back.
+        assertEquals(2, api.calls.size)
+        val resent = api.calls[1].messages
+        assertEquals(listOf(ToolCall("current_weather", args)), resent[resent.size - 2].toolCalls)
+        assertEquals("current_weather", resent.last().toolResultFor)
+        assertEquals("Paris: 18C", resent.last().text)
+    }
+
+    @Test
+    fun `when no executor configured - then a tool-call result passes straight through`() = runTest {
+        // given — without an executor the responder can't run tools; it returns the call result as-is.
+        val args = buildJsonObject { put("city", "Paris") }
+        val callResult = LlmResult(text = null, toolCalls = listOf(ToolCall("current_weather", args)))
+        val api = FakeLlmApi().apply { queue(callResult) }
+
+        // when
+        val outcome = responder(api).respond(emptyList(), emptyList(), Message(Role.USER, "go"))
+
+        // then
+        assertEquals(1, api.calls.size)
+        assertSame(callResult, outcome.result)
+        assertEquals(emptyList<ExecutedToolCall>(), outcome.executedToolCalls)
+    }
+
+    @Test
+    fun `when model answers without tool calls - then executor is never touched`() = runTest {
+        // given
+        val api = FakeLlmApi().apply { queueText("plain answer") }
+        val executor = RecordingExecutor("unused")
+        val responder = AgentResponder(AgentConfig(llmApi = api, params = GenerationParams(), toolExecutor = executor))
+
+        // when
+        val outcome = responder.respond(emptyList(), emptyList(), Message(Role.USER, "hi"))
+
+        // then
+        assertEquals(1, api.calls.size)
+        assertEquals(emptyList<ToolCall>(), executor.calls)
+        assertEquals("plain answer", outcome.result.text)
+        assertEquals(emptyList<ExecutedToolCall>(), outcome.executedToolCalls)
+    }
+
+    private class RecordingExecutor(private val output: String) : ToolExecutor {
+        val calls = mutableListOf<ToolCall>()
+        override suspend fun execute(call: ToolCall): String {
+            calls += call
+            return output
+        }
     }
 }
