@@ -69,18 +69,6 @@ class GeminiApi(
         messages: List<Message>,
         params: GenerationParams,
     ): LlmResult {
-        println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        // Show only the last user turn — the rest of the history is too
-        // noisy to print on every call, and that's the prompt the user
-        // just typed.
-        println("prompt: ${messages.lastOrNull()?.text ?: ""}")
-        println("model: ${model.id}")
-        params.maxTokens?.let { println("maxTokens: $it") }
-        params.stopSequences?.let { println("stopSequences: $it") }
-        params.endSequence?.let { println("endSequence: $it") }
-        params.temperature?.let { println("temperature: $it") }
-        println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-
         // Single-retry loop: at most one extra attempt on 429 or timeout.
         // Anything else (5xx, network errors etc.) — fail immediately;
         // the user already has a high-level error path that keeps the

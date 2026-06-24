@@ -56,11 +56,8 @@ class McpToolClient(private val command: List<String>) : ToolExecutor {
         client.listTools().tools.map { it.toToolDefinition() }
 
     override suspend fun execute(call: ToolCall): String {
-        System.err.println("[tool] ${call.name}(${call.arguments})")
         val result = client.callTool(call.name, call.arguments.toArgMap())
-        val text = result.content.filterIsInstance<TextContent>().mapNotNull { it.text }.joinToString("\n")
-        System.err.println("[tool] → ${text.take(160)}")
-        return text
+        return result.content.filterIsInstance<TextContent>().mapNotNull { it.text }.joinToString("\n")
     }
 
     /** Force-kill the server subprocess; the agent process exits afterwards. */

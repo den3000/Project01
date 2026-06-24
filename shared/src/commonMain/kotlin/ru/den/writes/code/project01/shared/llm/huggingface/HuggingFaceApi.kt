@@ -59,15 +59,6 @@ class HuggingFaceApi(
         messages: List<Message>,
         params: GenerationParams,
     ): LlmResult {
-        println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        println("prompt: ${messages.lastOrNull()?.text ?: ""}")
-        println("model: ${model.id}")
-        params.maxTokens?.let { println("maxTokens: $it") }
-        params.stopSequences?.let { println("stopSequences: $it") }
-        params.endSequence?.let { println("endSequence: $it") }
-        params.temperature?.let { println("temperature: $it") }
-        println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-
         val wireMessages = buildHuggingFaceWireMessages(messages, params.endSequence)
 
         // Single-retry loop: at most one extra attempt on 503 (cold start).
