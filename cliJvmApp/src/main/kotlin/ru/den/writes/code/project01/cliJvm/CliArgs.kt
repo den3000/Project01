@@ -39,6 +39,7 @@ private const val ARG_PROFILE = "${ARG_PREFIX}profile"
 private const val ARG_MEMORY_MODE = "${ARG_PREFIX}memory-mode"
 private const val ARG_STAGE_AGENT = "${ARG_PREFIX}stageAgent"
 private const val ARG_JUDGE_AGENT = "${ARG_PREFIX}judgeAgent"
+private const val ARG_MCP_SERVER = "${ARG_PREFIX}mcpServer"
 
 // -memory-mode values (matched case-insensitively).
 private const val MEMORY_MODE_PREAMBLE = "preamble"
@@ -326,6 +327,13 @@ internal sealed interface CliArgs {
          * least one [stageAgents] entry (and thus [memoryMode]).
          */
         val judgeAgents: List<StageJudgeSpec>,
+        /**
+         * `-mcpServer "<command>"`: spawn an MCP server as a subprocess (e.g.
+         * `mcpLab --serve`) and offer its tools to the model. The agent may then
+         * call a tool through the server during a turn and use the result. Null
+         * (default) = no tools, wire identical to a tool-less run. Chat-only.
+         */
+        val mcpServer: String? = null,
     ) : PromptCommand
 
     /**
@@ -366,6 +374,8 @@ internal sealed interface CliArgs {
                 "  (repeatable; per-stage model+profile; needs $ARG_MEMORY_MODE; uncovered stages use the default agent)\n" +
                 "       [$ARG_JUDGE_AGENT <from..to>=<provider>:<model> ...]" +
                 "  (repeatable; per-stage invariant judge; needs $ARG_STAGE_AGENT)\n" +
+                "       [$ARG_MCP_SERVER \"<command>\"]" +
+                "  (spawn an MCP server, e.g. \"mcpLab --serve\", and offer its tools to the model)\n" +
                 "   or: $ARG_PROMPT <text> $ARG_ONESHOT [...same knobs as above, no $ARG_SESSION, no $ARG_FEED_FILE]\n" +
                 "                (single prompt → response → exit; no REPL, no session)\n" +
                 "   or: $ARG_LIST_SESSIONS   (list saved sessions, ignores all other flags)\n" +
@@ -456,6 +466,7 @@ internal sealed interface CliArgs {
                 ARG_STAGE_AGENT,
                 ARG_TUI,
                 ARG_JUDGE_AGENT,
+                ARG_MCP_SERVER,
             )
             val values = mutableMapOf<String, String>()
             // -stageAgent repeats (one per stage span), so it can't live in the
@@ -692,7 +703,7 @@ internal sealed interface CliArgs {
                 // are value-less, so a blank-check wouldn't catch them.
                 listOf(
                     ARG_COMPRESS, ARG_KEEP_LAST, ARG_SUMMARIZE_EVERY, ARG_BY_LINE, ARG_STRATEGY,
-                    ARG_TASK, ARG_PROFILE, ARG_MEMORY_MODE, ARG_TUI,
+                    ARG_TASK, ARG_PROFILE, ARG_MEMORY_MODE, ARG_TUI, ARG_MCP_SERVER,
                 ).forEach { flag ->
                     if (flag in values) {
                         throw CliArgsException.InvalidArgumentValue(
@@ -921,6 +932,8 @@ internal sealed interface CliArgs {
                 )
             }
 
+            val mcpServer = values[ARG_MCP_SERVER]?.takeIf { it.isNotBlank() }
+
             return Chat(
                 prompt = prompt,
                 maxTokens = maxTokens,
@@ -942,6 +955,7 @@ internal sealed interface CliArgs {
                 stageAgents = stageAgents,
                 tui = ARG_TUI in values,
                 judgeAgents = judgeAgents,
+                mcpServer = mcpServer,
             )
         }
 

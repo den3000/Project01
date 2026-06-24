@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.shared.agent.ExecutedToolCall
 import ru.den.writes.code.project01.shared.invariant.InvariantViolation
 import ru.den.writes.code.project01.shared.llm.Usage
 
@@ -182,6 +183,28 @@ internal sealed interface UiLine {
      * stderr, the TUI shows a plain line (no `state │` column).
      */
     data class Notice(val text: String) : UiLine
+
+    /**
+     * The MCP tool round-trip the agent ran before its reply: each
+     * [ExecutedToolCall] (call + result) plus the [modelId] the results were fed
+     * back to. Emitted only when a tool actually ran. The TUI shows it as an
+     * `mcp │ …` column; PlainView prints the lines to stdout.
+     */
+    data class MCPLine(val calls: List<ExecutedToolCall>, val modelId: String) : UiLine
+}
+
+/**
+ * The transcript lines for one MCP tool round-trip: per call its invocation and
+ * result, then the model the results were fed back to and the prompt (= that
+ * result) it was sent as. Shared text for both renderers; each draws it its way.
+ */
+internal fun mcpToolLines(calls: List<ExecutedToolCall>, modelId: String): List<String> = buildList {
+    for (c in calls) {
+        add("[tool] ${c.call.name}(${c.call.arguments})")
+        add("[tool] → ${c.output}")
+    }
+    add("model: $modelId")
+    calls.lastOrNull()?.let { add("prompt: ${it.output}") }
 }
 
 /** What a view sends to the view-model. Semantics, not raw keys. */

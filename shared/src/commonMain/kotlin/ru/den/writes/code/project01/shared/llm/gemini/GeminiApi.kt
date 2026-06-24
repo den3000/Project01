@@ -11,11 +11,15 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.LlmResult
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.project01.shared.llm.ToolCall
+import ru.den.writes.code.project01.shared.llm.ToolDefinition
 import ru.den.writes.code.project01.shared.llm.Usage
 import ru.den.writes.code.project01.shared.util.logWarn
 
@@ -65,18 +69,6 @@ class GeminiApi(
         messages: List<Message>,
         params: GenerationParams,
     ): LlmResult {
-        println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        // Show only the last user turn — the rest of the history is too
-        // noisy to print on every call, and that's the prompt the user
-        // just typed.
-        println("prompt: ${messages.lastOrNull()?.text ?: ""}")
-        println("model: ${model.id}")
-        params.maxTokens?.let { println("maxTokens: $it") }
-        params.stopSequences?.let { println("stopSequences: $it") }
-        params.endSequence?.let { println("endSequence: $it") }
-        params.temperature?.let { println("temperature: $it") }
-        println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-
         // Single-retry loop: at most one extra attempt on 429 or timeout.
         // Anything else (5xx, network errors etc.) — fail immediately;
         // the user already has a high-level error path that keeps the
@@ -92,6 +84,7 @@ class GeminiApi(
                     setBody(
                         GeminiRequest(
                             contents = turnMsgs.mapNotNull { it.toContentOrNull() },
+                            tools = params.tools?.takeIf { it.isNotEmpty() }?.toGeminiTools(),
                             generationConfig = params.toGenerationConfig(),
                             systemInstruction = buildSystemInstruction(systemMsgs, params.endSequence),
                         )
@@ -138,10 +131,6 @@ class GeminiApi(
             }
 
             val response: GeminiResponse = httpResponse.body()
-            val text = response.candidates
-                .firstOrNull()?.content?.parts
-                ?.joinToString(separator = "") { it.text }
-                ?.takeIf { it.isNotBlank() }
             val usage = response.usageMetadata?.let { u ->
                 Usage(
                     promptTokens = u.promptTokenCount ?: 0,
@@ -150,7 +139,11 @@ class GeminiApi(
                     totalTokens = u.totalTokenCount ?: 0,
                 )
             }
-            return LlmResult(text = text, usage = usage)
+            return LlmResult(
+                text = response.extractText(),
+                usage = usage,
+                toolCalls = response.extractToolCalls(),
+            )
         }
     }
 }
@@ -182,14 +175,63 @@ internal fun parseRetryAfterMillis(body: String): Long? {
  * Map a neutral [Message] into Gemini's wire [Content]. `Role.SYSTEM`
  * returns null — those messages travel via [buildSystemInstruction]
  * (Gemini has a dedicated `systemInstruction` field, separate from
- * `contents`). Caller is expected to filter SYSTEM out of `contents`
- * upstream; the null fallback here is exhaustiveness insurance.
+ * `contents`).
+ *
+ * Function-calling turns map to dedicated part types: a message carrying
+ * [Message.toolCalls] becomes a `role="model"` content with `functionCall`
+ * parts; one carrying [Message.toolResultFor] becomes a `role="user"` content
+ * with a `functionResponse` part (its result text wrapped as `{ "result": … }`,
+ * since Gemini requires the response to be an object). Plain turns are
+ * unchanged — the same single text part as before.
  */
-private fun Message.toContentOrNull(): Content? = when (role) {
-    Role.SYSTEM -> null
-    Role.USER -> Content(parts = listOf(Part(text)), role = "user")
-    Role.ASSISTANT -> Content(parts = listOf(Part(text)), role = "model")
+internal fun Message.toContentOrNull(): Content? {
+    if (role == Role.SYSTEM) return null
+    toolCalls?.let { calls ->
+        return Content(
+            role = "model",
+            parts = calls.map { Part(functionCall = FunctionCall(name = it.name, args = it.arguments)) },
+        )
+    }
+    toolResultFor?.let { name ->
+        return Content(
+            role = "user",
+            parts = listOf(
+                Part(functionResponse = FunctionResponse(name = name, response = buildJsonObject { put("result", text) })),
+            ),
+        )
+    }
+    return when (role) {
+        Role.USER -> Content(parts = listOf(Part(text = text)), role = "user")
+        Role.ASSISTANT -> Content(parts = listOf(Part(text = text)), role = "model")
+        Role.SYSTEM -> null
+    }
 }
+
+/**
+ * Wrap neutral [ToolDefinition]s into Gemini's single-entry `tools` shape: one
+ * [GeminiTool] holding every declaration.
+ */
+internal fun List<ToolDefinition>.toGeminiTools(): List<GeminiTool> =
+    listOf(
+        GeminiTool(
+            functionDeclarations = map {
+                FunctionDeclaration(name = it.name, description = it.description, parameters = it.parameters)
+            },
+        ),
+    )
+
+/** The first candidate's text parts, joined; null when the reply carries no text. */
+internal fun GeminiResponse.extractText(): String? =
+    candidates.firstOrNull()?.content?.parts.orEmpty()
+        .mapNotNull { it.text }
+        .joinToString(separator = "")
+        .takeIf { it.isNotBlank() }
+
+/** The first candidate's `functionCall` parts mapped to neutral [ToolCall]s. */
+internal fun GeminiResponse.extractToolCalls(): List<ToolCall> =
+    candidates.firstOrNull()?.content?.parts.orEmpty()
+        .mapNotNull { it.functionCall }
+        .map { ToolCall(name = it.name, arguments = it.args) }
 
 /**
  * Builds Gemini's `generationConfig` from the neutral [GenerationParams].
