@@ -1,12 +1,33 @@
 package ru.den.writes.code.project01.shared.llm.gemini
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 internal data class GeminiRequest(
     val contents: List<Content>,
+    val tools: List<GeminiTool>? = null,
     val generationConfig: GenerationConfig? = null,
     val systemInstruction: SystemInstruction? = null,
+)
+
+/**
+ * Gemini groups callable functions under `tools[].functionDeclarations`. We send
+ * one tool entry holding all declarations. Omitted from the body when the caller
+ * passes no tools — same bytes as before for tool-less requests.
+ */
+@Serializable
+internal data class GeminiTool(val functionDeclarations: List<FunctionDeclaration>)
+
+/**
+ * One callable function the model may invoke: [name], a [description] it reads to
+ * decide when to call, and a JSON-Schema [parameters] object.
+ */
+@Serializable
+internal data class FunctionDeclaration(
+    val name: String,
+    val description: String? = null,
+    val parameters: JsonObject? = null,
 )
 
 /**
@@ -30,8 +51,31 @@ internal data class Content(
     val role: String? = null,
 )
 
+/**
+ * A content part: exactly one of [text] (ordinary turn), [functionCall] (the
+ * model invoking a tool) or [functionResponse] (a tool result handed back). All
+ * nullable + omit-nulls so a text-only part serialises byte-identically to before.
+ */
 @Serializable
-internal data class Part(val text: String)
+internal data class Part(
+    val text: String? = null,
+    val functionCall: FunctionCall? = null,
+    val functionResponse: FunctionResponse? = null,
+)
+
+/** Model → app: the tool [name] and the [args] object the model supplied. */
+@Serializable
+internal data class FunctionCall(
+    val name: String,
+    val args: JsonObject = JsonObject(emptyMap()),
+)
+
+/** App → model: a tool result. Gemini requires [response] to be an object. */
+@Serializable
+internal data class FunctionResponse(
+    val name: String,
+    val response: JsonObject,
+)
 
 /**
  * Subset of Gemini's `generationConfig` we expose. Null fields are omitted

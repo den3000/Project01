@@ -65,6 +65,20 @@ enum class Role { SYSTEM, USER, ASSISTANT }
 data class Message(
     val role: Role,
     val text: String,
+    /**
+     * Tool calls this turn carries — set only on a [Role.ASSISTANT] turn the
+     * model produced as a tool invocation (its [text] is then empty). null for
+     * ordinary turns. Ephemeral: only the function-calling loop builds these,
+     * and they are never persisted to history.
+     */
+    val toolCalls: List<ToolCall>? = null,
+    /**
+     * When non-null, this turn carries a tool *result* back to the model: the
+     * name of the tool whose textual output sits in [text]. Maps to the
+     * provider's function-response wire shape. null for ordinary turns; also
+     * ephemeral.
+     */
+    val toolResultFor: String? = null,
 )
 
 /**
@@ -89,6 +103,12 @@ data class GenerationParams(
      * answer instead of being eaten by reasoning. Other providers ignore it.
      */
     val thinkingBudget: Int? = null,
+    /**
+     * Tool / function declarations advertised to the model. null (default)
+     * means no tools and a request shape identical to before; providers
+     * without function-calling support ignore it.
+     */
+    val tools: List<ToolDefinition>? = null,
 )
 
 /**
@@ -123,4 +143,10 @@ data class LlmResult(
     val text: String?,
     val usage: Usage? = null,
     val error: String? = null,
+    /**
+     * Tool calls the model requested instead of (or alongside) a textual
+     * answer. Empty (default) for a plain reply or any provider that does not
+     * surface function calls.
+     */
+    val toolCalls: List<ToolCall> = emptyList(),
 )

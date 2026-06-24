@@ -2,6 +2,7 @@ package ru.den.writes.code.project01.shared.agent
 
 import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
+import ru.den.writes.code.project01.shared.llm.ToolExecutor
 
 /**
  * Static description of a single agent: the model surface it talks to
@@ -21,4 +22,11 @@ data class AgentConfig(
     val llmApi: LlmApi,
     val params: GenerationParams,
     val profileName: String? = null,
+    /**
+     * Backs the function-calling loop in [AgentResponder]: when non-null and
+     * the model returns tool calls, the responder runs each through this and
+     * feeds the result back. null (default) = no tool execution — the responder
+     * makes a single [LlmApi.send] call exactly as before.
+     */
+    val toolExecutor: ToolExecutor? = null,
 )

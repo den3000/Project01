@@ -13,6 +13,10 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinxJson)
     implementation(libs.kotlinx.serializationJson)
     implementation(libs.kotlinx.coroutinesCore)
+    // MCP tool client (-mcpServer): spawn an MCP server over stdio and call its
+    // tools. The SDK's stdio transport rides kotlinx-io; the ktor-client-java
+    // engine above covers its HTTP/SSE transports.
+    implementation(libs.mcp.kotlin.sdk)
     // TUI (-tui): Kotter drives the interactive screen, Mordant renders the
     // stats panel into a string (AnsiLevel.NONE) that Kotter then colours.
     implementation(libs.kotter)

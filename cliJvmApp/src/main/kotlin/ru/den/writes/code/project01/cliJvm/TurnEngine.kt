@@ -9,6 +9,8 @@ import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.project01.shared.llm.ToolDefinition
+import ru.den.writes.code.project01.shared.llm.ToolExecutor
 import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskNotes
 import ru.den.writes.code.project01.shared.memory.TaskStage
@@ -39,6 +41,13 @@ internal class TurnEngine(
      * plus an active task to route on (enforced at parse time, see [CliArgs]).
      */
     private val routedJudges: List<RoutedJudge> = emptyList(),
+    /**
+     * Tool declarations offered to the default agent (from an MCP server via
+     * `-mcpServer`) plus the [ToolExecutor] that runs them. Empty / null
+     * (default) = no tools — the agent makes a single LLM call exactly as before.
+     */
+    private val toolDefs: List<ToolDefinition> = emptyList(),
+    private val toolExecutor: ToolExecutor? = null,
 ) {
     /**
      * The default agent: this engine's model surface + generation knobs, no
@@ -48,7 +57,13 @@ internal class TurnEngine(
      */
     private val fallbackAgent = RoutedAgent(
         binding = TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
-        responder = AgentResponder(AgentConfig(llmApi = llmApi, params = cliArgs.toGenerationParams())),
+        responder = AgentResponder(
+            AgentConfig(
+                llmApi = llmApi,
+                params = cliArgs.toGenerationParams().copy(tools = toolDefs.ifEmpty { null }),
+                toolExecutor = toolExecutor,
+            ),
+        ),
         profileName = null,
         modelId = cliArgs.modelProvider.modelId,
     )
@@ -127,6 +142,7 @@ internal class TurnEngine(
             stageAdvance = stageAdvance,
             verdict = verdict,
             judgeModelId = judge?.modelId,
+            executedToolCalls = outcome.executedToolCalls,
         )
     }
 

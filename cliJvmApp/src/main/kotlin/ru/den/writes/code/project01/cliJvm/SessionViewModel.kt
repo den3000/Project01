@@ -120,6 +120,7 @@ internal class SessionViewModel(
      * happened — a judge breach and a task-stage move.
      */
     private fun TurnResult.Ok.toLines(): List<UiLine> = buildList {
+        if (executedToolCalls.isNotEmpty()) add(UiLine.MCPLine(executedToolCalls, modelId))
         add(UiLine.Assistant(reply, if (multiAgent) AgentRef(profileName, modelId) else null))
         add(UiLine.Turn(usage, modelId, durationMs, session))
         if (!verdict.passed) add(UiLine.Judge(judgeModelId, verdict.violations))
