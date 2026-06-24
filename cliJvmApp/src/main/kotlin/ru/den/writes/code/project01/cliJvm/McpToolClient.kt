@@ -35,13 +35,16 @@ class McpToolClient(private val command: List<String>) : ToolExecutor {
     private var process: Process? = null
     private val client = Client(clientInfo = Implementation(name = "cliJvmApp", version = "0.1.0"))
 
-    /** Spawn the server subprocess and complete the MCP handshake. */
-    suspend fun connect() {
-        val p = withContext(Dispatchers.IO) {
-            ProcessBuilder(command)
-                .redirectError(ProcessBuilder.Redirect.INHERIT)
-                .start()
-        }
+    /**
+     * Spawn the server subprocess and complete the MCP handshake. Runs on
+     * [Dispatchers.IO] so the transport's background reader lives on an IO
+     * thread — otherwise a host that blocks the main thread (the Kotter TUI's
+     * render loop) would starve the reader and hang the next `callTool`.
+     */
+    suspend fun connect() = withContext(Dispatchers.IO) {
+        val p = ProcessBuilder(command)
+            .redirectError(ProcessBuilder.Redirect.INHERIT)
+            .start()
         process = p
         client.connect(
             StdioClientTransport(
@@ -52,12 +55,13 @@ class McpToolClient(private val command: List<String>) : ToolExecutor {
     }
 
     /** The server's tools as neutral [ToolDefinition]s the model can be offered. */
-    suspend fun listToolDefinitions(): List<ToolDefinition> =
+    suspend fun listToolDefinitions(): List<ToolDefinition> = withContext(Dispatchers.IO) {
         client.listTools().tools.map { it.toToolDefinition() }
+    }
 
-    override suspend fun execute(call: ToolCall): String {
+    override suspend fun execute(call: ToolCall): String = withContext(Dispatchers.IO) {
         val result = client.callTool(call.name, call.arguments.toArgMap())
-        return result.content.filterIsInstance<TextContent>().mapNotNull { it.text }.joinToString("\n")
+        result.content.filterIsInstance<TextContent>().mapNotNull { it.text }.joinToString("\n")
     }
 
     /** Force-kill the server subprocess; the agent process exits afterwards. */
