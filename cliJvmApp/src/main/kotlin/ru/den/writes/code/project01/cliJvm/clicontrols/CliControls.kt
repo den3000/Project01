@@ -18,6 +18,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.KEEP_LAST
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MAX_TOKENS
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
@@ -117,7 +118,7 @@ private fun entity(
 private fun buildCatalog(): List<ControlSpec> = buildList {
     // ---- startup-only flags ----
     add(top(PROMPT, setOf(FLAG), value = req(ValueKind.Text), usage = "opening prompt — every run starts here"))
-    add(top(ONESHOT, setOf(FLAG), excludes = setOf(TUI), usage = "single prompt → reply → exit (no REPL/session/feed)"))
+    add(top(ONESHOT, setOf(FLAG), excludes = setOf(TUI, MCP_SERVER), usage = "single prompt → reply → exit (no REPL/session/feed)"))
     add(top(TUI, setOf(FLAG), excludes = setOf(ONESHOT), usage = "interactive TUI view (needs a real TTY)"))
     add(top(FEED_FILE, setOf(FLAG), value = req(ValueKind.Path), usage = "after the opening prompt, feed this file turn by turn"))
     add(sub(CHUNK_CHARS, listOf(FEED_FILE), value = req(ValueKind.IntRange(1)), excludes = setOf(BY_LINE), usage = "feed chunk size, chars"))
@@ -162,6 +163,17 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     add(sub(KEEP_LAST, listOf(STRATEGY), value = req(ValueKind.IntRange(0)), usage = "verbatim tail size (window/summary)"))
     add(sub(SUMMARIZE_EVERY, listOf(STRATEGY), value = req(ValueKind.IntRange(2)), usage = "fold threshold (summary)"))
     add(top(INFLATE, setOf(FLAG, CMD), value = req(ValueKind.IntRange(1)), usage = "duplicate the last N rows of the session (dev)"))
+
+    // ---- tools (MCP) ----
+    // Merged feature ships -mcpServer startup-only (Chat-only); modelled here as a flag-command,
+    // since attaching a tool server mid-session is a natural extension. See README "open questions"
+    // on whether tools belong per-agent (`agent <name> mcp …`) in the agent-as-entity model.
+    add(
+        top(
+            MCP_SERVER, setOf(FLAG, CMD), value = req(ValueKind.Text), excludes = setOf(ONESHOT),
+            usage = "spawn an MCP server (e.g. \"mcpLab --serve\") and offer its tools to the model",
+        ),
+    )
 }
 
 private fun profileSections(): List<ControlSpec> = listOf(STYLE, FORMAT, CONSTRAINTS, CONTEXT).map { section ->

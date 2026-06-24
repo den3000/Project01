@@ -157,6 +157,13 @@ class CliControlsParserTest {
         assertEquals("inflate 5", ok("-inflate 5", FLAG).render())
         assertEquals("inflate 5", ok("/inflate 5", CMD).render())
     }
+
+    @Test
+    fun `when an mcp server is given - then both fronts keep the quoted command as one value`() {
+        // when - then
+        assertEquals("mcpServer mcpLab --serve", ok("-mcpServer \"mcpLab --serve\"", FLAG).render())
+        assertEquals("mcpServer mcpLab --serve", ok("/mcpServer \"mcpLab --serve\"", CMD).render())
+    }
     //endregion
 
     //region helpers

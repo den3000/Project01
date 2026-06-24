@@ -55,6 +55,15 @@ class CliControlsBatchTest {
         // then
         assertTrue(r.errors.any { it is ParseError.Conflicts }, "errors: ${r.errors.map { it.message }}")
     }
+
+    @Test
+    fun `when oneshot is combined with an mcp server - then a conflict is reported`() {
+        // when — MCP tools are Chat-only
+        val r = parser.parseArgv(listOf("-prompt", "hi", "-oneshot", "-mcpServer", "mcpLab --serve"))
+
+        // then
+        assertTrue(r.errors.any { it is ParseError.Conflicts }, "errors: ${r.errors.map { it.message }}")
+    }
     //endregion
 
     //region catalog integrity

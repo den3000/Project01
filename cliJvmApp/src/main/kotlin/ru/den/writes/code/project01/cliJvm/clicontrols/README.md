@@ -39,6 +39,8 @@
 - **стратегия** — управление размером истории: `full`/`window`/`facts`/`summary`. `facts`/`summary`
   подставляют **одну синтетическую пару** user(рамка)→assistant(ack) в голову; `full`/`window` — без синтетики.
 - **агент** = (**provider+model**) + **профиль**. knobs (maxTokens/…) глобальны.
+- **инструменты (MCP)** — внешние tool'ы, которые MCP-сервер отдаёт модели для вызова в ходе хода;
+  `-mcpServer "<command>"` спавнит сервер подпроцессом (Chat-only; дефолт — инструментов нет).
 
 ---
 
@@ -50,7 +52,7 @@
 |---|---|---|
 | startup-only | `{FLAG}` | `-prompt`, `-tui`, `-feedFile` |
 | command-only | `{CMD}` | `/reuse`, `/exit`, `/help`, `branch` |
-| **flag-command** | `{FLAG, CMD}` | `profile`, `task`, `agent`, `strategy`, `inflate` |
+| **flag-command** | `{FLAG, CMD}` | `profile`, `task`, `agent`, `strategy`, `inflate`, `mcpServer` |
 | сабкоманда | `{SUB}` | `clean`, `show`, `style`, `provider`, `chunkChars` |
 
 ## Entity-протокол (CRUD + per-entity расширения)
@@ -131,6 +133,9 @@ Downstream (не в прототипе): тонкий маппер `ParsedContro
 
 ## Открытые вопросы / не смоделировано
 
+- **MCP / инструменты** — `-mcpServer` смоделирован как flag-command (в main — startup-only, Chat-only).
+  Открытый вопрос: инструменты session-wide (как сейчас) или **per-agent** (`agent <name> mcp "<command>"`)
+  в agent-as-entity? Tools концептуально — способность агента, так что вторая раскладка может быть точнее.
 - Куда деть **legacy free-text** `profile <text>` (перезапись `profile.md`) — пока опущено.
 - Место **strategy** (config-флаг-команда рядом с агентом или часть агента/сессии).
 - Один `/`-ввод = один контрол; нужно ли несколько контролов в одной строке внутри.

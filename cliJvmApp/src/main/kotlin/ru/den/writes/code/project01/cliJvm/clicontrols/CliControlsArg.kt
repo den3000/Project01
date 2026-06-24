@@ -78,6 +78,9 @@ internal enum class CliControlsArg(val title: String) {
     KEEP_LAST("keepLast"),
     SUMMARIZE_EVERY("summarizeEvery"),
     INFLATE("inflate"),
+
+    // tools
+    MCP_SERVER("mcpServer"),
     ;
 
     companion object {
