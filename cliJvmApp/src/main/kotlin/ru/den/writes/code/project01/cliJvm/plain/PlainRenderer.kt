@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.plain
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import ru.den.writes.code.project01.cliJvm.IntentSource
@@ -26,7 +27,11 @@ internal class PlainRenderer {
         primary: IntentSource,
         followUp: IntentSource? = null,
     ): Unit = coroutineScope {
-        val collector = launch { vm.state.collect { flush(it) } }
+        // Unconfined: the collector runs flush() synchronously inside each state
+        // update (on the writer's thread), so a turn's lines reach stdout before
+        // the prompt source prints its next `> ` — an async collector instead
+        // races that synchronous print and the reply lands after the prompt.
+        val collector = launch(Dispatchers.Unconfined) { vm.state.collect { flush(it) } }
         try {
             vm.run(primary, followUp)
         } finally {
