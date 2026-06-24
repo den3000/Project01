@@ -217,6 +217,20 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
       doesn't poison later context) and the task stage is held. A clean verdict
       (or a stage no judge spans) leaves the turn untouched. Fail-open: a
       judge-call error degrades to "not blocked".
+  - MCP tools / function calling (Chat only) — `-mcpServer "<command>"` spawns
+    an MCP server as a subprocess (e.g. `mcpLab --serve`, see the `mcpLab`
+    module) and offers its tools to the model. At startup the app calls the
+    server's `tools/list` once and converts each tool's JSON-Schema into Gemini
+    `functionDeclarations`, included on every request. When the model answers
+    with a `functionCall` instead of text, the app runs it via the server's
+    `tools/call`, feeds the result back as a `functionResponse`, and re-asks —
+    up to a few rounds — until the model produces its final text using the data.
+    The tool round-trip is ephemeral (only the final reply is persisted) and
+    shows in the transcript as an `mcp │ …` column (TUI) / `[tool] …` lines
+    (plain). Without the flag the wire is byte-identical to a tool-less run.
+    **Gemini only** — the other providers don't model function calling. The tool
+    declarations cross the neutral `LlmApi` boundary as `ToolDefinition` /
+    `ToolExecutor`, so the agent core stays provider- and MCP-agnostic.
   - Generation knobs (persist across REPL iterations — only the prompt
     changes between turns):
     - `-provider <gemini|openrouter|huggingface>` → picks which API to
@@ -350,10 +364,12 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
   ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -sessions
   ```
 
-- MCP client sandbox — **`mcpLab`** connects to an existing MCP server over
-  stdio and prints its advertised tools, built on the official
-  [Kotlin MCP SDK](https://github.com/modelcontextprotocol/kotlin-sdk). A small
-  experiments module kept separate from the LLM CLI. Quick start:
+- MCP sandbox — **`mcpLab`** is a small experiments module on the official
+  [Kotlin MCP SDK](https://github.com/modelcontextprotocol/kotlin-sdk), separate
+  from the LLM CLI, with two modes: a **client probe** that connects to any MCP
+  server over stdio and lists its tools (`mcpLab [<server command…>]`), and a
+  **server** — `mcpLab --serve` runs a small Open-Meteo weather MCP server (tool
+  `current_weather`) that the CLI drives via `-mcpServer` (above). Quick start:
   `./gradlew :mcpLab:installDist && ./mcpLab/build/install/mcpLab/bin/mcpLab`.
   Full docs: [mcpLab/README.md](./mcpLab/README.md).
 
