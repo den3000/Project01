@@ -53,4 +53,5 @@ private fun UiLine.toPlainView(): PlainView = when (this) {
     is UiLine.Summary -> SummaryPlainView(text)
     is UiLine.Error -> ErrorPlainView(reason)
     is UiLine.Notice -> NoticePlainView(text)
+    is UiLine.MCPLine -> McpPlainView(calls, modelId)
 }

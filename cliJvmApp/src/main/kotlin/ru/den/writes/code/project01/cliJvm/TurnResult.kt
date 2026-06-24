@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.shared.agent.ExecutedToolCall
 import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
 import ru.den.writes.code.project01.shared.llm.Usage
 import ru.den.writes.code.project01.shared.memory.TaskStage
@@ -39,6 +40,8 @@ internal sealed interface TurnResult {
         val stageAdvance: StageAdvance,
         val verdict: InvariantVerdict = InvariantVerdict.CLEAN,
         val judgeModelId: String? = null,
+        /** Tool calls the agent ran this turn (empty for a plain turn). */
+        val executedToolCalls: List<ExecutedToolCall> = emptyList(),
     ) : TurnResult
 
     /** The turn failed (provider error or empty response). [reason] is the message. */

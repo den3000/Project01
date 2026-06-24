@@ -142,6 +142,7 @@ internal class TurnEngine(
             stageAdvance = stageAdvance,
             verdict = verdict,
             judgeModelId = judge?.modelId,
+            executedToolCalls = outcome.executedToolCalls,
         )
     }
 
