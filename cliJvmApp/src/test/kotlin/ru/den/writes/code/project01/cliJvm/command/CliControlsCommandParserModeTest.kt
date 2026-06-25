@@ -39,6 +39,17 @@ class CliControlsCommandParserModeTest {
     }
 
     @Test
+    fun `when -oneshot carries agent knobs - then RunOneShot keeps model and maxTokens`() {
+        // when - then — generation knobs are agent sub-options now (no name needed for the default agent)
+        val one = assertIs<CliCommand.RunOneShot>(
+            parser.parse(arrayOf("-prompt", "ping", "-oneshot", "-agent", "model", "gemini-2.5-flash", "maxTokens", "200")),
+        )
+        assertEquals("ping", one.prompt)
+        assertEquals(200, one.maxTokens)
+        assertIs<ModelProvider.Gemini>(one.modelProvider)
+    }
+
+    @Test
     fun `when a bare -session passed - then ListSessions`() {
         // when - then
         assertEquals(CliCommand.ListSessions, parser.parse(arrayOf("-session")))
