@@ -31,10 +31,21 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SUMMARIZE_EVERY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TEMPERATURE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FORMAT
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RM
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
 import ru.den.writes.code.project01.cliJvm.clicontrols.ParsedControl
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.memory.MemoryMode
+import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskStage
 
@@ -178,14 +189,54 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
             }
             gap("session ${session.subs.firstOrNull()?.arg?.title ?: session.value}")
         }
-        // profile / rule / task → MemoryOp lands in a follow-up.
+        controls.last(PROFILE)?.let { return CliCommand.MemoryOp(profileAction(it)) }
+        controls.last(RULE)?.let { return CliCommand.MemoryOp(ruleAction(it)) }
+        controls.last(TASK)?.let { return CliCommand.MemoryOp(taskAction(it)) }
         throw CliArgsException.MissingRequiredArgument("-prompt")
     }
+
+    private fun profileAction(p: ParsedControl): MemoryAction {
+        val name = p.value
+        // A section keyword as a sub (`profile [<name>] <section> [<text>]`); value absent = clear.
+        val section = SECTIONS.firstNotNullOfOrNull { arg -> p.sub(arg)?.let { it.value to section(arg) } }
+        p.sub(SHOW)?.let { return it.value?.let(MemoryAction::ShowProfile) ?: gap("profile show") }
+        if (section != null) {
+            val (text, sec) = section
+            return when {
+                name == null && text != null -> MemoryAction.AddProfileItem(sec, text)
+                name == null -> MemoryAction.ClearProfileSection(sec)
+                text != null -> MemoryAction.AddNamedProfileItem(name, sec, text)
+                else -> MemoryAction.ClearNamedProfileSection(name, sec)
+            }
+        }
+        p.sub(CLEAN)?.let { return if (name != null) MemoryAction.ClearNamedProfile(name) else MemoryAction.ClearProfile }
+        return name?.let(MemoryAction::TouchProfile) ?: MemoryAction.ListProfiles
+    }
+
+    private fun ruleAction(r: ParsedControl): MemoryAction = when {
+        r.sub(RM) != null -> MemoryAction.RemoveRule(r.sub(RM)!!.value!!)
+        r.value != null -> MemoryAction.AddRule(r.value)
+        else -> gap("rule")
+    }
+
+    private fun taskAction(t: ParsedControl): MemoryAction {
+        val id = t.value ?: gap("task")
+        return when {
+            t.sub(PAUSE) != null -> MemoryAction.PauseTask(id)
+            t.sub(RESUME) != null -> MemoryAction.ResumeTask(id)
+            t.sub(NOTE) != null -> gap("task note")
+            t.subs.isEmpty() -> MemoryAction.SetTask(id)
+            else -> gap("task ${t.subs.first().arg.title}")
+        }
+    }
+
+    private fun section(arg: CliControlsArg): ProfileSection = ProfileSection.byKeyword(arg.title)!!
 
     private fun gap(what: String): Nothing =
         throw CliArgsException.InvalidArgumentValue(what, what, "not expressible as a legacy command")
 
     private companion object {
+        val SECTIONS = listOf(STYLE, FORMAT, CONSTRAINTS, CONTEXT)
         const val DEFAULT_CHUNK_CHARS = 2500
         const val DEFAULT_KEEP_LAST = 6
         const val DEFAULT_SUMMARIZE_EVERY = 10
