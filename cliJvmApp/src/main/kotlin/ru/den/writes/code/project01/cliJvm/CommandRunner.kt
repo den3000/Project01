@@ -175,6 +175,15 @@ internal class CommandRunner(
                     add("[memory] rule ${rule.id} added")
                 }
             }
+            is BranchCommand.RemoveRule -> withMemory { mem ->
+                if (command.id.isBlank()) {
+                    add("[memory] /rule rm needs a rule id")
+                } else if (mem.store.removeRule(command.id)) {
+                    add("[memory] rule ${command.id} removed")
+                } else {
+                    add("[memory] no rule with id '${command.id}'")
+                }
+            }
             is BranchCommand.SetTask -> withMemory { mem ->
                 val id = command.taskId
                 if (id.isBlank()) {

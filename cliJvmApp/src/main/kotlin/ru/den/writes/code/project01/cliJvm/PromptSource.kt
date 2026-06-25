@@ -63,6 +63,8 @@ internal sealed interface BranchCommand {
 
     /** Append a new rule under `rules/`. */
     data class AddRule(val text: String) : BranchCommand
+    /** Delete the rule with this id (three-digit prefix). */
+    data class RemoveRule(val id: String) : BranchCommand
     /** Switch the active task id (creates an empty task file if absent). */
     data class SetTask(val taskId: String) : BranchCommand
     /** Append a note to the currently-active task. */

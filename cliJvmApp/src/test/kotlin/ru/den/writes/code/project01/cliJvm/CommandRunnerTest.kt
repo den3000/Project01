@@ -112,6 +112,21 @@ class CommandRunnerTest {
         }
     }
 
+    @Test
+    fun `when removing a rule by id - then it reports the removal and then its absence`() = runTest {
+        withTempMemoryRoot { root ->
+            // given — one rule on disk
+            val mstore = MemoryStore(root)
+            val rule = mstore.addRule("always kotlin")
+            val memory = MemoryProvider(mstore, MemoryMode.SYSTEM)
+            val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
+
+            // when - then — first removal succeeds, a second call finds nothing
+            assertEquals(listOf("[memory] rule ${rule.id} removed"), runner.run(BranchCommand.RemoveRule(rule.id)))
+            assertEquals(listOf("[memory] no rule with id '${rule.id}'"), runner.run(BranchCommand.RemoveRule(rule.id)))
+        }
+    }
+
     private inline fun withTempMemoryRoot(block: (java.io.File) -> Unit) {
         val dir = Files.createTempDirectory("project01-command-runner-").toFile()
         try {
