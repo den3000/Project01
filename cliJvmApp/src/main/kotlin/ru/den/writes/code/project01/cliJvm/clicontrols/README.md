@@ -1,9 +1,14 @@
 # clicontrols — прототип единой модели CLI-контролов
 
-> **Статус: прототип, в приложение не вшит.** Существующие `CliArgs.from` и
-> `parseSlashCommand` не тронуты. Цель пакета — обкатать форму абстракций для
-> флагов и команд (обобщение / централизация / управляемость), прежде чем что-то
-> рефакторить.
+> **Статус: прототип, в приложение не вшит** (рантайм `main` идёт через `LegacyCommandParser`).
+> Существующие `CliArgs.from` и `parseSlashCommand` не тронуты. Цель пакета — обкатать форму
+> абстракций для флагов и команд (обобщение / централизация / управляемость), прежде чем
+> что-то рефакторить.
+>
+> **Downstream-маппер построен** (test-only): `cliJvm/command/CliControlsCommandParser` →
+> `ControlsToCommand` мапит `parseArgv` напрямую в доменный `CliCommand` (полный паритет с
+> legacy-фронтом; `ParseError → CliArgsException`). См. тесты
+> `CliControlsCommandParser{Mode,Agent,Fields,Memory,Gap}Test`.
 
 ## Зачем
 
@@ -105,8 +110,8 @@ Per-entity расширения:
 WrongSurface / MissingValue / BadValue / ValueNotAllowedHere / WrongParentValue / UnexpectedToken / Requires /
 Conflicts).
 
-Downstream (не в прототипе): тонкий маппер `ParsedControl → доменная команда` — грамматика остаётся
-отделённой от домена (образец доменного «результата» уже есть — sealed `BranchCommand`).
+Downstream-маппер **построен** (`cliJvm/command/ControlsToCommand`, test-only): `BatchResult.controls`
+→ доменный `CliCommand`. Грамматика остаётся отделённой от домена — маппер живёт в `command/`, не здесь.
 
 ---
 
@@ -141,6 +146,7 @@ Downstream (не в прототипе): тонкий маппер `ParsedContro
 | `…/test/clicontrols/CliControlsBatchTest.kt` | argv→контролы, arity-split, целостность каталога |
 | `…/test/clicontrols/CliControlsCrossValidationTest.kt` | requires/excludes: oneshot-эксклюзивность, inflate→session, feed-mutex |
 | `…/test/clicontrols/CliControlsValueValidationTest.kt` | валидация значений: BadValue / WrongSurface / WrongParentValue |
+| `…/cliJvm/command/{CliControlsCommandParser,ControlsToCommand}.kt` | **downstream-маппер** (test-only): controls → доменный `CliCommand`, полный паритет |
 
 ## Открытые вопросы / не смоделировано
 
@@ -150,5 +156,6 @@ Downstream (не в прототипе): тонкий маппер `ParsedContro
 - Куда деть **legacy free-text** `profile <text>` (перезапись `profile.md`) — пока опущено.
 - Место **strategy** (config-флаг-команда рядом с агентом или часть агента/сессии).
 - Один `/`-ввод = один контрол; нужно ли несколько контролов в одной строке внутри.
-- Маппинг `ParsedControl → доменная команда` (следующий слой).
-- `-clean`/`-sessions`/`-memory` как режимы → схлопываются в entity-операции (`session clean`/`session`/`<entity> show`).
+- Маппинг `ParsedControl → доменная команда` — **сделано** (`command/ControlsToCommand` → `CliCommand`, полный паритет, test-only); открытый шаг — рантайм-свитч `main` на CliControls-фронт.
+- `-clean`/`-sessions`/`-memory` как режимы → схлопнуты в entity-операции — **реализовано в маппере** (`session` bare → ListSessions, `session clean` → CleanHistory, `profile`/`rule`/`task` → MemoryOp).
+- Непреодолимые расхождения (новое без legacy-аналога) маппер режет в `InvalidArgumentValue "not expressible"`: `task … note`, per-session `clean <name>`, per-entity `show`, `rule`-list; legacy free-text `profile <text>` (SetProfile) из новой грамматики не порождается; stage-диапазон только `from..to` (без single-stage).
