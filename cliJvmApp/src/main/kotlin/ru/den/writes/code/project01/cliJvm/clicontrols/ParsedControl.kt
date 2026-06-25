@@ -18,13 +18,6 @@ data class ParsedControl(
 
     /** The first sub invoked under [arg], or null. */
     fun sub(arg: CliControlsArg): ParsedControl? = subs.firstOrNull { it.arg == arg }
-
-    /** A compact `token value [ token value … ]` rendering — handy for test assertions. */
-    fun render(): String = buildString {
-        append(spec.token)
-        value?.let { append(' ').append(it) }
-        if (subs.isNotEmpty()) subs.joinTo(this, prefix = " [", postfix = "]") { it.render() }
-    }
 }
 
 /** Outcome of parsing one control. */
