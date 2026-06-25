@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.scheduling
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -12,10 +13,12 @@ import kotlinx.serialization.Serializable
 sealed interface Schedule {
     /** One-shot reminder: fire once, [delayMs] after the anchor moment. */
     @Serializable
+    @SerialName("after")
     data class After(val delayMs: Long) : Schedule
 
     /** Periodic: fire every [intervalMs], starting one interval after the anchor. */
     @Serializable
+    @SerialName("every")
     data class Every(val intervalMs: Long) : Schedule
 }
 
