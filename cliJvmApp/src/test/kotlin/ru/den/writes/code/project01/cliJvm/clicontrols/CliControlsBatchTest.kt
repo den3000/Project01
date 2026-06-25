@@ -26,6 +26,27 @@ class CliControlsBatchTest {
     }
 
     @Test
+    fun `when an argv carries several controls - then each parses and the batch is valid 2`() {
+        // given
+        val args = listOf("-prompt", "hi", "-strategy", "window", "keepLast", "8")
+
+        // when
+        val actual = parser.parseArgv(args)
+
+        // then
+        assertTrue(actual.isValid, "errors: ${actual.errors.map { it.message }}")
+        assertEquals(BatchResult(
+            controls = listOf(
+                topParsedControl(CliControlsArg.PROMPT, Surface.FLAG, "hi", emptyList()),
+                topParsedControl(CliControlsArg.STRATEGY, Surface.FLAG, "window", listOf(
+                    subParsedControl(CliControlsArg.STRATEGY, CliControlsArg.KEEP_LAST.title, "8")
+                ))
+            ),
+            errors = emptyList()
+        ), actual)
+    }
+
+    @Test
     fun `when a free-text value has spaces in one argv slot - then it stays one value`() {
         // when — the shell already made "do x" a single arg
         val r = parser.parseArgv(listOf("-prompt", "do x and y"))
@@ -89,4 +110,16 @@ class CliControlsBatchTest {
         assertTrue(dups.isEmpty(), "duplicate top-level args: ${dups.keys}")
     }
     //endregion
+
+    private fun topParsedControl(arg: CliControlsArg, surface: Surface, value: String, subs: List<ParsedControl>): ParsedControl {
+        return ParsedControl(requireNotNull(CliControls.topLevel(arg, surface)), value, subs)
+    }
+
+    private fun subParsedControl(chainLink: CliControlsArg, token: String, value: String): ParsedControl {
+        return subParsedControl(listOf(chainLink), token, value)
+    }
+
+    private fun subParsedControl(chain: List<CliControlsArg>, token: String, value: String): ParsedControl {
+        return ParsedControl(requireNotNull(CliControls.subOf(chain, token)), value)
+    }
 }
