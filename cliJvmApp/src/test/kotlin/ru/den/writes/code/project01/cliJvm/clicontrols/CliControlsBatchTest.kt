@@ -1,5 +1,8 @@
 package ru.den.writes.code.project01.cliJvm.clicontrols
 
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.KEEP_LAST
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
+import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -53,6 +56,38 @@ class CliControlsBatchTest {
 
         // then
         assertEquals(listOf("prompt do x and y"), r.controls.map { it.render() })
+    }
+    //endregion
+
+    //region dash-prefixed values (arity)
+
+    @Test
+    fun `when a flag value starts with a dash - then it stays the flag's value`() {
+        // given
+        val args = listOf("-prompt", "-v")
+
+        // when
+        val actual = parser.parseArgv(args)
+
+        // then
+        val expected = BatchResult(listOf(topParsedControl(PROMPT, FLAG, "-v")), emptyList())
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `when a sub value starts with a dash - then it reaches the sub and is validated`() {
+        // given
+        val args = listOf("-strategy", "window", "keepLast", "-3")
+
+        // when
+        val actual = parser.parseArgv(args)
+
+        // then
+        val expected = BatchResult(
+            controls = emptyList(),
+            errors = listOf(ParseError.BadValue(KEEP_LAST, "-3", "an integer >= 0")),
+        )
+        assertEquals(expected, actual)
     }
     //endregion
 
@@ -111,7 +146,12 @@ class CliControlsBatchTest {
     }
     //endregion
 
-    private fun topParsedControl(arg: CliControlsArg, surface: Surface, value: String, subs: List<ParsedControl>): ParsedControl {
+    private fun topParsedControl(
+        arg: CliControlsArg,
+        surface: Surface,
+        value: String,
+        subs: List<ParsedControl> = emptyList(),
+    ): ParsedControl {
         return ParsedControl(requireNotNull(CliControls.topLevel(arg, surface)), value, subs)
     }
 

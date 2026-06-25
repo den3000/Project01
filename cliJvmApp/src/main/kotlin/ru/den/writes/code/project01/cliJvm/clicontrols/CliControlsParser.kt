@@ -116,15 +116,26 @@ internal class CliControlsParser {
         else if (surface.prefix.isEmpty()) token
         else null
 
-    /** Split argv into groups, each beginning at a `-`-prefixed token (subs are bare). */
+    /**
+     * Split argv into groups, each beginning at a flag head. A `-`-prefixed token
+     * opens a new group only if it *names* a known control; otherwise it's a value
+     * of the current group — so a `-`-leading value (`-3`, `-v`) reaches its flag
+     * instead of being mistaken for a new one. (A value literally equal to
+     * `-<known-flag>` is still misread; that's rare — quote it.)
+     */
     private fun splitGroups(args: List<String>): List<List<String>> {
         val groups = mutableListOf<MutableList<String>>()
         for (a in args) {
-            if (a.startsWith(Surface.FLAG.prefix) || groups.isEmpty()) groups.add(mutableListOf(a))
+            if (groups.isEmpty() || startsControl(a)) groups.add(mutableListOf(a))
             else groups.last().add(a)
         }
         return groups
     }
+
+    /** A `-`-prefixed token whose remainder is a known control word (so it heads a group). */
+    private fun startsControl(token: String): Boolean =
+        token.startsWith(Surface.FLAG.prefix) &&
+            CliControlsArg.of(token.substring(Surface.FLAG.prefix.length)) != null
 
     /** Cross-control constraints, evaluated over every arg present anywhere in the parse. */
     private fun crossValidate(controls: List<ParsedControl>): List<ParseError> {
