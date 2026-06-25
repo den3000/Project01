@@ -158,6 +158,19 @@ internal class MemoryStore(private val root: File) {
     fun clearNamedProfile(name: String): Boolean = namedProfileFile(name).delete()
 
     /**
+     * Delete every named profile AND the unnamed default `profile.md`. Returns
+     * how many named profiles were removed (the unnamed one is cleared
+     * regardless). Backs bare `profile clear` — the "nuke all profiles" form.
+     */
+    fun clearAllProfiles(): Int {
+        val removed = (profilesDir.listFiles() ?: emptyArray())
+            .filter { it.isFile && it.name.endsWith(".md") }
+            .count { it.delete() }
+        profileFile.delete()
+        return removed
+    }
+
+    /**
      * Create an empty `profiles/<name>.md` if it doesn't exist yet. Used
      * by `/profile-use <name>` so a fresh profile shows up in
      * [listProfileNames] before the first bullet is added.
@@ -217,6 +230,11 @@ internal class MemoryStore(private val root: File) {
         return file.delete()
     }
 
+    /** Delete every rule file. Returns how many were removed. Backs bare `rule clear`. */
+    fun clearRules(): Int = (rulesDir.listFiles() ?: emptyArray())
+        .filter { RULE_FILE_NAME.matchEntire(it.name) != null }
+        .count { it.delete() }
+
     /** All task ids that have a `tasks/<id>.md` file, sorted alphabetically. */
     fun listTaskIds(): List<String> = tasksDir.listFiles()
         ?.asSequence()
@@ -250,6 +268,14 @@ internal class MemoryStore(private val root: File) {
         val existing = loadTask(taskId) ?: TaskNotes(taskId)
         saveTask(existing.copy(notes = existing.notes + trimmed))
     }
+
+    /** Delete `tasks/<taskId>.md`; returns true iff a file was removed. */
+    fun deleteTask(taskId: String): Boolean = taskFile(taskId).delete()
+
+    /** Delete every task file. Returns how many were removed. Backs bare `task clear`. */
+    fun clearTasks(): Int = (tasksDir.listFiles() ?: emptyArray())
+        .filter { it.isFile && it.name.endsWith(".md") }
+        .count { it.delete() }
 
     private val profileFile: File get() = File(root, PROFILE_FILE_NAME)
     private val rulesDir: File get() = File(root, RULES_DIR)
