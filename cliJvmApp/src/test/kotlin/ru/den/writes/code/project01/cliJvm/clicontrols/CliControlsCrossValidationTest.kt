@@ -1,8 +1,11 @@
 package ru.den.writes.code.project01.cliJvm.clicontrols
 
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BY_LINE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ONESHOT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
@@ -11,6 +14,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -26,10 +30,10 @@ class CliControlsCrossValidationTest {
     //region oneshot exclusivity
 
     @Test
-    fun `when oneshot is combined with a multi-turn control - then that control conflicts`() {
-        // given — oneshot is one turn (no session/feed/memory/FSM); each tail implies otherwise.
-        // top-level controls carry the exclude themselves; agent's mode/stages/judge subs carry it
-        // too, while the agent and its generation knobs stay allowed (see the next test).
+    fun `when oneshot is combined with an incompatible control - then that control conflicts`() {
+        // given — oneshot is one turn (no session/feed/memory/FSM/TUI/tools); each tail implies
+        // otherwise. top-level controls carry the exclude themselves; agent's mode/stages/judge subs
+        // carry it too, while the agent and its generation knobs stay allowed (see the next test).
         val cases = listOf(
             listOf("-session", "foo") to SESSION,
             listOf("-strategy", "window") to STRATEGY,
@@ -37,6 +41,8 @@ class CliControlsCrossValidationTest {
             listOf("-profile", "coder") to PROFILE,
             listOf("-task", "auth") to TASK,
             listOf("-rule", "no spring") to RULE,
+            listOf("-tui") to TUI,
+            listOf("-mcpServer", "mcpLab --serve") to MCP_SERVER,
             listOf("-agent", "main", "mode", "system") to MODE,
             listOf("-agent", "main", "stages", "execution..done") to STAGES,
             listOf("-agent", "checker", "judge") to JUDGE,
@@ -87,6 +93,25 @@ class CliControlsCrossValidationTest {
 
         // then
         assertEquals(emptyList<ParseError>(), actual.errors, "errors: ${actual.errors.map { it.message }}")
+    }
+    //endregion
+
+    //region feed mode exclusivity
+
+    @Test
+    fun `when a feed is split by both line and chunk - then both reciprocal excludes fire`() {
+        // given — byLine and chunkChars each declare the other excluded, so both conflicts fire
+        val args = listOf("-feedFile", "d.txt", "byLine", "chunkChars", "100")
+
+        // when
+        val actual = parser.parseArgv(args)
+
+        // then
+        val expected = listOf<ParseError>(
+            ParseError.Conflicts(BY_LINE, CHUNK_CHARS),
+            ParseError.Conflicts(CHUNK_CHARS, BY_LINE),
+        )
+        assertEquals(expected, actual.errors)
     }
     //endregion
 }

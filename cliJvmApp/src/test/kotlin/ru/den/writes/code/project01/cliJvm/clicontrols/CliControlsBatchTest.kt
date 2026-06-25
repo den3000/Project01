@@ -2,15 +2,17 @@ package ru.den.writes.code.project01.cliJvm.clicontrols
 
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.KEEP_LAST
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
 import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * PROTOTYPE demo: the startup-argv side — splitting one argv into several controls
- * and running the declarative `requires` / `excludes` checks — plus a couple of
- * catalog-integrity sanity tests.
+ * PROTOTYPE demo: the startup-argv side — splitting one argv into control groups
+ * (including `-`-leading values) — plus a couple of catalog-integrity checks.
+ * Assertions pin the exact [BatchResult]; cross-control `requires` / `excludes`
+ * live in [CliControlsCrossValidationTest].
  */
 class CliControlsBatchTest {
 
@@ -20,16 +22,6 @@ class CliControlsBatchTest {
 
     @Test
     fun `when an argv carries several controls - then each parses and the batch is valid`() {
-        // when
-        val r = parser.parseArgv(listOf("-prompt", "hi", "-strategy", "window", "keepLast", "8"))
-
-        // then
-        assertTrue(r.isValid, "errors: ${r.errors.map { it.message }}")
-        assertEquals(listOf("prompt hi", "strategy window [keepLast 8]"), r.controls.map { it.render() })
-    }
-
-    @Test
-    fun `when an argv carries several controls - then each parses and the batch is valid 2`() {
         // given
         val args = listOf("-prompt", "hi", "-strategy", "window", "keepLast", "8")
 
@@ -37,25 +29,26 @@ class CliControlsBatchTest {
         val actual = parser.parseArgv(args)
 
         // then
-        assertTrue(actual.isValid, "errors: ${actual.errors.map { it.message }}")
-        assertEquals(BatchResult(
+        val expected = BatchResult(
             controls = listOf(
-                topParsedControl(CliControlsArg.PROMPT, Surface.FLAG, "hi", emptyList()),
-                topParsedControl(CliControlsArg.STRATEGY, Surface.FLAG, "window", listOf(
-                    subParsedControl(CliControlsArg.STRATEGY, CliControlsArg.KEEP_LAST.title, "8")
-                ))
+                topParsedControl(PROMPT, FLAG, "hi"),
+                topParsedControl(STRATEGY, FLAG, "window", listOf(subParsedControl(STRATEGY, KEEP_LAST, "8"))),
             ),
-            errors = emptyList()
-        ), actual)
+            errors = emptyList(),
+        )
+        assertEquals(expected, actual)
     }
 
     @Test
     fun `when a free-text value has spaces in one argv slot - then it stays one value`() {
-        // when — the shell already made "do x" a single arg
-        val r = parser.parseArgv(listOf("-prompt", "do x and y"))
+        // given — the shell already made "do x and y" a single arg
+        val args = listOf("-prompt", "do x and y")
+
+        // when
+        val actual = parser.parseArgv(args)
 
         // then
-        assertEquals(listOf("prompt do x and y"), r.controls.map { it.render() })
+        assertEquals(BatchResult(listOf(topParsedControl(PROMPT, FLAG, "do x and y")), emptyList()), actual)
     }
     //endregion
 
@@ -91,37 +84,6 @@ class CliControlsBatchTest {
     }
     //endregion
 
-    //region cross-validation
-
-    @Test
-    fun `when oneshot is combined with tui - then a conflict is reported`() {
-        // when
-        val r = parser.parseArgv(listOf("-prompt", "hi", "-oneshot", "-tui"))
-
-        // then — both controls parse, but the declarative exclude fires
-        assertTrue(r.controls.size == 3)
-        assertTrue(r.errors.any { it is ParseError.Conflicts }, "errors: ${r.errors.map { it.message }}")
-    }
-
-    @Test
-    fun `when a feed is split both by line and by chunk - then a conflict is reported`() {
-        // when — byLine and chunkChars are mutually exclusive subs of feedFile
-        val r = parser.parseArgv(listOf("-feedFile", "d.txt", "byLine", "chunkChars", "100"))
-
-        // then
-        assertTrue(r.errors.any { it is ParseError.Conflicts }, "errors: ${r.errors.map { it.message }}")
-    }
-
-    @Test
-    fun `when oneshot is combined with an mcp server - then a conflict is reported`() {
-        // when — MCP tools are Chat-only
-        val r = parser.parseArgv(listOf("-prompt", "hi", "-oneshot", "-mcpServer", "mcpLab --serve"))
-
-        // then
-        assertTrue(r.errors.any { it is ParseError.Conflicts }, "errors: ${r.errors.map { it.message }}")
-    }
-    //endregion
-
     //region catalog integrity
 
     @Test
@@ -149,17 +111,14 @@ class CliControlsBatchTest {
     private fun topParsedControl(
         arg: CliControlsArg,
         surface: Surface,
-        value: String,
+        value: String? = null,
         subs: List<ParsedControl> = emptyList(),
-    ): ParsedControl {
-        return ParsedControl(requireNotNull(CliControls.topLevel(arg, surface)), value, subs)
-    }
+    ): ParsedControl = ParsedControl(requireNotNull(CliControls.topLevel(arg, surface)), value, subs)
 
-    private fun subParsedControl(chainLink: CliControlsArg, token: String, value: String): ParsedControl {
-        return subParsedControl(listOf(chainLink), token, value)
-    }
-
-    private fun subParsedControl(chain: List<CliControlsArg>, token: String, value: String): ParsedControl {
-        return ParsedControl(requireNotNull(CliControls.subOf(chain, token)), value)
-    }
+    private fun subParsedControl(
+        parent: CliControlsArg,
+        arg: CliControlsArg,
+        value: String? = null,
+        subs: List<ParsedControl> = emptyList(),
+    ): ParsedControl = ParsedControl(requireNotNull(CliControls.subOf(listOf(parent), arg.title)), value, subs)
 }
