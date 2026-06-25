@@ -64,6 +64,7 @@ KMP-проект (пакет `ru.den.writes.code.project01`).
 - **Ktor engine — `Java`, не CIO** (CIO рвёт длинные thinking-ответы Gemini).
 - Gemini **stateless** — историю шлём целиком каждый ход (растёт линейно).
 - **Thinking-токены биллятся как output** — основная статья расхода у сильных моделей.
+- **Gemini `Content.parts` — required → краш на пустом кандидате** (БАГ, чинить): при MAX_TOKENS-обрыве (особенно thinking-модель + малый `-maxTokens`, напр. `gemini-2.5-flash -maxTokens 20`) Gemini шлёт `candidates[0].content` без `parts` → `MissingFieldException` (`shared/…/gemini/GeminiDto.kt:50` `Content(val parts: List<Part>)`), валит весь ход. Фикс: `parts: List<Part> = emptyList()` + `GeminiApi.send` мягко обрабатывает пустой контент (пустой текст/«обрезано», не падать). НЕ регрессия command-рефактора — сериализация в `:shared` не менялась.
 - Имена Gemini: `gemini-3-flash-preview` = 3.1 Flash (без `.1`); `gemini-3.5-pro` и `-3.5-flash-lite` не существуют.
 - **OpenRouter free-roster протухает быстро** — `:free` id мрут (404). Сверять с
   `https://openrouter.ai/api/v1/models` (`jq`, ключ не нужен). Каталог — `OpenRouterModel.kt`,
