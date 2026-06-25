@@ -48,13 +48,13 @@ internal class CommandRunner(
                     name == store.branchId ->
                         add("[branch] already on '$name'")
                     name in store.branches() ->
-                        add("[branch] '$name' already exists — use /switch $name")
+                        add("[branch] '$name' already exists — use /branch switch $name")
                     else -> {
                         val copied = store.messages.size
                         store.fork(name)
                         add(
                             "[branch] forked '${store.branchId}' → '$name' ($copied message(s) copied); " +
-                                "/switch $name to continue on it"
+                                "/branch switch $name to continue on it"
                         )
                     }
                 }
@@ -64,7 +64,7 @@ internal class CommandRunner(
                 when {
                     name == store.branchId -> add("[branch] already on '$name'")
                     name !in store.branches() ->
-                        add("[branch] no such branch '$name' (use /branches to list)")
+                        add("[branch] no such branch '$name' (use /branch to list)")
                     else -> {
                         store.switchTo(name)
                         strategy.rebind(store)
@@ -205,9 +205,9 @@ internal class CommandRunner(
                 val active = mem.activeTaskId()
                 when {
                     active == null ->
-                        add("[memory] /task-note needs an active task — set one with /task <id>")
+                        add("[memory] /task note needs an active task — set one with /task <id>")
                     command.note.isBlank() ->
-                        add("[memory] /task-note needs the note text")
+                        add("[memory] /task note needs the note text")
                     else -> {
                         mem.store.appendTaskNote(active, command.note)
                         add("[memory] note appended to task '$active'")
@@ -231,7 +231,7 @@ internal class CommandRunner(
 
     private inline fun MutableList<String>.withMemory(block: (MemoryProvider) -> Unit) {
         val mem = memory
-        if (mem == null) add("[memory] memory commands need -memory-mode <preamble|system> at startup")
+        if (mem == null) add("[memory] memory commands need a memory mode — start with -agent <name> mode <preamble|system>")
         else block(mem)
     }
 

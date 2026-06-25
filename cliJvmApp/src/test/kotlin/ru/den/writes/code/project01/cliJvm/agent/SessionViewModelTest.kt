@@ -294,7 +294,7 @@ class SessionViewModelTest {
             val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store)
-            val row = commandCatalog().indexOfFirst { it.name == "/checkpoint" } + 1
+            val row = commandCatalog().indexOfFirst { it.name == "/branch check" } + 1
 
             // when
             vm.run(intents(UiIntent.OpenPalette, UiIntent.Submit("$row"), UiIntent.Exit))
@@ -312,7 +312,7 @@ class SessionViewModelTest {
             val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home"))
-            val row = commandCatalog().indexOfFirst { it.name == "/profiles" } + 1
+            val row = commandCatalog().indexOfFirst { it.name == "/profile" } + 1
 
             // when
             vm.run(intents(UiIntent.OpenPalette, UiIntent.Submit("$row"), UiIntent.Exit))

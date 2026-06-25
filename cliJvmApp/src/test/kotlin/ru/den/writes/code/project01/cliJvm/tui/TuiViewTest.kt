@@ -92,18 +92,16 @@ class TuiViewTest {
     @Test
     fun `when an argument-less picker command - then OpenPicker of that kind`() {
         // when - then
-        assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profile-use"))
-        assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profiles"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profile"))
         assertEquals(UiIntent.OpenPicker(PickerKind.Task), toIntent("/task"))
-        assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/switch"))
-        assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/branches"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/branch"))
         assertEquals(UiIntent.OpenPicker(PickerKind.MemoryMode), toIntent("/memory-mode"))
     }
 
     @Test
     fun `when a picker command carries an argument - then it stays a SlashCommand`() {
         // when - then — the argument form is untouched, only the bare form opens a picker
-        assertEquals(UiIntent.SlashCommand(BranchCommand.SwitchProfile("work")), toIntent("/profile-use work"))
+        assertEquals(UiIntent.SlashCommand(BranchCommand.SwitchProfile("work")), toIntent("/profile work"))
     }
 
     @Test
@@ -133,7 +131,7 @@ class TuiViewTest {
         // given
         val palette = Overlay.Palette(
             listOf(
-                CommandEntry("/checkpoint", "show the branch", PaletteAction.Run(BranchCommand.Checkpoint)),
+                CommandEntry("/branch check", "show the branch", PaletteAction.Run(BranchCommand.Checkpoint)),
                 CommandEntry("/rule", "add a rule", PaletteAction.Prefill("/rule ")),
             ),
             cursor = 0,
@@ -141,7 +139,7 @@ class TuiViewTest {
 
         // when - then
         assertEquals(
-            listOf("▶ 1. /checkpoint — show the branch", "  2. /rule — add a rule"),
+            listOf("▶ 1. /branch check — show the branch", "  2. /rule — add a rule"),
             PaletteTuiView(palette).optionLines(),
         )
     }

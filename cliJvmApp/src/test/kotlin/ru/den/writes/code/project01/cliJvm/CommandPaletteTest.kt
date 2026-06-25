@@ -24,16 +24,16 @@ class CommandPaletteTest {
     @Test
     fun `when a command chooses from a set - then it maps to a picker of that kind`() {
         // when - then
-        assertEquals(PaletteAction.Pick(PickerKind.Profile), actionOf("/profiles"))
+        assertEquals(PaletteAction.Pick(PickerKind.Profile), actionOf("/profile"))
         assertEquals(PaletteAction.Pick(PickerKind.Task), actionOf("/task"))
-        assertEquals(PaletteAction.Pick(PickerKind.Branch), actionOf("/branches"))
+        assertEquals(PaletteAction.Pick(PickerKind.Branch), actionOf("/branch"))
         assertEquals(PaletteAction.Pick(PickerKind.MemoryMode), actionOf("/memory-mode"))
     }
 
     @Test
     fun `when a command takes no argument - then it maps to a Run or Reuse`() {
         // when - then
-        assertEquals(PaletteAction.Run(BranchCommand.Checkpoint), actionOf("/checkpoint"))
+        assertEquals(PaletteAction.Run(BranchCommand.Checkpoint), actionOf("/branch check"))
         assertEquals(PaletteAction.Reuse, actionOf("/reuse"))
     }
 

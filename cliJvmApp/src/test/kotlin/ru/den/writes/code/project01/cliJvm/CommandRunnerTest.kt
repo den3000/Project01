@@ -43,7 +43,7 @@ class CommandRunnerTest {
 
             // when - then
             assertEquals(
-                listOf("[branch] forked 'main' → 'exp' (2 message(s) copied); /switch exp to continue on it"),
+                listOf("[branch] forked 'main' → 'exp' (2 message(s) copied); /branch switch exp to continue on it"),
                 runner.run(BranchCommand.Branch("exp")),
             )
         }
@@ -56,7 +56,7 @@ class CommandRunnerTest {
 
         // when - then
         assertEquals(
-            listOf("[memory] memory commands need -memory-mode <preamble|system> at startup"),
+            listOf("[memory] memory commands need a memory mode — start with -agent <name> mode <preamble|system>"),
             runner.run(BranchCommand.ShowMemory),
         )
     }

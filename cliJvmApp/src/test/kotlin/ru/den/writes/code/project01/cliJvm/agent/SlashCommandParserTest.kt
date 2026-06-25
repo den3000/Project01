@@ -9,37 +9,38 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Direct coverage for [parseSlashCommand], the REPL `/`-command classifier
- * lifted out of `StdinPromptSource` so the stdin REPL and the TUI intent
- * source share one parser. Previously this logic was only exercised through
- * full REPL runs.
+ * Direct coverage for [parseSlashCommand], the REPL `/`-command classifier shared
+ * by the stdin REPL and the TUI intent source. It delegates to the clicontrols
+ * catalog on the command front, so these cases pin the catalog grammar's
+ * `/`-spellings (multi-word values are quoted) and the fall-through-to-prompt
+ * behaviour for non-commands.
  */
 class SlashCommandParserTest {
 
     //region branch family
 
     @Test
-    fun `when checkpoint - then Checkpoint`() {
+    fun `when branch bare - then ListBranches`() {
         // when - then
-        assertEquals(BranchCommand.Checkpoint, parseSlashCommand("/checkpoint"))
+        assertEquals(BranchCommand.ListBranches, parseSlashCommand("/branch"))
     }
 
     @Test
-    fun `when branches - then ListBranches`() {
-        // when - then
-        assertEquals(BranchCommand.ListBranches, parseSlashCommand("/branches"))
-    }
-
-    @Test
-    fun `when branch with a name - then Branch carries the name`() {
+    fun `when branch with a name - then Branch forks`() {
         // when - then
         assertEquals(BranchCommand.Branch("exp"), parseSlashCommand("/branch exp"))
     }
 
     @Test
-    fun `when switch with a name - then Switch carries the name`() {
+    fun `when branch switch with a name - then Switch`() {
         // when - then
-        assertEquals(BranchCommand.Switch("exp"), parseSlashCommand("/switch exp"))
+        assertEquals(BranchCommand.Switch("exp"), parseSlashCommand("/branch switch exp"))
+    }
+
+    @Test
+    fun `when branch check - then Checkpoint`() {
+        // when - then
+        assertEquals(BranchCommand.Checkpoint, parseSlashCommand("/branch check"))
     }
     //endregion
 
@@ -52,54 +53,60 @@ class SlashCommandParserTest {
     }
 
     @Test
-    fun `when profile section with text - then AddProfileItem for that section`() {
-        // when - then
+    fun `when a profile section carries quoted text - then AddProfileItem`() {
+        // when - then — multi-word values are quoted under the catalog grammar
         assertEquals(
             BranchCommand.AddProfileItem(ProfileSection.STYLE, "be terse"),
-            parseSlashCommand("/profile style be terse"),
+            parseSlashCommand("/profile style \"be terse\""),
         )
     }
 
     @Test
-    fun `when profile section clear - then ClearProfileSection`() {
+    fun `when a profile section omits text - then ClearProfileSection`() {
         // when - then
         assertEquals(
             BranchCommand.ClearProfileSection(ProfileSection.STYLE),
-            parseSlashCommand("/profile style clear"),
+            parseSlashCommand("/profile style"),
         )
     }
 
     @Test
-    fun `when profile clear - then ClearProfile`() {
+    fun `when profile clean - then ClearProfile`() {
         // when - then
-        assertEquals(BranchCommand.ClearProfile, parseSlashCommand("/profile clear"))
+        assertEquals(BranchCommand.ClearProfile, parseSlashCommand("/profile clean"))
     }
 
     @Test
-    fun `when profile with a bare name - then TouchProfile`() {
+    fun `when profile with a bare name - then SwitchProfile activates it`() {
         // when - then
-        assertEquals(BranchCommand.TouchProfile("work"), parseSlashCommand("/profile work"))
+        assertEquals(BranchCommand.SwitchProfile("work"), parseSlashCommand("/profile work"))
     }
 
     @Test
-    fun `when profile-use with a name - then SwitchProfile`() {
+    fun `when profile show with a name - then ShowProfile`() {
         // when - then
-        assertEquals(BranchCommand.SwitchProfile("work"), parseSlashCommand("/profile-use work"))
+        assertEquals(BranchCommand.ShowProfile("work"), parseSlashCommand("/profile show work"))
     }
 
     @Test
-    fun `when profiles - then ListProfiles`() {
+    fun `when profile bare - then ListProfiles`() {
         // when - then
-        assertEquals(BranchCommand.ListProfiles, parseSlashCommand("/profiles"))
+        assertEquals(BranchCommand.ListProfiles, parseSlashCommand("/profile"))
     }
     //endregion
 
-    //region task + memory-mode
+    //region rule + task + memory-mode
 
     @Test
-    fun `when rule with text - then AddRule`() {
+    fun `when rule with quoted text - then AddRule`() {
         // when - then
-        assertEquals(BranchCommand.AddRule("no emojis"), parseSlashCommand("/rule no emojis"))
+        assertEquals(BranchCommand.AddRule("no emojis"), parseSlashCommand("/rule \"no emojis\""))
+    }
+
+    @Test
+    fun `when rule rm with an id - then RemoveRule`() {
+        // when - then
+        assertEquals(BranchCommand.RemoveRule("003"), parseSlashCommand("/rule rm 003"))
     }
 
     @Test
@@ -109,9 +116,9 @@ class SlashCommandParserTest {
     }
 
     @Test
-    fun `when task-pause - then PauseTask`() {
+    fun `when task pause - then PauseTask`() {
         // when - then
-        assertEquals(BranchCommand.PauseTask, parseSlashCommand("/task-pause"))
+        assertEquals(BranchCommand.PauseTask, parseSlashCommand("/task pause"))
     }
 
     @Test

@@ -177,7 +177,7 @@ class PlainViewGoldenTest {
 
             // then
             val expectedStderr = buildString {
-                appendLine("[branch] forked 'main' → 'exp' (2 message(s) copied); /switch exp to continue on it")
+                appendLine("[branch] forked 'main' → 'exp' (2 message(s) copied); /branch switch exp to continue on it")
                 appendLine(
                     "[session-summary] turns=1  prompt=10  output=5  total=15  " +
                         "cost=0.00000 USD  (current model has no pricing entry)",

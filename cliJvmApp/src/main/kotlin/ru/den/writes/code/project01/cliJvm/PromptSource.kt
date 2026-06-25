@@ -1,10 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.cliJvm.command.ControlsToBranchCommand
 import ru.den.writes.code.project01.shared.memory.MemoryMode
-import ru.den.writes.code.project01.shared.memory.ProfileCommand
 import ru.den.writes.code.project01.shared.memory.ProfileSection
-import ru.den.writes.code.project01.shared.memory.isValidProfileName
-import ru.den.writes.code.project01.shared.memory.parseProfileCommand
 import java.io.BufferedReader
 import java.io.Reader
 
@@ -125,21 +123,6 @@ internal interface PromptSource {
 private const val QUIT_COMMAND = "/quit"
 private const val EXIT_COMMAND = "/exit"
 private const val REUSE_COMMAND = "/reuse"
-private const val CHECKPOINT_COMMAND = "/checkpoint"
-private const val BRANCH_COMMAND = "/branch"
-private const val SWITCH_COMMAND = "/switch"
-private const val BRANCHES_COMMAND = "/branches"
-private const val MEMORY_COMMAND = "/memory"
-private const val PROFILE_COMMAND = "/profile"
-private const val PROFILE_USE_COMMAND = "/profile-use"
-private const val PROFILES_COMMAND = "/profiles"
-private const val PROFILE_SHOW_COMMAND = "/profile-show"
-private const val RULE_COMMAND = "/rule"
-private const val TASK_COMMAND = "/task"
-private const val TASK_NOTE_COMMAND = "/task-note"
-private const val TASK_PAUSE_COMMAND = "/task-pause"
-private const val TASK_RESUME_COMMAND = "/task-resume"
-private const val MEMORY_MODE_COMMAND = "/memory-mode"
 private const val PROMPT_INDICATOR = "> "
 
 /**
@@ -161,11 +144,11 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
             println(
                 "Type a new prompt and press Enter.\n"
                     + "Type $QUIT_COMMAND or $EXIT_COMMAND to leave, $REUSE_COMMAND to resend the last reply.\n"
-                    + "Branches: $BRANCHES_COMMAND, $BRANCH_COMMAND <name>, $SWITCH_COMMAND <name>, $CHECKPOINT_COMMAND.\n"
-                    + "Memory: $MEMORY_COMMAND, $PROFILES_COMMAND, $PROFILE_USE_COMMAND <name>, $PROFILE_SHOW_COMMAND <name>,\n"
-                    + "        $PROFILE_COMMAND [<text> | <section> <text> | <section> clear | clear | <name> [<section> [<text>|clear] | clear]],\n"
-                    + "        $RULE_COMMAND <text>, $TASK_COMMAND <id>, $TASK_NOTE_COMMAND <text>,\n"
-                    + "        $TASK_PAUSE_COMMAND, $TASK_RESUME_COMMAND, $MEMORY_MODE_COMMAND <preamble|system>."
+                    + "Branches: /branch, /branch <name>, /branch switch <name>, /branch check.\n"
+                    + "Memory: /memory, /profile, /profile <name>, /profile show <name>,\n"
+                    + "        /profile [<name>] <section> [\"<text>\"] (omit text to clear; /profile [<name>] clean),\n"
+                    + "        /rule \"<text>\", /rule rm <id>, /task <id>, /task note \"<text>\",\n"
+                    + "        /task pause, /task resume, /memory-mode <preamble|system>."
             )
             print(PROMPT_INDICATOR)
             System.out.flush()
@@ -182,120 +165,42 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
     }
 }
 
+/** Shared catalog-backed classifier for the `/`-command (CMD) front. */
+private val controlsToBranch = ControlsToBranchCommand()
+
 /**
- * Classify a `/branch`-family or `/memory`-family command typed at the REPL,
- * or null if [line] isn't one. Top-level so both [StdinPromptSource] and the
- * TUI intent source share one classifier instead of duplicating it. The lone
- * exception is `/memory-mode`, which needs a `preamble` / `system` argument —
- * anything else falls through as a normal prompt (the agent's footer makes
- * the typo obvious; we'd rather not eat the line silently).
+ * Classify a `/`-command typed at the REPL into a [BranchCommand], or null if
+ * [line] isn't one (it falls through as a normal prompt). Top-level so both
+ * [StdinPromptSource] and the TUI intent source share one classifier. Delegates
+ * to the shared clicontrols catalog ([ControlsToBranchCommand]) on the command
+ * front, so the `/`-grammar and the startup `-`-grammar stay one declarative
+ * source. Multi-word values must be quoted (`/rule "no emojis"`), matching the
+ * catalog tokenizer.
  */
-internal fun parseSlashCommand(line: String): BranchCommand? {
-    val parts = line.split(Regex("\\s+"), limit = 2)
-    val arg = parts.getOrNull(1)?.trim().orEmpty()
-    return when (parts[0].lowercase()) {
-        CHECKPOINT_COMMAND -> BranchCommand.Checkpoint
-        BRANCHES_COMMAND -> BranchCommand.ListBranches
-        BRANCH_COMMAND -> BranchCommand.Branch(arg)
-        SWITCH_COMMAND -> BranchCommand.Switch(arg)
-        MEMORY_COMMAND -> BranchCommand.ShowMemory
-        PROFILE_COMMAND -> classifyProfileCommand(arg)
-        PROFILE_USE_COMMAND -> if (arg.isBlank()) null else BranchCommand.SwitchProfile(arg.trim())
-        PROFILES_COMMAND -> BranchCommand.ListProfiles
-        PROFILE_SHOW_COMMAND -> if (arg.isBlank()) null else BranchCommand.ShowProfile(arg.trim())
-        RULE_COMMAND -> BranchCommand.AddRule(arg)
-        TASK_COMMAND -> BranchCommand.SetTask(arg)
-        TASK_NOTE_COMMAND -> BranchCommand.AppendTaskNote(arg)
-        TASK_PAUSE_COMMAND -> BranchCommand.PauseTask
-        TASK_RESUME_COMMAND -> BranchCommand.ResumeTask
-        MEMORY_MODE_COMMAND -> parseMemoryMode(arg)
-        else -> null
-    }
-}
-
-private fun parseMemoryMode(arg: String): BranchCommand? = when (arg.lowercase()) {
-    "preamble" -> BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE)
-    "system" -> BranchCommand.SetMemoryMode(MemoryMode.SYSTEM)
-    else -> null
-}
+internal fun parseSlashCommand(line: String): BranchCommand? = controlsToBranch.parse(line)
 
 /**
- * Every `/`-command as a palette row — the single source the TUI command
- * palette lists. Names reuse the parser's constants so the palette and
- * [parseSlashCommand] can't drift. Ordered pickers → no-arg → free-text
- * (prefill). `/exit` / `/quit` are omitted (one keystroke away, handled before
- * this), as is the bare prompt.
+ * Every `/`-command as a palette row — the single source the TUI command palette
+ * lists, in the catalog grammar. Ordered pickers → no-arg → free-text (prefill).
+ * `/exit` / `/quit` are omitted (one keystroke away, handled before this), as is
+ * the bare prompt.
  */
 internal fun commandCatalog(): List<CommandEntry> = listOf(
-    CommandEntry(PROFILES_COMMAND, "switch the active named profile", PaletteAction.Pick(PickerKind.Profile)),
-    CommandEntry(TASK_COMMAND, "set or switch the active task", PaletteAction.Pick(PickerKind.Task)),
-    CommandEntry(BRANCHES_COMMAND, "switch the session branch", PaletteAction.Pick(PickerKind.Branch)),
-    CommandEntry(MEMORY_MODE_COMMAND, "switch the memory injection mode", PaletteAction.Pick(PickerKind.MemoryMode)),
-    CommandEntry(CHECKPOINT_COMMAND, "show the current branch and message count", PaletteAction.Run(BranchCommand.Checkpoint)),
-    CommandEntry(MEMORY_COMMAND, "show the active memory layer", PaletteAction.Run(BranchCommand.ShowMemory)),
-    CommandEntry(TASK_PAUSE_COMMAND, "pause the active task (hold its stage)", PaletteAction.Run(BranchCommand.PauseTask)),
-    CommandEntry(TASK_RESUME_COMMAND, "resume the active task", PaletteAction.Run(BranchCommand.ResumeTask)),
-    CommandEntry(REUSE_COMMAND, "resend the last model reply", PaletteAction.Reuse),
-    CommandEntry(RULE_COMMAND, "add a memory rule", PaletteAction.Prefill("$RULE_COMMAND ")),
-    CommandEntry(TASK_NOTE_COMMAND, "append a note to the active task", PaletteAction.Prefill("$TASK_NOTE_COMMAND ")),
-    CommandEntry(BRANCH_COMMAND, "fork a new branch from here", PaletteAction.Prefill("$BRANCH_COMMAND ")),
-    CommandEntry(PROFILE_COMMAND, "edit a profile section", PaletteAction.Prefill("$PROFILE_COMMAND ")),
-    CommandEntry(PROFILE_SHOW_COMMAND, "show a named profile", PaletteAction.Prefill("$PROFILE_SHOW_COMMAND ")),
+    CommandEntry("/profile", "switch the active named profile", PaletteAction.Pick(PickerKind.Profile)),
+    CommandEntry("/task", "set or switch the active task", PaletteAction.Pick(PickerKind.Task)),
+    CommandEntry("/branch", "switch the session branch", PaletteAction.Pick(PickerKind.Branch)),
+    CommandEntry("/memory-mode", "switch the memory injection mode", PaletteAction.Pick(PickerKind.MemoryMode)),
+    CommandEntry("/branch check", "show the current branch and message count", PaletteAction.Run(BranchCommand.Checkpoint)),
+    CommandEntry("/memory", "show the active memory layer", PaletteAction.Run(BranchCommand.ShowMemory)),
+    CommandEntry("/task pause", "pause the active task (hold its stage)", PaletteAction.Run(BranchCommand.PauseTask)),
+    CommandEntry("/task resume", "resume the active task", PaletteAction.Run(BranchCommand.ResumeTask)),
+    CommandEntry("/reuse", "resend the last model reply", PaletteAction.Reuse),
+    CommandEntry("/rule", "add a memory rule", PaletteAction.Prefill("/rule ")),
+    CommandEntry("/task note", "append a note to the active task", PaletteAction.Prefill("/task note ")),
+    CommandEntry("/branch <name>", "fork a new branch from here", PaletteAction.Prefill("/branch ")),
+    CommandEntry("/profile <section>", "edit a profile section", PaletteAction.Prefill("/profile ")),
+    CommandEntry("/profile show", "show a named profile", PaletteAction.Prefill("/profile show ")),
 )
-
-/**
- * Map a `/profile …` body into the matching [BranchCommand].
- *
- * Default-profile shapes (`<section> <text>`, `<section> clear`,
- * `clear`) come from [parseProfileCommand]. Anything else that starts
- * with a valid profile-name identifier is treated as a named-profile
- * sub-command:
- *
- * - `<name>` → touch-create
- * - `<name> clear` → drop the named profile
- * - `<name> <section> <text>` → append to it
- * - `<name> <section> clear` → empty the section
- *
- * Free text (multiple words that don't fit the named shape) drops
- * back to `SetProfile`. Blank input is reported back as
- * `SetProfile("")` so the agent's "needs the new profile text" error
- * path keeps firing.
- */
-private fun classifyProfileCommand(arg: String): BranchCommand {
-    if (arg.isBlank()) return BranchCommand.SetProfile("")
-
-    when (val parsed = parseProfileCommand(arg)) {
-        null -> return BranchCommand.SetProfile("")
-        ProfileCommand.ClearAll -> return BranchCommand.ClearProfile
-        is ProfileCommand.ClearSection -> return BranchCommand.ClearProfileSection(parsed.section)
-        is ProfileCommand.Append -> return BranchCommand.AddProfileItem(parsed.section, parsed.text)
-        is ProfileCommand.SetFreeText -> Unit
-    }
-
-    val tokens = arg.trim().split(Regex("\\s+"))
-    val name = tokens[0]
-    if (!isValidProfileName(name)) return BranchCommand.SetProfile(arg.trim())
-
-    if (tokens.size == 1) return BranchCommand.TouchProfile(name)
-
-    val rest = tokens.drop(1)
-    if (rest.size == 1 && rest[0].equals("clear", ignoreCase = true)) {
-        return BranchCommand.ClearNamedProfile(name)
-    }
-
-    val section = ProfileSection.byKeyword(rest[0])
-        ?: return BranchCommand.SetProfile(arg.trim())
-
-    if (rest.size == 2 && rest[1].equals("clear", ignoreCase = true)) {
-        return BranchCommand.ClearNamedProfileSection(name, section)
-    }
-
-    // Drop the leading "<name> <section>" prefix and keep the
-    // verbatim remainder as the new bullet (blank → Agent reports
-    // "needs text").
-    val text = arg.trim().substringAfter(' ').substringAfter(' ').trim()
-    return BranchCommand.AddNamedProfileItem(name, section, text)
-}
 
 /**
  * Reads the next [chunkChars] **characters** (not bytes — Reader-level,

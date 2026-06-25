@@ -152,7 +152,7 @@ class AgentTaskStateTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
-                    promptSource = stdinSource("/task-pause\n/task-resume\n/exit\n"),
+                    promptSource = stdinSource("/task pause\n/task resume\n/exit\n"),
                     memory = memory,
                 )
 
