@@ -1,6 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.clicontrols
 
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ONESHOT
@@ -53,6 +54,33 @@ class CliControlsCrossValidationTest {
         // given — oneshot picks up an agent for generation params + profile (README); only the
         // multi-turn sub-options conflict, not the agent itself or its knobs
         val args = listOf("-prompt", "hi", "-oneshot", "-agent", "main", "profile", "coder", "maxTokens", "42")
+
+        // when
+        val actual = parser.parseArgv(args)
+
+        // then
+        assertEquals(emptyList<ParseError>(), actual.errors, "errors: ${actual.errors.map { it.message }}")
+    }
+    //endregion
+
+    //region inflate requires a session
+
+    @Test
+    fun `when inflate is used without a session - then it requires one`() {
+        // given
+        val args = listOf("-inflate", "5")
+
+        // when
+        val actual = parser.parseArgv(args)
+
+        // then
+        assertEquals(listOf<ParseError>(ParseError.Requires(INFLATE, SESSION)), actual.errors)
+    }
+
+    @Test
+    fun `when inflate is paired with a session - then it is valid`() {
+        // given
+        val args = listOf("-inflate", "5", "-session", "foo")
 
         // when
         val actual = parser.parseArgv(args)

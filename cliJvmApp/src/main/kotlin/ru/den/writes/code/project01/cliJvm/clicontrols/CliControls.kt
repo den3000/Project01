@@ -165,7 +165,7 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     add(top(STRATEGY, setOf(FLAG, CMD), value = req(ValueKind.OneOf(setOf("full", "window", "facts", "summary"))), excludes = setOf(ONESHOT), usage = "context-size management"))
     add(sub(KEEP_LAST, listOf(STRATEGY), value = req(ValueKind.IntRange(0)), usage = "verbatim tail size (window/summary)"))
     add(sub(SUMMARIZE_EVERY, listOf(STRATEGY), value = req(ValueKind.IntRange(2)), usage = "fold threshold (summary)"))
-    add(top(INFLATE, setOf(FLAG, CMD), value = req(ValueKind.IntRange(1)), excludes = setOf(ONESHOT), usage = "duplicate the last N rows of the session (dev)"))
+    add(top(INFLATE, setOf(FLAG, CMD), value = req(ValueKind.IntRange(1)), requires = setOf(SESSION), excludes = setOf(ONESHOT), usage = "duplicate the last N rows of the session (dev)"))
 
     // ---- tools (MCP) ----
     // Merged feature ships -mcpServer startup-only (Chat-only); modelled here as a flag-command,
