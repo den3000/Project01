@@ -2,6 +2,7 @@ package ru.den.writes.code.project01.cliJvm.cliArgs
 
 import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.CliArgsException
+import ru.den.writes.code.project01.cliJvm.command.MemoryAction
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,7 +24,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.Show, memory.action)
+        assertEquals(MemoryAction.Show, memory.action)
     }
 
     @Test
@@ -67,7 +68,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.SetProfile("I write Kotlin"), memory.action)
+        assertEquals(MemoryAction.SetProfile("I write Kotlin"), memory.action)
     }
 
     @Test
@@ -80,7 +81,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        val expected = CliArgs.MemoryAction.AddProfileItem(ProfileSection.STYLE, "кратко, на русском")
+        val expected = MemoryAction.AddProfileItem(ProfileSection.STYLE, "кратко, на русском")
         assertEquals(expected, memory.action)
     }
 
@@ -94,7 +95,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        val expected = CliArgs.MemoryAction.ClearProfileSection(ProfileSection.CONSTRAINTS)
+        val expected = MemoryAction.ClearProfileSection(ProfileSection.CONSTRAINTS)
         assertEquals(expected, memory.action)
     }
 
@@ -108,7 +109,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.ClearProfile, memory.action)
+        assertEquals(MemoryAction.ClearProfile, memory.action)
     }
 
     @Test
@@ -138,7 +139,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.ListProfiles, memory.action)
+        assertEquals(MemoryAction.ListProfiles, memory.action)
     }
 
     @Test
@@ -151,7 +152,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.ShowProfile("kotlin-senior"), memory.action)
+        assertEquals(MemoryAction.ShowProfile("kotlin-senior"), memory.action)
     }
 
     @Test
@@ -164,7 +165,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.TouchProfile("kotlin-senior"), memory.action)
+        assertEquals(MemoryAction.TouchProfile("kotlin-senior"), memory.action)
     }
 
     @Test
@@ -177,7 +178,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        val expected = CliArgs.MemoryAction.AddNamedProfileItem(
+        val expected = MemoryAction.AddNamedProfileItem(
             name = "kotlin-senior",
             section = ProfileSection.STYLE,
             text = "кратко, на русском",
@@ -195,7 +196,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        val expected = CliArgs.MemoryAction.ClearNamedProfileSection(
+        val expected = MemoryAction.ClearNamedProfileSection(
             name = "kotlin-senior",
             section = ProfileSection.CONSTRAINTS,
         )
@@ -212,7 +213,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.ClearNamedProfile("kotlin-senior"), memory.action)
+        assertEquals(MemoryAction.ClearNamedProfile("kotlin-senior"), memory.action)
     }
     //endregion
 
@@ -228,7 +229,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.AddRule("No Spring"), memory.action)
+        assertEquals(MemoryAction.AddRule("No Spring"), memory.action)
     }
 
     @Test
@@ -241,7 +242,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.RemoveRule("002"), memory.action)
+        assertEquals(MemoryAction.RemoveRule("002"), memory.action)
     }
 
     @Test
@@ -254,7 +255,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.SetTask("auth-service"), memory.action)
+        assertEquals(MemoryAction.SetTask("auth-service"), memory.action)
     }
 
     @Test
@@ -282,7 +283,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.PauseTask("auth"), memory.action)
+        assertEquals(MemoryAction.PauseTask("auth"), memory.action)
     }
 
     @Test
@@ -295,7 +296,7 @@ class CliArgsMemoryActionTest {
 
         // then
         val memory = assertIs<CliArgs.Memory>(parsed)
-        assertEquals(CliArgs.MemoryAction.ResumeTask("auth"), memory.action)
+        assertEquals(MemoryAction.ResumeTask("auth"), memory.action)
     }
 
     @Test

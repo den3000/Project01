@@ -10,6 +10,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import ru.den.writes.code.project01.BuildKonfig
+import ru.den.writes.code.project01.cliJvm.command.MemoryAction
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.DEFAULT_BRANCH
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
@@ -131,34 +132,34 @@ suspend fun main(args: Array<String>) {
  * root. Pure disk operation — no LLM, no session, no DB. Prints a
  * short status line to stdout (errors to stderr) and returns.
  */
-private fun handleMemoryCommand(action: CliArgs.MemoryAction) {
+private fun handleMemoryCommand(action: MemoryAction) {
     MEMORY_ROOT.mkdirs()
     val store = MemoryStore(MEMORY_ROOT)
     when (action) {
-        is CliArgs.MemoryAction.Show -> {
+        is MemoryAction.Show -> {
             // Use a temporary provider in PREAMBLE mode for describe() —
             // no task is active when invoked from the CLI; this prints
             // the dormant snapshot of every layer.
             println(MemoryProvider(store, initialTaskId = null).describe())
         }
-        is CliArgs.MemoryAction.SetProfile -> {
+        is MemoryAction.SetProfile -> {
             store.saveProfile(action.text)
             println("[memory] profile saved (${action.text.length} char(s))")
         }
-        is CliArgs.MemoryAction.AddProfileItem -> {
+        is MemoryAction.AddProfileItem -> {
             val updated = store.addProfileItem(action.section, action.text)
             val count = updated.items(action.section).size
             println("[memory] profile.${action.section.keyword} += \"${action.text}\" ($count item(s) total)")
         }
-        is CliArgs.MemoryAction.ClearProfileSection -> {
+        is MemoryAction.ClearProfileSection -> {
             store.clearProfileSection(action.section)
             println("[memory] profile.${action.section.keyword} cleared")
         }
-        is CliArgs.MemoryAction.ClearProfile -> {
+        is MemoryAction.ClearProfile -> {
             store.clearProfile()
             println("[memory] profile cleared")
         }
-        is CliArgs.MemoryAction.ListProfiles -> {
+        is MemoryAction.ListProfiles -> {
             val names = store.listProfileNames()
             if (names.isEmpty()) println("[memory] no named profiles")
             else {
@@ -166,7 +167,7 @@ private fun handleMemoryCommand(action: CliArgs.MemoryAction) {
                 names.forEach { println("  - $it") }
             }
         }
-        is CliArgs.MemoryAction.ShowProfile -> {
+        is MemoryAction.ShowProfile -> {
             val data = store.loadNamedProfile(action.name)
             if (data == null) {
                 System.err.println("[memory] profile '${action.name}' is empty or absent")
@@ -180,34 +181,34 @@ private fun handleMemoryCommand(action: CliArgs.MemoryAction) {
                 }
             }
         }
-        is CliArgs.MemoryAction.TouchProfile -> {
+        is MemoryAction.TouchProfile -> {
             store.touchNamedProfile(action.name)
             println("[memory] profile '${action.name}' ready under ${File(MEMORY_ROOT, MemoryStore.PROFILES_DIR).absolutePath}/${action.name}.md")
         }
-        is CliArgs.MemoryAction.AddNamedProfileItem -> {
+        is MemoryAction.AddNamedProfileItem -> {
             val updated = store.addNamedProfileItem(action.name, action.section, action.text)
             val count = updated.items(action.section).size
             println("[memory] profile.${action.name}.${action.section.keyword} += \"${action.text}\" ($count item(s) total)")
         }
-        is CliArgs.MemoryAction.ClearNamedProfileSection -> {
+        is MemoryAction.ClearNamedProfileSection -> {
             store.clearNamedProfileSection(action.name, action.section)
             println("[memory] profile.${action.name}.${action.section.keyword} cleared")
         }
-        is CliArgs.MemoryAction.ClearNamedProfile -> {
+        is MemoryAction.ClearNamedProfile -> {
             val removed = store.clearNamedProfile(action.name)
             if (removed) println("[memory] profile '${action.name}' removed")
             else System.err.println("[memory] no profile named '${action.name}'")
         }
-        is CliArgs.MemoryAction.AddRule -> {
+        is MemoryAction.AddRule -> {
             val rule = store.addRule(action.text)
             println("[memory] rule ${rule.id} added")
         }
-        is CliArgs.MemoryAction.RemoveRule -> {
+        is MemoryAction.RemoveRule -> {
             val removed = store.removeRule(action.id)
             if (removed) println("[memory] rule ${action.id} removed")
             else System.err.println("[memory] no rule with id '${action.id}'")
         }
-        is CliArgs.MemoryAction.SetTask -> {
+        is MemoryAction.SetTask -> {
             // Touch-create so subsequent `-memory show` (and the next
             // chat with `-task <id>`) sees a task file rather than nothing
             // on disk. A new task starts at the initial FSM stage.
@@ -216,8 +217,8 @@ private fun handleMemoryCommand(action: CliArgs.MemoryAction) {
             }
             println("[memory] task '${action.taskId}' ready under ${File(MEMORY_ROOT, MemoryStore.TASKS_DIR).absolutePath}/${action.taskId}.md")
         }
-        is CliArgs.MemoryAction.PauseTask -> setTaskPaused(store, action.taskId, paused = true)
-        is CliArgs.MemoryAction.ResumeTask -> setTaskPaused(store, action.taskId, paused = false)
+        is MemoryAction.PauseTask -> setTaskPaused(store, action.taskId, paused = true)
+        is MemoryAction.ResumeTask -> setTaskPaused(store, action.taskId, paused = false)
     }
 }
 
