@@ -90,17 +90,20 @@ Per-entity расширения:
 
 1. **Дескриптор-каталог (данные)** — `CliControls.all: List<ControlSpec>`. Один список: токен, поверхности,
    `parent` (цепочка предков для сабов — `List<CliControlsArg>`, поддерживает многоуровневость), `ValueSpec`
-   (тип+валидатор декларативно), `requires`/`excludes` (кросс-ограничения декларативно вместо россыпи `if`).
+   (тип+валидатор декларативно), `requires`/`excludes` (кросс-ограничения декларативно вместо россыпи `if`),
+   `parentValueIn` (саб легален только под определённым значением родителя — `summarizeEvery` лишь под `strategy summary`).
 2. **Результат (типизированно)** — `ParsedControl(spec, value, subs)`. `subs` — это **список** (уточнение к
    исходному наброску `sub`/`subValue`): покрывает и вложенную цепочку (`profile work style "x"`), и плоский
    «мешок» опций (`agent main provider X model Y …`).
 3. **Парсер** — `CliControlsParser`: один рекурсивный обход по каталогу для обоих фронтов. Токен — *саб*
    текущей цепочки, если так говорит каталог; иначе это значение уровня или принадлежит предку (так
-   терминируется каждая опция `agent`). `parseArgv` дополнительно режет argv на контролы и гоняет
-   кросс-валидацию.
+   терминируется каждая опция `agent`). `parseArgv` режет argv на контролы (токен с ведущим `-` открывает
+   новую группу только если это имя известного контрола — иначе он значение, так доезжают `-3`/`-v`) и
+   гоняет кросс-валидацию.
 
 Грамматика одного контрола: `head [value] (sub)*`. Ошибки — типизированный `ParseError` (UnknownControl /
-WrongSurface / MissingValue / BadValue / ValueNotAllowedHere / UnexpectedToken / Requires / Conflicts).
+WrongSurface / MissingValue / BadValue / ValueNotAllowedHere / WrongParentValue / UnexpectedToken / Requires /
+Conflicts).
 
 Downstream (не в прототипе): тонкий маппер `ParsedControl → доменная команда` — грамматика остаётся
 отделённой от домена (образец доменного «результата» уже есть — sealed `BranchCommand`).
@@ -109,7 +112,10 @@ Downstream (не в прототипе): тонкий маппер `ParsedContro
 
 ## Принятые решения (из обсуждения)
 
-1. **oneshot** подхватывает агента (генпараметры+профиль), но `⟂ tui` (интерактивить нечего).
+1. **oneshot** подхватывает агента (генпараметры+профиль), но исключает всё «многоходовое»: top-level
+   `session`/`feedFile`/`strategy`/`inflate`/`tui`/`mcpServer`/`profile`/`task`/`rule` и agent-сабы
+   `mode`/`stages`/`judge` (`excludes={ONESHOT}` на самих контролах — per-role spec разводит перегруженный
+   `profile`: под агентом валиден, top-level нет).
 2. **/help, /?** — палитра, command-only.
 3. **/checkpoint → `branch check`** (или вовсе убрать — помечено).
 4. **parent = `List<CliControlsArg>?`** (многоуровневая грамматика).
@@ -118,6 +124,9 @@ Downstream (не в прототипе): тонкий маппер `ParsedContro
 7. **inflate** — и флаг, и команда (`-inflate N` / `/inflate N`).
 8. **agent** — именованная сущность; stage/judge выражаются под-опциями `stages`/`judge`.
 9. **rule** — `<name>`-слот = add (не select); на грамматику не влияет, разница в семантике/usage.
+10. **stage-range** проверяет порядок: `from ≤ to` по FSM (`execution..planning` → `BadValue`), оба конца — известные стадии.
+11. **доменность**: `inflate` требует `session` (`requires={SESSION}`, presence-based в `parseArgv`); `summarizeEvery` валиден только под `strategy summary` (`parentValueIn`, value-conditional, оба фронта).
+12. **argv-арность**: значение с ведущим `-` (`-3`, `-v`) доезжает до своего флага — новую группу открывает только имя известного контрола.
 
 ## Карта файлов
 
@@ -128,8 +137,10 @@ Downstream (не в прототипе): тонкий маппер `ParsedContro
 | `CliControls.kt` | каталог `all` + билдеры `entity()/top()/sub()` + lookups |
 | `ParsedControl.kt` | `ParsedControl` + `ParseResult`/`ParseError`/`BatchResult` |
 | `CliControlsParser.kt` | парсер обоих фронтов + batch + кросс-валидация |
-| `…/test/clicontrols/CliControlsParserTest.kt` | демо: одиночный контрол, оба фронта, сабы, surface-гейты, ошибки |
-| `…/test/clicontrols/CliControlsBatchTest.kt` | демо: argv→контролы, requires/excludes, целостность каталога |
+| `…/test/clicontrols/CliControlsParserTest.kt` | одиночный контрол (value-equality): оба фронта, сабы, surface-гейты, ошибки |
+| `…/test/clicontrols/CliControlsBatchTest.kt` | argv→контролы, arity-split, целостность каталога |
+| `…/test/clicontrols/CliControlsCrossValidationTest.kt` | requires/excludes: oneshot-эксклюзивность, inflate→session, feed-mutex |
+| `…/test/clicontrols/CliControlsValueValidationTest.kt` | валидация значений: BadValue / WrongSurface / WrongParentValue |
 
 ## Открытые вопросы / не смоделировано
 
