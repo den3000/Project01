@@ -18,6 +18,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.KEEP_LAST
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MAX_TOKENS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ONESHOT
@@ -189,6 +190,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
             }
             gap("session ${session.subs.firstOrNull()?.arg?.title ?: session.value}")
         }
+        controls.last(MEMORY)?.let { return CliCommand.MemoryOp(MemoryAction.Show) }
         controls.last(PROFILE)?.let { return CliCommand.MemoryOp(profileAction(it)) }
         controls.last(RULE)?.let { return CliCommand.MemoryOp(ruleAction(it)) }
         controls.last(TASK)?.let { return CliCommand.MemoryOp(taskAction(it)) }

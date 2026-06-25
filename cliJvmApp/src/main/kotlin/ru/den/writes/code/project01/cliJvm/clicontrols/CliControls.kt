@@ -135,7 +135,7 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     add(top(REUSE, setOf(CMD), usage = "resend the last model reply"))
     add(top(EXIT, setOf(CMD), usage = "leave the session"))
     add(top(HELP, setOf(CMD), usage = "open the command palette"))
-    add(top(MEMORY, setOf(CMD), usage = "show the active memory layer (mode + profile + rules + task)"))
+    add(top(MEMORY, setOf(FLAG, CMD), excludes = setOf(ONESHOT), usage = "show the active memory layer (mode + profile + rules + task)"))
     add(top(MEMORY_MODE, setOf(CMD), value = req(ValueKind.OneOf(setOf("preamble", "system"))), usage = "flip the memory-injection mode"))
 
     // ---- entities (auto CRUD + extras) ----

@@ -51,6 +51,12 @@ class CliControlsCommandParserModeTest {
     }
 
     @Test
+    fun `when -memory passed - then MemoryOp Show`() {
+        // when - then — startup memory layer dump (twin of in-session /memory)
+        assertEquals(CliCommand.MemoryOp(MemoryAction.Show), parser.parse(arrayOf("-memory")))
+    }
+
+    @Test
     fun `when -inflate with a session passed - then InflateSession carries both`() {
         // when - then
         assertEquals(CliCommand.InflateSession("demo", 5), parser.parse(arrayOf("-inflate", "5", "-session", "demo")))

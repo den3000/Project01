@@ -164,7 +164,7 @@ class CliControlsParserTest {
         // when - then
         assertEquals(ParseError.WrongSurface("reuse", FLAG), err("-reuse", FLAG))
         assertEquals(ParseError.WrongSurface("branch", FLAG), err("-branch exp", FLAG))
-        assertEquals(ParseError.WrongSurface("memory", FLAG), err("-memory", FLAG))
+        assertEquals(ParseError.WrongSurface("memory-mode", FLAG), err("-memory-mode", FLAG))
         assertEquals(topParsedControl(BRANCH, CMD, "exp"), ok("/branch exp", CMD))
     }
 
@@ -178,8 +178,9 @@ class CliControlsParserTest {
     //region in-session config commands
 
     @Test
-    fun `when an in-session memory command is used - then it parses on the command front`() {
-        // when - then — show the active layer; flip the injection mode
+    fun `when memory controls are used - then memory is both fronts and memory-mode is command-only`() {
+        // when - then — show the layer (both fronts); flip the injection mode (in-session)
+        assertEquals(topParsedControl(MEMORY, FLAG), ok("-memory", FLAG))
         assertEquals(topParsedControl(MEMORY, CMD), ok("/memory", CMD))
         assertEquals(topParsedControl(MEMORY_MODE, CMD, "system"), ok("/memory-mode system", CMD))
     }
