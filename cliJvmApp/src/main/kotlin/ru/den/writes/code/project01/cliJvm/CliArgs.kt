@@ -1120,7 +1120,7 @@ internal sealed interface CliArgs {
             )
         }
 
-        private fun buildModelProvider(
+        internal fun buildModelProvider(
             providerRaw: String,
             modelRaw: String?,
             geminiApiKey: String,
