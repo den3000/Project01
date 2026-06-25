@@ -87,6 +87,28 @@ class CliControlsCommandParserAgentTest {
     }
 
     @Test
+    fun `when stage and judge agents span the run - then primary mode plus two stage agents and a judge land`() {
+        // when — the full multi-agent demo: stages/judge are -agent subs, memory mode is the primary's `mode`
+        val chat = chat(
+            "-prompt", "go", "-session", "demo", "-task", "auth",
+            "-agent", "provider", "gemini", "model", "gemini-2.5-flash", "mode", "system",
+            "-agent", "provider", "gemini", "model", "gemini-2.5-flash", "profile", "interviewer", "stages", "clarification..planning",
+            "-agent", "provider", "gemini", "model", "gemini-2.5-flash", "profile", "coder", "stages", "execution..done",
+            "-agent", "provider", "gemini", "model", "gemini-2.5-flash", "judge", "stages", "clarification..done",
+        )
+
+        // then
+        assertEquals(MemoryMode.SYSTEM, chat.memoryMode)
+        assertEquals("auth", chat.task)
+        assertEquals(2, chat.stageAgents.size)
+        assertEquals("interviewer", chat.stageAgents[0].profileName)
+        assertEquals(TaskBinding(TaskStage.CLARIFICATION, TaskStage.PLANNING), chat.stageAgents[0].binding)
+        assertEquals("coder", chat.stageAgents[1].profileName)
+        assertEquals(TaskBinding(TaskStage.EXECUTION, TaskStage.DONE), chat.stageAgents[1].binding)
+        assertEquals(TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE), chat.judgeAgents.single().binding)
+    }
+
+    @Test
     fun `when two agents lack stages and judge - then more than one primary is rejected`() {
         // when - then
         assertFailsWith<CliArgsException.InvalidArgumentValue> {
