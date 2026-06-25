@@ -100,16 +100,18 @@ private fun sub(
  * Declare an entity once: it gets `<entity> [<value>]` (value present = select /
  * create / add, absent = list), `<entity> show [<value>]` and `<entity> clean
  * [<value>]`, plus any [extras]. [selectSurfaces] lets a value be allowed on
- * fewer surfaces than the token (session: name only at startup).
+ * fewer surfaces than the token (session: name only at startup); [topExcludes]
+ * are conflicts placed on the top control only (not its show/clean subs).
  */
 private fun entity(
     arg: CliControlsArg,
     surfaces: Set<Surface>,
     selectValue: ValueKind = ValueKind.Name,
     selectSurfaces: Set<Surface> = surfaces,
+    topExcludes: Set<CliControlsArg> = emptySet(),
     extras: List<ControlSpec> = emptyList(),
 ): List<ControlSpec> = buildList {
-    add(top(arg, surfaces, value = opt(selectValue), valueSurfaces = selectSurfaces, usage = "<name> select/create · bare = list"))
+    add(top(arg, surfaces, value = opt(selectValue), valueSurfaces = selectSurfaces, excludes = topExcludes, usage = "<name> select/create · bare = list"))
     add(sub(SHOW, listOf(arg), value = opt(selectValue), usage = "show one (<name>) or all"))
     add(sub(CLEAN, listOf(arg), value = opt(selectValue), usage = "delete one (<name>) or all; reset selection"))
     addAll(extras)
@@ -118,9 +120,9 @@ private fun entity(
 private fun buildCatalog(): List<ControlSpec> = buildList {
     // ---- startup-only flags ----
     add(top(PROMPT, setOf(FLAG), value = req(ValueKind.Text), usage = "opening prompt — every run starts here"))
-    add(top(ONESHOT, setOf(FLAG), excludes = setOf(TUI, MCP_SERVER), usage = "single prompt → reply → exit (no REPL/session/feed)"))
+    add(top(ONESHOT, setOf(FLAG), usage = "single prompt → reply → exit (no REPL/session/feed)"))
     add(top(TUI, setOf(FLAG), excludes = setOf(ONESHOT), usage = "interactive TUI view (needs a real TTY)"))
-    add(top(FEED_FILE, setOf(FLAG), value = req(ValueKind.Path), usage = "after the opening prompt, feed this file turn by turn"))
+    add(top(FEED_FILE, setOf(FLAG), value = req(ValueKind.Path), excludes = setOf(ONESHOT), usage = "after the opening prompt, feed this file turn by turn"))
     add(sub(CHUNK_CHARS, listOf(FEED_FILE), value = req(ValueKind.IntRange(1)), excludes = setOf(BY_LINE), usage = "feed chunk size, chars"))
     add(sub(BY_LINE, listOf(FEED_FILE), excludes = setOf(CHUNK_CHARS), usage = "feed line by line"))
     add(sub(FEED_INSTRUCTION, listOf(FEED_FILE), value = req(ValueKind.Text), usage = "prefix prepended to each fed chunk"))
@@ -131,11 +133,12 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     add(top(HELP, setOf(CMD), usage = "open the command palette"))
 
     // ---- entities (auto CRUD + extras) ----
-    addAll(entity(SESSION, setOf(FLAG, CMD), selectSurfaces = setOf(FLAG)))  // select only at startup
-    addAll(entity(PROFILE, setOf(FLAG, CMD), extras = profileSections()))
+    addAll(entity(SESSION, setOf(FLAG, CMD), selectSurfaces = setOf(FLAG), topExcludes = setOf(ONESHOT)))  // select only at startup
+    addAll(entity(PROFILE, setOf(FLAG, CMD), topExcludes = setOf(ONESHOT), extras = profileSections()))
     addAll(
         entity(
             TASK, setOf(FLAG, CMD),
+            topExcludes = setOf(ONESHOT),
             extras = listOf(
                 sub(PAUSE, listOf(TASK), usage = "hold the active task's stage"),
                 sub(RESUME, listOf(TASK), usage = "resume the task"),
@@ -146,7 +149,7 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     // rule: value present = ADD (not select); no "active" rule — differs only in meaning, not grammar.
     addAll(
         entity(
-            RULE, setOf(FLAG, CMD), selectValue = ValueKind.Text,
+            RULE, setOf(FLAG, CMD), selectValue = ValueKind.Text, topExcludes = setOf(ONESHOT),
             extras = listOf(sub(RM, listOf(RULE), value = req(ValueKind.Name), usage = "remove a rule by id")),
         ),
     )
@@ -159,10 +162,10 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     addAll(agentEntity())
 
     // ---- standalone config flag-commands ----
-    add(top(STRATEGY, setOf(FLAG, CMD), value = req(ValueKind.OneOf(setOf("full", "window", "facts", "summary"))), usage = "context-size management"))
+    add(top(STRATEGY, setOf(FLAG, CMD), value = req(ValueKind.OneOf(setOf("full", "window", "facts", "summary"))), excludes = setOf(ONESHOT), usage = "context-size management"))
     add(sub(KEEP_LAST, listOf(STRATEGY), value = req(ValueKind.IntRange(0)), usage = "verbatim tail size (window/summary)"))
     add(sub(SUMMARIZE_EVERY, listOf(STRATEGY), value = req(ValueKind.IntRange(2)), usage = "fold threshold (summary)"))
-    add(top(INFLATE, setOf(FLAG, CMD), value = req(ValueKind.IntRange(1)), usage = "duplicate the last N rows of the session (dev)"))
+    add(top(INFLATE, setOf(FLAG, CMD), value = req(ValueKind.IntRange(1)), excludes = setOf(ONESHOT), usage = "duplicate the last N rows of the session (dev)"))
 
     // ---- tools (MCP) ----
     // Merged feature ships -mcpServer startup-only (Chat-only); modelled here as a flag-command,
@@ -192,8 +195,8 @@ private fun agentEntity(): List<ControlSpec> = entity(
         sub(STOP_SEQUENCE, listOf(AGENT), value = req(ValueKind.Text), usage = "stop sequence"),
         sub(END_SEQUENCE, listOf(AGENT), value = req(ValueKind.Text), usage = "end sequence"),
         sub(PROFILE, listOf(AGENT), value = req(ValueKind.Name), usage = "bind a profile to this agent"),
-        sub(MODE, listOf(AGENT), value = req(ValueKind.OneOf(setOf("none", "system", "preamble"))), usage = "context-delivery mode"),
-        sub(STAGES, listOf(AGENT), value = req(ValueKind.StageRange), usage = "bind to a task-stage range"),
-        sub(JUDGE, listOf(AGENT), usage = "this agent is a rules judge (no profile)"),
+        sub(MODE, listOf(AGENT), value = req(ValueKind.OneOf(setOf("none", "system", "preamble"))), excludes = setOf(ONESHOT), usage = "context-delivery mode"),
+        sub(STAGES, listOf(AGENT), value = req(ValueKind.StageRange), excludes = setOf(ONESHOT), usage = "bind to a task-stage range"),
+        sub(JUDGE, listOf(AGENT), excludes = setOf(ONESHOT), usage = "this agent is a rules judge (no profile)"),
     ),
 )
