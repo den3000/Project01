@@ -10,7 +10,9 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import ru.den.writes.code.project01.BuildKonfig
+import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.command.MemoryAction
+import ru.den.writes.code.project01.cliJvm.command.toCliCommand
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.DEFAULT_BRANCH
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
@@ -120,7 +122,7 @@ suspend fun main(args: Array<String>) {
             }
             is CliArgs.Inflate -> inflateSession(db, initialArgs)
             is CliArgs.Memory -> handleMemoryCommand(initialArgs.action)
-            is CliArgs.PromptCommand -> runPromptCommand(db, initialArgs)
+            is CliArgs.PromptCommand -> runPromptCommand(db, initialArgs.toCliCommand() as CliCommand.RunPrompt)
         }
     } finally {
         db.close()
@@ -368,12 +370,12 @@ internal fun formatSessionLine(
  * [LlmApi] is picked by [CliArgs.PromptCommand.modelProvider].
  *
  * Chat may additionally swap stdin for a file-feed source via
- * [CliArgs.Chat.feedFile]; the file's reader is opened here so its
+ * [CliCommand.RunChat.feedFile]; the file's reader is opened here so its
  * lifecycle is bounded by `use { }` rather than leaked into Agent.
  */
-private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptCommand) {
+private suspend fun runPromptCommand(db: AppDatabase, parsed: CliCommand.RunPrompt) {
     val historyStore: HistoryStore? = when (parsed) {
-        is CliArgs.Chat -> {
+        is CliCommand.RunChat -> {
             val sessionId = parsed.session ?: generateSessionId()
             // "Resume" = the user passed a name AND there's already history
             // under it. Otherwise it's a new session — either auto-generated
@@ -386,7 +388,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
             }
             HistoryStore(db.messageDao(), sessionId)
         }
-        is CliArgs.OneShot -> null
+        is CliCommand.RunOneShot -> null
     }
 
     // One client for the whole session: avoids the cold-start race that
@@ -422,7 +424,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
         // Map the parsed strategy kind to a concrete ContextStrategy, wiring
         // in runtime deps (the compressor, the window size). OneShot has no
         // history, so the `as? Chat` guard yields null → FullHistory.
-        val chat = parsed as? CliArgs.Chat
+        val chat = parsed as? CliCommand.RunChat
         val strategy: ContextStrategy = if (chat == null) {
             ContextStrategy.FullHistory
         } else when (chat.strategy) {
@@ -480,7 +482,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
         }
 
         try {
-            val feedFile = (parsed as? CliArgs.Chat)?.feedFile
+            val feedFile = (parsed as? CliCommand.RunChat)?.feedFile
             if (feedFile != null) {
                 // File-driven feed mode: open the reader and hand a feed source
                 // to Agent — line-by-line (-byLine) or fixed-size character
@@ -516,7 +518,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
                 }
             } else {
                 // Stdin REPL — TUI when -tui and a real TTY, else plain.
-                val tuiRequested = (parsed as? CliArgs.Chat)?.tui ?: false
+                val tuiRequested = (parsed as? CliCommand.RunChat)?.tui ?: false
                 runSession(
                     cliArgs = parsed,
                     llmApi = llmApi,
@@ -546,7 +548,7 @@ private suspend fun runPromptCommand(db: AppDatabase, parsed: CliArgs.PromptComm
  * speed.
  */
 private suspend fun runSession(
-    cliArgs: CliArgs.PromptCommand,
+    cliArgs: CliCommand.RunPrompt,
     llmApi: LlmApi,
     historyStore: HistoryStore?,
     strategy: ContextStrategy,
