@@ -20,14 +20,17 @@ class CliControlsCommandParserMemoryTest {
             arrayOf("-profile", "work", "style", "terse") to MemoryAction.AddNamedProfileItem("work", ProfileSection.STYLE, "terse"),
             arrayOf("-profile", "work", "style") to MemoryAction.ClearNamedProfileSection("work", ProfileSection.STYLE),
             arrayOf("-profile", "style", "x") to MemoryAction.AddProfileItem(ProfileSection.STYLE, "x"),
-            arrayOf("-profile", "work", "clean") to MemoryAction.ClearNamedProfile("work"),
-            arrayOf("-profile", "clean") to MemoryAction.ClearProfile,
+            arrayOf("-profile", "clear", "work") to MemoryAction.ClearNamedProfile("work"),
+            arrayOf("-profile", "clear") to MemoryAction.ClearAllProfiles,
             arrayOf("-profile", "show", "kotlin-senior") to MemoryAction.ShowProfile("kotlin-senior"),
             arrayOf("-rule", "always kotlin") to MemoryAction.AddRule("always kotlin"),
-            arrayOf("-rule", "rm", "003") to MemoryAction.RemoveRule("003"),
+            arrayOf("-rule", "clear", "003") to MemoryAction.RemoveRule("003"),
+            arrayOf("-rule", "clear") to MemoryAction.ClearRules,
             arrayOf("-task", "auth") to MemoryAction.SetTask("auth"),
             arrayOf("-task", "auth", "pause") to MemoryAction.PauseTask("auth"),
             arrayOf("-task", "auth", "resume") to MemoryAction.ResumeTask("auth"),
+            arrayOf("-task", "clear", "auth") to MemoryAction.DeleteTask("auth"),
+            arrayOf("-task", "clear") to MemoryAction.ClearTasks,
         )
 
         // when - then — one invariant (entity op → MemoryOp) over an extending list (rule §11.E)

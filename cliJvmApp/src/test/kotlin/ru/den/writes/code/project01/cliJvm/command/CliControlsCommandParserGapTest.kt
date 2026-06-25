@@ -15,10 +15,10 @@ class CliControlsCommandParserGapTest {
 
     @Test
     fun `when a new-grammar-only op has no legacy target - then InvalidArgumentValue not expressible`() {
-        // given — task note, per-session clean, per-entity show, rule list have no CliCommand target
+        // given — task note, per-entity show, rule list have no CliCommand target
+        // (per-session clear now maps to CleanSession; rule/task/profile clear are wired)
         val cases = listOf(
             arrayOf("-task", "auth", "note", "did x"),
-            arrayOf("-session", "clean", "foo"),
             arrayOf("-session", "show"),
             arrayOf("-rule"),
         )

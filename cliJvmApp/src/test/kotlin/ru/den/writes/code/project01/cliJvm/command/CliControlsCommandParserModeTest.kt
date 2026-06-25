@@ -45,9 +45,15 @@ class CliControlsCommandParserModeTest {
     }
 
     @Test
-    fun `when -session clean passed - then CleanHistory`() {
+    fun `when -session clear passed - then CleanHistory`() {
         // when - then
-        assertEquals(CliCommand.CleanHistory, parser.parse(arrayOf("-session", "clean")))
+        assertEquals(CliCommand.CleanHistory, parser.parse(arrayOf("-session", "clear")))
+    }
+
+    @Test
+    fun `when -session clear with a name passed - then CleanSession`() {
+        // when - then
+        assertEquals(CliCommand.CleanSession("demo"), parser.parse(arrayOf("-session", "clear", "demo")))
     }
 
     @Test

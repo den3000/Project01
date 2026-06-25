@@ -9,7 +9,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BY_LINE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAN
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.END_SEQUENCE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_INSTRUCTION
@@ -38,7 +38,6 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FORMAT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RM
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
@@ -184,9 +183,9 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         }
         controls.last(SESSION)?.let { session ->
             if (session.value == null && session.subs.isEmpty()) return CliCommand.ListSessions
-            session.sub(CLEAN)?.let { clean ->
-                if (clean.value == null) return CliCommand.CleanHistory
-                gap("session clean ${clean.value}")
+            session.sub(CLEAR)?.let { clear ->
+                val name = clear.value ?: session.value
+                return name?.let { CliCommand.CleanSession(it) } ?: CliCommand.CleanHistory
             }
             gap("session ${session.subs.firstOrNull()?.arg?.title ?: session.value}")
         }
@@ -211,17 +210,19 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
                 else -> MemoryAction.ClearNamedProfileSection(name, sec)
             }
         }
-        p.sub(CLEAN)?.let { return if (name != null) MemoryAction.ClearNamedProfile(name) else MemoryAction.ClearProfile }
+        // clear target = the clear-sub's name, else the entity value (both orders); bare = all.
+        p.sub(CLEAR)?.let { return (it.value ?: name)?.let(MemoryAction::ClearNamedProfile) ?: MemoryAction.ClearAllProfiles }
         return name?.let(MemoryAction::TouchProfile) ?: MemoryAction.ListProfiles
     }
 
     private fun ruleAction(r: ParsedControl): MemoryAction = when {
-        r.sub(RM) != null -> MemoryAction.RemoveRule(r.sub(RM)!!.value!!)
+        r.sub(CLEAR) != null -> (r.sub(CLEAR)!!.value ?: r.value)?.let(MemoryAction::RemoveRule) ?: MemoryAction.ClearRules
         r.value != null -> MemoryAction.AddRule(r.value)
         else -> gap("rule")
     }
 
     private fun taskAction(t: ParsedControl): MemoryAction {
+        t.sub(CLEAR)?.let { return (it.value ?: t.value)?.let(MemoryAction::DeleteTask) ?: MemoryAction.ClearTasks }
         val id = t.value ?: gap("task")
         return when {
             t.sub(PAUSE) != null -> MemoryAction.PauseTask(id)

@@ -71,9 +71,9 @@ class SlashCommandParserTest {
     }
 
     @Test
-    fun `when profile clean - then ClearProfile`() {
-        // when - then
-        assertEquals(BranchCommand.ClearProfile, parseSlashCommand("/profile clean"))
+    fun `when profile clear bare - then ClearAllProfiles`() {
+        // when - then — bare clear nukes every profile (named + unnamed)
+        assertEquals(BranchCommand.ClearAllProfiles, parseSlashCommand("/profile clear"))
     }
 
     @Test
@@ -104,9 +104,9 @@ class SlashCommandParserTest {
     }
 
     @Test
-    fun `when rule rm with an id - then RemoveRule`() {
+    fun `when rule clear with an id - then RemoveRule`() {
         // when - then
-        assertEquals(BranchCommand.RemoveRule("003"), parseSlashCommand("/rule rm 003"))
+        assertEquals(BranchCommand.RemoveRule("003"), parseSlashCommand("/rule clear 003"))
     }
 
     @Test

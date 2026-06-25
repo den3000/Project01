@@ -4,7 +4,7 @@ import ru.den.writes.code.project01.cliJvm.BranchCommand
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHECK
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAN
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FORMAT
@@ -14,7 +14,6 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RM
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
@@ -78,16 +77,20 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
                 else -> BranchCommand.ClearNamedProfileSection(name, sec)
             }
         }
-        c.sub(CLEAN)?.let { return if (name != null) BranchCommand.ClearNamedProfile(name) else BranchCommand.ClearProfile }
+        // clear target = the clear-sub's name, else the entity value (both orders); bare = all.
+        c.sub(CLEAR)?.let { return (it.value ?: name)?.let(BranchCommand::ClearNamedProfile) ?: BranchCommand.ClearAllProfiles }
         // In-session select = activate (touch-creates if missing); bare = list.
         return name?.let(BranchCommand::SwitchProfile) ?: BranchCommand.ListProfiles
     }
 
-    private fun rule(c: ParsedControl): BranchCommand =
-        c.sub(RM)?.let { BranchCommand.RemoveRule(it.value.orEmpty()) } ?: BranchCommand.AddRule(c.value.orEmpty())
+    private fun rule(c: ParsedControl): BranchCommand {
+        c.sub(CLEAR)?.let { return (it.value ?: c.value)?.let(BranchCommand::RemoveRule) ?: BranchCommand.ClearRules }
+        return BranchCommand.AddRule(c.value.orEmpty())
+    }
 
     private fun task(c: ParsedControl): BranchCommand {
-        // pause/resume/note act on the active task; a `task <id> …` id alongside them is ignored.
+        // clear deletes one (by id, either order) or all; pause/resume/note act on the active task.
+        c.sub(CLEAR)?.let { return (it.value ?: c.value)?.let(BranchCommand::DeleteTask) ?: BranchCommand.ClearTasks }
         c.sub(PAUSE)?.let { return BranchCommand.PauseTask }
         c.sub(RESUME)?.let { return BranchCommand.ResumeTask }
         c.sub(NOTE)?.let { return BranchCommand.AppendTaskNote(it.value.orEmpty()) }

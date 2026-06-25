@@ -5,7 +5,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BY_LINE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHECK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAN
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.END_SEQUENCE
@@ -31,7 +31,6 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROVIDER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.REUSE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RM
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
@@ -117,7 +116,7 @@ private fun entity(
 ): List<ControlSpec> = buildList {
     add(top(arg, surfaces, value = opt(selectValue), valueSurfaces = selectSurfaces, excludes = topExcludes, usage = "<name> select/create · bare = list"))
     add(sub(SHOW, listOf(arg), value = opt(selectValue), usage = "show one (<name>) or all"))
-    add(sub(CLEAN, listOf(arg), value = opt(selectValue), usage = "delete one (<name>) or all; reset selection"))
+    add(sub(CLEAR, listOf(arg), value = opt(selectValue), usage = "delete one (<name>) or all"))
     addAll(extras)
 }
 
@@ -153,12 +152,8 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
         ),
     )
     // rule: value present = ADD (not select); no "active" rule — differs only in meaning, not grammar.
-    addAll(
-        entity(
-            RULE, setOf(FLAG, CMD), selectValue = ValueKind.Text, topExcludes = setOf(ONESHOT),
-            extras = listOf(sub(RM, listOf(RULE), value = req(ValueKind.Name), usage = "remove a rule by id")),
-        ),
-    )
+    // Deletion is the uniform `rule clear [<id>]` (entity-protocol verb), no rule-only `rm`.
+    addAll(entity(RULE, setOf(FLAG, CMD), selectValue = ValueKind.Text, topExcludes = setOf(ONESHOT)))
     addAll(
         entity(
             BRANCH, setOf(CMD),  // command-only

@@ -41,7 +41,7 @@ class ControlsToBranchCommandTest {
         assertEquals(BranchCommand.ListProfiles, cmd("/profile"))
         assertEquals(BranchCommand.AddProfileItem(ProfileSection.STYLE, "be terse"), cmd("/profile style \"be terse\""))
         assertEquals(BranchCommand.ClearProfileSection(ProfileSection.STYLE), cmd("/profile style"))
-        assertEquals(BranchCommand.ClearProfile, cmd("/profile clean"))
+        assertEquals(BranchCommand.ClearAllProfiles, cmd("/profile clear"))
     }
 
     @Test
@@ -50,7 +50,7 @@ class ControlsToBranchCommandTest {
         assertEquals(BranchCommand.SwitchProfile("work"), cmd("/profile work"))
         assertEquals(BranchCommand.AddNamedProfileItem("work", ProfileSection.FORMAT, "bullets"), cmd("/profile work format bullets"))
         assertEquals(BranchCommand.ClearNamedProfileSection("work", ProfileSection.FORMAT), cmd("/profile work format"))
-        assertEquals(BranchCommand.ClearNamedProfile("work"), cmd("/profile work clean"))
+        assertEquals(BranchCommand.ClearNamedProfile("work"), cmd("/profile clear work"))
     }
 
     @Test
@@ -61,19 +61,22 @@ class ControlsToBranchCommandTest {
     }
 
     @Test
-    fun `when a rule is added or removed - then it maps to the rule action`() {
-        // when - then
+    fun `when a rule is added or cleared - then it maps to the rule action`() {
+        // when - then — clear by id removes one, bare clear removes all
         assertEquals(BranchCommand.AddRule("always kotlin"), cmd("/rule \"always kotlin\""))
-        assertEquals(BranchCommand.RemoveRule("003"), cmd("/rule rm 003"))
+        assertEquals(BranchCommand.RemoveRule("003"), cmd("/rule clear 003"))
+        assertEquals(BranchCommand.ClearRules, cmd("/rule clear"))
     }
 
     @Test
-    fun `when a task command is typed - then subs act on the active task`() {
-        // when - then — a bare value selects/creates; pause/resume/note carry no id
+    fun `when a task command is typed - then subs act on the active task or clear by id`() {
+        // when - then — a bare value selects/creates; pause/resume/note carry no id; clear by id or all
         assertEquals(BranchCommand.SetTask("auth"), cmd("/task auth"))
         assertEquals(BranchCommand.AppendTaskNote("did x"), cmd("/task note \"did x\""))
         assertEquals(BranchCommand.PauseTask, cmd("/task pause"))
         assertEquals(BranchCommand.ResumeTask, cmd("/task resume"))
+        assertEquals(BranchCommand.DeleteTask("auth"), cmd("/task clear auth"))
+        assertEquals(BranchCommand.ClearTasks, cmd("/task clear"))
     }
 
     @Test

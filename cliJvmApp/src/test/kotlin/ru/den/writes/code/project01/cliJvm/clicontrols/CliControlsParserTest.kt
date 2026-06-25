@@ -4,7 +4,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHECK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAN
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
@@ -18,7 +18,6 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROVIDER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RM
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
@@ -67,10 +66,10 @@ class CliControlsParserTest {
     //region entity ops
 
     @Test
-    fun `when show or clean is used - then it parses as a sub with an optional name`() {
+    fun `when show or clear is used - then it parses as a sub with an optional name`() {
         // when - then
         assertEquals(topParsedControl(PROFILE, CMD, subs = listOf(subParsedControl(PROFILE, SHOW))), ok("/profile show", CMD))
-        assertEquals(topParsedControl(PROFILE, CMD, subs = listOf(subParsedControl(PROFILE, CLEAN, "work"))), ok("/profile clean work", CMD))
+        assertEquals(topParsedControl(PROFILE, CMD, subs = listOf(subParsedControl(PROFILE, CLEAR, "work"))), ok("/profile clear work", CMD))
     }
 
     @Test
@@ -86,7 +85,7 @@ class CliControlsParserTest {
     fun `when a rule is added by text - then the text is the value (not a select)`() {
         // when - then
         assertEquals(topParsedControl(RULE, CMD, "always kotlin"), ok("/rule \"always kotlin\"", CMD))
-        assertEquals(topParsedControl(RULE, CMD, subs = listOf(subParsedControl(RULE, RM, "003"))), ok("/rule rm 003", CMD))
+        assertEquals(topParsedControl(RULE, CMD, subs = listOf(subParsedControl(RULE, CLEAR, "003"))), ok("/rule clear 003", CMD))
     }
 
     @Test

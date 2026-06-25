@@ -400,7 +400,7 @@ class AgentMemoryTest {
     }
 
     @Test
-    fun `slash profile clean drops every section including legacy free text`() = runTest {
+    fun `slash profile clear drops every section including legacy free text`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 val memStore = MemoryStore(root).apply {
@@ -416,7 +416,7 @@ class AgentMemoryTest {
                     chat,
                     fake,
                     store,
-                    promptSource = stdinSource("/profile clean\n/exit\n"),
+                    promptSource = stdinSource("/profile clear\n/exit\n"),
                     memory = memory,
                 )
 
