@@ -2,12 +2,15 @@ package ru.den.writes.code.project01.cliJvm.clicontrols
 
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHECK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAN
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY_MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
@@ -21,6 +24,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SWITCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TEMPERATURE
 import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
@@ -91,6 +95,13 @@ class CliControlsParserTest {
         assertEquals(topParsedControl(TASK, CMD, "auth", listOf(subParsedControl(TASK, PAUSE))), ok("/task auth pause", CMD))
         assertEquals(topParsedControl(TASK, CMD, "auth", listOf(subParsedControl(TASK, NOTE, "did x"))), ok("/task auth note \"did x\"", CMD))
     }
+
+    @Test
+    fun `when a branch is switched or checkpointed - then it nests as a sub`() {
+        // when - then — check is bare (old /checkpoint), switch carries the target name
+        assertEquals(topParsedControl(BRANCH, CMD, subs = listOf(subParsedControl(BRANCH, CHECK))), ok("/branch check", CMD))
+        assertEquals(topParsedControl(BRANCH, CMD, subs = listOf(subParsedControl(BRANCH, SWITCH, "exp"))), ok("/branch switch exp", CMD))
+    }
     //endregion
 
     //region agent (flat option bag)
@@ -153,6 +164,7 @@ class CliControlsParserTest {
         // when - then
         assertEquals(ParseError.WrongSurface("reuse", FLAG), err("-reuse", FLAG))
         assertEquals(ParseError.WrongSurface("branch", FLAG), err("-branch exp", FLAG))
+        assertEquals(ParseError.WrongSurface("memory", FLAG), err("-memory", FLAG))
         assertEquals(topParsedControl(BRANCH, CMD, "exp"), ok("/branch exp", CMD))
     }
 
@@ -160,6 +172,16 @@ class CliControlsParserTest {
     fun `when a startup-only control is used as a command - then wrong surface`() {
         // when - then
         assertEquals(ParseError.WrongSurface("prompt", CMD), err("/prompt hi", CMD))
+    }
+    //endregion
+
+    //region in-session config commands
+
+    @Test
+    fun `when an in-session memory command is used - then it parses on the command front`() {
+        // when - then — show the active layer; flip the injection mode
+        assertEquals(topParsedControl(MEMORY, CMD), ok("/memory", CMD))
+        assertEquals(topParsedControl(MEMORY_MODE, CMD, "system"), ok("/memory-mode system", CMD))
     }
     //endregion
 
@@ -176,6 +198,7 @@ class CliControlsParserTest {
         // when - then
         assertEquals(ParseError.MissingValue(PROMPT), err("-prompt", FLAG))
         assertEquals(ParseError.MissingValue(NOTE), err("/task auth note", CMD))
+        assertEquals(ParseError.MissingValue(MEMORY_MODE), err("/memory-mode", CMD))
     }
 
     @Test
@@ -183,6 +206,7 @@ class CliControlsParserTest {
         // when - then — temperature out of 0..2, and a malformed stage range
         assertEquals(ParseError.BadValue(TEMPERATURE, "9", "a number in 0.0..2.0"), err("-agent x temperature 9", FLAG))
         assertEquals(ParseError.BadValue(STAGES, "foo..bar", "a stage range like clarification..planning"), err("-agent x stages foo..bar", FLAG))
+        assertEquals(ParseError.BadValue(MEMORY_MODE, "loud", "one of: preamble, system"), err("/memory-mode loud", CMD))
     }
 
     @Test

@@ -19,6 +19,8 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.KEEP_LAST
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MAX_TOKENS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY_MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
@@ -38,6 +40,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STOP_SEQUE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SUMMARIZE_EVERY
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SWITCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TEMPERATURE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
@@ -132,6 +135,8 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     add(top(REUSE, setOf(CMD), usage = "resend the last model reply"))
     add(top(EXIT, setOf(CMD), usage = "leave the session"))
     add(top(HELP, setOf(CMD), usage = "open the command palette"))
+    add(top(MEMORY, setOf(CMD), usage = "show the active memory layer (mode + profile + rules + task)"))
+    add(top(MEMORY_MODE, setOf(CMD), value = req(ValueKind.OneOf(setOf("preamble", "system"))), usage = "flip the memory-injection mode"))
 
     // ---- entities (auto CRUD + extras) ----
     addAll(entity(SESSION, setOf(FLAG, CMD), selectSurfaces = setOf(FLAG), topExcludes = setOf(ONESHOT)))  // select only at startup
@@ -157,7 +162,10 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     addAll(
         entity(
             BRANCH, setOf(CMD),  // command-only
-            extras = listOf(sub(CHECK, listOf(BRANCH), usage = "current branch + message count (old /checkpoint)")),
+            extras = listOf(
+                sub(CHECK, listOf(BRANCH), usage = "current branch + message count (old /checkpoint)"),
+                sub(SWITCH, listOf(BRANCH), value = req(ValueKind.Name), usage = "switch to an existing branch"),
+            ),
         ),
     )
     addAll(agentEntity())

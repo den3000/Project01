@@ -36,6 +36,8 @@ enum class CliControlsArg(val title: String) {
     REUSE("reuse"),
     EXIT("exit"),
     HELP("help"),
+    MEMORY("memory"),
+    MEMORY_MODE("memory-mode"),
 
     // entities
     SESSION("session"),
@@ -50,6 +52,7 @@ enum class CliControlsArg(val title: String) {
     CLEAN("clean"),
     RM("rm"),
     CHECK("check"),
+    SWITCH("switch"),
 
     // task operations
     PAUSE("pause"),
