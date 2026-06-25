@@ -63,6 +63,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
         when (command) {
             is CliCommand.ListSessions -> printSessionList(db.messageDao())
             is CliCommand.CleanHistory -> cleanHistory()
+            is CliCommand.CleanSession -> cleanSession(command.sessionId)
             is CliCommand.InflateSession -> inflateSession(command)
             is CliCommand.MemoryOp -> handleMemoryCommand(command.action)
             is CliCommand.RunPrompt -> runPromptCommand(command)
@@ -76,6 +77,16 @@ internal class CommandExecutor(private val db: AppDatabase) {
         db.messageDao().clearAllSummaries()
         db.messageDao().clearAllFacts()
         println("Cleared $before messages across all sessions (and any saved summaries / facts).")
+    }
+
+    /** Wipe one session's rows by name — the per-session twin of [cleanHistory]. */
+    private suspend fun cleanSession(sessionId: String) {
+        val dao = db.messageDao()
+        val before = dao.countSession(sessionId)
+        dao.deleteSessionMessages(sessionId)
+        dao.deleteSessionSummaries(sessionId)
+        dao.deleteSessionFacts(sessionId)
+        println("Cleared $before messages from session '$sessionId' (and any saved summary / facts).")
     }
 
     /**
@@ -149,6 +160,10 @@ internal class CommandExecutor(private val db: AppDatabase) {
                 if (removed) println("[memory] profile '${action.name}' removed")
                 else System.err.println("[memory] no profile named '${action.name}'")
             }
+            is MemoryAction.ClearAllProfiles -> {
+                val n = store.clearAllProfiles()
+                println("[memory] all profiles cleared ($n named + unnamed)")
+            }
             is MemoryAction.AddRule -> {
                 val rule = store.addRule(action.text)
                 println("[memory] rule ${rule.id} added")
@@ -157,6 +172,10 @@ internal class CommandExecutor(private val db: AppDatabase) {
                 val removed = store.removeRule(action.id)
                 if (removed) println("[memory] rule ${action.id} removed")
                 else System.err.println("[memory] no rule with id '${action.id}'")
+            }
+            is MemoryAction.ClearRules -> {
+                val n = store.clearRules()
+                println("[memory] cleared $n rule(s)")
             }
             is MemoryAction.SetTask -> {
                 // Touch-create so subsequent show (and the next chat with the task)
@@ -168,6 +187,15 @@ internal class CommandExecutor(private val db: AppDatabase) {
             }
             is MemoryAction.PauseTask -> setTaskPaused(store, action.taskId, paused = true)
             is MemoryAction.ResumeTask -> setTaskPaused(store, action.taskId, paused = false)
+            is MemoryAction.DeleteTask -> {
+                val removed = store.deleteTask(action.taskId)
+                if (removed) println("[memory] task '${action.taskId}' deleted")
+                else System.err.println("[memory] no task '${action.taskId}'")
+            }
+            is MemoryAction.ClearTasks -> {
+                val n = store.clearTasks()
+                println("[memory] cleared $n task(s)")
+            }
         }
     }
 

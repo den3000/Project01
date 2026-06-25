@@ -58,11 +58,15 @@ internal sealed interface BranchCommand {
     data class ClearNamedProfileSection(val name: String, val section: ProfileSection) : BranchCommand
     /** Delete the named profile file. */
     data class ClearNamedProfile(val name: String) : BranchCommand
+    /** Delete every profile — all named ones and the unnamed default. */
+    data object ClearAllProfiles : BranchCommand
 
     /** Append a new rule under `rules/`. */
     data class AddRule(val text: String) : BranchCommand
     /** Delete the rule with this id (three-digit prefix). */
     data class RemoveRule(val id: String) : BranchCommand
+    /** Delete every rule. */
+    data object ClearRules : BranchCommand
     /** Switch the active task id (creates an empty task file if absent). */
     data class SetTask(val taskId: String) : BranchCommand
     /** Append a note to the currently-active task. */
@@ -71,6 +75,10 @@ internal sealed interface BranchCommand {
     data object PauseTask : BranchCommand
     /** Resume the active task — clear the pause flag; auto-advance resumes. */
     data object ResumeTask : BranchCommand
+    /** Delete one task by id. */
+    data class DeleteTask(val taskId: String) : BranchCommand
+    /** Delete every task. */
+    data object ClearTasks : BranchCommand
     /** Flip the memory-injection mode (PREAMBLE ↔ SYSTEM). */
     data class SetMemoryMode(val mode: MemoryMode) : BranchCommand
 }

@@ -32,15 +32,23 @@ internal sealed interface MemoryAction {
     data class ClearNamedProfileSection(val name: String, val section: ProfileSection) : MemoryAction
     /** Delete the entire named profile file. */
     data class ClearNamedProfile(val name: String) : MemoryAction
+    /** Delete every profile — all named ones and the unnamed default. */
+    data object ClearAllProfiles : MemoryAction
 
     /** Append a new rule under `rules/`. */
     data class AddRule(val text: String) : MemoryAction
     /** Delete the rule with this id (three-digit prefix). */
     data class RemoveRule(val id: String) : MemoryAction
+    /** Delete every rule. */
+    data object ClearRules : MemoryAction
     /** Create/select a task file under `tasks/<taskId>.md`. */
     data class SetTask(val taskId: String) : MemoryAction
     /** Pause the task — hold its FSM stage. */
     data class PauseTask(val taskId: String) : MemoryAction
     /** Resume the task — clear the pause flag. */
     data class ResumeTask(val taskId: String) : MemoryAction
+    /** Delete one task by id. */
+    data class DeleteTask(val taskId: String) : MemoryAction
+    /** Delete every task. */
+    data object ClearTasks : MemoryAction
 }

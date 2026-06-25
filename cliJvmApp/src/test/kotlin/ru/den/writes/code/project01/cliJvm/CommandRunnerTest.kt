@@ -7,10 +7,13 @@ import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.memory.MemoryMode
+import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.TaskNotes
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -124,6 +127,51 @@ class CommandRunnerTest {
             // when - then — first removal succeeds, a second call finds nothing
             assertEquals(listOf("[memory] rule ${rule.id} removed"), runner.run(BranchCommand.RemoveRule(rule.id)))
             assertEquals(listOf("[memory] no rule with id '${rule.id}'"), runner.run(BranchCommand.RemoveRule(rule.id)))
+        }
+    }
+
+    @Test
+    fun `when clearing all rules - then it reports the count`() = runTest {
+        withTempMemoryRoot { root ->
+            // given
+            val mstore = MemoryStore(root).apply { addRule("a"); addRule("b") }
+            val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(listOf("[memory] cleared 2 rule(s)"), runner.run(BranchCommand.ClearRules))
+            assertEquals(emptyList(), mstore.listRules())
+        }
+    }
+
+    @Test
+    fun `when deleting a task then clearing tasks - then each reports`() = runTest {
+        withTempMemoryRoot { root ->
+            // given
+            val mstore = MemoryStore(root).apply { saveTask(TaskNotes("auth")); saveTask(TaskNotes("ui")) }
+            val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
+
+            // when - then — delete one by id, second call finds nothing, then clear the rest
+            assertEquals(listOf("[memory] task 'auth' deleted"), runner.run(BranchCommand.DeleteTask("auth")))
+            assertEquals(listOf("[memory] no task 'auth'"), runner.run(BranchCommand.DeleteTask("auth")))
+            assertEquals(listOf("[memory] cleared 1 task(s)"), runner.run(BranchCommand.ClearTasks))
+            assertEquals(emptyList(), mstore.listTaskIds())
+        }
+    }
+
+    @Test
+    fun `when clearing all profiles - then named and unnamed are gone`() = runTest {
+        withTempMemoryRoot { root ->
+            // given
+            val mstore = MemoryStore(root).apply {
+                saveProfile("legacy")
+                addNamedProfileItem("work", ProfileSection.STYLE, "кратко")
+            }
+            val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(listOf("[memory] all profiles cleared (1 named + unnamed)"), runner.run(BranchCommand.ClearAllProfiles))
+            assertEquals(emptyList(), mstore.listProfileNames())
+            assertNull(mstore.loadProfileData())
         }
     }
 

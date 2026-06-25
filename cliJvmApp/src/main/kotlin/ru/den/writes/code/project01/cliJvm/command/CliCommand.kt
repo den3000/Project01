@@ -20,6 +20,9 @@ internal sealed interface CliCommand {
     /** Wipe every message / summary / fact row and exit. */
     data object CleanHistory : CliCommand
 
+    /** Delete one session's history by name (per-session twin of [CleanHistory]). */
+    data class CleanSession(val sessionId: String) : CliCommand
+
     /** Duplicate the last [n] rows of session [sessionId] in place (dev stress aid). */
     data class InflateSession(val sessionId: String, val n: Int) : CliCommand
 

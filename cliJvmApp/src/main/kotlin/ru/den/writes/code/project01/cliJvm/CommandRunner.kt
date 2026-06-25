@@ -167,6 +167,10 @@ internal class CommandRunner(
                 if (removed) add("[memory] profile '${command.name}' removed")
                 else add("[memory] no profile named '${command.name}'")
             }
+            BranchCommand.ClearAllProfiles -> withMemory { mem ->
+                val n = mem.store.clearAllProfiles()
+                add("[memory] all profiles cleared ($n named + unnamed)")
+            }
             is BranchCommand.AddRule -> withMemory { mem ->
                 if (command.text.isBlank()) {
                     add("[memory] /rule needs the new rule text")
@@ -177,12 +181,16 @@ internal class CommandRunner(
             }
             is BranchCommand.RemoveRule -> withMemory { mem ->
                 if (command.id.isBlank()) {
-                    add("[memory] /rule rm needs a rule id")
+                    add("[memory] /rule clear needs a rule id")
                 } else if (mem.store.removeRule(command.id)) {
                     add("[memory] rule ${command.id} removed")
                 } else {
                     add("[memory] no rule with id '${command.id}'")
                 }
+            }
+            BranchCommand.ClearRules -> withMemory { mem ->
+                val n = mem.store.clearRules()
+                add("[memory] cleared $n rule(s)")
             }
             is BranchCommand.SetTask -> withMemory { mem ->
                 val id = command.taskId
@@ -216,6 +224,14 @@ internal class CommandRunner(
             }
             BranchCommand.PauseTask -> withMemory { mem -> togglePause(mem, paused = true) }
             BranchCommand.ResumeTask -> withMemory { mem -> togglePause(mem, paused = false) }
+            is BranchCommand.DeleteTask -> withMemory { mem ->
+                if (mem.store.deleteTask(command.taskId)) add("[memory] task '${command.taskId}' deleted")
+                else add("[memory] no task '${command.taskId}'")
+            }
+            BranchCommand.ClearTasks -> withMemory { mem ->
+                val n = mem.store.clearTasks()
+                add("[memory] cleared $n task(s)")
+            }
             is BranchCommand.SetMemoryMode -> withMemory { mem ->
                 mem.setMode(command.mode)
                 add("[memory] mode → ${command.mode.name.lowercase()}")
