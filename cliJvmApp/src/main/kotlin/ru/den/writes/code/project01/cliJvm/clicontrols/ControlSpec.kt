@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.clicontrols
 
-/** Task FSM stages — the legal endpoints of a `stages <from..to>` range. */
-private val STAGE_NAMES = setOf("clarification", "planning", "execution", "validation", "done")
+/** Task FSM stages, in order — the legal endpoints of a `stages <from..to>` range. */
+private val STAGE_ORDER = listOf("clarification", "planning", "execution", "validation", "done")
 
 /**
  * What value (if any) a control accepts after its token, validated declaratively.
@@ -57,14 +57,16 @@ sealed interface ValueKind {
         override fun validate(raw: String) = if (raw in options) null else "one of: ${options.joinToString(", ")}"
     }
 
-    /** A task-stage range `from..to`, both ends being known stages. */
+    /** A task-stage range `from..to`: both ends known stages, `from` no later than `to`. */
     data object StageRange : ValueKind {
         override val placeholder = "<from..to>"
         override fun validate(raw: String): String? {
             val parts = raw.split("..")
-            if (parts.size != 2 || parts.any { it !in STAGE_NAMES }) {
-                return "a stage range like clarification..planning"
-            }
+            if (parts.size != 2) return "a stage range like clarification..planning"
+            val from = STAGE_ORDER.indexOf(parts[0])
+            val to = STAGE_ORDER.indexOf(parts[1])
+            if (from < 0 || to < 0) return "a stage range like clarification..planning"
+            if (from > to) return "a stage range with from no later than to"
             return null
         }
     }
