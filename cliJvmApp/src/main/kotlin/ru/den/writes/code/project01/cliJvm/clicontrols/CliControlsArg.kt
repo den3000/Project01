@@ -10,7 +10,7 @@ package ru.den.writes.code.project01.cliJvm.clicontrols
  * `{FLAG}` = startup-only, `{CMD}` = in-session only, `{FLAG, CMD}` = flag-command
  * (both), `{SUB}` = a positional subcommand under a parent (no prefix).
  */
-internal enum class Surface(val prefix: String) {
+enum class Surface(val prefix: String) {
     FLAG("-"),
     CMD("/"),
     SUB(""),
@@ -22,7 +22,7 @@ internal enum class Surface(val prefix: String) {
  * `profile` is a top-level entity AND a sub of `agent`) — the [ControlSpec.parent]
  * chain disambiguates, so the title stays unique here.
  */
-internal enum class CliControlsArg(val title: String) {
+enum class CliControlsArg(val title: String) {
     // startup-only flags
     PROMPT("prompt"),
     ONESHOT("oneshot"),

@@ -8,7 +8,7 @@ private val STAGE_NAMES = setOf("clarification", "planning", "execution", "valid
  * [validate] returns null when [raw] is acceptable, otherwise a short reason; the
  * [placeholder] is what the usage line shows (`<name>`, `<int>`, `<gemini|…>`).
  */
-internal sealed interface ValueKind {
+sealed interface ValueKind {
     val placeholder: String
     fun validate(raw: String): String?
 
@@ -71,7 +71,7 @@ internal sealed interface ValueKind {
 }
 
 /** Whether a control takes a value and which [kind] — [required] forces one to follow. */
-internal data class ValueSpec(val kind: ValueKind, val required: Boolean)
+data class ValueSpec(val kind: ValueKind, val required: Boolean)
 
 /**
  * One control descriptor — the single source of truth for one token's grammar.
@@ -91,7 +91,7 @@ internal data class ValueSpec(val kind: ValueKind, val required: Boolean)
  * @property requires / [excludes] declarative cross-control constraints (checked by
  *   the batch validator), replacing today's scattered `if (x in values) throw …`.
  */
-internal data class ControlSpec(
+data class ControlSpec(
     val arg: CliControlsArg,
     val surfaces: Set<Surface>,
     val parent: List<CliControlsArg>? = null,

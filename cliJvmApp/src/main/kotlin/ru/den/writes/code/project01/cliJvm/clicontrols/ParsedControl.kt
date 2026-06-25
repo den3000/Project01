@@ -9,7 +9,7 @@ package ru.den.writes.code.project01.cliJvm.clicontrols
  * A thin downstream mapper would turn this into a typed domain command; the
  * grammar (descriptors) stays separate from the domain.
  */
-internal data class ParsedControl(
+data class ParsedControl(
     val spec: ControlSpec,
     val value: String? = null,
     val subs: List<ParsedControl> = emptyList(),
@@ -34,12 +34,12 @@ internal sealed interface ParseResult {
 }
 
 /** Outcome of parsing a whole startup argv: the controls that parsed + every error found. */
-internal data class BatchResult(val controls: List<ParsedControl>, val errors: List<ParseError>) {
+data class BatchResult(val controls: List<ParsedControl>, val errors: List<ParseError>) {
     val isValid: Boolean get() = errors.isEmpty()
 }
 
 /** Why parsing failed — typed, so callers (and tests) match on the cause, not a string. */
-internal sealed interface ParseError {
+sealed interface ParseError {
     val message: String
 
     data object Empty : ParseError {
