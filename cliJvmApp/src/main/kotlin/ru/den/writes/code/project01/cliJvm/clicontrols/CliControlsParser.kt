@@ -92,6 +92,11 @@ internal class CliControlsParser {
         while (pos < tokens.size) {
             val token = tokens[pos]
             val subSpec = CliControls.subOf(chain, token) ?: break // not ours → an ancestor's, or leftover
+            subSpec.parentValueIn?.let { allowed ->
+                if (value !in allowed) {
+                    return NodeResult.Err(ParseError.WrongParentValue(subSpec.arg, spec.arg, value, allowed))
+                }
+            }
             when (val child = parseNode(subSpec, chain + subSpec.arg, tokens.drop(pos + 1), surface)) {
                 is NodeResult.Err -> return child
                 is NodeResult.Ok -> {

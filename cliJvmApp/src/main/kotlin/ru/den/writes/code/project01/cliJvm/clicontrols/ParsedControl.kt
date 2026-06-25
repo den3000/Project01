@@ -70,6 +70,15 @@ sealed interface ParseError {
         override val message = "'${arg.title}' takes no value as a ${surface.name.lowercase()}"
     }
 
+    data class WrongParentValue(
+        val arg: CliControlsArg,
+        val parent: CliControlsArg,
+        val parentValue: String?,
+        val allowed: Set<String>,
+    ) : ParseError {
+        override val message = "'${arg.title}' is only valid when '${parent.title}' is ${allowed.joinToString("/")}"
+    }
+
     data class UnexpectedToken(val token: String) : ParseError {
         override val message = "unexpected '$token'"
     }

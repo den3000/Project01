@@ -92,6 +92,8 @@ data class ValueSpec(val kind: ValueKind, val required: Boolean)
  *   is rejected while `/session` (list) is fine.
  * @property requires / [excludes] declarative cross-control constraints (checked by
  *   the batch validator), replacing today's scattered `if (x in values) throw …`.
+ * @property parentValueIn for a sub: the parent values it's valid under (e.g.
+ *   `summarizeEvery` only under `strategy summary`); null = no such constraint.
  */
 data class ControlSpec(
     val arg: CliControlsArg,
@@ -101,6 +103,7 @@ data class ControlSpec(
     val valueSurfaces: Set<Surface> = surfaces,
     val requires: Set<CliControlsArg> = emptySet(),
     val excludes: Set<CliControlsArg> = emptySet(),
+    val parentValueIn: Set<String>? = null,
     val usage: String = "",
 ) {
     val token: String get() = arg.title

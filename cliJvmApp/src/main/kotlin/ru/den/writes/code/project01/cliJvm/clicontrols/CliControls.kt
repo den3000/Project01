@@ -86,15 +86,16 @@ private fun top(
     requires: Set<CliControlsArg> = emptySet(),
     excludes: Set<CliControlsArg> = emptySet(),
     usage: String = "",
-) = ControlSpec(arg, surfaces, parent = null, value, valueSurfaces, requires, excludes, usage)
+) = ControlSpec(arg, surfaces, parent = null, value, valueSurfaces, requires, excludes, usage = usage)
 
 private fun sub(
     arg: CliControlsArg,
     parent: List<CliControlsArg>,
     value: ValueSpec? = null,
     excludes: Set<CliControlsArg> = emptySet(),
+    parentValueIn: Set<String>? = null,
     usage: String = "",
-) = ControlSpec(arg, setOf(SUB), parent, value, valueSurfaces = setOf(SUB), excludes = excludes, usage = usage)
+) = ControlSpec(arg, setOf(SUB), parent, value, valueSurfaces = setOf(SUB), excludes = excludes, parentValueIn = parentValueIn, usage = usage)
 
 /**
  * Declare an entity once: it gets `<entity> [<value>]` (value present = select /
@@ -164,7 +165,7 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     // ---- standalone config flag-commands ----
     add(top(STRATEGY, setOf(FLAG, CMD), value = req(ValueKind.OneOf(setOf("full", "window", "facts", "summary"))), excludes = setOf(ONESHOT), usage = "context-size management"))
     add(sub(KEEP_LAST, listOf(STRATEGY), value = req(ValueKind.IntRange(0)), usage = "verbatim tail size (window/summary)"))
-    add(sub(SUMMARIZE_EVERY, listOf(STRATEGY), value = req(ValueKind.IntRange(2)), usage = "fold threshold (summary)"))
+    add(sub(SUMMARIZE_EVERY, listOf(STRATEGY), value = req(ValueKind.IntRange(2)), parentValueIn = setOf("summary"), usage = "fold threshold (summary)"))
     add(top(INFLATE, setOf(FLAG, CMD), value = req(ValueKind.IntRange(1)), requires = setOf(SESSION), excludes = setOf(ONESHOT), usage = "duplicate the last N rows of the session (dev)"))
 
     // ---- tools (MCP) ----

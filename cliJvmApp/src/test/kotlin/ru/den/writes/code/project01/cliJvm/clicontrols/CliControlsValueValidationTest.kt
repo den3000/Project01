@@ -1,6 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.clicontrols
 
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SUMMARIZE_EVERY
+import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
 import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,7 +35,41 @@ class CliControlsValueValidationTest {
     }
     //endregion
 
+    //region value-conditional subs
+
+    @Test
+    fun `when summarizeEvery is used under a non-summary strategy - then WrongParentValue`() {
+        // given
+        val line = "/strategy window summarizeEvery 5"
+
+        // when
+        val actual = err(line, CMD)
+
+        // then
+        val expected = ParseError.WrongParentValue(SUMMARIZE_EVERY, STRATEGY, "window", setOf("summary"))
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun `when summarizeEvery is used under strategy summary - then it parses`() {
+        // given
+        val line = "/strategy summary summarizeEvery 5"
+
+        // when
+        val actual = ok(line, CMD)
+
+        // then
+        assertEquals("5", actual.sub(SUMMARIZE_EVERY)?.value)
+    }
+    //endregion
+
     //region helpers
+
+    private fun ok(line: String, surface: Surface): ParsedControl {
+        val r = parser.parse(line, surface)
+        assertTrue(r is ParseResult.Ok, "expected Ok for '$line', got $r")
+        return (r as ParseResult.Ok).control
+    }
 
     private fun err(line: String, surface: Surface): ParseError {
         val r = parser.parse(line, surface)
