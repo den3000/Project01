@@ -10,8 +10,6 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
 internal sealed interface MemoryAction {
     /** Print every layer (mode, profile, rules, active task). */
     data object Show : MemoryAction
-    /** Overwrite `profile.md` with [text] (legacy free-text path). */
-    data class SetProfile(val text: String) : MemoryAction
     /** Append [text] to a structured [section] of the unnamed profile. */
     data class AddProfileItem(val section: ProfileSection, val text: String) : MemoryAction
     /** Empty a single section of the unnamed profile. */

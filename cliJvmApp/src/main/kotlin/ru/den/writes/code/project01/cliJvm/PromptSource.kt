@@ -34,8 +34,6 @@ internal sealed interface BranchCommand {
 
     /** Print the active mode + the saved profile/rules/task. */
     data object ShowMemory : BranchCommand
-    /** Overwrite `profile.md` with the given text (legacy free-text path). */
-    data class SetProfile(val text: String) : BranchCommand
     /** Append [text] to a [section] of the unnamed profile. */
     data class AddProfileItem(val section: ProfileSection, val text: String) : BranchCommand
     /** Empty one section of the unnamed profile; the rest survive. */
@@ -50,8 +48,6 @@ internal sealed interface BranchCommand {
     data object ListProfiles : BranchCommand
     /** Print one named profile's structure. */
     data class ShowProfile(val name: String) : BranchCommand
-    /** Touch-create an empty named profile. */
-    data class TouchProfile(val name: String) : BranchCommand
     /** Append a bullet to [section] of a named profile. */
     data class AddNamedProfileItem(val name: String, val section: ProfileSection, val text: String) : BranchCommand
     /** Empty a [section] of a named profile. */

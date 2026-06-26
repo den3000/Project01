@@ -103,10 +103,6 @@ internal class CommandExecutor(private val db: AppDatabase) {
                 // is active from the CLI; prints the dormant snapshot of every layer.
                 println(MemoryProvider(store, initialTaskId = null).describe())
             }
-            is MemoryAction.SetProfile -> {
-                store.saveProfile(action.text)
-                println("[memory] profile saved (${action.text.length} char(s))")
-            }
             is MemoryAction.AddProfileItem -> {
                 val updated = store.addProfileItem(action.section, action.text)
                 val count = updated.items(action.section).size

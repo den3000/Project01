@@ -75,14 +75,6 @@ internal class CommandRunner(
             BranchCommand.ShowMemory -> withMemory { mem ->
                 add("[memory]\n${mem.describe()}")
             }
-            is BranchCommand.SetProfile -> withMemory { mem ->
-                if (command.text.isBlank()) {
-                    add("[memory] /profile needs the new profile text")
-                } else {
-                    mem.store.saveProfile(command.text)
-                    add("[memory] profile saved (${command.text.length} char(s))")
-                }
-            }
             is BranchCommand.AddProfileItem -> withMemory { mem ->
                 if (command.text.isBlank()) {
                     add("[memory] /profile ${command.section.keyword} needs the new text")
@@ -135,15 +127,6 @@ internal class CommandRunner(
                         if (items.isEmpty()) continue
                         add("${section.keyword}: ${items.joinToString(", ")}")
                     }
-                }
-            }
-            is BranchCommand.TouchProfile -> withMemory { mem ->
-                val name = command.name
-                if (!isValidProfileName(name)) {
-                    add("[memory] invalid profile name '$name'")
-                } else {
-                    mem.store.touchNamedProfile(name)
-                    add("[memory] profile '$name' ready (use /profile-use $name to activate)")
                 }
             }
             is BranchCommand.AddNamedProfileItem -> withMemory { mem ->
