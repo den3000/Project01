@@ -1,16 +1,19 @@
-# clicontrols — прототип единой модели CLI-контролов
+# clicontrols — единая модель CLI-контролов
 
-> **Статус: прототип, в приложение не вшит.** Существующие `CliArgs.from` и
-> `parseSlashCommand` не тронуты. Цель пакета — обкатать форму абстракций для
-> флагов и команд (обобщение / централизация / управляемость), прежде чем что-то
-> рефакторить.
+> **Статус: рантайм-фронт обоих путей.** `main` парсит startup-argv через
+> `command/CliControlsCommandParser` (`parseArgv` → `ControlsToCommand` → `CliCommand`), а
+> in-session `/`-команды — через `parseSlashCommand` → `command/ControlsToBranchCommand`
+> (`parse(line, CMD)` → `BranchCommand`). Один каталог (`CliControls.all`) питает оба фронта;
+> прежние `CliArgs.from` и ручной `parseSlashCommand`-`when` удалены. `ParseError → CliArgsException`.
+> Тесты: `clicontrols/*Test`, `command/CliControlsCommandParser{Mode,Agent,Fields,Memory,Gap}Test`,
+> `command/ControlsToBranchCommandTest`.
 
 ## Зачем
 
-Сейчас разбор стартовых флагов (`CliArgs.from`) и разбор `/`-команд
-(`parseSlashCommand`) — два независимых «месива» из констант, `if`-ов и
-ручной валидации. Идея flag-command: **один декларативный каталог грамматики
-питает оба фронта** (`-` снаружи и `/` внутри). Один и тот же контрол читается
+Раньше разбор стартовых флагов и разбор `/`-команд были два независимых
+«месива» из констант, `if`-ов и ручной валидации. Идея flag-command, теперь
+реализованная: **один декларативный каталог грамматики питает оба фронта**
+(`-` снаружи и `/` внутри). Один и тот же контрол читается
 обоими способами; отличается только префикс.
 
 ---
@@ -105,8 +108,9 @@ Per-entity расширения:
 WrongSurface / MissingValue / BadValue / ValueNotAllowedHere / WrongParentValue / UnexpectedToken / Requires /
 Conflicts).
 
-Downstream (не в прототипе): тонкий маппер `ParsedControl → доменная команда` — грамматика остаётся
-отделённой от домена (образец доменного «результата» уже есть — sealed `BranchCommand`).
+Downstream-мапперы живут в `command/` (не здесь): `ControlsToCommand` (`BatchResult.controls` →
+`CliCommand`, startup) и `ControlsToBranchCommand` (CMD-строка → `BranchCommand`, in-session).
+Грамматика остаётся отделённой от домена.
 
 ---
 
@@ -141,14 +145,22 @@ Downstream (не в прототипе): тонкий маппер `ParsedContro
 | `…/test/clicontrols/CliControlsBatchTest.kt` | argv→контролы, arity-split, целостность каталога |
 | `…/test/clicontrols/CliControlsCrossValidationTest.kt` | requires/excludes: oneshot-эксклюзивность, inflate→session, feed-mutex |
 | `…/test/clicontrols/CliControlsValueValidationTest.kt` | валидация значений: BadValue / WrongSurface / WrongParentValue |
+| `…/cliJvm/command/{CliControlsCommandParser,ControlsToCommand,ControlsToBranchCommand}.kt` | рантайм-фронт: controls → `CliCommand` (startup) / `BranchCommand` (in-session) |
 
-## Открытые вопросы / не смоделировано
+## Решено (миграция завершена)
 
-- **MCP / инструменты** — `-mcpServer` смоделирован как flag-command (в main — startup-only, Chat-only).
-  Открытый вопрос: инструменты session-wide (как сейчас) или **per-agent** (`agent <name> mcp "<command>"`)
-  в agent-as-entity? Tools концептуально — способность агента, так что вторая раскладка может быть точнее.
-- Куда деть **legacy free-text** `profile <text>` (перезапись `profile.md`) — пока опущено.
-- Место **strategy** (config-флаг-команда рядом с агентом или часть агента/сессии).
-- Один `/`-ввод = один контрол; нужно ли несколько контролов в одной строке внутри.
-- Маппинг `ParsedControl → доменная команда` (следующий слой).
-- `-clean`/`-sessions`/`-memory` как режимы → схлопываются в entity-операции (`session clean`/`session`/`<entity> show`).
+- **Рантайм-свитч сделан** — оба фронта (`-`/`/`) идут через каталог; legacy-парсеры удалены.
+- `-clean`/`-sessions`/`-memory`-режимы схлопнуты в entity-операции (`-session [clear [<name>]]`, `-profile`/`-rule`/`-task`).
+- **Удаление унифицировано** на `clear` (`<entity> clear [<name>]` = один / все); `rm` выкинут. Дореализованы clear-all-rules, удаление задачи, per-session `session clear <name>`, profile clear-all.
+- **Режим памяти** — `agent mode <none|system|preamble>` (startup-саб) / `/agent mode` (in-session); top-level `-memory-mode`/`/memory-mode` убраны.
+- **stage/judge** — сабы `-agent … stages <from..to>` / `… judge`, вместо `-stageAgent`/`-judgeAgent`.
+- **free-text profile** (`profile <text>`→SetProfile) — дропнут (структурированные секции замещают).
+- **show по имени** — `<entity> show <name>` (verb-then-name строго; `<name> show` не команда).
+
+## Открыто
+
+- **MCP / инструменты** — пока session-wide (`-mcpServer`, startup-only, Chat-only); per-agent (`agent <name> mcp …`) не сделано.
+- **`agent mode none` live** — `MemoryMode` не моделирует off-state; отключить инъекцию посреди сессии нельзя (только не задать `mode` на старте).
+- Место **strategy** — top-level config-флаг-команда (не часть агента/сессии).
+- Один `/`-ввод = один контрол; несколько контролов в строке не поддержано.
+- **USAGE** — ручной (`command/Usage.kt`); генерация из `CliControls.all`/`ControlSpec.usage` — будущая задача.

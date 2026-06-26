@@ -163,6 +163,17 @@ class MemoryStoreTest {
     }
 
     @Test
+    fun `clearAllProfiles removes every named profile and the unnamed default`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.saveProfile("legacy free text")
+        store.addNamedProfileItem("work", ProfileSection.STYLE, "кратко")
+        store.addNamedProfileItem("home", ProfileSection.STYLE, "подробно")
+        assertEquals(2, store.clearAllProfiles())
+        assertEquals(emptyList(), store.listProfileNames())
+        assertNull(store.loadProfileData())
+    }
+
+    @Test
     fun `touchNamedProfile creates an empty file when none exists`() = withTempDir { root ->
         val store = MemoryStore(root)
         store.touchNamedProfile("fresh")
@@ -216,6 +227,15 @@ class MemoryStoreTest {
         val store = MemoryStore(root)
         store.addRule("only one")
         assertFalse(store.removeRule("999"))
+    }
+
+    @Test
+    fun `clearRules deletes every rule file`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.addRule("a")
+        store.addRule("b")
+        assertEquals(2, store.clearRules())
+        assertEquals(emptyList(), store.listRules())
     }
 
     @Test
@@ -337,6 +357,19 @@ class MemoryStoreTest {
         store.saveTask(TaskNotes("middle"))
         File(root, MemoryStore.TASKS_DIR).resolve("README").writeText("ignore me")
         assertEquals(listOf("alpha", "middle", "zeta"), store.listTaskIds())
+    }
+
+    @Test
+    fun `deleteTask removes one file and clearTasks removes the rest`() = withTempDir { root ->
+        val store = MemoryStore(root)
+        store.saveTask(TaskNotes("auth"))
+        store.saveTask(TaskNotes("ui"))
+        assertTrue(store.deleteTask("auth"))
+        assertNull(store.loadTask("auth"))
+        assertFalse(store.deleteTask("auth"))  // already gone
+        assertEquals(listOf("ui"), store.listTaskIds())
+        assertEquals(1, store.clearTasks())
+        assertEquals(emptyList(), store.listTaskIds())
     }
 }
 

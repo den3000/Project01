@@ -3,11 +3,12 @@ package ru.den.writes.code.project01.cliJvm.clicontrols
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAN
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
@@ -15,12 +16,12 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROVIDER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RM
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SWITCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TEMPERATURE
 import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
@@ -63,10 +64,10 @@ class CliControlsParserTest {
     //region entity ops
 
     @Test
-    fun `when show or clean is used - then it parses as a sub with an optional name`() {
+    fun `when show or clear is used - then it parses as a sub with an optional name`() {
         // when - then
         assertEquals(topParsedControl(PROFILE, CMD, subs = listOf(subParsedControl(PROFILE, SHOW))), ok("/profile show", CMD))
-        assertEquals(topParsedControl(PROFILE, CMD, subs = listOf(subParsedControl(PROFILE, CLEAN, "work"))), ok("/profile clean work", CMD))
+        assertEquals(topParsedControl(PROFILE, CMD, subs = listOf(subParsedControl(PROFILE, CLEAR, "work"))), ok("/profile clear work", CMD))
     }
 
     @Test
@@ -82,7 +83,7 @@ class CliControlsParserTest {
     fun `when a rule is added by text - then the text is the value (not a select)`() {
         // when - then
         assertEquals(topParsedControl(RULE, CMD, "always kotlin"), ok("/rule \"always kotlin\"", CMD))
-        assertEquals(topParsedControl(RULE, CMD, subs = listOf(subParsedControl(RULE, RM, "003"))), ok("/rule rm 003", CMD))
+        assertEquals(topParsedControl(RULE, CMD, subs = listOf(subParsedControl(RULE, CLEAR, "003"))), ok("/rule clear 003", CMD))
     }
 
     @Test
@@ -90,6 +91,13 @@ class CliControlsParserTest {
         // when - then
         assertEquals(topParsedControl(TASK, CMD, "auth", listOf(subParsedControl(TASK, PAUSE))), ok("/task auth pause", CMD))
         assertEquals(topParsedControl(TASK, CMD, "auth", listOf(subParsedControl(TASK, NOTE, "did x"))), ok("/task auth note \"did x\"", CMD))
+    }
+
+    @Test
+    fun `when a branch is shown or switched - then it nests as a sub`() {
+        // when - then — show is the current-branch info (bare), switch carries the target name
+        assertEquals(topParsedControl(BRANCH, CMD, subs = listOf(subParsedControl(BRANCH, SHOW))), ok("/branch show", CMD))
+        assertEquals(topParsedControl(BRANCH, CMD, subs = listOf(subParsedControl(BRANCH, SWITCH, "exp"))), ok("/branch switch exp", CMD))
     }
     //endregion
 
@@ -163,6 +171,16 @@ class CliControlsParserTest {
     }
     //endregion
 
+    //region in-session config commands
+
+    @Test
+    fun `when memory is shown - then it parses on both fronts`() {
+        // when - then — show the active layer (startup flag and in-session command)
+        assertEquals(topParsedControl(MEMORY, FLAG), ok("-memory", FLAG))
+        assertEquals(topParsedControl(MEMORY, CMD), ok("/memory", CMD))
+    }
+    //endregion
+
     //region errors
 
     @Test
@@ -176,6 +194,7 @@ class CliControlsParserTest {
         // when - then
         assertEquals(ParseError.MissingValue(PROMPT), err("-prompt", FLAG))
         assertEquals(ParseError.MissingValue(NOTE), err("/task auth note", CMD))
+        assertEquals(ParseError.MissingValue(MODE), err("/agent mode", CMD))
     }
 
     @Test
@@ -183,6 +202,7 @@ class CliControlsParserTest {
         // when - then — temperature out of 0..2, and a malformed stage range
         assertEquals(ParseError.BadValue(TEMPERATURE, "9", "a number in 0.0..2.0"), err("-agent x temperature 9", FLAG))
         assertEquals(ParseError.BadValue(STAGES, "foo..bar", "a stage range like clarification..planning"), err("-agent x stages foo..bar", FLAG))
+        assertEquals(ParseError.BadValue(MODE, "loud", "one of: none, system, preamble"), err("/agent x mode loud", CMD))
     }
 
     @Test

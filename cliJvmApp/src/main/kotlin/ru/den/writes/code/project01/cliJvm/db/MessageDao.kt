@@ -68,6 +68,10 @@ internal interface MessageDao {
     @Query("SELECT COUNT(*) FROM messages")
     suspend fun count(): Int
 
+    /** Row count for one session across all its branches — used by per-session delete to report. */
+    @Query("SELECT COUNT(*) FROM messages WHERE session_id = :sessionId")
+    suspend fun countSession(sessionId: String): Int
+
     /**
      * Delete every row from the messages table. Used by `-clean`. The
      * schema (table + index + sqlite_sequence) is left intact, so the
@@ -76,6 +80,10 @@ internal interface MessageDao {
      */
     @Query("DELETE FROM messages")
     suspend fun clearAll()
+
+    /** Delete every message row for one session (all its branches). Backs `session clear <name>`. */
+    @Query("DELETE FROM messages WHERE session_id = :sessionId")
+    suspend fun deleteSessionMessages(sessionId: String)
 
     // --- summaries (history compression, schema v3) -----------------
 
@@ -99,6 +107,10 @@ internal interface MessageDao {
     @Query("DELETE FROM summaries")
     suspend fun clearAllSummaries()
 
+    /** Delete every summary row for one session. Paired with [deleteSessionMessages]. */
+    @Query("DELETE FROM summaries WHERE session_id = :sessionId")
+    suspend fun deleteSessionSummaries(sessionId: String)
+
     // --- facts (sticky-facts strategy, schema v4) -------------------
 
     /** The sticky-facts row for a (session, branch), or null if none stored yet. */
@@ -112,6 +124,10 @@ internal interface MessageDao {
     /** Delete every facts row. Paired with [clearAll] under `-clean`. */
     @Query("DELETE FROM facts")
     suspend fun clearAllFacts()
+
+    /** Delete every facts row for one session. Paired with [deleteSessionMessages]. */
+    @Query("DELETE FROM facts WHERE session_id = :sessionId")
+    suspend fun deleteSessionFacts(sessionId: String)
 
     // --- branches ---------------------------------------------------
 

@@ -6,6 +6,7 @@ import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
+import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.shared.memory.MemoryLayer
 import ru.den.writes.code.project01.shared.memory.MemoryMode
@@ -127,7 +128,7 @@ class AgentMemoryTest {
     }
 
     @Test
-    fun `slash memory-mode flips the next turn's wire shape mid-session`() = runTest {
+    fun `slash agent mode flips the next turn's wire shape mid-session`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 val memStore = MemoryStore(root).apply { saveProfile("Kotlin only") }
@@ -142,39 +143,17 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/memory-mode system\ngo on\n/exit\n"),
+                    promptSource = stdinSource("/agent mode system\ngo on\n/exit\n"),
                     memory = memory,
                 )
 
                 // calls[0] — opening turn was PREAMBLE (USER frame + ASSISTANT ack + prompt)
                 assertEquals(Role.USER, fake.calls[0].messages[0].role)
                 assertEquals(Role.ASSISTANT, fake.calls[0].messages[1].role)
-                // calls[1] — after /memory-mode system, the next turn carries Role.SYSTEM
+                // calls[1] — after /agent mode system, the next turn carries Role.SYSTEM
                 val secondWire = fake.calls[1].messages
                 assertEquals(Role.SYSTEM, secondWire[0].role)
                 assertTrue(secondWire[0].text.startsWith(MemoryLayer.PROFILE_HEADING))
-            }
-        }
-    }
-
-    @Test
-    fun `slash profile writes to the store`() = runTest {
-        TestDb().use { harness ->
-            withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root)
-                val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
-
-                val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
-                val chat = newChat(prompt = "hi", session = "demo")
-
-                runSessionForTest(
-                    chat, fake, store,
-                    promptSource = stdinSource("/profile I write Kotlin and Compose\n/exit\n"),
-                    memory = memory,
-                )
-
-                assertEquals("I write Kotlin and Compose", memStore.loadProfile())
             }
         }
     }
@@ -192,7 +171,7 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/rule No Spring Boot\n/exit\n"),
+                    promptSource = stdinSource("/rule \"No Spring Boot\"\n/exit\n"),
                     memory = memory,
                 )
 
@@ -217,7 +196,7 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/task auth\n/task-note Ktor + JWT chosen\n/exit\n"),
+                    promptSource = stdinSource("/task auth\n/task note \"Ktor + JWT chosen\"\n/exit\n"),
                     memory = memory,
                 )
 
@@ -230,7 +209,7 @@ class AgentMemoryTest {
     }
 
     @Test
-    fun `slash task-note without an active task does not crash and writes nothing`() = runTest {
+    fun `slash task note without an active task does not crash and writes nothing`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 val memStore = MemoryStore(root)
@@ -242,7 +221,7 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/task-note stranded\n/exit\n"),
+                    promptSource = stdinSource("/task note stranded\n/exit\n"),
                     memory = memory,
                 )
 
@@ -252,7 +231,7 @@ class AgentMemoryTest {
     }
 
     @Test
-    fun `slash profile with no text is rejected and leaves the store empty`() = runTest {
+    fun `slash profile bare lists profiles and leaves the store empty`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 val memStore = MemoryStore(root)
@@ -274,8 +253,8 @@ class AgentMemoryTest {
     }
 
     @Test
-    fun `slash memory-mode with garbage falls through as a normal prompt`() = runTest {
-        // /memory-mode without a valid value isn't a recognised command, so
+    fun `slash agent mode with garbage falls through as a normal prompt`() = runTest {
+        // /agent mode without a valid value isn't a recognised command, so
         // parseBranchCommand returns null and the line travels as a user
         // prompt — the agent sends a second turn and the mode stays put.
         TestDb().use { harness ->
@@ -292,12 +271,12 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/memory-mode shrug\n/exit\n"),
+                    promptSource = stdinSource("/agent mode shrug\n/exit\n"),
                     memory = memory,
                 )
 
                 assertEquals(MemoryMode.PREAMBLE, memory.currentMode())
-                assertEquals(2, fake.calls.size, "garbage /memory-mode landed as a real prompt")
+                assertEquals(2, fake.calls.size, "garbage /agent mode landed as a real prompt")
             }
         }
     }
@@ -410,7 +389,7 @@ class AgentMemoryTest {
                     chat,
                     fake,
                     store,
-                    promptSource = stdinSource("/profile style кратко на русском\n/exit\n"),
+                    promptSource = stdinSource("/profile style \"кратко на русском\"\n/exit\n"),
                     memory = memory,
                 )
 
@@ -475,7 +454,7 @@ class AgentMemoryTest {
     }
 
     @Test
-    fun `slash profile-use switches the active profile and the next turn picks the new wire`() = runTest {
+    fun `slash profile name switches the active profile and the next turn picks the new wire`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 val memStore = MemoryStore(root).apply {
@@ -498,7 +477,7 @@ class AgentMemoryTest {
                     chat,
                     fake,
                     store,
-                    promptSource = stdinSource("/profile-use python-junior\nsecond\n/exit\n"),
+                    promptSource = stdinSource("/profile python-junior\nsecond\n/exit\n"),
                     memory = memory,
                 )
 
@@ -544,7 +523,7 @@ class AgentMemoryTest {
 
     // --- helpers ----------------------------------------------------
 
-    private fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.Chat(
+    private fun newChat(prompt: String, session: String?): CliCommand.RunChat = CliCommand.RunChat(
         prompt = prompt,
         maxTokens = null,
         stopSequences = null,

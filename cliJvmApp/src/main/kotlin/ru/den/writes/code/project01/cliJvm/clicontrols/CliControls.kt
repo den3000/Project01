@@ -3,9 +3,8 @@ package ru.den.writes.code.project01.cliJvm.clicontrols
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BY_LINE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHECK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAN
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.END_SEQUENCE
@@ -19,6 +18,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.KEEP_LAST
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MAX_TOKENS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
@@ -29,7 +29,6 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROVIDER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.REUSE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RM
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
@@ -38,6 +37,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STOP_SEQUE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SUMMARIZE_EVERY
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SWITCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TEMPERATURE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
@@ -51,7 +51,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.SUB
  * to the standard `select / list / show / clean` ops; entity-specific extras are
  * added explicitly. This is the "centralization" the redesign is after: grammar,
  * surfaces, value types and cross-constraints live here as data, not as branches
- * spread across `CliArgs.from`.
+ * scattered across hand-rolled parsers.
  */
 internal object CliControls {
 
@@ -114,7 +114,7 @@ private fun entity(
 ): List<ControlSpec> = buildList {
     add(top(arg, surfaces, value = opt(selectValue), valueSurfaces = selectSurfaces, excludes = topExcludes, usage = "<name> select/create · bare = list"))
     add(sub(SHOW, listOf(arg), value = opt(selectValue), usage = "show one (<name>) or all"))
-    add(sub(CLEAN, listOf(arg), value = opt(selectValue), usage = "delete one (<name>) or all; reset selection"))
+    add(sub(CLEAR, listOf(arg), value = opt(selectValue), usage = "delete one (<name>) or all"))
     addAll(extras)
 }
 
@@ -132,6 +132,8 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     add(top(REUSE, setOf(CMD), usage = "resend the last model reply"))
     add(top(EXIT, setOf(CMD), usage = "leave the session"))
     add(top(HELP, setOf(CMD), usage = "open the command palette"))
+    add(top(MEMORY, setOf(FLAG, CMD), excludes = setOf(ONESHOT), usage = "show the active memory layer (mode + profile + rules + task)"))
+    // memory-injection mode is flipped via `agent mode <preamble|system>` (agent sub), not a top-level control.
 
     // ---- entities (auto CRUD + extras) ----
     addAll(entity(SESSION, setOf(FLAG, CMD), selectSurfaces = setOf(FLAG), topExcludes = setOf(ONESHOT)))  // select only at startup
@@ -148,16 +150,14 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
         ),
     )
     // rule: value present = ADD (not select); no "active" rule — differs only in meaning, not grammar.
+    // Deletion is the uniform `rule clear [<id>]` (entity-protocol verb), no rule-only `rm`.
+    addAll(entity(RULE, setOf(FLAG, CMD), selectValue = ValueKind.Text, topExcludes = setOf(ONESHOT)))
     addAll(
         entity(
-            RULE, setOf(FLAG, CMD), selectValue = ValueKind.Text, topExcludes = setOf(ONESHOT),
-            extras = listOf(sub(RM, listOf(RULE), value = req(ValueKind.Name), usage = "remove a rule by id")),
-        ),
-    )
-    addAll(
-        entity(
-            BRANCH, setOf(CMD),  // command-only
-            extras = listOf(sub(CHECK, listOf(BRANCH), usage = "current branch + message count (old /checkpoint)")),
+            BRANCH, setOf(CMD),  // command-only; `branch show` = current branch + count, bare = list
+            extras = listOf(
+                sub(SWITCH, listOf(BRANCH), value = req(ValueKind.Name), usage = "switch to an existing branch"),
+            ),
         ),
     )
     addAll(agentEntity())

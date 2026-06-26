@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.agent
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.BranchCommand
-import ru.den.writes.code.project01.cliJvm.CliArgs
+import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
@@ -177,7 +177,7 @@ class PlainViewGoldenTest {
 
             // then
             val expectedStderr = buildString {
-                appendLine("[branch] forked 'main' → 'exp' (2 message(s) copied); /switch exp to continue on it")
+                appendLine("[branch] forked 'main' → 'exp' (2 message(s) copied); /branch switch exp to continue on it")
                 appendLine(
                     "[session-summary] turns=1  prompt=10  output=5  total=15  " +
                         "cost=0.00000 USD  (current model has no pricing entry)",
@@ -216,7 +216,7 @@ class PlainViewGoldenTest {
     //region helpers
 
     private suspend fun runPlain(
-        chat: CliArgs.PromptCommand,
+        chat: CliCommand.RunPrompt,
         api: LlmApi,
         store: HistoryStore?,
         primary: IntentSource,
@@ -232,7 +232,7 @@ class PlainViewGoldenTest {
         return captureStdoutStderr { view.run(vm, primary, followUp) }
     }
 
-    private fun goldenChat(prompt: String, session: String?): CliArgs.Chat =
+    private fun goldenChat(prompt: String, session: String?): CliCommand.RunChat =
         newChat(prompt, session).copy(
             modelProvider = ModelProvider.Gemini(GeminiModel.Custom("golden-stub"), apiKey = "test-key"),
         )

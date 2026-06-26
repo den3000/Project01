@@ -48,13 +48,13 @@ internal class CommandRunner(
                     name == store.branchId ->
                         add("[branch] already on '$name'")
                     name in store.branches() ->
-                        add("[branch] '$name' already exists — use /switch $name")
+                        add("[branch] '$name' already exists — use /branch switch $name")
                     else -> {
                         val copied = store.messages.size
                         store.fork(name)
                         add(
                             "[branch] forked '${store.branchId}' → '$name' ($copied message(s) copied); " +
-                                "/switch $name to continue on it"
+                                "/branch switch $name to continue on it"
                         )
                     }
                 }
@@ -64,7 +64,7 @@ internal class CommandRunner(
                 when {
                     name == store.branchId -> add("[branch] already on '$name'")
                     name !in store.branches() ->
-                        add("[branch] no such branch '$name' (use /branches to list)")
+                        add("[branch] no such branch '$name' (use /branch to list)")
                     else -> {
                         store.switchTo(name)
                         strategy.rebind(store)
@@ -74,14 +74,6 @@ internal class CommandRunner(
             }
             BranchCommand.ShowMemory -> withMemory { mem ->
                 add("[memory]\n${mem.describe()}")
-            }
-            is BranchCommand.SetProfile -> withMemory { mem ->
-                if (command.text.isBlank()) {
-                    add("[memory] /profile needs the new profile text")
-                } else {
-                    mem.store.saveProfile(command.text)
-                    add("[memory] profile saved (${command.text.length} char(s))")
-                }
             }
             is BranchCommand.AddProfileItem -> withMemory { mem ->
                 if (command.text.isBlank()) {
@@ -137,15 +129,6 @@ internal class CommandRunner(
                     }
                 }
             }
-            is BranchCommand.TouchProfile -> withMemory { mem ->
-                val name = command.name
-                if (!isValidProfileName(name)) {
-                    add("[memory] invalid profile name '$name'")
-                } else {
-                    mem.store.touchNamedProfile(name)
-                    add("[memory] profile '$name' ready (use /profile-use $name to activate)")
-                }
-            }
             is BranchCommand.AddNamedProfileItem -> withMemory { mem ->
                 val name = command.name
                 if (!isValidProfileName(name)) {
@@ -167,6 +150,10 @@ internal class CommandRunner(
                 if (removed) add("[memory] profile '${command.name}' removed")
                 else add("[memory] no profile named '${command.name}'")
             }
+            BranchCommand.ClearAllProfiles -> withMemory { mem ->
+                val n = mem.store.clearAllProfiles()
+                add("[memory] all profiles cleared ($n named + unnamed)")
+            }
             is BranchCommand.AddRule -> withMemory { mem ->
                 if (command.text.isBlank()) {
                     add("[memory] /rule needs the new rule text")
@@ -174,6 +161,19 @@ internal class CommandRunner(
                     val rule = mem.store.addRule(command.text)
                     add("[memory] rule ${rule.id} added")
                 }
+            }
+            is BranchCommand.RemoveRule -> withMemory { mem ->
+                if (command.id.isBlank()) {
+                    add("[memory] /rule clear needs a rule id")
+                } else if (mem.store.removeRule(command.id)) {
+                    add("[memory] rule ${command.id} removed")
+                } else {
+                    add("[memory] no rule with id '${command.id}'")
+                }
+            }
+            BranchCommand.ClearRules -> withMemory { mem ->
+                val n = mem.store.clearRules()
+                add("[memory] cleared $n rule(s)")
             }
             is BranchCommand.SetTask -> withMemory { mem ->
                 val id = command.taskId
@@ -196,9 +196,9 @@ internal class CommandRunner(
                 val active = mem.activeTaskId()
                 when {
                     active == null ->
-                        add("[memory] /task-note needs an active task — set one with /task <id>")
+                        add("[memory] /task note needs an active task — set one with /task <id>")
                     command.note.isBlank() ->
-                        add("[memory] /task-note needs the note text")
+                        add("[memory] /task note needs the note text")
                     else -> {
                         mem.store.appendTaskNote(active, command.note)
                         add("[memory] note appended to task '$active'")
@@ -207,6 +207,14 @@ internal class CommandRunner(
             }
             BranchCommand.PauseTask -> withMemory { mem -> togglePause(mem, paused = true) }
             BranchCommand.ResumeTask -> withMemory { mem -> togglePause(mem, paused = false) }
+            is BranchCommand.DeleteTask -> withMemory { mem ->
+                if (mem.store.deleteTask(command.taskId)) add("[memory] task '${command.taskId}' deleted")
+                else add("[memory] no task '${command.taskId}'")
+            }
+            BranchCommand.ClearTasks -> withMemory { mem ->
+                val n = mem.store.clearTasks()
+                add("[memory] cleared $n task(s)")
+            }
             is BranchCommand.SetMemoryMode -> withMemory { mem ->
                 mem.setMode(command.mode)
                 add("[memory] mode → ${command.mode.name.lowercase()}")
@@ -222,7 +230,7 @@ internal class CommandRunner(
 
     private inline fun MutableList<String>.withMemory(block: (MemoryProvider) -> Unit) {
         val mem = memory
-        if (mem == null) add("[memory] memory commands need -memory-mode <preamble|system> at startup")
+        if (mem == null) add("[memory] memory commands need a memory mode — start with -agent <name> mode <preamble|system>")
         else block(mem)
     }
 

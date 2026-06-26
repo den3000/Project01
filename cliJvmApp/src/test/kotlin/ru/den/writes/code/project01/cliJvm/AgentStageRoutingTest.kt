@@ -2,6 +2,7 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
+import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
@@ -263,7 +264,7 @@ class AgentStageRoutingTest {
         modelId = modelId,
     )
 
-    private fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.Chat(
+    private fun newChat(prompt: String, session: String?): CliCommand.RunChat = CliCommand.RunChat(
         prompt = prompt,
         maxTokens = null,
         stopSequences = null,
