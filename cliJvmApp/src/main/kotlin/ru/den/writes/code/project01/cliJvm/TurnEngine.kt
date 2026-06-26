@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.shared.agent.AgentConfig
@@ -23,12 +24,12 @@ import kotlin.time.measureTimedValue
  * `println`, no `System.err`, no feed throttle. A view renders the result;
  * the view-model orchestrates the loop around it.
  *
- * This is [SessionLoop.send] with the printing, the `/reuse` cache hook and
+ * This is the per-turn `send` with the printing, the `/reuse` cache hook and
  * the `delay(16s)` removed (the throttle belongs on the feed intent source).
  * Persistence and the FSM write stay here — they aren't stdout/stderr I/O.
  */
 internal class TurnEngine(
-    private val cliArgs: CliArgs.PromptCommand,
+    private val cliArgs: CliCommand.RunPrompt,
     private val llmApi: LlmApi,
     private val historyStore: HistoryStore?,
     private val strategy: ContextStrategy = ContextStrategy.FullHistory,
@@ -38,7 +39,7 @@ internal class TurnEngine(
      * Per-stage invariant judges: each owns a [TaskBinding] span and audits the
      * reply of any turn whose active task stage falls in it. Empty (the
      * default) = no judging — byte-identical to before. Needs per-stage agents
-     * plus an active task to route on (enforced at parse time, see [CliArgs]).
+     * plus an active task to route on (enforced at parse time, see `ControlsToCommand`).
      */
     private val routedJudges: List<RoutedJudge> = emptyList(),
     /**
@@ -150,7 +151,7 @@ internal class TurnEngine(
      * Apply the model's [proposed] stage move to the active task, returning
      * what happened (for a view to render). Honoured only when a task is
      * active, not paused, and the move is legal per [TaskStateMachine].
-     * Mirrors `SessionLoop.maybeAdvanceTaskStage`, minus the printing.
+     * Rendering the outcome is the view's job — this stays pure.
      */
     private fun advanceTaskStage(proposed: TaskStage?): StageAdvance {
         val mem = memory ?: return StageAdvance.None
@@ -173,10 +174,10 @@ internal class TurnEngine(
  * Lift the generation-related flags from the parsed CLI into the neutral
  * [GenerationParams] that crosses the [LlmApi] boundary. `-prompt` (the
  * per-turn payload) and `-model` (configured into the concrete [LlmApi]) are
- * not part of this. Lives on the [CliArgs.PromptCommand] super-type so Chat and
- * OneShot share the same conversion.
+ * not part of this. Lives on the [CliCommand.RunPrompt] super-type so RunChat and
+ * RunOneShot share the same conversion.
  */
-internal fun CliArgs.PromptCommand.toGenerationParams(): GenerationParams =
+internal fun CliCommand.RunPrompt.toGenerationParams(): GenerationParams =
     GenerationParams(
         maxTokens = maxTokens,
         stopSequences = stopSequences,

@@ -5,6 +5,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.shared.memory.MemoryMode
@@ -17,14 +18,14 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
  * [IntentSource] from hydration through the final summary. Views observe
  * [state] and feed intents through the source — they aren't called back.
  *
- * This is the orchestration lifted out of `SessionLoop.run` / `drive`; the
- * per-turn engine is [TurnEngine] and command execution is [CommandRunner].
+ * This owns the conversation-loop orchestration; the per-turn engine is
+ * [TurnEngine] and command execution is [CommandRunner].
  * The view-model knows each turn's outcome from [TurnResult], so the old
  * `observeReply` / `notifyTurnFailed` source hooks are gone — `/reuse` reads
  * [lastReply], and feed continuation keys off the source's own `terminated`.
  */
 internal class SessionViewModel(
-    private val cliArgs: CliArgs.PromptCommand,
+    private val cliArgs: CliCommand.RunPrompt,
     private val engine: TurnEngine,
     private val commandRunner: CommandRunner,
     private val historyStore: HistoryStore?,
@@ -52,7 +53,7 @@ internal class SessionViewModel(
     suspend fun run(primary: IntentSource, followUp: IntentSource? = null) {
         hydrate()
         if (!runTurn(cliArgs.prompt)) primary.onTurnFailed()
-        if (cliArgs is CliArgs.OneShot) {
+        if (cliArgs is CliCommand.RunOneShot) {
             effects.send(UiEffect.Exit)
             return
         }
@@ -161,7 +162,7 @@ internal class SessionViewModel(
             options == null -> appendState(
                 when (kind) {
                     PickerKind.Branch -> "[branch] branch commands need a persisted session"
-                    else -> "[memory] memory commands need -memory-mode <preamble|system> at startup"
+                    else -> "[memory] memory commands need a memory mode — start with -agent <name> mode <preamble|system>"
                 }
             )
             options.isEmpty() -> appendState(

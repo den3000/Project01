@@ -4,7 +4,7 @@ import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.memory.TaskBinding
 
 /**
- * One agent wired into [SessionLoop], bound to a span of FSM stages. The loop
+ * One agent wired into [TurnEngine], bound to a span of FSM stages. The engine
  * routes a turn to the agent whose [binding] contains the task's current
  * stage.
  *

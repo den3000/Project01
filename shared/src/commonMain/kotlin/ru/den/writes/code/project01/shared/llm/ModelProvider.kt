@@ -12,7 +12,7 @@ import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterModel
  * providers (currently Gemini, OpenRouter and Hugging Face). The actual
  * wire shapes, DTOs and per-turn logic live in [GeminiApi] /
  * [OpenRouterApi] / [HuggingFaceApi]; [ModelProvider] is just the
- * carrier that lets [CliArgs] expose a single field and `main.kt`
+ * carrier that lets the CLI layer expose a single field and `main.kt`
  * dispatch on a `when`.
  */
 sealed interface ModelProvider {

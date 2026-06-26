@@ -11,7 +11,7 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
  * cache so callers don't have to keep their own copy.
  *
  * Thin wrapper over [MessageDao] that hides Room types from the rest
- * of the codebase. [SessionLoop] depends only on this — it never sees
+ * of the codebase. `TurnEngine` depends only on this — it never sees
  * [MessageEntity] or DAO directly. Translation between the neutral
  * [Message] / [Role] (which cross the [ru.den.writes.code.project01.cliJvm.LlmApi]
  * boundary) and the persisted [MessageEntity] (string `role` column,
@@ -252,6 +252,17 @@ internal class HistoryStore(
         dao.copyBranchMessages(sessionId = sessionId, fromBranch = branchId, toBranch = newBranch)
         dao.getSummary(sessionId, branchId)?.let { dao.upsertSummary(it.copy(branchId = newBranch)) }
         dao.getFacts(sessionId, branchId)?.let { dao.upsertFacts(it.copy(branchId = newBranch)) }
+    }
+
+    /**
+     * Delete [branch] from this session: its messages plus any summary / facts
+     * rows. The caller must not pass the active [branchId] (the cache would go
+     * stale) — `CommandRunner` guards that. Mirror of [fork], in reverse.
+     */
+    suspend fun deleteBranch(branch: String) {
+        dao.deleteBranchMessages(sessionId = sessionId, branchId = branch)
+        dao.deleteBranchSummary(sessionId = sessionId, branchId = branch)
+        dao.deleteBranchFacts(sessionId = sessionId, branchId = branch)
     }
 }
 

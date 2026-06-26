@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.agent
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.BranchCommand
-import ru.den.writes.code.project01.cliJvm.CliArgs
+import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.commandCatalog
@@ -294,7 +294,7 @@ class SessionViewModelTest {
             val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store)
-            val row = commandCatalog().indexOfFirst { it.name == "/checkpoint" } + 1
+            val row = commandCatalog().indexOfFirst { it.name == "/branch show" } + 1
 
             // when
             vm.run(intents(UiIntent.OpenPalette, UiIntent.Submit("$row"), UiIntent.Exit))
@@ -312,7 +312,7 @@ class SessionViewModelTest {
             val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home"))
-            val row = commandCatalog().indexOfFirst { it.name == "/profiles" } + 1
+            val row = commandCatalog().indexOfFirst { it.name == "/profile" } + 1
 
             // when
             vm.run(intents(UiIntent.OpenPalette, UiIntent.Submit("$row"), UiIntent.Exit))
@@ -344,7 +344,7 @@ class SessionViewModelTest {
     //region helpers
 
     private fun newVm(
-        chat: CliArgs.PromptCommand,
+        chat: CliCommand.RunPrompt,
         api: LlmApi,
         store: HistoryStore?,
         strategy: ContextStrategy = ContextStrategy.FullHistory,
@@ -362,7 +362,7 @@ class SessionViewModelTest {
         return MemoryProvider(store, MemoryMode.PREAMBLE)
     }
 
-    private fun oneShot(prompt: String): CliArgs.OneShot = CliArgs.OneShot(
+    private fun oneShot(prompt: String): CliCommand.RunOneShot = CliCommand.RunOneShot(
         prompt = prompt,
         maxTokens = null,
         stopSequences = null,

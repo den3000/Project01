@@ -1,10 +1,11 @@
 # cliTui — песочница сравнения TUI-библиотек
 
-Изолированный модуль для оценки terminal UI на Kotlin/JVM. Рабочий `:cliJvmApp` не
-затронут — модуль самостоятельный, чистый JVM (без Compose).
+Изолированная песочница для terminal UI на Kotlin/JVM — пробовать и сравнивать подходы
+**отдельно** от боевого `:cliJvmApp` (самостоятельный модуль, чистый JVM без Compose).
+**Интеграция завершена:** combo (Kotter-каркас + Mordant-виджеты), к которому пришла
+песочница, уже стоит в `cliJvmApp` (вид `-tui`); модуль остаётся для дальнейших проб.
 
-**Сравнение завершено: выбран combo (Kotter-каркас + Mordant-виджеты).** Отдельные
-экспонаты (`KotterChat`/`MordantChat`/`ComboChat` + заглушка `DemoResponder`) сведены
+Отдельные экспонаты (`KotterChat`/`MordantChat`/`ComboChat` + заглушка `DemoResponder`) сведены
 в один **MVI-стек** (см. git history). Текущая раскладка:
 
 | Файл | Роль |
@@ -72,5 +73,5 @@ Mordant-таблицу выбора **на месте** `stats` (стрелки/
 выравниванием продолжений.
 
 Поверх combo-рендера затем встал **MVI-каркас** (UI-agnostic `ChatViewModel` +
-plain-фолбэк над тем же VM). Перенос в боевой `cliJvmApp` (по MVI, без подъёма
-`LlmApi` наружу) описан в [`INTEGRATION.md`](INTEGRATION.md).
+plain-фолбэк над тем же VM). Этот каркас уже перенесён в боевой `cliJvmApp` (по MVI, без
+подъёма `LlmApi` наружу) — см. [`cliJvmApp/README.md`](../cliJvmApp/README.md).

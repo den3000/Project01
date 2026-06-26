@@ -7,16 +7,19 @@ import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.memory.MemoryMode
+import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.project01.shared.memory.TaskNotes
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
  * [CommandRunner] returns the status line(s) a `/`-command would print, with
- * the DB / disk side effects applied. The strings are what `SessionLoop` and
- * the view-model both render, so they're pinned directly here.
+ * the DB / disk side effects applied. The strings are what the view-model
+ * renders as notices, so they're pinned directly here.
  */
 class CommandRunnerTest {
 
@@ -43,9 +46,75 @@ class CommandRunnerTest {
 
             // when - then
             assertEquals(
-                listOf("[branch] forked 'main' → 'exp' (2 message(s) copied); /switch exp to continue on it"),
+                listOf("[branch] forked 'main' → 'exp' (2 message(s) copied); /branch switch exp to continue on it"),
                 runner.run(BranchCommand.Branch("exp")),
             )
+        }
+    }
+
+    @Test
+    fun `when clearing a branch by name - then it deletes that branch`() = runTest {
+        TestDb().use { harness ->
+            // given — fork 'exp' off 'main'; we stay on 'main'
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            store.append(Message(Role.USER, "a"))
+            store.fork("exp")
+            val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(listOf("[branch] deleted 'exp'"), runner.run(BranchCommand.DeleteBranch("exp")))
+            assertEquals(listOf("main"), harness.db.messageDao().branchesOf("s"))
+        }
+    }
+
+    @Test
+    fun `when clearing the current branch - then it refuses`() = runTest {
+        TestDb().use { harness ->
+            // given — on 'main'
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            store.append(Message(Role.USER, "a"))
+            val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(
+                listOf("[branch] can't delete the current branch 'main' — /branch switch <other> first"),
+                runner.run(BranchCommand.DeleteBranch("main")),
+            )
+        }
+    }
+
+    @Test
+    fun `when clearing a branch that doesn't exist - then it says no such branch`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            store.append(Message(Role.USER, "a"))
+            val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(
+                listOf("[branch] no such branch 'ghost' (use /branch to list)"),
+                runner.run(BranchCommand.DeleteBranch("ghost")),
+            )
+        }
+    }
+
+    @Test
+    fun `when clearing all branches - then every branch but the current goes`() = runTest {
+        TestDb().use { harness ->
+            // given — two extra branches off 'main'
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            store.append(Message(Role.USER, "a"))
+            store.fork("exp")
+            store.fork("wip")
+            val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(
+                listOf("[branch] deleted 2 branch(es) (exp, wip); kept current 'main'"),
+                runner.run(BranchCommand.ClearBranches),
+            )
+            assertEquals(listOf("main"), harness.db.messageDao().branchesOf("s"))
         }
     }
 
@@ -56,7 +125,7 @@ class CommandRunnerTest {
 
         // when - then
         assertEquals(
-            listOf("[memory] memory commands need -memory-mode <preamble|system> at startup"),
+            listOf("[memory] memory commands need a memory mode — start with -agent <name> mode <preamble|system>"),
             runner.run(BranchCommand.ShowMemory),
         )
     }
@@ -109,6 +178,66 @@ class CommandRunnerTest {
             assertEquals("[memory] profiles:", out.first())
             assertTrue(out.contains("  * work"), "active profile should carry the * marker")
             assertTrue(out.contains("    home"), "inactive profile should be indented without a marker")
+        }
+    }
+
+    @Test
+    fun `when removing a rule by id - then it reports the removal and then its absence`() = runTest {
+        withTempMemoryRoot { root ->
+            // given — one rule on disk
+            val mstore = MemoryStore(root)
+            val rule = mstore.addRule("always kotlin")
+            val memory = MemoryProvider(mstore, MemoryMode.SYSTEM)
+            val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
+
+            // when - then — first removal succeeds, a second call finds nothing
+            assertEquals(listOf("[memory] rule ${rule.id} removed"), runner.run(BranchCommand.RemoveRule(rule.id)))
+            assertEquals(listOf("[memory] no rule with id '${rule.id}'"), runner.run(BranchCommand.RemoveRule(rule.id)))
+        }
+    }
+
+    @Test
+    fun `when clearing all rules - then it reports the count`() = runTest {
+        withTempMemoryRoot { root ->
+            // given
+            val mstore = MemoryStore(root).apply { addRule("a"); addRule("b") }
+            val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(listOf("[memory] cleared 2 rule(s)"), runner.run(BranchCommand.ClearRules))
+            assertEquals(emptyList(), mstore.listRules())
+        }
+    }
+
+    @Test
+    fun `when deleting a task then clearing tasks - then each reports`() = runTest {
+        withTempMemoryRoot { root ->
+            // given
+            val mstore = MemoryStore(root).apply { saveTask(TaskNotes("auth")); saveTask(TaskNotes("ui")) }
+            val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
+
+            // when - then — delete one by id, second call finds nothing, then clear the rest
+            assertEquals(listOf("[memory] task 'auth' deleted"), runner.run(BranchCommand.DeleteTask("auth")))
+            assertEquals(listOf("[memory] no task 'auth'"), runner.run(BranchCommand.DeleteTask("auth")))
+            assertEquals(listOf("[memory] cleared 1 task(s)"), runner.run(BranchCommand.ClearTasks))
+            assertEquals(emptyList(), mstore.listTaskIds())
+        }
+    }
+
+    @Test
+    fun `when clearing all profiles - then named and unnamed are gone`() = runTest {
+        withTempMemoryRoot { root ->
+            // given
+            val mstore = MemoryStore(root).apply {
+                saveProfile("legacy")
+                addNamedProfileItem("work", ProfileSection.STYLE, "кратко")
+            }
+            val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(listOf("[memory] all profiles cleared (1 named + unnamed)"), runner.run(BranchCommand.ClearAllProfiles))
+            assertEquals(emptyList(), mstore.listProfileNames())
+            assertNull(mstore.loadProfileData())
         }
     }
 

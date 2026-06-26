@@ -1,10 +1,10 @@
 package ru.den.writes.code.project01.cliJvm.clicontrols
 
 /**
- * PROTOTYPE — a unified description of the CLI's controls (startup flags AND
- * in-session commands), so one declarative catalog drives both fronts instead of
- * the two separate parsers we have today (`CliArgs.from` + `parseSlashCommand`).
- * Not wired into the app; lives here to evaluate the shape. See README.md.
+ * A unified description of the CLI's controls (startup flags AND in-session
+ * commands): one declarative catalog drives both fronts (`-flag` and `/cmd`),
+ * replacing the two hand-rolled parsers that used to do it. The runtime parses
+ * against this catalog. See README.md.
  *
  * Where a control token may appear. A control's allowed surfaces encode its kind:
  * `{FLAG}` = startup-only, `{CMD}` = in-session only, `{FLAG, CMD}` = flag-command
@@ -36,6 +36,7 @@ enum class CliControlsArg(val title: String) {
     REUSE("reuse"),
     EXIT("exit"),
     HELP("help"),
+    MEMORY("memory"),
 
     // entities
     SESSION("session"),
@@ -47,9 +48,8 @@ enum class CliControlsArg(val title: String) {
 
     // shared entity operations
     SHOW("show"),
-    CLEAN("clean"),
-    RM("rm"),
-    CHECK("check"),
+    CLEAR("clear"),
+    SWITCH("switch"),
 
     // task operations
     PAUSE("pause"),

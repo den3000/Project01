@@ -36,7 +36,7 @@ class AgentBranchingTest {
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
-                promptSource = stdinSource("/branch alt\n/switch alt\na1\n/exit\n"),
+                promptSource = stdinSource("/branch alt\n/branch switch alt\na1\n/exit\n"),
             )
 
             // then
@@ -62,9 +62,9 @@ class AgentBranchingTest {
         // when - then
         // Branch family.
         assertEquals(PromptResult.Command(BranchCommand.Branch("alt")), classify("/branch alt"))
-        assertEquals(PromptResult.Command(BranchCommand.Switch("alt")), classify("/switch alt"))
-        assertEquals(PromptResult.Command(BranchCommand.ListBranches), classify("/branches"))
-        assertEquals(PromptResult.Command(BranchCommand.Checkpoint), classify("/checkpoint"))
+        assertEquals(PromptResult.Command(BranchCommand.Switch("alt")), classify("/branch switch alt"))
+        assertEquals(PromptResult.Command(BranchCommand.ListBranches), classify("/branch"))
+        assertEquals(PromptResult.Command(BranchCommand.Checkpoint), classify("/branch show"))
         // Non-branch terminators.
         assertEquals(PromptResult.Stop, classify("/exit"))
         // Plain text falls through unchanged.

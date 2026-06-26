@@ -34,7 +34,7 @@ internal enum class PickerKind(val title: String) {
     Profile("profile  ↑↓ · Enter · Esc"),
     Task("task  ↑↓ · Enter · Esc"),
     Branch("branch  ↑↓ · Enter · Esc"),
-    MemoryMode("memory-mode  ↑↓ · Enter · Esc"),
+    MemoryMode("agent mode  ↑↓ · Enter · Esc"),
 }
 
 /**

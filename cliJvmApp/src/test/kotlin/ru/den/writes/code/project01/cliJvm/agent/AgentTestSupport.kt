@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.agent
 
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.cliJvm.CliArgs
+import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
@@ -27,13 +27,13 @@ import java.io.StringReader
  * Shared helpers for the Agent-suite tests under
  * [ru.den.writes.code.project01.cliJvm.agent] (and its [agent.branching]
  * sub-package). Lives in its own file because every Agent*Test reuses the
- * same `CliArgs.Chat` factory + dummy provider + stdin source — duplicating
+ * same `CliCommand.RunChat` factory + dummy provider + stdin source — duplicating
  * the 15-line factory across 8 files would mean 8 places to keep in sync
- * when [CliArgs.Chat] gains a field. `internal` keeps these out of the main
+ * when [CliCommand.RunChat] gains a field. `internal` keeps these out of the main
  * code; same compile module → also visible to `agent.branching`.
  */
 
-internal fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.Chat(
+internal fun newChat(prompt: String, session: String?): CliCommand.RunChat = CliCommand.RunChat(
     prompt = prompt,
     maxTokens = null,
     stopSequences = null,
@@ -58,7 +58,7 @@ internal fun newChat(prompt: String, session: String?): CliArgs.Chat = CliArgs.C
 
 /**
  * Agent doesn't dispatch on the provider (the concrete `LlmApi` is already
- * stubbed via `FakeLlmApi`), but `CliArgs.PromptCommand` insists on a
+ * stubbed via `FakeLlmApi`), but `CliCommand.RunPrompt` insists on a
  * non-null [ModelProvider], so tests pass this throwaway.
  */
 internal fun dummyGeminiProvider(
@@ -71,11 +71,11 @@ internal fun stdinSource(script: String): StdinPromptSource =
 
 /**
  * Run a session through the production MVI stack (TurnEngine + SessionViewModel
- * + PlainView) — the test-side equivalent of the old `SessionLoop(...).run()`.
- * Same parameter shape, so migrating a test is a mechanical rename.
+ * + PlainView) in one call — the entry a test uses to drive a whole session
+ * offline and assert on its PlainView output.
  */
 internal suspend fun runSessionForTest(
-    cliArgs: CliArgs.PromptCommand,
+    cliArgs: CliCommand.RunPrompt,
     llmApi: LlmApi,
     historyStore: HistoryStore?,
     promptSource: PromptSource = StdinPromptSource(BufferedReader(InputStreamReader(System.`in`))),

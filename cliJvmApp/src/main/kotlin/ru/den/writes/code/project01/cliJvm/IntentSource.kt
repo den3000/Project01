@@ -24,7 +24,7 @@ internal interface IntentSource {
  * Adapts a [PromptSource] into an [IntentSource]: Prompt → Submit, Command →
  * SlashCommand, Stop → null. [throttle] is applied before each intent except
  * the first — the feed source passes 16s, interactive / TUI pass zero. (This
- * is where the old `delay(16s)` from `SessionLoop.send` now lives.)
+ * is where the per-turn `delay(16s)` feed throttle now lives.)
  */
 internal class PromptSourceIntents(
     private val source: PromptSource,

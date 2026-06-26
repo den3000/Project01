@@ -69,6 +69,29 @@ class HistoryStoreTest {
     }
 
     @Test
+    fun `when one session is deleted - then its rows go and other sessions survive`() = runTest {
+        TestDb().use { harness ->
+            // given — two sessions in one DB
+            val dao = harness.db.messageDao()
+            val alpha = HistoryStore(dao, sessionId = "alpha")
+            alpha.append(Message(Role.USER, "a1"))
+            alpha.append(Message(Role.ASSISTANT, "a2"))
+            HistoryStore(dao, sessionId = "beta").append(Message(Role.USER, "b1"))
+
+            // when — per-session delete (the dao side of `session clear <name>`)
+            val before = dao.countSession("alpha")
+            dao.deleteSessionMessages("alpha")
+            dao.deleteSessionSummaries("alpha")
+            dao.deleteSessionFacts("alpha")
+
+            // then
+            assertEquals(2, before)
+            assertEquals(0, dao.countSession("alpha"))
+            assertEquals(1, dao.countSession("beta"))
+        }
+    }
+
+    @Test
     fun `when load called on fresh instance - then rows persisted earlier are read back`() = runTest {
         TestDb().use { harness ->
             // given
