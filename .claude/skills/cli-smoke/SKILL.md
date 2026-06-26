@@ -1,11 +1,11 @@
 ---
 name: cli-smoke
-description: Offline smoke check for cliJvmApp — runs the JVM unit tests, rebuilds installDist, then verifies the freshly-built binary boots (USAGE on no args) and that `-sessions` works without network. Use when the user says "smoke", "прогони smoke", "проверь cliJvmApp", "smoke check the CLI", "after CLI flag changes", or asks to verify the binary still works without burning LLM tokens. Does NOT make any network calls.
+description: Offline smoke check for cliJvmApp — runs the JVM unit tests, rebuilds installDist, then verifies the freshly-built binary boots (USAGE on no args) and that `-session` works without network. Use when the user says "smoke", "прогони smoke", "проверь cliJvmApp", "smoke check the CLI", "after CLI flag changes", or asks to verify the binary still works without burning LLM tokens. Does NOT make any network calls.
 ---
 
 # CLI Smoke (cliJvmApp)
 
-Быстрая offline-проверка, что `cliJvmApp` собирается и поднимается. Без сети, без LLM-вызовов, без расхода токенов. Гонять после правки `SessionLoop`/`CliArgs`/`*Api`/стратегий и **всегда** после правки CLI-флагов (иначе старый бинарь не знает новых — типовая грабля из CLAUDE.md).
+Быстрая offline-проверка, что `cliJvmApp` собирается и поднимается. Без сети, без LLM-вызовов, без расхода токенов. Гонять после правки `clicontrols`/`command`/`SessionViewModel`/`TurnEngine`/`*Api`/стратегий и **всегда** после правки CLI-флагов (иначе старый бинарь не знает новых — типовая грабля из CLAUDE.md).
 
 ## Шаги
 
@@ -31,13 +31,13 @@ description: Offline smoke check for cliJvmApp — runs the JVM unit tests, rebu
 
 4. **Smoke-2: список сессий** (читает БД, в сеть не лезет):
    ```
-   ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -sessions
+   ./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -session
    ```
    Ожидается: либо список session id, либо пустой вывод / "no sessions" — без exception. Stack trace → стоп.
 
 ## Итог
 
-Один-два абзаца: что прошло, что упало, и одна-две строки незаэкспоженного релевантного вывода. Если всё зелёное — короткое «smoke passed: tests + installDist + USAGE + -sessions». Не вываливать всю простыню логов.
+Один-два абзаца: что прошло, что упало, и одна-две строки незаэкспоженного релевантного вывода. Если всё зелёное — короткое «smoke passed: tests + installDist + USAGE + -session». Не вываливать всю простыню логов.
 
 ## Чего не делать
 

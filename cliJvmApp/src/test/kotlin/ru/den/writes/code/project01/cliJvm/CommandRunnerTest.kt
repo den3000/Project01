@@ -18,8 +18,8 @@ import kotlin.test.assertTrue
 
 /**
  * [CommandRunner] returns the status line(s) a `/`-command would print, with
- * the DB / disk side effects applied. The strings are what `SessionLoop` and
- * the view-model both render, so they're pinned directly here.
+ * the DB / disk side effects applied. The strings are what the view-model
+ * renders as notices, so they're pinned directly here.
  */
 class CommandRunnerTest {
 

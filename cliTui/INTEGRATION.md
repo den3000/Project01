@@ -123,7 +123,7 @@ plain-фолбэк): к чему пришли в песочнице, как эт
   закрывает пикер).
 
 ## Гейтинг и границы
-- **`-tui` — opt-in, gated на TTY.** Флаг на `CliArgs.Chat` (дефолт false), reject с
+- **`-tui` — opt-in, gated на TTY.** Флаг на `RunChat` (дефолт false), reject с
   `-oneshot`. В `main.kt`: TUI-вид только при `chat.tui && System.console() != null`,
   иначе plain-вид над тем же VM. feed / oneshot / non-TTY (пайп, IDE, CI) — **всегда
   plain**.
@@ -156,7 +156,7 @@ plain-фолбэк): к чему пришли в песочнице, как эт
   `Agent`).
 - `TuiView.kt` + `TuiChat.kt` (новые) — Kotter+Mordant рендер `UiState` (форма
   песочного `runTuiChat`): мост `StateFlow`→`liveVar`, ввод→интенты.
-- `CliArgs.kt` — флаг `-tui` (+reject с `-oneshot`); `main.kt` — собрать VM и выбрать
+- `clicontrols`/`command` — флаг `-tui` (+reject с `-oneshot`); `main.kt` — собрать VM и выбрать
   вид (TUI при `tui && TTY`, иначе plain).
 - `cliJvmApp/build.gradle.kts` — `implementation(libs.kotter)` + `libs.mordant`
   (записи каталога уже на месте).

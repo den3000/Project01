@@ -36,8 +36,8 @@ import kotlin.test.assertEquals
 /**
  * The byte-for-byte payoff: drives the production stack (SessionViewModel +
  * PlainView) over the core scenarios and pins the exact stdout / stderr. This
- * is the characterization safety net for "PlainView reproduces the previous
- * SessionLoop output" — the split a user relies on when redirecting a transcript.
+ * is the characterization safety net for the stdout / stderr split a user
+ * relies on when redirecting a transcript.
  */
 class PlainViewGoldenTest {
 

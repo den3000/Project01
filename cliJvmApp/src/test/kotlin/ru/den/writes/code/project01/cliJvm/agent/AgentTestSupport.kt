@@ -71,8 +71,8 @@ internal fun stdinSource(script: String): StdinPromptSource =
 
 /**
  * Run a session through the production MVI stack (TurnEngine + SessionViewModel
- * + PlainView) — the test-side equivalent of the old `SessionLoop(...).run()`.
- * Same parameter shape, so migrating a test is a mechanical rename.
+ * + PlainView) in one call — the entry a test uses to drive a whole session
+ * offline and assert on its PlainView output.
  */
 internal suspend fun runSessionForTest(
     cliArgs: CliCommand.RunPrompt,

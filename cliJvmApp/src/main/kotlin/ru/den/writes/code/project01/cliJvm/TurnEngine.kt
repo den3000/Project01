@@ -24,7 +24,7 @@ import kotlin.time.measureTimedValue
  * `println`, no `System.err`, no feed throttle. A view renders the result;
  * the view-model orchestrates the loop around it.
  *
- * This is [SessionLoop.send] with the printing, the `/reuse` cache hook and
+ * This is the per-turn `send` with the printing, the `/reuse` cache hook and
  * the `delay(16s)` removed (the throttle belongs on the feed intent source).
  * Persistence and the FSM write stay here — they aren't stdout/stderr I/O.
  */
@@ -39,7 +39,7 @@ internal class TurnEngine(
      * Per-stage invariant judges: each owns a [TaskBinding] span and audits the
      * reply of any turn whose active task stage falls in it. Empty (the
      * default) = no judging — byte-identical to before. Needs per-stage agents
-     * plus an active task to route on (enforced at parse time, see [CliArgs]).
+     * plus an active task to route on (enforced at parse time, see `ControlsToCommand`).
      */
     private val routedJudges: List<RoutedJudge> = emptyList(),
     /**
@@ -151,7 +151,7 @@ internal class TurnEngine(
      * Apply the model's [proposed] stage move to the active task, returning
      * what happened (for a view to render). Honoured only when a task is
      * active, not paused, and the move is legal per [TaskStateMachine].
-     * Mirrors `SessionLoop.maybeAdvanceTaskStage`, minus the printing.
+     * Rendering the outcome is the view's job — this stays pure.
      */
     private fun advanceTaskStage(proposed: TaskStage?): StageAdvance {
         val mem = memory ?: return StageAdvance.None
