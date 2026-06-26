@@ -44,7 +44,7 @@ class CliControlsParserTest {
     @Test
     fun `when the same control is given as flag and as command - then it parses identically`() {
         // given — one grammar, two prefixes → the same parsed control
-        val expected = topParsedControl(PROFILE, FLAG, "work")
+        val expected = top(PROFILE, FLAG, "work")
 
         // when - then
         assertEquals(expected, ok("-profile work", FLAG))
@@ -57,7 +57,7 @@ class CliControlsParserTest {
         val actual = ok("/profile", CMD)
 
         // then
-        assertEquals(topParsedControl(PROFILE, CMD), actual)
+        assertEquals(top(PROFILE, CMD), actual)
     }
     //endregion
 
@@ -66,14 +66,14 @@ class CliControlsParserTest {
     @Test
     fun `when show or clear is used - then it parses as a sub with an optional name`() {
         // when - then
-        assertEquals(topParsedControl(PROFILE, CMD, subs = listOf(subParsedControl(PROFILE, SHOW))), ok("/profile show", CMD))
-        assertEquals(topParsedControl(PROFILE, CMD, subs = listOf(subParsedControl(PROFILE, CLEAR, "work"))), ok("/profile clear work", CMD))
+        assertEquals(top(PROFILE, CMD, subs = listOf(sub(PROFILE, SHOW))), ok("/profile show", CMD))
+        assertEquals(top(PROFILE, CMD, subs = listOf(sub(PROFILE, CLEAR, "work"))), ok("/profile clear work", CMD))
     }
 
     @Test
     fun `when a profile section is edited - then it nests name then section then text`() {
         // given — name is the value, section is a nested sub carrying the bullet text
-        val expected = topParsedControl(PROFILE, CMD, "work", listOf(subParsedControl(PROFILE, STYLE, "terse and short")))
+        val expected = top(PROFILE, CMD, "work", listOf(sub(PROFILE, STYLE, "terse and short")))
 
         // when - then
         assertEquals(expected, ok("/profile work style \"terse and short\"", CMD))
@@ -82,22 +82,22 @@ class CliControlsParserTest {
     @Test
     fun `when a rule is added by text - then the text is the value (not a select)`() {
         // when - then
-        assertEquals(topParsedControl(RULE, CMD, "always kotlin"), ok("/rule \"always kotlin\"", CMD))
-        assertEquals(topParsedControl(RULE, CMD, subs = listOf(subParsedControl(RULE, CLEAR, "003"))), ok("/rule clear 003", CMD))
+        assertEquals(top(RULE, CMD, "always kotlin"), ok("/rule \"always kotlin\"", CMD))
+        assertEquals(top(RULE, CMD, subs = listOf(sub(RULE, CLEAR, "003"))), ok("/rule clear 003", CMD))
     }
 
     @Test
     fun `when a task op is used - then it nests under the task id`() {
         // when - then
-        assertEquals(topParsedControl(TASK, CMD, "auth", listOf(subParsedControl(TASK, PAUSE))), ok("/task auth pause", CMD))
-        assertEquals(topParsedControl(TASK, CMD, "auth", listOf(subParsedControl(TASK, NOTE, "did x"))), ok("/task auth note \"did x\"", CMD))
+        assertEquals(top(TASK, CMD, "auth", listOf(sub(TASK, PAUSE))), ok("/task auth pause", CMD))
+        assertEquals(top(TASK, CMD, "auth", listOf(sub(TASK, NOTE, "did x"))), ok("/task auth note \"did x\"", CMD))
     }
 
     @Test
     fun `when a branch is shown or switched - then it nests as a sub`() {
         // when - then — show is the current-branch info (bare), switch carries the target name
-        assertEquals(topParsedControl(BRANCH, CMD, subs = listOf(subParsedControl(BRANCH, SHOW))), ok("/branch show", CMD))
-        assertEquals(topParsedControl(BRANCH, CMD, subs = listOf(subParsedControl(BRANCH, SWITCH, "exp"))), ok("/branch switch exp", CMD))
+        assertEquals(top(BRANCH, CMD, subs = listOf(sub(BRANCH, SHOW))), ok("/branch show", CMD))
+        assertEquals(top(BRANCH, CMD, subs = listOf(sub(BRANCH, SWITCH, "exp"))), ok("/branch switch exp", CMD))
     }
     //endregion
 
@@ -106,14 +106,14 @@ class CliControlsParserTest {
     @Test
     fun `when an agent is configured - then its options parse as a flat list of subs`() {
         // given
-        val expected = topParsedControl(
+        val expected = top(
             AGENT, FLAG, "main",
             listOf(
-                subParsedControl(AGENT, PROVIDER, "gemini"),
-                subParsedControl(AGENT, MODEL, "gemini-2.5-pro"),
-                subParsedControl(AGENT, PROFILE, "coder"),
-                subParsedControl(AGENT, MODE, "system"),
-                subParsedControl(AGENT, STAGES, "execution..done"),
+                sub(AGENT, PROVIDER, "gemini"),
+                sub(AGENT, MODEL, "gemini-2.5-pro"),
+                sub(AGENT, PROFILE, "coder"),
+                sub(AGENT, MODE, "system"),
+                sub(AGENT, STAGES, "execution..done"),
             ),
         )
 
@@ -124,11 +124,11 @@ class CliControlsParserTest {
     @Test
     fun `when an agent is a judge - then the judge flag sub has no value`() {
         // given — judge is a bare sub (no value)
-        val expected = topParsedControl(
+        val expected = top(
             AGENT, FLAG, "checker",
             listOf(
-                subParsedControl(AGENT, JUDGE),
-                subParsedControl(AGENT, STAGES, "execution..done"),
+                sub(AGENT, JUDGE),
+                sub(AGENT, STAGES, "execution..done"),
             ),
         )
 
@@ -139,7 +139,7 @@ class CliControlsParserTest {
     @Test
     fun `when a feed file is split by chunk - then chunkChars nests under feedFile`() {
         // given
-        val expected = topParsedControl(FEED_FILE, FLAG, "doc.txt", listOf(subParsedControl(FEED_FILE, CHUNK_CHARS, "3000")))
+        val expected = top(FEED_FILE, FLAG, "doc.txt", listOf(sub(FEED_FILE, CHUNK_CHARS, "3000")))
 
         // when - then
         assertEquals(expected, ok("-feedFile doc.txt chunkChars 3000", FLAG))
@@ -151,8 +151,8 @@ class CliControlsParserTest {
     @Test
     fun `when a session name is given - then it is allowed at startup but not in-session`() {
         // when - then — select only at startup; in-session the bare form lists
-        assertEquals(topParsedControl(SESSION, FLAG, "demo"), ok("-session demo", FLAG))
-        assertEquals(topParsedControl(SESSION, CMD), ok("/session", CMD))
+        assertEquals(top(SESSION, FLAG, "demo"), ok("-session demo", FLAG))
+        assertEquals(top(SESSION, CMD), ok("/session", CMD))
         assertEquals(ParseError.ValueNotAllowedHere(SESSION, CMD), err("/session demo", CMD))
     }
 
@@ -161,7 +161,7 @@ class CliControlsParserTest {
         // when - then
         assertEquals(ParseError.WrongSurface("reuse", FLAG), err("-reuse", FLAG))
         assertEquals(ParseError.WrongSurface("branch", FLAG), err("-branch exp", FLAG))
-        assertEquals(topParsedControl(BRANCH, CMD, "exp"), ok("/branch exp", CMD))
+        assertEquals(top(BRANCH, CMD, "exp"), ok("/branch exp", CMD))
     }
 
     @Test
@@ -176,8 +176,8 @@ class CliControlsParserTest {
     @Test
     fun `when memory is shown - then it parses on both fronts`() {
         // when - then — show the active layer (startup flag and in-session command)
-        assertEquals(topParsedControl(MEMORY, FLAG), ok("-memory", FLAG))
-        assertEquals(topParsedControl(MEMORY, CMD), ok("/memory", CMD))
+        assertEquals(top(MEMORY, FLAG), ok("-memory", FLAG))
+        assertEquals(top(MEMORY, CMD), ok("/memory", CMD))
     }
     //endregion
 
@@ -208,20 +208,19 @@ class CliControlsParserTest {
     @Test
     fun `when inflate is used - then it works on both fronts`() {
         // when - then
-        assertEquals(topParsedControl(INFLATE, FLAG, "5"), ok("-inflate 5", FLAG))
-        assertEquals(topParsedControl(INFLATE, CMD, "5"), ok("/inflate 5", CMD))
+        assertEquals(top(INFLATE, FLAG, "5"), ok("-inflate 5", FLAG))
+        assertEquals(top(INFLATE, CMD, "5"), ok("/inflate 5", CMD))
     }
 
     @Test
     fun `when an mcp server is given - then both fronts keep the quoted command as one value`() {
         // when - then
-        assertEquals(topParsedControl(MCP_SERVER, FLAG, "mcpLab --serve"), ok("-mcpServer \"mcpLab --serve\"", FLAG))
-        assertEquals(topParsedControl(MCP_SERVER, CMD, "mcpLab --serve"), ok("/mcpServer \"mcpLab --serve\"", CMD))
+        assertEquals(top(MCP_SERVER, FLAG, "mcpLab --serve"), ok("-mcpServer \"mcpLab --serve\"", FLAG))
+        assertEquals(top(MCP_SERVER, CMD, "mcpLab --serve"), ok("/mcpServer \"mcpLab --serve\"", CMD))
     }
     //endregion
 
     //region helpers
-
     private fun ok(line: String, surface: Surface): ParsedControl {
         val r = parser.parse(line, surface)
         assertTrue(r is ParseResult.Ok, "expected Ok for '$line', got $r")
@@ -233,19 +232,5 @@ class CliControlsParserTest {
         assertTrue(r is ParseResult.Err, "expected Err for '$line', got $r")
         return (r as ParseResult.Err).error
     }
-
-    private fun topParsedControl(
-        arg: CliControlsArg,
-        surface: Surface,
-        value: String? = null,
-        subs: List<ParsedControl> = emptyList(),
-    ): ParsedControl = ParsedControl(requireNotNull(CliControls.topLevel(arg, surface)), value, subs)
-
-    private fun subParsedControl(
-        parent: CliControlsArg,
-        arg: CliControlsArg,
-        value: String? = null,
-        subs: List<ParsedControl> = emptyList(),
-    ): ParsedControl = ParsedControl(requireNotNull(CliControls.subOf(listOf(parent), arg.title)), value, subs)
     //endregion
 }

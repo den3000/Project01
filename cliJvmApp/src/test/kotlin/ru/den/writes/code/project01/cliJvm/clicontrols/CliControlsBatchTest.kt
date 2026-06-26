@@ -31,8 +31,8 @@ class CliControlsBatchTest {
         // then
         val expected = BatchResult(
             controls = listOf(
-                topParsedControl(PROMPT, FLAG, "hi"),
-                topParsedControl(STRATEGY, FLAG, "window", listOf(subParsedControl(STRATEGY, KEEP_LAST, "8"))),
+                top(PROMPT, FLAG, "hi"),
+                top(STRATEGY, FLAG, "window", listOf(sub(STRATEGY, KEEP_LAST, "8"))),
             ),
             errors = emptyList(),
         )
@@ -48,7 +48,7 @@ class CliControlsBatchTest {
         val actual = parser.parseArgv(args)
 
         // then
-        assertEquals(BatchResult(listOf(topParsedControl(PROMPT, FLAG, "do x and y")), emptyList()), actual)
+        assertEquals(BatchResult(listOf(top(PROMPT, FLAG, "do x and y")), emptyList()), actual)
     }
     //endregion
 
@@ -63,7 +63,7 @@ class CliControlsBatchTest {
         val actual = parser.parseArgv(args)
 
         // then
-        val expected = BatchResult(listOf(topParsedControl(PROMPT, FLAG, "-v")), emptyList())
+        val expected = BatchResult(listOf(top(PROMPT, FLAG, "-v")), emptyList())
         assertEquals(expected, actual)
     }
 
@@ -107,18 +107,4 @@ class CliControlsBatchTest {
         assertTrue(dups.isEmpty(), "duplicate top-level args: ${dups.keys}")
     }
     //endregion
-
-    private fun topParsedControl(
-        arg: CliControlsArg,
-        surface: Surface,
-        value: String? = null,
-        subs: List<ParsedControl> = emptyList(),
-    ): ParsedControl = ParsedControl(requireNotNull(CliControls.topLevel(arg, surface)), value, subs)
-
-    private fun subParsedControl(
-        parent: CliControlsArg,
-        arg: CliControlsArg,
-        value: String? = null,
-        subs: List<ParsedControl> = emptyList(),
-    ): ParsedControl = ParsedControl(requireNotNull(CliControls.subOf(listOf(parent), arg.title)), value, subs)
 }
