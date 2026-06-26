@@ -14,8 +14,8 @@ private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
  * Executes a REPL branch- / memory-management command and RETURNS the status
  * line(s) instead of printing them. The DB work (and disk work for memory) is
  * suspend / blocking and lives here; the caller decides where the lines go —
- * `SessionLoop` writes them to stderr, the view-model wraps each as a
- * `UiLine.Notice`. Each returned string carries its own `[tag]` prefix and is
+ * [SessionViewModel] wraps each as a `UiLine.Notice`, which the plain renderer
+ * prints to stderr. Each returned string carries its own `[tag]` prefix and is
  * printed verbatim (one `println` each), so a multi-line entry stays a single
  * element with embedded newlines.
  *

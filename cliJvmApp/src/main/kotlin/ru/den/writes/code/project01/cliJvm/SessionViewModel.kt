@@ -18,8 +18,8 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
  * [IntentSource] from hydration through the final summary. Views observe
  * [state] and feed intents through the source — they aren't called back.
  *
- * This is the orchestration lifted out of `SessionLoop.run` / `drive`; the
- * per-turn engine is [TurnEngine] and command execution is [CommandRunner].
+ * This owns the conversation-loop orchestration; the per-turn engine is
+ * [TurnEngine] and command execution is [CommandRunner].
  * The view-model knows each turn's outcome from [TurnResult], so the old
  * `observeReply` / `notifyTurnFailed` source hooks are gone — `/reuse` reads
  * [lastReply], and feed continuation keys off the source's own `terminated`.

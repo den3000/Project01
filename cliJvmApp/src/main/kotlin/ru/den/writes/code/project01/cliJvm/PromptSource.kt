@@ -8,7 +8,7 @@ import java.io.Reader
 
 /**
  * The outcome of [PromptSource.nextPrompt]: a user prompt to send, a REPL
- * branch-management command for [SessionLoop] to execute, or a signal to stop the
+ * branch-management command for [CommandRunner] to execute, or a signal to stop the
  * loop (REPL `/quit` / `/exit`, file exhausted, or an aborted feed).
  */
 internal sealed interface PromptResult {
@@ -23,7 +23,7 @@ internal sealed interface PromptResult {
 /**
  * A branch-management or memory-management command typed at the REPL.
  * [StdinPromptSource] only classifies the line into one of these;
- * [SessionLoop] executes the (suspend) DB/disk work, so the source stays pure
+ * [CommandRunner] executes the (suspend) DB/disk work, so the source stays pure
  * and synchronous.
  */
 internal sealed interface BranchCommand {
@@ -80,7 +80,7 @@ internal sealed interface BranchCommand {
 }
 
 /**
- * What drives the next user turn at each loop iteration of [SessionLoop].
+ * What drives the next user turn at each loop iteration of [SessionViewModel].
  *
  * Production implementations:
  * - [StdinPromptSource] — interactive REPL, reads from stdin, handles
@@ -131,7 +131,7 @@ private const val PROMPT_INDICATOR = "> "
 
 /**
  * Reads prompts from an interactive terminal-like reader. Handles the
- * REPL niceties that used to live in [SessionLoop]:
+ * REPL niceties:
  *
  * - Prints a help banner + the `> ` indicator before each read.
  * - `/quit`, `/exit` or EOF → returns `null` (loop stops).
@@ -219,8 +219,8 @@ internal fun commandCatalog(): List<CommandEntry> = listOf(
  * generous chunk size and the conversation will accumulate context
  * until the model's window can't take any more — at which point the
  * provider returns an error, Agent prints `[error]` and the loop
- * stops on the next `null` from this source (because [SessionLoop] aborts
- * the feed loop on a failed turn).
+ * stops on the next `null` from this source (because a failed turn aborts
+ * the feed source).
  *
  * The caller owns the [reader] lifecycle — wrap construction in a
  * `reader.use { ... }` block at the call site.
