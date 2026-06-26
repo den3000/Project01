@@ -184,8 +184,11 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         controls.last(SESSION)?.let { session ->
             if (session.value == null && session.subs.isEmpty()) return CliCommand.ListSessions
             session.sub(CLEAR)?.let { clear ->
-                val name = clear.value ?: session.value
-                return name?.let { CliCommand.CleanSession(it) } ?: CliCommand.CleanHistory
+                return when {
+                    clear.value != null -> CliCommand.CleanSession(clear.value)
+                    session.value == null -> CliCommand.CleanHistory
+                    else -> gap("session <name> clear")   // wrong order: use `session clear <name>`
+                }
             }
             gap("session ${session.subs.firstOrNull()?.arg?.title ?: session.value}")
         }
@@ -200,7 +203,13 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         val name = p.value
         // A section keyword as a sub (`profile [<name>] <section> [<text>]`); value absent = clear.
         val section = SECTIONS.firstNotNullOfOrNull { arg -> p.sub(arg)?.let { it.value to section(arg) } }
-        p.sub(SHOW)?.let { return (it.value ?: name)?.let(MemoryAction::ShowProfile) ?: gap("profile show") }
+        p.sub(SHOW)?.let {
+            return when {
+                it.value != null -> MemoryAction.ShowProfile(it.value)
+                name == null -> gap("profile show")   // no show-all at startup
+                else -> gap("profile <name> show")    // wrong order: use `profile show <name>`
+            }
+        }
         if (section != null) {
             val (text, sec) = section
             return when {
@@ -210,19 +219,36 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
                 else -> MemoryAction.ClearNamedProfileSection(name, sec)
             }
         }
-        // clear target = the clear-sub's name, else the entity value (both orders); bare = all.
-        p.sub(CLEAR)?.let { return (it.value ?: name)?.let(MemoryAction::ClearNamedProfile) ?: MemoryAction.ClearAllProfiles }
+        // clear target = the clear-sub's value (verb-then-name); bare = all.
+        p.sub(CLEAR)?.let {
+            return when {
+                it.value != null -> MemoryAction.ClearNamedProfile(it.value)
+                name == null -> MemoryAction.ClearAllProfiles
+                else -> gap("profile <name> clear")   // wrong order: use `profile clear <name>`
+            }
+        }
         return name?.let(MemoryAction::TouchProfile) ?: MemoryAction.ListProfiles
     }
 
-    private fun ruleAction(r: ParsedControl): MemoryAction = when {
-        r.sub(CLEAR) != null -> (r.sub(CLEAR)!!.value ?: r.value)?.let(MemoryAction::RemoveRule) ?: MemoryAction.ClearRules
-        r.value != null -> MemoryAction.AddRule(r.value)
-        else -> gap("rule")
+    private fun ruleAction(r: ParsedControl): MemoryAction {
+        r.sub(CLEAR)?.let {
+            return when {
+                it.value != null -> MemoryAction.RemoveRule(it.value)
+                r.value == null -> MemoryAction.ClearRules
+                else -> gap("rule clear")             // wrong order: use `rule clear <id>`
+            }
+        }
+        return r.value?.let(MemoryAction::AddRule) ?: gap("rule")
     }
 
     private fun taskAction(t: ParsedControl): MemoryAction {
-        t.sub(CLEAR)?.let { return (it.value ?: t.value)?.let(MemoryAction::DeleteTask) ?: MemoryAction.ClearTasks }
+        t.sub(CLEAR)?.let {
+            return when {
+                it.value != null -> MemoryAction.DeleteTask(it.value)
+                t.value == null -> MemoryAction.ClearTasks
+                else -> gap("task clear")             // wrong order: use `task clear <id>`
+            }
+        }
         val id = t.value ?: gap("task")
         return when {
             t.sub(PAUSE) != null -> MemoryAction.PauseTask(id)

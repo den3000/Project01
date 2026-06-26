@@ -19,7 +19,6 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.KEEP_LAST
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MAX_TOKENS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY_MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
@@ -134,7 +133,7 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     add(top(EXIT, setOf(CMD), usage = "leave the session"))
     add(top(HELP, setOf(CMD), usage = "open the command palette"))
     add(top(MEMORY, setOf(FLAG, CMD), excludes = setOf(ONESHOT), usage = "show the active memory layer (mode + profile + rules + task)"))
-    add(top(MEMORY_MODE, setOf(CMD), value = req(ValueKind.OneOf(setOf("preamble", "system"))), usage = "flip the memory-injection mode"))
+    // memory-injection mode is flipped via `agent mode <preamble|system>` (agent sub), not a top-level control.
 
     // ---- entities (auto CRUD + extras) ----
     addAll(entity(SESSION, setOf(FLAG, CMD), selectSurfaces = setOf(FLAG), topExcludes = setOf(ONESHOT)))  // select only at startup

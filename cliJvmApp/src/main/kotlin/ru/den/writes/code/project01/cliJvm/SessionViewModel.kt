@@ -162,7 +162,7 @@ internal class SessionViewModel(
             options == null -> appendState(
                 when (kind) {
                     PickerKind.Branch -> "[branch] branch commands need a persisted session"
-                    else -> "[memory] memory commands need -memory-mode <preamble|system> at startup"
+                    else -> "[memory] memory commands need a memory mode — start with -agent <name> mode <preamble|system>"
                 }
             )
             options.isEmpty() -> appendState(

@@ -31,8 +31,8 @@ class ControlsToBranchCommandTest {
     fun `when a memory command is typed - then it shows the layer or flips the mode`() {
         // when - then
         assertEquals(BranchCommand.ShowMemory, cmd("/memory"))
-        assertEquals(BranchCommand.SetMemoryMode(MemoryMode.SYSTEM), cmd("/memory-mode system"))
-        assertEquals(BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE), cmd("/memory-mode preamble"))
+        assertEquals(BranchCommand.SetMemoryMode(MemoryMode.SYSTEM), cmd("/agent mode system"))
+        assertEquals(BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE), cmd("/agent mode preamble"))
     }
 
     @Test
@@ -54,11 +54,11 @@ class ControlsToBranchCommandTest {
     }
 
     @Test
-    fun `when a profile is shown - then either order shows one and bare lists`() {
-        // when - then — name from the show-sub OR the entity value (both orders); bare = list
+    fun `when a profile is shown - then verb-then-name shows one, bare lists, wrong order rejected`() {
+        // when - then — name follows the verb; `<name> show` is not a command (→ null/prompt)
         assertEquals(BranchCommand.ShowProfile("work"), cmd("/profile show work"))
-        assertEquals(BranchCommand.ShowProfile("work"), cmd("/profile work show"))
         assertEquals(BranchCommand.ListProfiles, cmd("/profile show"))
+        assertNull(cmd("/profile work show"))
     }
 
     @Test
@@ -85,7 +85,7 @@ class ControlsToBranchCommandTest {
         // when - then — plain text, unknown control, bad value, and a valid-but-not-in-session control
         assertNull(cmd("hello there"))
         assertNull(cmd("/nope"))
-        assertNull(cmd("/memory-mode loud"))
+        assertNull(cmd("/agent mode loud"))
         assertNull(cmd("/session"))
     }
 }

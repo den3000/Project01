@@ -9,7 +9,6 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY_MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
@@ -162,7 +161,6 @@ class CliControlsParserTest {
         // when - then
         assertEquals(ParseError.WrongSurface("reuse", FLAG), err("-reuse", FLAG))
         assertEquals(ParseError.WrongSurface("branch", FLAG), err("-branch exp", FLAG))
-        assertEquals(ParseError.WrongSurface("memory-mode", FLAG), err("-memory-mode", FLAG))
         assertEquals(topParsedControl(BRANCH, CMD, "exp"), ok("/branch exp", CMD))
     }
 
@@ -176,11 +174,10 @@ class CliControlsParserTest {
     //region in-session config commands
 
     @Test
-    fun `when memory controls are used - then memory is both fronts and memory-mode is command-only`() {
-        // when - then — show the layer (both fronts); flip the injection mode (in-session)
+    fun `when memory is shown - then it parses on both fronts`() {
+        // when - then — show the active layer (startup flag and in-session command)
         assertEquals(topParsedControl(MEMORY, FLAG), ok("-memory", FLAG))
         assertEquals(topParsedControl(MEMORY, CMD), ok("/memory", CMD))
-        assertEquals(topParsedControl(MEMORY_MODE, CMD, "system"), ok("/memory-mode system", CMD))
     }
     //endregion
 
@@ -197,7 +194,7 @@ class CliControlsParserTest {
         // when - then
         assertEquals(ParseError.MissingValue(PROMPT), err("-prompt", FLAG))
         assertEquals(ParseError.MissingValue(NOTE), err("/task auth note", CMD))
-        assertEquals(ParseError.MissingValue(MEMORY_MODE), err("/memory-mode", CMD))
+        assertEquals(ParseError.MissingValue(MODE), err("/agent mode", CMD))
     }
 
     @Test
@@ -205,7 +202,7 @@ class CliControlsParserTest {
         // when - then — temperature out of 0..2, and a malformed stage range
         assertEquals(ParseError.BadValue(TEMPERATURE, "9", "a number in 0.0..2.0"), err("-agent x temperature 9", FLAG))
         assertEquals(ParseError.BadValue(STAGES, "foo..bar", "a stage range like clarification..planning"), err("-agent x stages foo..bar", FLAG))
-        assertEquals(ParseError.BadValue(MEMORY_MODE, "loud", "one of: preamble, system"), err("/memory-mode loud", CMD))
+        assertEquals(ParseError.BadValue(MODE, "loud", "one of: none, system, preamble"), err("/agent x mode loud", CMD))
     }
 
     @Test

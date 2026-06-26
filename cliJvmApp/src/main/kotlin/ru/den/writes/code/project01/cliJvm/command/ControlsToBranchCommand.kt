@@ -2,13 +2,14 @@ package ru.den.writes.code.project01.cliJvm.command
 
 import ru.den.writes.code.project01.cliJvm.BranchCommand
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FORMAT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY_MODE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
@@ -33,10 +34,15 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
  * control (any parse error) returns null, so the caller sends it to the model as
  * an ordinary prompt — matching the old hand-rolled `parseSlashCommand`.
  *
- * Two deliberate front-specific choices: `profile <name>` *activates* the profile
- * here (in-session select = use), whereas startup touch-creates it; and `task`'s
- * pause/resume/note act on the **active** task (the [BranchCommand]s carry no id,
- * so any id token alongside such a sub is ignored).
+ * Verb-then-name is strict: the name for `show` / `clear` is the verb-sub's value
+ * (`profile show coder`, `profile clear coder`). The reverse order
+ * (`profile coder show`) is not a command — it returns null (→ prompt) rather than
+ * silently listing or, for clear, nuking everything.
+ *
+ * Front-specific choices: `profile <name>` *activates* the profile here
+ * (in-session select = use), whereas startup touch-creates it; `task`'s
+ * pause/resume/note act on the **active** task; and the memory-injection mode is
+ * flipped with `agent mode <preamble|system>` (the agent always exists).
  */
 internal class ControlsToBranchCommand(private val parser: CliControlsParser = CliControlsParser()) {
 
@@ -49,24 +55,30 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
     private fun map(c: ParsedControl): BranchCommand? = when (c.arg) {
         BRANCH -> branch(c)
         MEMORY -> BranchCommand.ShowMemory
-        MEMORY_MODE -> memoryMode(c.value)
+        AGENT -> agentMode(c)
         PROFILE -> profile(c)
         RULE -> rule(c)
         TASK -> task(c)
-        else -> null // session/agent/strategy/inflate/mcp/reuse/exit/help — not in-session commands
+        else -> null // session/strategy/inflate/mcp/reuse/exit/help — not in-session commands
     }
 
-    private fun branch(c: ParsedControl): BranchCommand {
-        c.sub(SHOW)?.let { return BranchCommand.Checkpoint } // `branch show` = current branch + message count
+    private fun branch(c: ParsedControl): BranchCommand? {
+        c.sub(SHOW)?.let { return if (c.value == null) BranchCommand.Checkpoint else null } // `branch show` = current branch + count
         c.sub(SWITCH)?.let { return BranchCommand.Switch(it.value.orEmpty()) }
         return c.value?.let(BranchCommand::Branch) ?: BranchCommand.ListBranches
     }
 
-    private fun profile(c: ParsedControl): BranchCommand {
+    private fun profile(c: ParsedControl): BranchCommand? {
         val name = c.value
         // A section keyword as a sub (`profile [<name>] <section> [<text>]`); value absent = clear.
         val section = SECTIONS.firstNotNullOfOrNull { arg -> c.sub(arg)?.let { it.value to section(arg) } }
-        c.sub(SHOW)?.let { return (it.value ?: name)?.let(BranchCommand::ShowProfile) ?: BranchCommand.ListProfiles }
+        c.sub(SHOW)?.let {
+            return when {
+                it.value != null -> BranchCommand.ShowProfile(it.value)
+                name == null -> BranchCommand.ListProfiles      // bare `profile show` = list
+                else -> null                                    // `profile <name> show` — wrong order
+            }
+        }
         if (section != null) {
             val (text, sec) = section
             return when {
@@ -76,30 +88,48 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
                 else -> BranchCommand.ClearNamedProfileSection(name, sec)
             }
         }
-        // clear target = the clear-sub's name, else the entity value (both orders); bare = all.
-        c.sub(CLEAR)?.let { return (it.value ?: name)?.let(BranchCommand::ClearNamedProfile) ?: BranchCommand.ClearAllProfiles }
+        c.sub(CLEAR)?.let {
+            return when {
+                it.value != null -> BranchCommand.ClearNamedProfile(it.value)
+                name == null -> BranchCommand.ClearAllProfiles  // bare `profile clear` = all
+                else -> null                                    // `profile <name> clear` — wrong order
+            }
+        }
         // In-session select = activate (touch-creates if missing); bare = list.
         return name?.let(BranchCommand::SwitchProfile) ?: BranchCommand.ListProfiles
     }
 
-    private fun rule(c: ParsedControl): BranchCommand {
-        c.sub(CLEAR)?.let { return (it.value ?: c.value)?.let(BranchCommand::RemoveRule) ?: BranchCommand.ClearRules }
+    private fun rule(c: ParsedControl): BranchCommand? {
+        c.sub(CLEAR)?.let {
+            return when {
+                it.value != null -> BranchCommand.RemoveRule(it.value)
+                c.value == null -> BranchCommand.ClearRules     // bare `rule clear` = all
+                else -> null                                    // `rule <text> clear` — wrong order
+            }
+        }
         return BranchCommand.AddRule(c.value.orEmpty())
     }
 
-    private fun task(c: ParsedControl): BranchCommand {
-        // clear deletes one (by id, either order) or all; pause/resume/note act on the active task.
-        c.sub(CLEAR)?.let { return (it.value ?: c.value)?.let(BranchCommand::DeleteTask) ?: BranchCommand.ClearTasks }
+    private fun task(c: ParsedControl): BranchCommand? {
+        c.sub(CLEAR)?.let {
+            return when {
+                it.value != null -> BranchCommand.DeleteTask(it.value)
+                c.value == null -> BranchCommand.ClearTasks     // bare `task clear` = all
+                else -> null                                    // `task <id> clear` — wrong order
+            }
+        }
+        // pause/resume/note act on the active task (no id).
         c.sub(PAUSE)?.let { return BranchCommand.PauseTask }
         c.sub(RESUME)?.let { return BranchCommand.ResumeTask }
         c.sub(NOTE)?.let { return BranchCommand.AppendTaskNote(it.value.orEmpty()) }
         return BranchCommand.SetTask(c.value.orEmpty())
     }
 
-    private fun memoryMode(raw: String?): BranchCommand? = when (raw) {
+    /** `agent mode <preamble|system>` flips the live memory-injection mode. */
+    private fun agentMode(c: ParsedControl): BranchCommand? = when (c.sub(MODE)?.value) {
         "preamble" -> BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE)
         "system" -> BranchCommand.SetMemoryMode(MemoryMode.SYSTEM)
-        else -> null
+        else -> null // `none` can't disable a live provider; other agent subs aren't in-session ops
     }
 
     private fun section(arg: CliControlsArg): ProfileSection = ProfileSection.byKeyword(arg.title)!!

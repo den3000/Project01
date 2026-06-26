@@ -21,6 +21,7 @@ class CliControlsCommandParserGapTest {
             arrayOf("-task", "auth", "note", "did x"),
             arrayOf("-session", "show"),
             arrayOf("-rule"),
+            arrayOf("-profile", "kotlin-senior", "show"),  // wrong order — verb-then-name only
         )
 
         // when - then — one invariant over an extending list (rule §11.E)

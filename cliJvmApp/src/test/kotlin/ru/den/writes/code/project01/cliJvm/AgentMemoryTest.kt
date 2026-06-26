@@ -128,7 +128,7 @@ class AgentMemoryTest {
     }
 
     @Test
-    fun `slash memory-mode flips the next turn's wire shape mid-session`() = runTest {
+    fun `slash agent mode flips the next turn's wire shape mid-session`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 val memStore = MemoryStore(root).apply { saveProfile("Kotlin only") }
@@ -143,14 +143,14 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/memory-mode system\ngo on\n/exit\n"),
+                    promptSource = stdinSource("/agent mode system\ngo on\n/exit\n"),
                     memory = memory,
                 )
 
                 // calls[0] — opening turn was PREAMBLE (USER frame + ASSISTANT ack + prompt)
                 assertEquals(Role.USER, fake.calls[0].messages[0].role)
                 assertEquals(Role.ASSISTANT, fake.calls[0].messages[1].role)
-                // calls[1] — after /memory-mode system, the next turn carries Role.SYSTEM
+                // calls[1] — after /agent mode system, the next turn carries Role.SYSTEM
                 val secondWire = fake.calls[1].messages
                 assertEquals(Role.SYSTEM, secondWire[0].role)
                 assertTrue(secondWire[0].text.startsWith(MemoryLayer.PROFILE_HEADING))
@@ -253,8 +253,8 @@ class AgentMemoryTest {
     }
 
     @Test
-    fun `slash memory-mode with garbage falls through as a normal prompt`() = runTest {
-        // /memory-mode without a valid value isn't a recognised command, so
+    fun `slash agent mode with garbage falls through as a normal prompt`() = runTest {
+        // /agent mode without a valid value isn't a recognised command, so
         // parseBranchCommand returns null and the line travels as a user
         // prompt — the agent sends a second turn and the mode stays put.
         TestDb().use { harness ->
@@ -271,12 +271,12 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/memory-mode shrug\n/exit\n"),
+                    promptSource = stdinSource("/agent mode shrug\n/exit\n"),
                     memory = memory,
                 )
 
                 assertEquals(MemoryMode.PREAMBLE, memory.currentMode())
-                assertEquals(2, fake.calls.size, "garbage /memory-mode landed as a real prompt")
+                assertEquals(2, fake.calls.size, "garbage /agent mode landed as a real prompt")
             }
         }
     }

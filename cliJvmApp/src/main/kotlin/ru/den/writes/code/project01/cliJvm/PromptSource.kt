@@ -156,7 +156,7 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
                     + "Memory: /memory, /profile, /profile <name>, /profile show <name>,\n"
                     + "        /profile [<name>] <section> [\"<text>\"] (omit text to clear; /profile [<name>] clean),\n"
                     + "        /rule \"<text>\", /rule rm <id>, /task <id>, /task note \"<text>\",\n"
-                    + "        /task pause, /task resume, /memory-mode <preamble|system>."
+                    + "        /task pause, /task resume, /agent mode <preamble|system>."
             )
             print(PROMPT_INDICATOR)
             System.out.flush()
@@ -197,7 +197,7 @@ internal fun commandCatalog(): List<CommandEntry> = listOf(
     CommandEntry("/profile", "switch the active named profile", PaletteAction.Pick(PickerKind.Profile)),
     CommandEntry("/task", "set or switch the active task", PaletteAction.Pick(PickerKind.Task)),
     CommandEntry("/branch", "switch the session branch", PaletteAction.Pick(PickerKind.Branch)),
-    CommandEntry("/memory-mode", "switch the memory injection mode", PaletteAction.Pick(PickerKind.MemoryMode)),
+    CommandEntry("/agent mode", "switch the memory injection mode", PaletteAction.Pick(PickerKind.MemoryMode)),
     CommandEntry("/branch show", "show the current branch and message count", PaletteAction.Run(BranchCommand.Checkpoint)),
     CommandEntry("/memory", "show the active memory layer", PaletteAction.Run(BranchCommand.ShowMemory)),
     CommandEntry("/task pause", "pause the active task (hold its stage)", PaletteAction.Run(BranchCommand.PauseTask)),

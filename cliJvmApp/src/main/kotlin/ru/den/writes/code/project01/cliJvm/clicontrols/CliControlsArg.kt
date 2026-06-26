@@ -37,7 +37,6 @@ enum class CliControlsArg(val title: String) {
     EXIT("exit"),
     HELP("help"),
     MEMORY("memory"),
-    MEMORY_MODE("memory-mode"),
 
     // entities
     SESSION("session"),

@@ -83,10 +83,10 @@ class SlashCommandParserTest {
     }
 
     @Test
-    fun `when profile show with a name - then ShowProfile in either order`() {
-        // when - then — name from the show-sub or the entity value
+    fun `when profile show with a name - then ShowProfile (verb-then-name)`() {
+        // when - then — name follows the verb; `/profile work show` (wrong order) is not a command
         assertEquals(BranchCommand.ShowProfile("work"), parseSlashCommand("/profile show work"))
-        assertEquals(BranchCommand.ShowProfile("work"), parseSlashCommand("/profile work show"))
+        assertNull(parseSlashCommand("/profile work show"))
     }
 
     @Test
@@ -96,7 +96,7 @@ class SlashCommandParserTest {
     }
     //endregion
 
-    //region rule + task + memory-mode
+    //region rule + task + agent mode
 
     @Test
     fun `when rule with quoted text - then AddRule`() {
@@ -123,15 +123,15 @@ class SlashCommandParserTest {
     }
 
     @Test
-    fun `when memory-mode system - then SetMemoryMode SYSTEM`() {
+    fun `when agent mode system - then SetMemoryMode SYSTEM`() {
         // when - then
-        assertEquals(BranchCommand.SetMemoryMode(MemoryMode.SYSTEM), parseSlashCommand("/memory-mode system"))
+        assertEquals(BranchCommand.SetMemoryMode(MemoryMode.SYSTEM), parseSlashCommand("/agent mode system"))
     }
 
     @Test
-    fun `when memory-mode has a bad argument - then null (falls through to a prompt)`() {
+    fun `when agent mode has a bad argument - then null (falls through to a prompt)`() {
         // when - then
-        assertNull(parseSlashCommand("/memory-mode garbage"))
+        assertNull(parseSlashCommand("/agent mode garbage"))
     }
     //endregion
 
