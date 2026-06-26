@@ -23,6 +23,7 @@ class CliControlsCommandParserMemoryTest {
             arrayOf("-profile", "clear", "work") to MemoryAction.ClearNamedProfile("work"),
             arrayOf("-profile", "clear") to MemoryAction.ClearAllProfiles,
             arrayOf("-profile", "show", "kotlin-senior") to MemoryAction.ShowProfile("kotlin-senior"),
+            arrayOf("-profile", "kotlin-senior", "show") to MemoryAction.ShowProfile("kotlin-senior"),
             arrayOf("-rule", "always kotlin") to MemoryAction.AddRule("always kotlin"),
             arrayOf("-rule", "clear", "003") to MemoryAction.RemoveRule("003"),
             arrayOf("-rule", "clear") to MemoryAction.ClearRules,

@@ -2,7 +2,6 @@ package ru.den.writes.code.project01.cliJvm.clicontrols
 
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHECK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
@@ -96,9 +95,9 @@ class CliControlsParserTest {
     }
 
     @Test
-    fun `when a branch is switched or checkpointed - then it nests as a sub`() {
-        // when - then — check is bare (old /checkpoint), switch carries the target name
-        assertEquals(topParsedControl(BRANCH, CMD, subs = listOf(subParsedControl(BRANCH, CHECK))), ok("/branch check", CMD))
+    fun `when a branch is shown or switched - then it nests as a sub`() {
+        // when - then — show is the current-branch info (bare), switch carries the target name
+        assertEquals(topParsedControl(BRANCH, CMD, subs = listOf(subParsedControl(BRANCH, SHOW))), ok("/branch show", CMD))
         assertEquals(topParsedControl(BRANCH, CMD, subs = listOf(subParsedControl(BRANCH, SWITCH, "exp"))), ok("/branch switch exp", CMD))
     }
     //endregion

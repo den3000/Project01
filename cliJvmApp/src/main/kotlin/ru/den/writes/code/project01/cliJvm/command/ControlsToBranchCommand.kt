@@ -3,7 +3,6 @@ package ru.den.writes.code.project01.cliJvm.command
 import ru.den.writes.code.project01.cliJvm.BranchCommand
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHECK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
@@ -58,7 +57,7 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
     }
 
     private fun branch(c: ParsedControl): BranchCommand {
-        c.sub(CHECK)?.let { return BranchCommand.Checkpoint }
+        c.sub(SHOW)?.let { return BranchCommand.Checkpoint } // `branch show` = current branch + message count
         c.sub(SWITCH)?.let { return BranchCommand.Switch(it.value.orEmpty()) }
         return c.value?.let(BranchCommand::Branch) ?: BranchCommand.ListBranches
     }
@@ -67,7 +66,7 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
         val name = c.value
         // A section keyword as a sub (`profile [<name>] <section> [<text>]`); value absent = clear.
         val section = SECTIONS.firstNotNullOfOrNull { arg -> c.sub(arg)?.let { it.value to section(arg) } }
-        c.sub(SHOW)?.let { return it.value?.let(BranchCommand::ShowProfile) ?: BranchCommand.ListProfiles }
+        c.sub(SHOW)?.let { return (it.value ?: name)?.let(BranchCommand::ShowProfile) ?: BranchCommand.ListProfiles }
         if (section != null) {
             val (text, sec) = section
             return when {

@@ -200,7 +200,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         val name = p.value
         // A section keyword as a sub (`profile [<name>] <section> [<text>]`); value absent = clear.
         val section = SECTIONS.firstNotNullOfOrNull { arg -> p.sub(arg)?.let { it.value to section(arg) } }
-        p.sub(SHOW)?.let { return it.value?.let(MemoryAction::ShowProfile) ?: gap("profile show") }
+        p.sub(SHOW)?.let { return (it.value ?: name)?.let(MemoryAction::ShowProfile) ?: gap("profile show") }
         if (section != null) {
             val (text, sec) = section
             return when {

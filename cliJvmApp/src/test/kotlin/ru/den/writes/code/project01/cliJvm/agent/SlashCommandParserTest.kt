@@ -38,9 +38,9 @@ class SlashCommandParserTest {
     }
 
     @Test
-    fun `when branch check - then Checkpoint`() {
-        // when - then
-        assertEquals(BranchCommand.Checkpoint, parseSlashCommand("/branch check"))
+    fun `when branch show - then Checkpoint`() {
+        // when - then — `branch show` = current branch + message count
+        assertEquals(BranchCommand.Checkpoint, parseSlashCommand("/branch show"))
     }
     //endregion
 
@@ -83,9 +83,10 @@ class SlashCommandParserTest {
     }
 
     @Test
-    fun `when profile show with a name - then ShowProfile`() {
-        // when - then
+    fun `when profile show with a name - then ShowProfile in either order`() {
+        // when - then — name from the show-sub or the entity value
         assertEquals(BranchCommand.ShowProfile("work"), parseSlashCommand("/profile show work"))
+        assertEquals(BranchCommand.ShowProfile("work"), parseSlashCommand("/profile work show"))
     }
 
     @Test

@@ -152,7 +152,7 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
             println(
                 "Type a new prompt and press Enter.\n"
                     + "Type $QUIT_COMMAND or $EXIT_COMMAND to leave, $REUSE_COMMAND to resend the last reply.\n"
-                    + "Branches: /branch, /branch <name>, /branch switch <name>, /branch check.\n"
+                    + "Branches: /branch, /branch <name>, /branch switch <name>, /branch show.\n"
                     + "Memory: /memory, /profile, /profile <name>, /profile show <name>,\n"
                     + "        /profile [<name>] <section> [\"<text>\"] (omit text to clear; /profile [<name>] clean),\n"
                     + "        /rule \"<text>\", /rule rm <id>, /task <id>, /task note \"<text>\",\n"
@@ -198,7 +198,7 @@ internal fun commandCatalog(): List<CommandEntry> = listOf(
     CommandEntry("/task", "set or switch the active task", PaletteAction.Pick(PickerKind.Task)),
     CommandEntry("/branch", "switch the session branch", PaletteAction.Pick(PickerKind.Branch)),
     CommandEntry("/memory-mode", "switch the memory injection mode", PaletteAction.Pick(PickerKind.MemoryMode)),
-    CommandEntry("/branch check", "show the current branch and message count", PaletteAction.Run(BranchCommand.Checkpoint)),
+    CommandEntry("/branch show", "show the current branch and message count", PaletteAction.Run(BranchCommand.Checkpoint)),
     CommandEntry("/memory", "show the active memory layer", PaletteAction.Run(BranchCommand.ShowMemory)),
     CommandEntry("/task pause", "pause the active task (hold its stage)", PaletteAction.Run(BranchCommand.PauseTask)),
     CommandEntry("/task resume", "resume the active task", PaletteAction.Run(BranchCommand.ResumeTask)),

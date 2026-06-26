@@ -50,7 +50,6 @@ enum class CliControlsArg(val title: String) {
     // shared entity operations
     SHOW("show"),
     CLEAR("clear"),
-    CHECK("check"),
     SWITCH("switch"),
 
     // task operations

@@ -131,7 +131,7 @@ class TuiViewTest {
         // given
         val palette = Overlay.Palette(
             listOf(
-                CommandEntry("/branch check", "show the branch", PaletteAction.Run(BranchCommand.Checkpoint)),
+                CommandEntry("/branch show", "show the branch", PaletteAction.Run(BranchCommand.Checkpoint)),
                 CommandEntry("/rule", "add a rule", PaletteAction.Prefill("/rule ")),
             ),
             cursor = 0,
@@ -139,7 +139,7 @@ class TuiViewTest {
 
         // when - then
         assertEquals(
-            listOf("▶ 1. /branch check — show the branch", "  2. /rule — add a rule"),
+            listOf("▶ 1. /branch show — show the branch", "  2. /rule — add a rule"),
             PaletteTuiView(palette).optionLines(),
         )
     }

@@ -64,7 +64,7 @@ class AgentBranchingTest {
         assertEquals(PromptResult.Command(BranchCommand.Branch("alt")), classify("/branch alt"))
         assertEquals(PromptResult.Command(BranchCommand.Switch("alt")), classify("/branch switch alt"))
         assertEquals(PromptResult.Command(BranchCommand.ListBranches), classify("/branch"))
-        assertEquals(PromptResult.Command(BranchCommand.Checkpoint), classify("/branch check"))
+        assertEquals(PromptResult.Command(BranchCommand.Checkpoint), classify("/branch show"))
         // Non-branch terminators.
         assertEquals(PromptResult.Stop, classify("/exit"))
         // Plain text falls through unchanged.

@@ -24,7 +24,7 @@ class ControlsToBranchCommandTest {
         assertEquals(BranchCommand.ListBranches, cmd("/branch"))
         assertEquals(BranchCommand.Branch("exp"), cmd("/branch exp"))
         assertEquals(BranchCommand.Switch("exp"), cmd("/branch switch exp"))
-        assertEquals(BranchCommand.Checkpoint, cmd("/branch check"))
+        assertEquals(BranchCommand.Checkpoint, cmd("/branch show"))
     }
 
     @Test
@@ -54,9 +54,10 @@ class ControlsToBranchCommandTest {
     }
 
     @Test
-    fun `when a profile is shown - then a name shows one and bare lists`() {
-        // when - then
+    fun `when a profile is shown - then either order shows one and bare lists`() {
+        // when - then — name from the show-sub OR the entity value (both orders); bare = list
         assertEquals(BranchCommand.ShowProfile("work"), cmd("/profile show work"))
+        assertEquals(BranchCommand.ShowProfile("work"), cmd("/profile work show"))
         assertEquals(BranchCommand.ListProfiles, cmd("/profile show"))
     }
 

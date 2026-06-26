@@ -3,7 +3,6 @@ package ru.den.writes.code.project01.cliJvm.clicontrols
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BY_LINE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHECK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
@@ -156,9 +155,8 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     addAll(entity(RULE, setOf(FLAG, CMD), selectValue = ValueKind.Text, topExcludes = setOf(ONESHOT)))
     addAll(
         entity(
-            BRANCH, setOf(CMD),  // command-only
+            BRANCH, setOf(CMD),  // command-only; `branch show` = current branch + count, bare = list
             extras = listOf(
-                sub(CHECK, listOf(BRANCH), usage = "current branch + message count (old /checkpoint)"),
                 sub(SWITCH, listOf(BRANCH), value = req(ValueKind.Name), usage = "switch to an existing branch"),
             ),
         ),
