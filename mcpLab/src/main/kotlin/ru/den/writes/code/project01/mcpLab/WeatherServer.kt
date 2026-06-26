@@ -12,7 +12,12 @@ import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
@@ -23,12 +28,18 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
 /**
- * Runs our own MCP server over stdio, exposing a single tool, `current_weather`,
- * backed by the free Open-Meteo API. stdout is the JSON-RPC channel — every
- * diagnostic goes to stderr so it can't corrupt the protocol stream. Blocks
- * until the client disconnects (stdin closes).
+ * Runs our own MCP server over stdio. Exposes `current_weather` plus the scheduler tools
+ * (`schedule_task` / `list_tasks` / `cancel_task` / `report`), all backed by the free
+ * Open-Meteo API. While a client is connected, a background ticker fires due tasks every
+ * [tickMs] and a reporter logs the aggregated summary every [summaryEveryMs]; both run on
+ * `Dispatchers.IO` and are cancelled on disconnect. stdout is the JSON-RPC channel — every
+ * diagnostic goes to stderr so it can't corrupt the protocol stream. Blocks until the
+ * client disconnects (stdin closes).
  */
-suspend fun runWeatherServer() {
+suspend fun runWeatherServer(
+    tickMs: Long = 5_000,
+    summaryEveryMs: Long = 60_000,
+) {
     val http = HttpClient(Java) {
         install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
     }
@@ -164,6 +175,21 @@ suspend fun runWeatherServer() {
     val session = server.createSession(transport)
     val done = Job()
     session.onClose { done.complete() }
-    done.join()
+
+    // Background scheduler: tick due tasks every tickMs and log the aggregated summary
+    // every summaryEveryMs, both on Dispatchers.IO. They live exactly as long as the
+    // client connection — done.join() unblocks on disconnect, then both are cancelled.
+    coroutineScope {
+        val ticker = launch(Dispatchers.IO) { engine.runLoop(tickMs) }
+        val reporter = launch(Dispatchers.IO) {
+            while (isActive) {
+                delay(summaryEveryMs)
+                System.err.println("[mcpLab] ${engine.summary()}")
+            }
+        }
+        done.join()
+        ticker.cancel()
+        reporter.cancel()
+    }
     http.close()
 }
