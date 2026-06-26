@@ -51,7 +51,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.SUB
  * to the standard `select / list / show / clean` ops; entity-specific extras are
  * added explicitly. This is the "centralization" the redesign is after: grammar,
  * surfaces, value types and cross-constraints live here as data, not as branches
- * spread across `CliArgs.from`.
+ * scattered across hand-rolled parsers.
  */
 internal object CliControls {
 
