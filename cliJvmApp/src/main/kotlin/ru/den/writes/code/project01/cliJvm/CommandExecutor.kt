@@ -527,7 +527,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
         val actions = mutableMapOf<String, ScheduleAction>()
         val engine = SchedulerEngine(
             InMemoryScheduleStore(),
-            CliTaskHandler(actions, toolExecutor),
+            CliTaskHandler(actions, toolExecutor, vm::submitFromScheduler),
             now = { System.currentTimeMillis() },
         )
         val ticker = launch(Dispatchers.IO) {
