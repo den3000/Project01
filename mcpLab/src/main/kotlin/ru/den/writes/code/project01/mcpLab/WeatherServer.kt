@@ -19,6 +19,7 @@ import kotlinx.io.buffered
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
 /**
@@ -32,6 +33,7 @@ suspend fun runWeatherServer() {
         install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
     }
     val weather = OpenMeteoClient(http)
+    val engine = buildWeatherScheduler(defaultScheduleFile(), weather::currentWeather)
 
     val server = Server(
         serverInfo = Implementation(name = "mcpLab-weather", version = "0.1.0"),
@@ -66,7 +68,86 @@ suspend fun runWeatherServer() {
         CallToolResult(content = listOf(TextContent(text)))
     }
 
-    System.err.println("[mcpLab] weather MCP server ready on stdio (tool: current_weather)")
+    server.addTool(
+        name = "schedule_task",
+        description = "Schedule a weather lookup for a city: one-shot ('after_seconds') or " +
+            "periodic ('every_seconds'). Provide exactly one, positive. Survives a restart.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "city",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "City to look up, e.g. \"Paris\".")
+                    },
+                )
+                put(
+                    "after_seconds",
+                    buildJsonObject {
+                        put("type", "integer")
+                        put("description", "Fire once, this many seconds from now.")
+                    },
+                )
+                put(
+                    "every_seconds",
+                    buildJsonObject {
+                        put("type", "integer")
+                        put("description", "Fire repeatedly, every this many seconds.")
+                    },
+                )
+            },
+            required = listOf("city"),
+        ),
+    ) { request ->
+        val city = request.arguments?.get("city")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val after = request.arguments?.get("after_seconds")?.jsonPrimitive?.longOrNull
+        val every = request.arguments?.get("every_seconds")?.jsonPrimitive?.longOrNull
+        val schedule = scheduleFromArgs(after, every)
+        val text = when {
+            city == null -> "Error: the 'city' argument is required."
+            schedule == null -> "Error: provide exactly one positive 'after_seconds' or 'every_seconds'."
+            else -> "Scheduled ${renderTask(engine.add(city, schedule))}"
+        }
+        CallToolResult(content = listOf(TextContent(text)))
+    }
+
+    server.addTool(
+        name = "list_tasks",
+        description = "List all scheduled tasks (active, done, cancelled).",
+        inputSchema = ToolSchema(properties = buildJsonObject {}, required = emptyList()),
+    ) { _ ->
+        CallToolResult(content = listOf(TextContent(renderTasks(engine.list()))))
+    }
+
+    server.addTool(
+        name = "cancel_task",
+        description = "Cancel an active scheduled task by its id.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "id",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Task id from schedule_task / list_tasks.")
+                    },
+                )
+            },
+            required = listOf("id"),
+        ),
+    ) { request ->
+        val id = request.arguments?.get("id")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val text = when {
+            id == null -> "Error: the 'id' argument is required."
+            engine.cancel(id) -> "Cancelled task $id."
+            else -> "Error: no active task with id $id."
+        }
+        CallToolResult(content = listOf(TextContent(text)))
+    }
+
+    System.err.println(
+        "[mcpLab] weather MCP server ready on stdio " +
+            "(tools: current_weather, schedule_task, list_tasks, cancel_task)",
+    )
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),
         System.out.asSink().buffered(),
