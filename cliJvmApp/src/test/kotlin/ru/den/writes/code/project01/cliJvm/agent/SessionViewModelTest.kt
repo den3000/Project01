@@ -1,5 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.agent
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.BranchCommand
 import ru.den.writes.code.project01.cliJvm.command.CliCommand
@@ -36,6 +40,7 @@ import kotlin.test.assertTrue
  * the loop with scripted [IntentSource]s and asserts on [SessionViewModel.state]
  * lines, [SessionViewModel.lastReply] and the Exit effect.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class SessionViewModelTest {
 
     @Test
@@ -341,6 +346,61 @@ class SessionViewModelTest {
     }
     //endregion
 
+    //region scheduler
+
+    @Test
+    fun `when the scheduler posts a notice while idle - then it lands as a Notice line`() = runTest {
+        TestDb().use { harness ->
+            // given — scheduler on; the user source parks after the opening turn
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
+            val atGate = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+
+            // when — run until parked, inject a notice while idle, then release to exit
+            val job = launch { vm.run(gatedSource(atGate, release)) }
+            atGate.await()
+            vm.postNotice("bg report")
+            advanceUntilIdle()
+            release.complete(Unit)
+            job.join()
+
+            // then
+            assertTrue(
+                vm.state.value.lines.any { it is UiLine.Notice && it.text == "bg report" },
+                "lines: ${vm.state.value.lines}",
+            )
+        }
+    }
+
+    @Test
+    fun `when the scheduler submits while idle - then a turn runs through the serialized loop`() = runTest {
+        TestDb().use { harness ->
+            // given — opening reply + a scheduled reply queued on the fake
+            val fake = FakeLlmApi().apply { queueText("opening"); queueText("scheduled") }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
+            val atGate = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+
+            // when — run until parked, inject a scheduled turn while idle, then release to exit
+            val job = launch { vm.run(gatedSource(atGate, release)) }
+            atGate.await()
+            vm.submitFromScheduler("bg-prompt")
+            advanceUntilIdle()
+            release.complete(Unit)
+            job.join()
+
+            // then — the scheduled prompt produced a second assistant reply
+            assertTrue(
+                vm.state.value.lines.any { it is UiLine.Assistant && it.reply == "scheduled" },
+                "lines: ${vm.state.value.lines}",
+            )
+        }
+    }
+    //endregion
+
     //region helpers
 
     private fun newVm(
@@ -349,10 +409,14 @@ class SessionViewModelTest {
         store: HistoryStore?,
         strategy: ContextStrategy = ContextStrategy.FullHistory,
         memory: MemoryProvider? = null,
+        schedulerEnabled: Boolean = false,
     ): SessionViewModel {
         val engine = TurnEngine(chat, api, store, strategy, memory)
         val runner = CommandRunner(store, memory = memory, strategy = strategy)
-        return SessionViewModel(chat, engine, runner, store, memory = memory, strategy = strategy, multiAgent = false)
+        return SessionViewModel(
+            chat, engine, runner, store, memory = memory, strategy = strategy,
+            multiAgent = false, schedulerEnabled = schedulerEnabled,
+        )
     }
 
     /** A memory provider over a throwaway temp dir, pre-seeded with named profiles. */
@@ -374,6 +438,25 @@ class SessionViewModelTest {
     private fun intents(vararg items: UiIntent): IntentSource = object : IntentSource {
         private val queue = ArrayDeque(items.toList())
         override suspend fun next(): UiIntent? = queue.removeFirstOrNull()
+    }
+
+    /**
+     * A source that signals [atGate] once it has parked (opening turn done, loop idle), then
+     * waits for [release] before emitting a single Exit — lets a test inject a scheduler intent
+     * deterministically while the user source is parked.
+     */
+    private fun gatedSource(
+        atGate: CompletableDeferred<Unit>,
+        release: CompletableDeferred<Unit>,
+    ): IntentSource = object : IntentSource {
+        private var first = true
+        override suspend fun next(): UiIntent? {
+            if (!first) return null
+            first = false
+            atGate.complete(Unit)
+            release.await()
+            return UiIntent.Exit
+        }
     }
     //endregion
 }

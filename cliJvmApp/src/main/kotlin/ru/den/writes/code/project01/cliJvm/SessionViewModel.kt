@@ -2,6 +2,7 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -33,7 +34,17 @@ internal class SessionViewModel(
     private val strategy: ContextStrategy,
     /** Mirrors `routedAgents.isNotEmpty()` — drives whether a reply carries an [AgentRef] tag. */
     private val multiAgent: Boolean,
+    /** When true, a scheduler inbox is created and merged into the loop; off → byte-for-byte unchanged. */
+    private val schedulerEnabled: Boolean = false,
 ) {
+    /**
+     * Inbox for background-scheduler intents (agent turns + feed notices), or null when the
+     * scheduler is off. When present, [run] merges it into the serialized loop so injected
+     * intents are handled by the same single state writer; when null, the loop is unchanged.
+     */
+    private val schedulerInbox: Channel<UiIntent>? =
+        if (schedulerEnabled) Channel(Channel.UNLIMITED) else null
+
     val state: StateFlow<UiState>
         field = MutableStateFlow(UiState())
 
@@ -50,21 +61,22 @@ internal class SessionViewModel(
      * transition), then a final summary + Exit. OneShot stops right after the
      * opening turn — no loop, no summary (parity with the old `run`).
      */
-    suspend fun run(primary: IntentSource, followUp: IntentSource? = null) {
+    suspend fun run(primary: IntentSource, followUp: IntentSource? = null): Unit = coroutineScope {
+        val inbox = schedulerInbox
         hydrate()
         if (!runTurn(cliArgs.prompt)) primary.onTurnFailed()
         if (cliArgs is CliCommand.RunOneShot) {
             effects.send(UiEffect.Exit)
-            return
+            return@coroutineScope
         }
         try {
-            drive(primary)
+            drive(if (inbox != null) MergedIntentSource(primary, inbox, this) else primary)
             if (followUp != null) {
                 val label =
                     if (primary.terminated) "[feed aborted — interim summary]" else "[feed done — interim summary]"
                 emitSummary(label, final = false)
                 appendNotice("[continuing in REPL — type /exit or /quit to leave]")
-                drive(followUp)
+                drive(if (inbox != null) MergedIntentSource(followUp, inbox, this) else followUp)
             }
         } finally {
             emitSummary("[session-summary]", final = true)
@@ -88,6 +100,7 @@ internal class SessionViewModel(
                 UiIntent.OverlayUp -> state.update { it.copy(overlay = it.overlay?.moved(-1)) }
                 UiIntent.OverlayDown -> state.update { it.copy(overlay = it.overlay?.moved(+1)) }
                 UiIntent.OverlayCancel -> state.update { it.copy(overlay = null) }
+                is UiIntent.Feed -> appendNotice(intent.text)
             }
         }
     }
@@ -143,6 +156,21 @@ internal class SessionViewModel(
 
     /** A session-state line (resume banner, `/`-command results, picker status) — its own `state │` lane. */
     private fun appendState(text: String) = state.update { it.copy(lines = it.lines + UiLine.State(text)) }
+
+    /** Inject a scheduled agent turn into the serialized loop. No-op when the scheduler is off. */
+    fun submitFromScheduler(prompt: String) {
+        schedulerInbox?.trySend(UiIntent.Submit(prompt))
+    }
+
+    /** Inject a scheduler feed line (a periodic report) into the loop. No-op when the scheduler is off. */
+    fun postNotice(text: String) {
+        schedulerInbox?.trySend(UiIntent.Feed(text))
+    }
+
+    /** Close the scheduler inbox at teardown so a parked merge unblocks. No-op when the scheduler is off. */
+    fun closeSchedulerInbox() {
+        schedulerInbox?.close()
+    }
 
     /**
      * Open a modal picker, populating its options from the live session: named
