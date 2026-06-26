@@ -6,6 +6,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.command.ApiKeys
 import ru.den.writes.code.project01.cliJvm.command.CliControlsCommandParser
+import ru.den.writes.code.project01.cliJvm.command.USAGE
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
 import ru.den.writes.code.project01.cliJvm.db.MIGRATION_2_3
@@ -43,7 +44,7 @@ suspend fun main(args: Array<String>) {
     } catch (e: CliArgsException) {
         System.err.println(e.message)
         if (e is CliArgsException.MissingRequiredArgument) {
-            System.err.println(CliArgs.USAGE)
+            System.err.println(USAGE)
         }
         exitProcess(1)
     }

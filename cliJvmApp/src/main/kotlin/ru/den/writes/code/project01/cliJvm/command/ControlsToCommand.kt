@@ -1,6 +1,5 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.cliJvm.CliArgs
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.StageAgentSpec
@@ -124,7 +123,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
     }
 
     private fun buildProvider(agent: ParsedControl?): ModelProvider =
-        CliArgs.buildModelProvider(
+        buildModelProvider(
             agent?.subValue(PROVIDER) ?: "gemini",
             agent?.subValue(MODEL),
             keys.gemini, keys.openRouter, keys.huggingFace,
@@ -154,8 +153,8 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
     private fun stopSequences(agent: ParsedControl?): List<String>? {
         val raw = agent?.subValue(STOP_SEQUENCE) ?: return null
         val parts = raw.split(Regex("\\s+")).filter { it.isNotBlank() }
-        if (parts.size > CliArgs.MAX_STOP_SEQUENCES) {
-            throw CliArgsException.TooManyValues("-stopSequence", parts.size, CliArgs.MAX_STOP_SEQUENCES)
+        if (parts.size > MAX_STOP_SEQUENCES) {
+            throw CliArgsException.TooManyValues("-stopSequence", parts.size, MAX_STOP_SEQUENCES)
         }
         return parts
     }
