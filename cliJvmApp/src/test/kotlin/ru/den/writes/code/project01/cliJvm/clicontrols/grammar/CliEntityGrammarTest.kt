@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.feature.branches
+package ru.den.writes.code.project01.cliJvm.clicontrols.grammar
 
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
