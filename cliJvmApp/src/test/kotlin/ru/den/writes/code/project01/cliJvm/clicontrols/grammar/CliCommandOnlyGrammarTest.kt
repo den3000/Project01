@@ -42,5 +42,14 @@ class CliCommandOnlyGrammarTest {
         assertMatchParserError("-exit".toArgsList(), ParseError.WrongSurface("exit", FLAG), parser)
         assertMatchParserError("-help".toArgsList(), ParseError.WrongSurface("help", FLAG), parser)
     }
+
+    @Test
+    fun `when an unknown control is typed - then UnknownControl`() {
+        // given
+        val parser = CliControlsParser()
+
+        // then
+        assertMatchParserError(CMD, "/nope", ParseError.UnknownControl("nope"), parser)
+    }
     //endregion
 }

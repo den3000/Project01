@@ -95,6 +95,8 @@ class CliEntityGrammarTest {
 
         assertMatchParserCmd("$cmd switch $arg", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, SWITCH, value = arg))), parser)
         assertMatchParserError(CMD, "$cmd switch", ParseError.MissingValue(SWITCH), parser)
+        // branch is command-only — as a startup flag it is the wrong surface
+        assertMatchParserError("-branch exp".toArgsList(), ParseError.WrongSurface("branch", FLAG), parser)
     }
     //endregion
 
