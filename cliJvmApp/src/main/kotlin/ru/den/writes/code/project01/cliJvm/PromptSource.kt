@@ -32,6 +32,11 @@ internal sealed interface BranchCommand {
     data class Branch(val name: String) : BranchCommand
     data class Switch(val name: String) : BranchCommand
 
+    /** Delete one branch by name — the per-branch twin of `session clear`; never the active one. */
+    data class DeleteBranch(val name: String) : BranchCommand
+    /** Delete every branch except the current one. */
+    data object ClearBranches : BranchCommand
+
     /** Print the active mode + the saved profile/rules/task. */
     data object ShowMemory : BranchCommand
     /** Append [text] to a [section] of the unnamed profile. */

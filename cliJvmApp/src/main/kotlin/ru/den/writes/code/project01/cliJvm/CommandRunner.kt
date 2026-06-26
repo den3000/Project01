@@ -72,6 +72,28 @@ internal class CommandRunner(
                     }
                 }
             }
+            is BranchCommand.DeleteBranch -> withHistoryStore { store ->
+                val name = command.name
+                when {
+                    name == store.branchId ->
+                        add("[branch] can't delete the current branch '$name' — /branch switch <other> first")
+                    name !in store.branches() ->
+                        add("[branch] no such branch '$name' (use /branch to list)")
+                    else -> {
+                        store.deleteBranch(name)
+                        add("[branch] deleted '$name'")
+                    }
+                }
+            }
+            BranchCommand.ClearBranches -> withHistoryStore { store ->
+                val others = store.branches().filter { it != store.branchId }
+                if (others.isEmpty()) {
+                    add("[branch] no other branches to clear (on '${store.branchId}')")
+                } else {
+                    others.forEach { store.deleteBranch(it) }
+                    add("[branch] deleted ${others.size} branch(es) (${others.joinToString(", ")}); kept current '${store.branchId}'")
+                }
+            }
             BranchCommand.ShowMemory -> withMemory { mem ->
                 add("[memory]\n${mem.describe()}")
             }
