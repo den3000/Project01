@@ -11,8 +11,7 @@ import ru.den.writes.code.project01.shared.memory.TaskStage
  *
  * Everything here is an immutable snapshot — in particular [Ok.session] is a
  * copy, never a live [SessionStats] reference. An async TUI renderer must not
- * be able to race the next turn's accumulation through a shared object (see
- * cliTui/INTEGRATION.md, "UiState — снимки").
+ * be able to race the next turn's accumulation through a shared object.
  */
 internal sealed interface TurnResult {
 
