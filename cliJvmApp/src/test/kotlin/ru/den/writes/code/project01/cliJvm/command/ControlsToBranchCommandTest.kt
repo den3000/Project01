@@ -28,6 +28,14 @@ class ControlsToBranchCommandTest {
     }
 
     @Test
+    fun `when a branch is cleared - then verb-then-name deletes one, bare clears all, wrong order rejected`() {
+        // when - then — name follows the verb; bare = all but current; `<name> clear` is not a command
+        assertEquals(BranchCommand.DeleteBranch("exp"), cmd("/branch clear exp"))
+        assertEquals(BranchCommand.ClearBranches, cmd("/branch clear"))
+        assertNull(cmd("/branch exp clear"))
+    }
+
+    @Test
     fun `when a memory command is typed - then it shows the layer or flips the mode`() {
         // when - then
         assertEquals(BranchCommand.ShowMemory, cmd("/memory"))

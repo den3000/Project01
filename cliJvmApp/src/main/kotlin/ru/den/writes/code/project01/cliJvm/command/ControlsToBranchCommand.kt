@@ -65,6 +65,13 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
     private fun branch(c: ParsedControl): BranchCommand? {
         c.sub(SHOW)?.let { return if (c.value == null) BranchCommand.Checkpoint else null } // `branch show` = current branch + count
         c.sub(SWITCH)?.let { return BranchCommand.Switch(it.value.orEmpty()) }
+        c.sub(CLEAR)?.let {
+            return when {
+                it.value != null -> BranchCommand.DeleteBranch(it.value)  // `branch clear <name>`
+                c.value == null -> BranchCommand.ClearBranches            // bare `branch clear` = all but current
+                else -> null                                              // `branch <name> clear` — wrong order
+            }
+        }
         return c.value?.let(BranchCommand::Branch) ?: BranchCommand.ListBranches
     }
 
