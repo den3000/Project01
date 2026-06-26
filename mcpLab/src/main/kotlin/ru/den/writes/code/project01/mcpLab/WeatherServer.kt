@@ -144,9 +144,18 @@ suspend fun runWeatherServer() {
         CallToolResult(content = listOf(TextContent(text)))
     }
 
+    server.addTool(
+        name = "report",
+        description = "Return an aggregated report of the data collected by scheduled tasks so " +
+            "far (count, time span, latest). Reads stored results only — calls no model.",
+        inputSchema = ToolSchema(properties = buildJsonObject {}, required = emptyList()),
+    ) { _ ->
+        CallToolResult(content = listOf(TextContent(engine.summary())))
+    }
+
     System.err.println(
         "[mcpLab] weather MCP server ready on stdio " +
-            "(tools: current_weather, schedule_task, list_tasks, cancel_task)",
+            "(tools: current_weather, schedule_task, list_tasks, cancel_task, report)",
     )
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),
