@@ -241,6 +241,9 @@ internal class CommandRunner(
                 mem.setMode(command.mode)
                 add("[memory] mode → ${command.mode.name.lowercase()}")
             }
+            // Parsed here; in-session add/list/cancel against a live engine arrives with the scheduler wiring.
+            is BranchCommand.Schedule ->
+                add("[schedule] no scheduler running in this session")
         }
     }
 

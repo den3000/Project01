@@ -78,6 +78,33 @@ class CliControlsCommandParserFieldsTest {
         assertEquals("mcpLab --serve", chat.mcpServer)
     }
 
+    @Test
+    fun `when collect and agent tasks are scheduled - then both land as schedule specs`() {
+        // when — collect needs an MCP server; two repeatable -schedule groups
+        val chat = chat(
+            "-prompt", "hi", "-mcpServer", "mcpLab --serve",
+            "-schedule", "collect", "tool", "current_weather", "args", "{\"city\":\"Paris\"}", "every", "30",
+            "-schedule", "agent", "prompt", "daily digest", "after", "60",
+        )
+
+        // then
+        assertEquals(
+            listOf(
+                ScheduleSpec.Collect(tool = "current_weather", args = "{\"city\":\"Paris\"}", seconds = 30, periodic = true),
+                ScheduleSpec.Agent(prompt = "daily digest", seconds = 60, periodic = false),
+            ),
+            chat.schedules,
+        )
+    }
+
+    @Test
+    fun `when a collect task is scheduled without an mcp server - then it requires one`() {
+        // when - then
+        assertFailsWith<CliArgsException> {
+            parser.parse(arrayOf("-prompt", "hi", "-schedule", "collect", "tool", "current_weather", "every", "30"))
+        }
+    }
+
     private fun chat(vararg args: String): CliCommand.RunChat = assertIs<CliCommand.RunChat>(parser.parse(arrayOf(*args)))
 
     private companion object {

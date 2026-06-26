@@ -1,9 +1,11 @@
 package ru.den.writes.code.project01.cliJvm.clicontrols
 
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AFTER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EVERY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
@@ -17,6 +19,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROVIDER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SCHEDULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
@@ -24,6 +27,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SWITCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TEMPERATURE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TOOL
 import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
 import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
 import kotlin.test.Test
@@ -217,6 +221,43 @@ class CliControlsParserTest {
         // when - then
         assertEquals(topParsedControl(MCP_SERVER, FLAG, "mcpLab --serve"), ok("-mcpServer \"mcpLab --serve\"", FLAG))
         assertEquals(topParsedControl(MCP_SERVER, CMD, "mcpLab --serve"), ok("/mcpServer \"mcpLab --serve\"", CMD))
+    }
+    //endregion
+
+    //region scheduling
+
+    @Test
+    fun `when a collect task is scheduled - then kind value plus tool and interval subs (both fronts)`() {
+        // given — collect is the value; tool + every nest as a flat sub bag
+        fun expected(surface: Surface) = topParsedControl(
+            SCHEDULE, surface, "collect",
+            listOf(subParsedControl(SCHEDULE, TOOL, "current_weather"), subParsedControl(SCHEDULE, EVERY, "30")),
+        )
+
+        // when - then
+        assertEquals(expected(FLAG), ok("-schedule collect tool current_weather every 30", FLAG))
+        assertEquals(expected(CMD), ok("/schedule collect tool current_weather every 30", CMD))
+    }
+
+    @Test
+    fun `when an agent task is scheduled - then the prompt and one-shot delay nest as subs`() {
+        // given
+        val expected = topParsedControl(
+            SCHEDULE, FLAG, "agent",
+            listOf(subParsedControl(SCHEDULE, PROMPT, "daily summary"), subParsedControl(SCHEDULE, AFTER, "60")),
+        )
+
+        // when - then
+        assertEquals(expected, ok("-schedule agent prompt \"daily summary\" after 60", FLAG))
+    }
+
+    @Test
+    fun `when a schedule sub is used under the wrong kind - then WrongParentValue`() {
+        // when - then — tool is only valid under collect
+        assertEquals(
+            ParseError.WrongParentValue(TOOL, SCHEDULE, "agent", setOf("collect")),
+            err("-schedule agent tool x", FLAG),
+        )
     }
     //endregion
 

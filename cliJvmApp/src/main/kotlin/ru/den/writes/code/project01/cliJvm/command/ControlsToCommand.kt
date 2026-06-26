@@ -5,11 +5,14 @@ import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.StageAgentSpec
 import ru.den.writes.code.project01.cliJvm.StageJudgeSpec
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AFTER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ARGS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BY_LINE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.END_SEQUENCE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EVERY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_INSTRUCTION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
@@ -38,8 +41,10 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SCHEDULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TOOL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
 import ru.den.writes.code.project01.cliJvm.clicontrols.ParsedControl
 import ru.den.writes.code.project01.shared.llm.ModelProvider
@@ -119,6 +124,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
             tui = controls.has(TUI),
             judgeAgents = judgeAgents,
             mcpServer = controls.last(MCP_SERVER)?.value,
+            schedules = scheduleSpecs(controls),
         )
     }
 
@@ -170,6 +176,34 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         "facts" -> ContextStrategyKind.FACTS
         "summary" -> ContextStrategyKind.SUMMARY
         else -> ContextStrategyKind.FULL
+    }
+
+    private fun scheduleSpecs(controls: List<ParsedControl>): List<ScheduleSpec> =
+        controls.filter { it.arg == SCHEDULE }.map(::scheduleSpec)
+
+    /** Build one [ScheduleSpec] from a `-schedule` control; throws on a missing/ambiguous piece. */
+    private fun scheduleSpec(c: ParsedControl): ScheduleSpec {
+        val after = c.subValue(AFTER)?.toInt()
+        val every = c.subValue(EVERY)?.toInt()
+        if (after != null && every != null) {
+            throw CliArgsException.InvalidArgumentValue("-schedule", "after+every", "use exactly one of after / every")
+        }
+        val seconds = after ?: every
+            ?: throw CliArgsException.MissingRequiredArgument("-schedule", "needs after <sec> or every <sec>")
+        val periodic = every != null
+        return when (c.value) {
+            "collect" -> ScheduleSpec.Collect(
+                tool = c.subValue(TOOL)
+                    ?: throw CliArgsException.MissingRequiredArgument("-schedule collect", "needs tool <name>"),
+                args = c.subValue(ARGS), seconds = seconds, periodic = periodic,
+            )
+            "agent" -> ScheduleSpec.Agent(
+                prompt = c.subValue(PROMPT)
+                    ?: throw CliArgsException.MissingRequiredArgument("-schedule agent", "needs prompt <text>"),
+                seconds = seconds, periodic = periodic,
+            )
+            else -> throw CliArgsException.InvalidArgumentValue("-schedule", c.value ?: "", "collect or agent")
+        }
     }
 
     // ---- admin modes ------------------------------------------------------
