@@ -8,11 +8,10 @@ internal data class ApiKeys(
 )
 
 /**
- * Turns raw program args into a domain [CliCommand]. One seam, two impls:
- * [LegacyCommandParser] (via the proven `CliArgs.from` + a mapping) and the
- * CliControls-backed parser (produces commands directly). Both throw
- * [ru.den.writes.code.project01.cliJvm.CliArgsException] on bad input, so the
- * caller is agnostic to which front parsed.
+ * Turns raw program args into a domain [CliCommand]. The single implementation,
+ * [CliControlsCommandParser], parses against the shared clicontrols grammar and
+ * maps the controls straight onto a command; it throws
+ * [ru.den.writes.code.project01.cliJvm.CliArgsException] on bad input.
  */
 internal interface CommandParser {
     /** @throws ru.den.writes.code.project01.cliJvm.CliArgsException on invalid input. */
