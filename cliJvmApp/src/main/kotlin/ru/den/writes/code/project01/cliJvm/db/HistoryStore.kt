@@ -253,6 +253,17 @@ internal class HistoryStore(
         dao.getSummary(sessionId, branchId)?.let { dao.upsertSummary(it.copy(branchId = newBranch)) }
         dao.getFacts(sessionId, branchId)?.let { dao.upsertFacts(it.copy(branchId = newBranch)) }
     }
+
+    /**
+     * Delete [branch] from this session: its messages plus any summary / facts
+     * rows. The caller must not pass the active [branchId] (the cache would go
+     * stale) — `CommandRunner` guards that. Mirror of [fork], in reverse.
+     */
+    suspend fun deleteBranch(branch: String) {
+        dao.deleteBranchMessages(sessionId = sessionId, branchId = branch)
+        dao.deleteBranchSummary(sessionId = sessionId, branchId = branch)
+        dao.deleteBranchFacts(sessionId = sessionId, branchId = branch)
+    }
 }
 
 /**

@@ -147,6 +147,18 @@ internal interface MessageDao {
             "FROM messages WHERE session_id = :sessionId AND branch_id = :fromBranch ORDER BY id ASC"
     )
     suspend fun copyBranchMessages(sessionId: String, fromBranch: String, toBranch: String)
+
+    /** Delete every message row for one (session, branch). Backs `branch clear <name>`. */
+    @Query("DELETE FROM messages WHERE session_id = :sessionId AND branch_id = :branchId")
+    suspend fun deleteBranchMessages(sessionId: String, branchId: String)
+
+    /** Delete the summary row for one (session, branch). Paired with [deleteBranchMessages]. */
+    @Query("DELETE FROM summaries WHERE session_id = :sessionId AND branch_id = :branchId")
+    suspend fun deleteBranchSummary(sessionId: String, branchId: String)
+
+    /** Delete the facts row for one (session, branch). Paired with [deleteBranchMessages]. */
+    @Query("DELETE FROM facts WHERE session_id = :sessionId AND branch_id = :branchId")
+    suspend fun deleteBranchFacts(sessionId: String, branchId: String)
 }
 
 /** Row shape returned by [MessageDao.listSessions]. */
