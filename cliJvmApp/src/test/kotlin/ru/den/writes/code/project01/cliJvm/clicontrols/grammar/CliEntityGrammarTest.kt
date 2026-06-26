@@ -137,6 +137,9 @@ class CliEntityGrammarTest {
         assertMatchParserFlag("$cmd show $name".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, SHOW, value = name))), parser)
         assertMatchParserFlag("$cmd clear".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, CLEAR))), parser)
         assertMatchParserFlag("$cmd clear $name".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, CLEAR, value = name))), parser)
+        // a too-long select name fails its Name kind
+        val longName = "a".repeat(65)
+        assertMatchParserError("$cmd $longName".toArgsList(), ParseError.BadValue(cli, longName, "alphanumeric / '_' / '-', up to 64 chars"), parser)
     }
     //endregion
 
