@@ -35,6 +35,8 @@ class CliOptionBagGrammarTest {
 
         // then
         assertMatchParserFlag("-prompt \"hi there\"".toArgsList(), top(PROMPT, FLAG, "hi there"), parser)
+        // a dash-leading value stays the flag's value (arity), it doesn't start a new group
+        assertMatchParserFlag("-prompt -v".toArgsList(), top(PROMPT, FLAG, "-v"), parser)
         assertMatchParserError("-prompt".toArgsList(), ParseError.MissingValue(PROMPT), parser)
         assertMatchParserError("-prompt tell me".toArgsList(), ParseError.UnexpectedToken("me"), parser)
         assertMatchParserError(CMD, "/prompt hi", ParseError.WrongSurface("prompt", CMD), parser)
