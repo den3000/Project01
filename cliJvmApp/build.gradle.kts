@@ -9,6 +9,7 @@ plugins {
 
 dependencies {
     implementation(projects.shared)
+    implementation(projects.scheduling)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.java)
     implementation(libs.ktor.client.contentNegotiation)

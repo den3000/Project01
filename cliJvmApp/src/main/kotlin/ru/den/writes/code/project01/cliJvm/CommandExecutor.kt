@@ -5,9 +5,19 @@ import io.ktor.client.engine.java.Java
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.command.MemoryAction
+import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.DEFAULT_BRANCH
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
@@ -17,6 +27,9 @@ import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import ru.den.writes.code.project01.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.project01.cliJvm.tui.TuiRenderer
+import ru.den.writes.code.project01.scheduling.InMemoryScheduleStore
+import ru.den.writes.code.project01.scheduling.Schedule
+import ru.den.writes.code.project01.scheduling.SchedulerEngine
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.context.HistoryCompressor
@@ -40,6 +53,10 @@ import kotlin.time.Duration.Companion.seconds
 
 /** Generous request timeout — LLM responses can take a while. */
 private const val REQUEST_TIMEOUT_MS = 300_000L
+
+/** Scheduler cadence: how often to check for due tasks, and how often to publish a report. */
+private const val SCHEDULER_TICK_MS = 1_000L
+private const val SCHEDULER_REPORT_MS = 30_000L
 
 /**
  * Root of the on-disk memory layer. Profile, rules and task notes live under
@@ -464,24 +481,88 @@ internal class CommandExecutor(private val db: AppDatabase) {
         toolExecutor: ToolExecutor? = null,
     ) {
         val multiAgent = routedAgents.isNotEmpty()
+        val schedules = (cliArgs as? CliCommand.RunChat)?.schedules.orEmpty()
         val engine = TurnEngine(
             cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor,
         )
         val commandRunner = CommandRunner(historyStore, memory, strategy)
-        val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy, multiAgent)
-        when (view) {
-            ViewKind.TUI -> TuiRenderer().run(viewModel, ChannelIntentSource())
-            ViewKind.PLAIN -> {
-                val feedThrottle = if (replAfterFeed != null) 16.seconds else Duration.ZERO
-                PlainRenderer().run(
-                    viewModel,
-                    PromptSourceIntents(primary, feedThrottle),
-                    replAfterFeed?.let { PromptSourceIntents(it) },
-                )
+        val viewModel = SessionViewModel(
+            cliArgs, engine, commandRunner, historyStore, memory, strategy, multiAgent,
+            schedulerEnabled = schedules.isNotEmpty(),
+        )
+        coroutineScope {
+            val schedulerJobs = startScheduler(schedules, toolExecutor, viewModel)
+            try {
+                when (view) {
+                    ViewKind.TUI -> TuiRenderer().run(viewModel, ChannelIntentSource())
+                    ViewKind.PLAIN -> {
+                        val feedThrottle = if (replAfterFeed != null) 16.seconds else Duration.ZERO
+                        PlainRenderer().run(
+                            viewModel,
+                            PromptSourceIntents(primary, feedThrottle),
+                            replAfterFeed?.let { PromptSourceIntents(it) },
+                        )
+                    }
+                }
+            } finally {
+                schedulerJobs.forEach { it.cancel() }
+                viewModel.closeSchedulerInbox()
             }
         }
     }
+
+    /**
+     * Build a [SchedulerEngine] for the session's [schedules] and launch its loops on
+     * `Dispatchers.IO`: a ticker that fires due tasks, and a reporter that posts an aggregated
+     * report as a feed line every [SCHEDULER_REPORT_MS]. Tasks are added before the loop, filling
+     * the id→[ScheduleAction] map the [CliTaskHandler] reads. Returns the jobs to cancel at
+     * teardown; empty when nothing is scheduled (then the loop is byte-for-byte unchanged).
+     */
+    private fun CoroutineScope.startScheduler(
+        schedules: List<ScheduleSpec>,
+        toolExecutor: ToolExecutor?,
+        vm: SessionViewModel,
+    ): List<Job> {
+        if (schedules.isEmpty()) return emptyList()
+        val actions = mutableMapOf<String, ScheduleAction>()
+        val engine = SchedulerEngine(
+            InMemoryScheduleStore(),
+            CliTaskHandler(actions, toolExecutor),
+            now = { System.currentTimeMillis() },
+        )
+        val ticker = launch(Dispatchers.IO) {
+            for (spec in schedules) {
+                actions[engine.add(spec.label(), scheduleOf(spec)).id] = spec.toAction()
+            }
+            engine.runLoop(SCHEDULER_TICK_MS)
+        }
+        val reporter = launch(Dispatchers.IO) {
+            while (isActive) {
+                delay(SCHEDULER_REPORT_MS)
+                vm.postNotice(engine.summary())
+            }
+        }
+        return listOf(ticker, reporter)
+    }
 }
+
+private fun scheduleOf(spec: ScheduleSpec): Schedule {
+    val ms = spec.seconds * 1000L
+    return if (spec.periodic) Schedule.Every(ms) else Schedule.After(ms)
+}
+
+private fun ScheduleSpec.label(): String = when (this) {
+    is ScheduleSpec.Collect -> "collect $tool"
+    is ScheduleSpec.Agent -> "agent: ${prompt.take(40)}"
+}
+
+private fun ScheduleSpec.toAction(): ScheduleAction = when (this) {
+    is ScheduleSpec.Collect -> ScheduleAction.Collect(tool, parseToolArgs(args))
+    is ScheduleSpec.Agent -> ScheduleAction.Agent(prompt)
+}
+
+private fun parseToolArgs(json: String?): JsonObject =
+    json?.let { runCatching { Json.parseToJsonElement(it).jsonObject }.getOrNull() } ?: JsonObject(emptyMap())
 
 /**
  * Render one `ListSessions` row for a (session, branch). The branch is shown as
