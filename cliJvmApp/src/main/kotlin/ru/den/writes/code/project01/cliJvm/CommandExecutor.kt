@@ -13,8 +13,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
 import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.command.MemoryAction
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
@@ -28,7 +26,6 @@ import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import ru.den.writes.code.project01.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.project01.cliJvm.tui.TuiRenderer
 import ru.den.writes.code.project01.scheduling.InMemoryScheduleStore
-import ru.den.writes.code.project01.scheduling.Schedule
 import ru.den.writes.code.project01.scheduling.SchedulerEngine
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
@@ -482,16 +479,34 @@ internal class CommandExecutor(private val db: AppDatabase) {
     ) {
         val multiAgent = routedAgents.isNotEmpty()
         val schedules = (cliArgs as? CliCommand.RunChat)?.schedules.orEmpty()
+        val schedulerEnabled = schedules.isNotEmpty()
         val engine = TurnEngine(
             cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor,
         )
-        val commandRunner = CommandRunner(historyStore, memory, strategy)
+
+        // Scheduler shared by startup -schedule and in-session /schedule. Built before the
+        // command runner / view-model so the REPL adds to the same engine; the handler's
+        // submitTurn is wired once the view-model exists (breaking the construction cycle).
+        val actions = mutableMapOf<String, ScheduleAction>()
+        val handler = CliTaskHandler(actions, toolExecutor)
+        val scheduler = if (schedulerEnabled) {
+            SchedulerEngine(InMemoryScheduleStore(), handler, now = { System.currentTimeMillis() })
+        } else {
+            null
+        }
+        val control = scheduler?.let { SchedulerControl(it, actions) }
+
+        val commandRunner = CommandRunner(historyStore, memory, strategy, control)
         val viewModel = SessionViewModel(
             cliArgs, engine, commandRunner, historyStore, memory, strategy, multiAgent,
-            schedulerEnabled = schedules.isNotEmpty(),
+            schedulerEnabled = schedulerEnabled,
         )
+        handler.submitTurn = viewModel::submitFromScheduler
+
         coroutineScope {
-            val schedulerJobs = startScheduler(schedules, toolExecutor, viewModel)
+            val schedulerJobs =
+                if (scheduler != null && control != null) startSchedulerLoops(scheduler, control, schedules, viewModel)
+                else emptyList()
             try {
                 when (view) {
                     ViewKind.TUI -> TuiRenderer().run(viewModel, ChannelIntentSource())
@@ -512,28 +527,18 @@ internal class CommandExecutor(private val db: AppDatabase) {
     }
 
     /**
-     * Build a [SchedulerEngine] for the session's [schedules] and launch its loops on
-     * `Dispatchers.IO`: a ticker that fires due tasks, and a reporter that posts an aggregated
-     * report as a feed line every [SCHEDULER_REPORT_MS]. Tasks are added before the loop, filling
-     * the id→[ScheduleAction] map the [CliTaskHandler] reads. Returns the jobs to cancel at
-     * teardown; empty when nothing is scheduled (then the loop is byte-for-byte unchanged).
+     * Launch the scheduler loops on `Dispatchers.IO`: a ticker that adds the startup tasks
+     * (via [control], filling the handler's action map) then fires due tasks, and a reporter
+     * that posts an aggregated report as a feed line every [SCHEDULER_REPORT_MS].
      */
-    private fun CoroutineScope.startScheduler(
+    private fun CoroutineScope.startSchedulerLoops(
+        engine: SchedulerEngine,
+        control: SchedulerControl,
         schedules: List<ScheduleSpec>,
-        toolExecutor: ToolExecutor?,
         vm: SessionViewModel,
     ): List<Job> {
-        if (schedules.isEmpty()) return emptyList()
-        val actions = mutableMapOf<String, ScheduleAction>()
-        val engine = SchedulerEngine(
-            InMemoryScheduleStore(),
-            CliTaskHandler(actions, toolExecutor, vm::submitFromScheduler),
-            now = { System.currentTimeMillis() },
-        )
         val ticker = launch(Dispatchers.IO) {
-            for (spec in schedules) {
-                actions[engine.add(spec.label(), scheduleOf(spec)).id] = spec.toAction()
-            }
+            for (spec in schedules) control.add(spec)
             engine.runLoop(SCHEDULER_TICK_MS)
         }
         val reporter = launch(Dispatchers.IO) {
@@ -545,24 +550,6 @@ internal class CommandExecutor(private val db: AppDatabase) {
         return listOf(ticker, reporter)
     }
 }
-
-private fun scheduleOf(spec: ScheduleSpec): Schedule {
-    val ms = spec.seconds * 1000L
-    return if (spec.periodic) Schedule.Every(ms) else Schedule.After(ms)
-}
-
-private fun ScheduleSpec.label(): String = when (this) {
-    is ScheduleSpec.Collect -> "collect $tool"
-    is ScheduleSpec.Agent -> "agent: ${prompt.take(40)}"
-}
-
-private fun ScheduleSpec.toAction(): ScheduleAction = when (this) {
-    is ScheduleSpec.Collect -> ScheduleAction.Collect(tool, parseToolArgs(args))
-    is ScheduleSpec.Agent -> ScheduleAction.Agent(prompt)
-}
-
-private fun parseToolArgs(json: String?): JsonObject =
-    json?.let { runCatching { Json.parseToJsonElement(it).jsonObject }.getOrNull() } ?: JsonObject(emptyMap())
 
 /**
  * Render one `ListSessions` row for a (session, branch). The branch is shown as

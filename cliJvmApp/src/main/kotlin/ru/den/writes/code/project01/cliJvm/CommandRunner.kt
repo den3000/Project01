@@ -27,6 +27,7 @@ internal class CommandRunner(
     private val historyStore: HistoryStore?,
     private val memory: MemoryProvider?,
     private val strategy: ContextStrategy,
+    private val scheduler: SchedulerControl? = null,
 ) {
     suspend fun run(command: BranchCommand): List<String> = buildList {
         when (command) {
@@ -241,9 +242,17 @@ internal class CommandRunner(
                 mem.setMode(command.mode)
                 add("[memory] mode → ${command.mode.name.lowercase()}")
             }
-            // Parsed here; in-session add/list/cancel against a live engine arrives with the scheduler wiring.
-            is BranchCommand.Schedule ->
-                add("[schedule] no scheduler running in this session")
+            is BranchCommand.Schedule -> {
+                val ctl = scheduler
+                if (ctl == null) {
+                    add("[schedule] no scheduler in this session — launch with -schedule … to enable")
+                } else {
+                    val spec = command.spec
+                    val task = ctl.add(spec)
+                    val cadence = if (spec.periodic) "every ${spec.seconds}s" else "after ${spec.seconds}s"
+                    add("[schedule] task '${task.id}' added (${task.label}, $cadence)")
+                }
+            }
         }
     }
 

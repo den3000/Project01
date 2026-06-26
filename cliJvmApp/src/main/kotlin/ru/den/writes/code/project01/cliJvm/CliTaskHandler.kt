@@ -25,8 +25,11 @@ internal sealed interface ScheduleAction {
 internal class CliTaskHandler(
     private val actions: Map<String, ScheduleAction>,
     private val toolExecutor: ToolExecutor?,
-    private val submitTurn: (String) -> Unit,
 ) : TaskHandler {
+    /** Injects a scheduled prompt as a turn. Set after the view-model exists (breaks the
+     * vm↔scheduler construction cycle); a no-op until then. */
+    var submitTurn: (String) -> Unit = {}
+
     override suspend fun handle(task: ScheduledTask): String? = when (val action = actions[task.id]) {
         is ScheduleAction.Collect -> toolExecutor?.execute(ToolCall(action.tool, action.arguments))
         is ScheduleAction.Agent -> {

@@ -20,7 +20,7 @@ class CliTaskHandlerTest {
         var seen: ToolCall? = null
         val executor = ToolExecutor { call -> seen = call; "Paris: rain" }
         val args = JsonObject(mapOf("city" to JsonPrimitive("Paris")))
-        val handler = CliTaskHandler(mapOf("t1" to ScheduleAction.Collect("current_weather", args)), executor, submitTurn = {})
+        val handler = CliTaskHandler(mapOf("t1" to ScheduleAction.Collect("current_weather", args)), executor)
 
         // when
         val result = handler.handle(task("t1"))
@@ -34,11 +34,8 @@ class CliTaskHandlerTest {
     fun `when an agent task fires - then it injects the prompt as a turn and returns null`() = runTest {
         // given
         var submitted: String? = null
-        val handler = CliTaskHandler(
-            mapOf("t2" to ScheduleAction.Agent("daily digest")),
-            toolExecutor = null,
-            submitTurn = { submitted = it },
-        )
+        val handler = CliTaskHandler(mapOf("t2" to ScheduleAction.Agent("daily digest")), toolExecutor = null)
+            .apply { submitTurn = { submitted = it } }
 
         // when
         val result = handler.handle(task("t2"))
@@ -51,7 +48,7 @@ class CliTaskHandlerTest {
     @Test
     fun `when the task id is unknown - then null`() = runTest {
         // given
-        val handler = CliTaskHandler(emptyMap(), toolExecutor = null, submitTurn = {})
+        val handler = CliTaskHandler(emptyMap(), toolExecutor = null)
 
         // when - then
         assertNull(handler.handle(task("nope")))

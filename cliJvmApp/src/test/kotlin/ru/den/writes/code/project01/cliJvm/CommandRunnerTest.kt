@@ -1,9 +1,12 @@
 package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
+import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.scheduling.InMemoryScheduleStore
+import ru.den.writes.code.project01.scheduling.SchedulerEngine
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.memory.MemoryMode
@@ -33,6 +36,36 @@ class CommandRunnerTest {
             listOf("[branch] branch commands need a persisted session"),
             runner.run(BranchCommand.Checkpoint),
         )
+    }
+
+    @Test
+    fun `when no scheduler is wired - then schedule explains none is running`() = runTest {
+        // given
+        val runner = CommandRunner(historyStore = null, memory = null, strategy = ContextStrategy.FullHistory)
+
+        // when - then
+        assertEquals(
+            listOf("[schedule] no scheduler in this session — launch with -schedule … to enable"),
+            runner.run(BranchCommand.Schedule(ScheduleSpec.Collect("current_weather", null, seconds = 30, periodic = true))),
+        )
+    }
+
+    @Test
+    fun `when a scheduler is wired - then schedule adds the task and reports it`() = runTest {
+        // given — a live engine + control
+        val actions = mutableMapOf<String, ScheduleAction>()
+        val engine = SchedulerEngine(InMemoryScheduleStore(), CliTaskHandler(actions, toolExecutor = null), now = { 0L })
+        val control = SchedulerControl(engine, actions)
+        val runner =
+            CommandRunner(historyStore = null, memory = null, strategy = ContextStrategy.FullHistory, scheduler = control)
+
+        // when
+        val lines = runner.run(BranchCommand.Schedule(ScheduleSpec.Agent("recap", seconds = 60, periodic = false)))
+
+        // then — the task is registered (one active task) and announced
+        assertEquals(1, engine.list().size)
+        assertTrue(lines.single().startsWith("[schedule] task '"), "was ${lines.single()}")
+        assertTrue(lines.single().endsWith("(agent: recap, after 60s)"), "was ${lines.single()}")
     }
 
     @Test
