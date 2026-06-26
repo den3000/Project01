@@ -53,6 +53,72 @@ class CommandRunnerTest {
     }
 
     @Test
+    fun `when clearing a branch by name - then it deletes that branch`() = runTest {
+        TestDb().use { harness ->
+            // given — fork 'exp' off 'main'; we stay on 'main'
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            store.append(Message(Role.USER, "a"))
+            store.fork("exp")
+            val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(listOf("[branch] deleted 'exp'"), runner.run(BranchCommand.DeleteBranch("exp")))
+            assertEquals(listOf("main"), harness.db.messageDao().branchesOf("s"))
+        }
+    }
+
+    @Test
+    fun `when clearing the current branch - then it refuses`() = runTest {
+        TestDb().use { harness ->
+            // given — on 'main'
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            store.append(Message(Role.USER, "a"))
+            val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(
+                listOf("[branch] can't delete the current branch 'main' — /branch switch <other> first"),
+                runner.run(BranchCommand.DeleteBranch("main")),
+            )
+        }
+    }
+
+    @Test
+    fun `when clearing a branch that doesn't exist - then it says no such branch`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            store.append(Message(Role.USER, "a"))
+            val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(
+                listOf("[branch] no such branch 'ghost' (use /branch to list)"),
+                runner.run(BranchCommand.DeleteBranch("ghost")),
+            )
+        }
+    }
+
+    @Test
+    fun `when clearing all branches - then every branch but the current goes`() = runTest {
+        TestDb().use { harness ->
+            // given — two extra branches off 'main'
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            store.append(Message(Role.USER, "a"))
+            store.fork("exp")
+            store.fork("wip")
+            val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
+
+            // when - then
+            assertEquals(
+                listOf("[branch] deleted 2 branch(es) (exp, wip); kept current 'main'"),
+                runner.run(BranchCommand.ClearBranches),
+            )
+            assertEquals(listOf("main"), harness.db.messageDao().branchesOf("s"))
+        }
+    }
+
+    @Test
     fun `when a memory command has no provider - then it explains one is needed`() = runTest {
         // given
         val runner = CommandRunner(historyStore = null, memory = null, strategy = ContextStrategy.FullHistory)
