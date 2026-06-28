@@ -542,9 +542,17 @@ internal class CommandExecutor(private val db: AppDatabase) {
             engine.runLoop(SCHEDULER_TICK_MS)
         }
         val reporter = launch(Dispatchers.IO) {
+            // Baseline = the current (usually empty) summary, so we never announce "No results yet.":
+            // post only when it CHANGES — collect tasks show progress, agent-only stays quiet, and a
+            // cancelled schedule goes silent (the summary stops moving).
+            var last = engine.summary()
             while (isActive) {
                 delay(SCHEDULER_REPORT_MS)
-                vm.postNotice(engine.summary())
+                val summary = engine.summary()
+                if (summary != last) {
+                    vm.postNotice(summary)
+                    last = summary
+                }
             }
         }
         return listOf(ticker, reporter)
