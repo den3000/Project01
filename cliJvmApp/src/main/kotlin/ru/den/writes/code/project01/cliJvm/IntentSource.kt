@@ -87,7 +87,13 @@ internal class MergedIntentSource(
     scope: CoroutineScope,
 ) : IntentSource {
     private val pumped: ReceiveChannel<UiIntent> = scope.produce(capacity = Channel.RENDEZVOUS) {
-        while (true) send(primary.next() ?: break)
+        while (true) {
+            val intent = primary.next() ?: break
+            send(intent)
+            // drive returns on Exit; stop pumping so a push source (TUI) doesn't wedge the scope
+            // on the next receive and the session can actually terminate.
+            if (intent == UiIntent.Exit) break
+        }
     }
 
     override suspend fun next(): UiIntent? = select {

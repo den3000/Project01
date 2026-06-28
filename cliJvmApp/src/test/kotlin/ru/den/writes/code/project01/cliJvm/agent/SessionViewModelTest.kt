@@ -6,6 +6,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.ChannelIntentSource
 import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
@@ -397,6 +398,23 @@ class SessionViewModelTest {
                 vm.state.value.lines.any { it is UiLine.Assistant && it.reply == "scheduled" },
                 "lines: ${vm.state.value.lines}",
             )
+        }
+    }
+
+    @Test
+    fun `when scheduler is on and Exit arrives via a push source - then run terminates`() = runTest {
+        TestDb().use { harness ->
+            // given — scheduler on, a channel (push) source like the TUI
+            val fake = FakeLlmApi().apply { queueText("reply") }
+            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
+            val source = ChannelIntentSource().apply { offer(UiIntent.Exit) }
+
+            // when — opening turn, then Exit; the pump must stop so run() returns (no hang)
+            vm.run(source)
+
+            // then — reached the Exit effect: the merge pump didn't wedge the scope open
+            assertEquals(UiEffect.Exit, vm.effects.receive())
         }
     }
     //endregion
