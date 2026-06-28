@@ -86,6 +86,13 @@ internal sealed interface BranchCommand {
 
     /** Add a scheduled task in-session (`/schedule collect … | agent …`). */
     data class Schedule(val spec: ScheduleSpec) : BranchCommand
+
+    /** List active scheduled tasks (`/schedule`). */
+    data object ListSchedules : BranchCommand
+    /** Cancel one scheduled task by id (`/schedule clear <id>`). */
+    data class CancelSchedule(val id: String) : BranchCommand
+    /** Cancel every active scheduled task (`/schedule clear`) — stops the schedule. */
+    data object ClearSchedules : BranchCommand
 }
 
 /**

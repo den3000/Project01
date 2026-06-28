@@ -7,6 +7,7 @@ import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.scheduling.Schedule
 import ru.den.writes.code.project01.scheduling.ScheduledTask
 import ru.den.writes.code.project01.scheduling.SchedulerEngine
+import ru.den.writes.code.project01.scheduling.TaskStatus
 
 /**
  * Live control surface over a running [SchedulerEngine] for the REPL: add a task, filling the
@@ -24,6 +25,15 @@ internal class SchedulerControl(
         actions[task.id] = spec.toAction()
         return task
     }
+
+    /** Active tasks (status ACTIVE), for `/schedule` listing. */
+    suspend fun listActive(): List<ScheduledTask> = engine.list().filter { it.status == TaskStatus.ACTIVE }
+
+    /** Cancel one task by id; true iff a still-active task was cancelled. */
+    suspend fun cancel(id: String): Boolean = engine.cancel(id)
+
+    /** Cancel every active task — stops the schedule. Returns how many were cancelled. */
+    suspend fun cancelAll(): Int = listActive().count { engine.cancel(it.id) }
 }
 
 /** Domain seconds → a scheduling [Schedule] (periodic `Every` vs one-shot `After`). */

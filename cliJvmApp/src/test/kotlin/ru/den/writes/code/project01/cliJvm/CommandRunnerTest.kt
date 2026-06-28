@@ -69,6 +69,39 @@ class CommandRunnerTest {
     }
 
     @Test
+    fun `when scheduler tasks are listed then cleared - then schedule reports each step`() = runTest {
+        // given — a live engine + control with one task added
+        val actions = mutableMapOf<String, ScheduleAction>()
+        val engine = SchedulerEngine(InMemoryScheduleStore(), CliTaskHandler(actions, toolExecutor = null), now = { 0L })
+        val control = SchedulerControl(engine, actions)
+        val runner =
+            CommandRunner(historyStore = null, memory = null, strategy = ContextStrategy.FullHistory, scheduler = control)
+        val task = control.add(ScheduleSpec.Agent("recap", seconds = 60, periodic = false))
+
+        // when - then — list shows it; clear stops all; list then empty
+        assertTrue(runner.run(BranchCommand.ListSchedules).single().contains(task.id))
+        assertEquals(
+            listOf("[schedule] cancelled 1 task(s) — schedule stopped"),
+            runner.run(BranchCommand.ClearSchedules),
+        )
+        assertEquals(listOf("[schedule] no active tasks"), runner.run(BranchCommand.ListSchedules))
+    }
+
+    @Test
+    fun `when cancelling an unknown schedule id - then it reports none`() = runTest {
+        // given
+        val actions = mutableMapOf<String, ScheduleAction>()
+        val engine = SchedulerEngine(InMemoryScheduleStore(), CliTaskHandler(actions, toolExecutor = null), now = { 0L })
+        val runner = CommandRunner(
+            historyStore = null, memory = null, strategy = ContextStrategy.FullHistory,
+            scheduler = SchedulerControl(engine, actions),
+        )
+
+        // when - then
+        assertEquals(listOf("[schedule] no active task 'nope'"), runner.run(BranchCommand.CancelSchedule("nope")))
+    }
+
+    @Test
     fun `when forking a new branch - then it reports the fork`() = runTest {
         TestDb().use { harness ->
             // given — two messages on the default branch

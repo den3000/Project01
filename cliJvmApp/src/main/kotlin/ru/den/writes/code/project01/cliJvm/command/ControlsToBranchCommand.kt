@@ -141,6 +141,11 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
 
     /** `/schedule collect tool <name> [args …] | agent prompt "<text>"` + after/every <sec>. */
     private fun schedule(c: ParsedControl): BranchCommand? {
+        // clear [<id>] = cancel one / all active; bare /schedule (no kind) = list.
+        c.sub(CLEAR)?.let {
+            return if (it.value != null) BranchCommand.CancelSchedule(it.value) else BranchCommand.ClearSchedules
+        }
+        if (c.value == null) return BranchCommand.ListSchedules
         val after = c.sub(AFTER)?.value?.toIntOrNull()
         val every = c.sub(EVERY)?.value?.toIntOrNull()
         if (after != null && every != null) return null

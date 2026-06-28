@@ -179,7 +179,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
     }
 
     private fun scheduleSpecs(controls: List<ParsedControl>): List<ScheduleSpec> =
-        controls.filter { it.arg == SCHEDULE }.map(::scheduleSpec)
+        controls.filter { it.arg == SCHEDULE && it.value != null }.map(::scheduleSpec)
 
     /** Build one [ScheduleSpec] from a `-schedule` control; throws on a missing/ambiguous piece. */
     private fun scheduleSpec(c: ParsedControl): ScheduleSpec {

@@ -56,6 +56,14 @@ class ControlsToBranchCommandTest {
     }
 
     @Test
+    fun `when schedule is bare or cleared - then list, cancel-one, cancel-all`() {
+        // when - then — bare = list; clear <id> = cancel one; bare clear = stop all
+        assertEquals(BranchCommand.ListSchedules, cmd("/schedule"))
+        assertEquals(BranchCommand.CancelSchedule("abc-123"), cmd("/schedule clear abc-123"))
+        assertEquals(BranchCommand.ClearSchedules, cmd("/schedule clear"))
+    }
+
+    @Test
     fun `when a memory command is typed - then it shows the layer or flips the mode`() {
         // when - then
         assertEquals(BranchCommand.ShowMemory, cmd("/memory"))

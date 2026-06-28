@@ -10,6 +10,8 @@ import ru.den.writes.code.project01.shared.memory.isValidProfileName
 /** Valid branch names: alphanumerics, '_' or '-' — same shape as session names. */
 private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
 
+private const val NO_SCHEDULER = "[schedule] no scheduler in this session — launch with -schedule … to enable"
+
 /**
  * Executes a REPL branch- / memory-management command and RETURNS the status
  * line(s) instead of printing them. The DB work (and disk work for memory) is
@@ -245,13 +247,36 @@ internal class CommandRunner(
             is BranchCommand.Schedule -> {
                 val ctl = scheduler
                 if (ctl == null) {
-                    add("[schedule] no scheduler in this session — launch with -schedule … to enable")
+                    add(NO_SCHEDULER)
                 } else {
                     val spec = command.spec
                     val task = ctl.add(spec)
                     val cadence = if (spec.periodic) "every ${spec.seconds}s" else "after ${spec.seconds}s"
                     add("[schedule] task '${task.id}' added (${task.label}, $cadence)")
                 }
+            }
+            BranchCommand.ListSchedules -> {
+                val ctl = scheduler
+                if (ctl == null) {
+                    add(NO_SCHEDULER)
+                } else {
+                    val active = ctl.listActive()
+                    if (active.isEmpty()) add("[schedule] no active tasks")
+                    else active.forEach { add("[schedule] ${it.id}  ${it.label}  next@${it.nextRunAt}") }
+                }
+            }
+            is BranchCommand.CancelSchedule -> {
+                val ctl = scheduler
+                when {
+                    ctl == null -> add(NO_SCHEDULER)
+                    ctl.cancel(command.id) -> add("[schedule] cancelled '${command.id}'")
+                    else -> add("[schedule] no active task '${command.id}'")
+                }
+            }
+            BranchCommand.ClearSchedules -> {
+                val ctl = scheduler
+                if (ctl == null) add(NO_SCHEDULER)
+                else add("[schedule] cancelled ${ctl.cancelAll()} task(s) — schedule stopped")
             }
         }
     }

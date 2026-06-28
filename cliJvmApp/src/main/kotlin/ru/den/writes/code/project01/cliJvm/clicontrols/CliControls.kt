@@ -195,7 +195,8 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
  * Exactly one of `after <sec>` (one-shot) / `every <sec>` (periodic) sets the timing.
  */
 private fun scheduleControls(): List<ControlSpec> = listOf(
-    top(SCHEDULE, setOf(FLAG, CMD), value = req(ValueKind.OneOf(setOf("collect", "agent"))), excludes = setOf(ONESHOT), usage = "schedule a task: collect <tool> | agent <prompt>, with after/every <sec>"),
+    top(SCHEDULE, setOf(FLAG, CMD), value = opt(ValueKind.OneOf(setOf("collect", "agent"))), excludes = setOf(ONESHOT), usage = "collect <tool> | agent <prompt> + after/every <sec>; bare = list, clear [<id>] = cancel"),
+    sub(CLEAR, listOf(SCHEDULE), value = opt(ValueKind.Name), usage = "cancel one task (<id>) or all active (bare)"),
     sub(TOOL, listOf(SCHEDULE), value = req(ValueKind.Name), requires = setOf(MCP_SERVER), parentValueIn = setOf("collect"), usage = "MCP tool to call (collect; needs -mcpServer)"),
     sub(ARGS, listOf(SCHEDULE), value = req(ValueKind.Text), parentValueIn = setOf("collect"), usage = "JSON args for the tool (collect)"),
     sub(PROMPT, listOf(SCHEDULE), value = req(ValueKind.Text), parentValueIn = setOf("agent"), usage = "prompt to run (agent)"),

@@ -30,5 +30,6 @@ internal const val USAGE: String =
         "REPL: /branch [<name> | switch <name> | show], /memory, /agent mode <preamble|system>,\n" +
         "      /profile [<name>] [<section> \"<text>\"] | show <name> | clear [<name>],\n" +
         "      /rule \"<text>\" | clear [<id>], /task <id> | note \"<text>\" | pause | resume | clear [<id>],\n" +
-        "      /schedule <collect tool <name> | agent prompt \"<text>\"> <after|every> <sec>, /reuse, /exit.\n" +
+        "      /schedule [<collect tool <name> | agent prompt \"<text>\"> <after|every> <sec> | clear [<id>]] (bare = list),\n" +
+        "      /reuse, /exit.\n" +
         "Default provider is gemini. Defaults: chunkChars=2500, keepLast=6, summarizeEvery=10."
