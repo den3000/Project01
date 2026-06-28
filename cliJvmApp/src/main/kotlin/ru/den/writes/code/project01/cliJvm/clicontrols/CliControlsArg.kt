@@ -81,6 +81,13 @@ enum class CliControlsArg(val title: String) {
 
     // tools
     MCP_SERVER("mcpServer"),
+
+    // scheduling
+    SCHEDULE("schedule"),
+    TOOL("tool"),
+    ARGS("args"),
+    AFTER("after"),
+    EVERY("every"),
     ;
 
     companion object {

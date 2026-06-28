@@ -10,8 +10,10 @@ maintained in collaboration with JetBrains). It has **two modes**:
 1. **Client probe** (default) — spawns an existing MCP server as a subprocess,
    connects over **stdio**, calls `listTools` and prints the server's tools. No
    LLM, no API keys.
-2. **Server** (`--serve`) — runs *our own* MCP server over stdio with one tool,
-   **`current_weather(city)`**, backed by the free Open-Meteo API. This is the
+2. **Server** (`--serve`) — runs *our own* MCP server over stdio: a
+   **`current_weather(city)`** tool plus a **background scheduler** (tools
+   `schedule_task` / `list_tasks` / `cancel_task` / `report`) that collects weather
+   on a schedule and persists it. Backed by the free Open-Meteo API. This is the
    server the LLM CLI drives through its `-mcpServer` flag (see the root README).
 
 ## Run
@@ -53,14 +55,25 @@ only `Connected to:` + the tool list go to **stdout**, so it pipes cleanly.
 
 ## Weather MCP server (`--serve`)
 
-`mcpLab --serve` turns the module into an MCP **server**: it registers one tool
-and serves it over stdio. It is meant to be **spawned by an MCP client**, not run
-by hand.
+`mcpLab --serve` turns the module into an MCP **server** serving its tools over
+stdio. It is meant to be **spawned by an MCP client**, not run by hand.
 
-- **Tool:** `current_weather` — input schema `{ "city": string }`, returns a
-  one-line summary (place, conditions, temperature, wind).
+- **`current_weather`** — input `{ "city": string }`, returns a one-line summary
+  (place, conditions, temperature, wind).
+- **`schedule_task`** — input `{ "city": string, "after_seconds"?: int,
+  "every_seconds"?: int }` (exactly one of after/every, positive): schedule a
+  one-shot reminder or a periodic weather collection. Returns the new task.
+- **`list_tasks`** (no input) / **`cancel_task`** (`{ "id": string }`) — list every
+  task, or cancel an active one.
+- **`report`** (no input) — an aggregated summary of the data collected so far
+  (count, time span, latest). Reads stored results only — **calls no model**.
 - **Backed by** the free, key-less Open-Meteo API (`OpenMeteoClient.kt`): geocode
   the city → coordinates, then fetch current weather. Needs network, no auth.
+- **Scheduler:** the four scheduling tools delegate to a `SchedulerEngine` from
+  `:scheduling`. While a client is connected, a background ticker fires due tasks
+  and a reporter logs the summary to stderr periodically (both on `Dispatchers.IO`,
+  cancelled on disconnect). State (tasks + results) is JSON-persisted under
+  `~/.project01-mcplab/schedule.json`, so it survives a restart.
 - **Transport:** `StdioServerTransport(System.in…, System.out…)` — stdout is the
   JSON-RPC channel; every log goes to stderr so it can't corrupt the protocol.
 - **Lifecycle:** `Server.createSession(transport)` + an `onClose` latch keeps the
@@ -83,12 +96,15 @@ All under `src/main/kotlin/ru/den/writes/code/project01/mcpLab/`:
 | `main.kt` | Bootstrap + dispatch: `--serve` → the weather server; `-h` → help; else the client probe. |
 | `ServerCommand.kt` | `parseServerCommand(args)` + `DEFAULT_SERVER_COMMAND` — pure command resolution. |
 | `ToolList.kt` | `ToolInfo` + `formatToolList(tools)` — pure probe-output rendering. |
-| `WeatherServer.kt` | `runWeatherServer()` — registers `current_weather`, wires `StdioServerTransport`, stays alive. |
+| `WeatherServer.kt` | `runWeatherServer()` — registers all five tools, runs the scheduler loops, wires `StdioServerTransport`, stays alive. |
 | `OpenMeteoClient.kt` | `currentWeather(city)` over Open-Meteo + pure `formatWeather` / `weatherCodeDescription`. |
+| `WeatherTaskHandler.kt` | `TaskHandler` for the scheduler: looks up weather for a task's label (a city). |
+| `SchedulingTools.kt` | Pure `scheduleFromArgs` / `renderTask` / `renderTasks` + the `buildWeatherScheduler` factory. |
 
 Pure functions are unit-tested (`ParseServerCommandTest`, `FormatToolListTest`,
-`WeatherFormatTest`). The live `connect` / `listTools` / `callTool` paths are
-verified by running the binary — they need a real subprocess.
+`WeatherFormatTest`, `WeatherTaskHandlerTest`, `SchedulingToolsTest`). The live
+`connect` / `listTools` / `callTool` paths and the scheduler loops are verified by
+running the binary — they need a real subprocess.
 
 Probe core:
 ```kotlin
@@ -127,9 +143,11 @@ val session = server.createSession(StdioServerTransport(System.`in`.asSource().b
   — it rides `kotlinx-io` streams.
 - `ktor-client-java` + content-negotiation + `kotlinx-serialization-json` — the
   `--serve` server uses them to call Open-Meteo over HTTPS.
-- `kotlinx-coroutines-core` — `suspend` entrypoints + `withTimeout`.
+- `kotlinx-coroutines-core` — `suspend` entrypoints + `withTimeout` + the scheduler loops.
+- `:scheduling` — the reusable scheduler core (task model, tick engine, JSON store)
+  behind the `schedule_task` / `list_tasks` / `cancel_task` / `report` tools.
 
-No dependency on `:shared` — the module is standalone.
+No dependency on `:shared` — the module stays standalone (the LLM stack is not pulled in).
 
 ## Notes / gotchas
 

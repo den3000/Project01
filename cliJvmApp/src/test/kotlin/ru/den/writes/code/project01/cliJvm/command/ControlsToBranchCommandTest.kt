@@ -36,6 +36,34 @@ class ControlsToBranchCommandTest {
     }
 
     @Test
+    fun `when a schedule command is typed - then it maps to a Schedule add`() {
+        // when - then — collect needs tool + interval; agent needs prompt + delay
+        assertEquals(
+            BranchCommand.Schedule(ScheduleSpec.Collect("current_weather", null, seconds = 30, periodic = true)),
+            cmd("/schedule collect tool current_weather every 30"),
+        )
+        assertEquals(
+            BranchCommand.Schedule(ScheduleSpec.Agent("recap", seconds = 60, periodic = false)),
+            cmd("/schedule agent prompt recap after 60"),
+        )
+    }
+
+    @Test
+    fun `when a schedule command is incomplete - then null (a normal prompt)`() {
+        // when - then — missing interval, or missing the collect tool → not a command
+        assertNull(cmd("/schedule collect tool current_weather"))
+        assertNull(cmd("/schedule collect every 30"))
+    }
+
+    @Test
+    fun `when schedule is bare or cleared - then list, cancel-one, cancel-all`() {
+        // when - then — bare = list; clear <id> = cancel one; bare clear = stop all
+        assertEquals(BranchCommand.ListSchedules, cmd("/schedule"))
+        assertEquals(BranchCommand.CancelSchedule("abc-123"), cmd("/schedule clear abc-123"))
+        assertEquals(BranchCommand.ClearSchedules, cmd("/schedule clear"))
+    }
+
+    @Test
     fun `when a memory command is typed - then it shows the layer or flips the mode`() {
         // when - then
         assertEquals(BranchCommand.ShowMemory, cmd("/memory"))

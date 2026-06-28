@@ -2,23 +2,29 @@ package ru.den.writes.code.project01.cliJvm.command
 
 import ru.den.writes.code.project01.cliJvm.BranchCommand
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AFTER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ARGS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EVERY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FORMAT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SCHEDULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SWITCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TOOL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsParser
 import ru.den.writes.code.project01.cliJvm.clicontrols.ParseResult
 import ru.den.writes.code.project01.cliJvm.clicontrols.ParsedControl
@@ -59,6 +65,7 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
         PROFILE -> profile(c)
         RULE -> rule(c)
         TASK -> task(c)
+        SCHEDULE -> schedule(c)
         else -> null // session/strategy/inflate/mcp/reuse/exit/help — not in-session commands
     }
 
@@ -130,6 +137,26 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
         c.sub(RESUME)?.let { return BranchCommand.ResumeTask }
         c.sub(NOTE)?.let { return BranchCommand.AppendTaskNote(it.value.orEmpty()) }
         return BranchCommand.SetTask(c.value.orEmpty())
+    }
+
+    /** `/schedule collect tool <name> [args …] | agent prompt "<text>"` + after/every <sec>. */
+    private fun schedule(c: ParsedControl): BranchCommand? {
+        // clear [<id>] = cancel one / all active; bare /schedule (no kind) = list.
+        c.sub(CLEAR)?.let {
+            return if (it.value != null) BranchCommand.CancelSchedule(it.value) else BranchCommand.ClearSchedules
+        }
+        if (c.value == null) return BranchCommand.ListSchedules
+        val after = c.sub(AFTER)?.value?.toIntOrNull()
+        val every = c.sub(EVERY)?.value?.toIntOrNull()
+        if (after != null && every != null) return null
+        val seconds = after ?: every ?: return null
+        val periodic = every != null
+        val spec = when (c.value) {
+            "collect" -> ScheduleSpec.Collect(c.sub(TOOL)?.value ?: return null, c.sub(ARGS)?.value, seconds, periodic)
+            "agent" -> ScheduleSpec.Agent(c.sub(PROMPT)?.value ?: return null, seconds, periodic)
+            else -> return null
+        }
+        return BranchCommand.Schedule(spec)
     }
 
     /** `agent mode <preamble|system>` flips the live memory-injection mode. */

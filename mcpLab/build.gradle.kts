@@ -14,6 +14,7 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinxJson)
     implementation(libs.kotlinx.serializationJson)
     implementation(libs.kotlinx.coroutinesCore)
+    implementation(projects.scheduling)
 
     testImplementation(libs.kotlin.testJunit)
     testImplementation(libs.junit)

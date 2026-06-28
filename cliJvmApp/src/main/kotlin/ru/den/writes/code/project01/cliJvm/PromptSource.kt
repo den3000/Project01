@@ -1,6 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.command.ControlsToBranchCommand
+import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import java.io.BufferedReader
@@ -82,6 +83,16 @@ internal sealed interface BranchCommand {
     data object ClearTasks : BranchCommand
     /** Flip the memory-injection mode (PREAMBLE ↔ SYSTEM). */
     data class SetMemoryMode(val mode: MemoryMode) : BranchCommand
+
+    /** Add a scheduled task in-session (`/schedule collect … | agent …`). */
+    data class Schedule(val spec: ScheduleSpec) : BranchCommand
+
+    /** List active scheduled tasks (`/schedule`). */
+    data object ListSchedules : BranchCommand
+    /** Cancel one scheduled task by id (`/schedule clear <id>`). */
+    data class CancelSchedule(val id: String) : BranchCommand
+    /** Cancel every active scheduled task (`/schedule clear`) — stops the schedule. */
+    data object ClearSchedules : BranchCommand
 }
 
 /**

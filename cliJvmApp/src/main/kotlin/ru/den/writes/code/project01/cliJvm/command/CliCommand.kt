@@ -66,6 +66,7 @@ internal sealed interface CliCommand {
         val tui: Boolean,
         val judgeAgents: List<StageJudgeSpec>,
         val mcpServer: String? = null,
+        val schedules: List<ScheduleSpec> = emptyList(),
     ) : RunPrompt
 
     /** Single turn: send [prompt], print the reply, exit. No history / session. */

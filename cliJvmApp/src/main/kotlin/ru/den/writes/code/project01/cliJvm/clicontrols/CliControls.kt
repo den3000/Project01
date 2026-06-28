@@ -1,6 +1,8 @@
 package ru.den.writes.code.project01.cliJvm.clicontrols
 
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AFTER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ARGS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BY_LINE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
@@ -8,6 +10,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.END_SEQUENCE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EVERY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EXIT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_INSTRUCTION
@@ -30,6 +33,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROVIDER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.REUSE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SCHEDULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
@@ -40,6 +44,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SUMMARIZE_
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SWITCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TEMPERATURE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TOOL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
 import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
 import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
@@ -92,10 +97,11 @@ private fun sub(
     arg: CliControlsArg,
     parent: List<CliControlsArg>,
     value: ValueSpec? = null,
+    requires: Set<CliControlsArg> = emptySet(),
     excludes: Set<CliControlsArg> = emptySet(),
     parentValueIn: Set<String>? = null,
     usage: String = "",
-) = ControlSpec(arg, setOf(SUB), parent, value, valueSurfaces = setOf(SUB), excludes = excludes, parentValueIn = parentValueIn, usage = usage)
+) = ControlSpec(arg, setOf(SUB), parent, value, valueSurfaces = setOf(SUB), requires = requires, excludes = excludes, parentValueIn = parentValueIn, usage = usage)
 
 /**
  * Declare an entity once: it gets `<entity> [<value>]` (value present = select /
@@ -178,7 +184,25 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
             usage = "spawn an MCP server (e.g. \"mcpLab --serve\") and offer its tools to the model",
         ),
     )
+
+    // ---- scheduling ----
+    addAll(scheduleControls())
 }
+
+/**
+ * `schedule <collect|agent> …` — a repeatable task spec. `collect tool <name> [args "<json>"]`
+ * calls an MCP tool on the schedule (needs `-mcpServer`); `agent prompt "<text>"` runs a turn.
+ * Exactly one of `after <sec>` (one-shot) / `every <sec>` (periodic) sets the timing.
+ */
+private fun scheduleControls(): List<ControlSpec> = listOf(
+    top(SCHEDULE, setOf(FLAG, CMD), value = opt(ValueKind.OneOf(setOf("collect", "agent"))), excludes = setOf(ONESHOT), usage = "collect <tool> | agent <prompt> + after/every <sec>; bare = list, clear [<id>] = cancel"),
+    sub(CLEAR, listOf(SCHEDULE), value = opt(ValueKind.Name), usage = "cancel one task (<id>) or all active (bare)"),
+    sub(TOOL, listOf(SCHEDULE), value = req(ValueKind.Name), requires = setOf(MCP_SERVER), parentValueIn = setOf("collect"), usage = "MCP tool to call (collect; needs -mcpServer)"),
+    sub(ARGS, listOf(SCHEDULE), value = req(ValueKind.Text), parentValueIn = setOf("collect"), usage = "JSON args for the tool (collect)"),
+    sub(PROMPT, listOf(SCHEDULE), value = req(ValueKind.Text), parentValueIn = setOf("agent"), usage = "prompt to run (agent)"),
+    sub(AFTER, listOf(SCHEDULE), value = req(ValueKind.IntRange(1)), usage = "fire once, N seconds from now"),
+    sub(EVERY, listOf(SCHEDULE), value = req(ValueKind.IntRange(1)), usage = "fire every N seconds"),
+)
 
 private fun profileSections(): List<ControlSpec> = listOf(STYLE, FORMAT, CONSTRAINTS, CONTEXT).map { section ->
     // `profile <name> <section> <text>` appends; `<section> clean` empties it — modelled as the
