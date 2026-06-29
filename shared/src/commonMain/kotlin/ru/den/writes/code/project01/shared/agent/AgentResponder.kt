@@ -88,7 +88,11 @@ class AgentResponder(private val config: AgentConfig) {
         )
 
     private companion object {
-        /** Cap on tool-call rounds before forcing a final answer — guards against loops. */
-        const val MAX_TOOL_ROUNDS = 4
+        /**
+         * Cap on tool-call rounds before forcing a final answer — guards against loops.
+         * Headroom for a multi-tool pipeline: a 3-tool chain (e.g. current_weather →
+         * add_to_report → save_to_file) needs 3 executing rounds + 1 for the final text.
+         */
+        const val MAX_TOOL_ROUNDS = 6
     }
 }
