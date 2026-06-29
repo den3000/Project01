@@ -92,11 +92,23 @@ class CliEntityGrammarTest {
         assertMatchParserCmd("$cmd show $arg", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, SHOW, value = arg))), parser)
         assertMatchParserCmd("$cmd clear", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, CLEAR))), parser)
         assertMatchParserCmd("$cmd clear $arg", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, CLEAR, value = arg))), parser)
-
         assertMatchParserCmd("$cmd switch $arg", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, SWITCH, value = arg))), parser)
         assertMatchParserError(CMD, "$cmd switch", ParseError.MissingValue(SWITCH), parser)
-        // branch is command-only — as a startup flag it is the wrong surface
-        assertMatchParserError("-branch exp".toArgsList(), ParseError.WrongSurface("branch", FLAG), parser)
+    }
+
+    @Test
+    fun `when branch flag grammar used - then it fails`() {
+        // given
+        val cli = BRANCH
+        val sfc = FLAG
+        val cmd = "-branch"
+        val arg = "branch_name"
+
+        // when
+        val parser = CliControlsParser()
+
+        // then
+        assertMatchParserError("$cmd $arg".toArgsList(), ParseError.WrongSurface(cli.title, sfc), parser)
     }
     //endregion
 
@@ -112,7 +124,7 @@ class CliEntityGrammarTest {
         // when
         val parser = CliControlsParser()
 
-        // then — in-session: bare lists, show/clear take an optional name; the select VALUE is startup-only
+        // then
         assertMatchParserCmd("$cmd", ExpectedControl(surface = sfc, arg = cli), parser)
         assertMatchParserCmd("$cmd show", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, SHOW))), parser)
         assertMatchParserCmd("$cmd show $name", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, SHOW, value = name))), parser)
@@ -128,19 +140,18 @@ class CliEntityGrammarTest {
         val sfc = FLAG
         val cmd = "-session"
         val name = "demo"
+        val longName = "a".repeat(65)
 
         // when
         val parser = CliControlsParser()
 
-        // then — at startup the select value IS allowed
+        // then
         assertMatchParserFlag("$cmd".toArgsList(), top(cli, sfc), parser)
         assertMatchParserFlag("$cmd $name".toArgsList(), top(cli, sfc, value = name), parser)
         assertMatchParserFlag("$cmd show".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, SHOW))), parser)
         assertMatchParserFlag("$cmd show $name".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, SHOW, value = name))), parser)
         assertMatchParserFlag("$cmd clear".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, CLEAR))), parser)
         assertMatchParserFlag("$cmd clear $name".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, CLEAR, value = name))), parser)
-        // a too-long select name fails its Name kind
-        val longName = "a".repeat(65)
         assertMatchParserError("$cmd $longName".toArgsList(), ParseError.BadValue(cli, longName, "alphanumeric / '_' / '-', up to 64 chars"), parser)
     }
     //endregion
@@ -158,7 +169,7 @@ class CliEntityGrammarTest {
         // when
         val parser = CliControlsParser()
 
-        // then — name is the value; a section nests with optional text (absent = clear that section)
+        // then
         assertMatchParserCmd("$cmd", ExpectedControl(surface = sfc, arg = cli), parser)
         assertMatchParserCmd("$cmd $name", ExpectedControl(surface = sfc, arg = cli, value = name), parser)
         assertMatchParserCmd("$cmd show", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, SHOW))), parser)
@@ -183,8 +194,10 @@ class CliEntityGrammarTest {
         // then
         assertMatchParserFlag("$cmd".toArgsList(), top(cli, sfc), parser)
         assertMatchParserFlag("$cmd $name".toArgsList(), top(cli, sfc, value = name), parser)
+        assertMatchParserFlag("$cmd show".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, SHOW))), parser)
         assertMatchParserFlag("$cmd show $name".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, SHOW, value = name))), parser)
         assertMatchParserFlag("$cmd clear".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, CLEAR))), parser)
+        assertMatchParserFlag("$cmd clear $name".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, CLEAR, value = name))), parser)
         assertMatchParserFlag("$cmd $name style \"$text\"".toArgsList(), top(cli, sfc, value = name, subs = listOf(sub(cli, STYLE, value = text))), parser)
     }
     //endregion
@@ -202,7 +215,7 @@ class CliEntityGrammarTest {
         // when
         val parser = CliControlsParser()
 
-        // then — pause/resume/note nest under the active task id
+        // then
         assertMatchParserCmd("$cmd", ExpectedControl(surface = sfc, arg = cli), parser)
         assertMatchParserCmd("$cmd $id", ExpectedControl(surface = sfc, arg = cli, value = id), parser)
         assertMatchParserCmd("$cmd show", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, SHOW))), parser)
@@ -226,8 +239,12 @@ class CliEntityGrammarTest {
         val parser = CliControlsParser()
 
         // then
+        assertMatchParserFlag("$cmd".toArgsList(), top(cli, sfc), parser)
         assertMatchParserFlag("$cmd $id".toArgsList(), top(cli, sfc, value = id), parser)
+        assertMatchParserFlag("$cmd show".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, SHOW))), parser)
+        assertMatchParserFlag("$cmd clear $id".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, CLEAR, value = id))), parser)
         assertMatchParserFlag("$cmd $id pause".toArgsList(), top(cli, sfc, value = id, subs = listOf(sub(cli, PAUSE))), parser)
+        assertMatchParserFlag("$cmd $id resume".toArgsList(), top(cli, sfc, value = id, subs = listOf(sub(cli, RESUME))), parser)
         assertMatchParserFlag("$cmd $id note \"$note\"".toArgsList(), top(cli, sfc, value = id, subs = listOf(sub(cli, NOTE, value = note))), parser)
         assertMatchParserError("$cmd $id note".toArgsList(), ParseError.MissingValue(NOTE), parser)
     }
