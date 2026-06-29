@@ -4,7 +4,7 @@ package ru.den.writes.code.project01.scheduling
  * The per-tick payload. The engine calls [handle] on every firing and decides what to do
  * by the return value:
  *  - **non-null** → a synchronous result: the engine stores it as a [TaskResult] (and so
- *    makes it visible to [summarize]). This is how mcpLab's weather tick (returns the
+ *    makes it visible to [summarize]). This is how openmeteo-mcp's weather tick (returns the
  *    weather text) and cliJvmApp's collect tick (returns an MCP tool's output) work.
  *  - **null** → the handler fired asynchronously — e.g. it enqueued an intent into another
  *    loop whose result arrives later, outside the engine. Nothing to store now; the engine
