@@ -2,6 +2,9 @@ package ru.den.writes.code.project01.cliJvm.clicontrols.grammar
 
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FORMAT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
@@ -176,7 +179,12 @@ class CliEntityGrammarTest {
         assertMatchParserCmd("$cmd show $name", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, SHOW, value = name))), parser)
         assertMatchParserCmd("$cmd clear", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, CLEAR))), parser)
         assertMatchParserCmd("$cmd clear $name", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, CLEAR, value = name))), parser)
-        assertMatchParserCmd("$cmd $name style \"$text\"", ExpectedControl(surface = sfc, arg = cli, value = name, subs = listOf(sub(cli, STYLE, value = text))), parser)
+        // every section appends with text, clears without; a section without a name edits the default profile
+        listOf(STYLE, FORMAT, CONSTRAINTS, CONTEXT).forEach { section ->
+            assertMatchParserCmd("$cmd $name ${section.title} \"$text\"", ExpectedControl(surface = sfc, arg = cli, value = name, subs = listOf(sub(cli, section, value = text))), parser)
+            assertMatchParserCmd("$cmd $name ${section.title}", ExpectedControl(surface = sfc, arg = cli, value = name, subs = listOf(sub(cli, section))), parser)
+        }
+        assertMatchParserCmd("$cmd style \"$text\"", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, STYLE, value = text))), parser)
     }
 
     @Test
@@ -198,7 +206,11 @@ class CliEntityGrammarTest {
         assertMatchParserFlag("$cmd show $name".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, SHOW, value = name))), parser)
         assertMatchParserFlag("$cmd clear".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, CLEAR))), parser)
         assertMatchParserFlag("$cmd clear $name".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, CLEAR, value = name))), parser)
-        assertMatchParserFlag("$cmd $name style \"$text\"".toArgsList(), top(cli, sfc, value = name, subs = listOf(sub(cli, STYLE, value = text))), parser)
+        listOf(STYLE, FORMAT, CONSTRAINTS, CONTEXT).forEach { section ->
+            assertMatchParserFlag("$cmd $name ${section.title} \"$text\"".toArgsList(), top(cli, sfc, value = name, subs = listOf(sub(cli, section, value = text))), parser)
+            assertMatchParserFlag("$cmd $name ${section.title}".toArgsList(), top(cli, sfc, value = name, subs = listOf(sub(cli, section))), parser)
+        }
+        assertMatchParserFlag("$cmd style \"$text\"".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, STYLE, value = text))), parser)
     }
     //endregion
 
