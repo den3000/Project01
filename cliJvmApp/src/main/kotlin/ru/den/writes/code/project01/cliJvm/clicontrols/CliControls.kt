@@ -175,13 +175,12 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
     add(top(INFLATE, setOf(FLAG, CMD), value = req(ValueKind.IntRange(1)), requires = setOf(SESSION), excludes = setOf(ONESHOT), usage = "duplicate the last N rows of the session (dev)"))
 
     // ---- tools (MCP) ----
-    // Merged feature ships -mcpServer startup-only (Chat-only); modelled here as a flag-command,
-    // since attaching a tool server mid-session is a natural extension. See README "open questions"
-    // on whether tools belong per-agent (`agent <name> mcp …`) in the agent-as-entity model.
+    // -mcpServer is startup-only (Chat-only) and repeatable: pass it once per server, and the
+    // model gets the union of their tools (calls routed to the owning server by tool name).
     add(
         top(
             MCP_SERVER, setOf(FLAG, CMD), value = req(ValueKind.Text), excludes = setOf(ONESHOT),
-            usage = "spawn an MCP server (e.g. \"mcpLab --serve\") and offer its tools to the model",
+            usage = "spawn an MCP server and offer its tools to the model (repeatable, one per server)",
         ),
     )
 

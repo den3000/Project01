@@ -236,13 +236,27 @@ stateless), так что multi-turn контекст сохраняется; о
 
 ### MCP-инструменты — `-mcpServer`
 
-`-mcpServer "<команда>"` (Chat-only) поднимает MCP-сервер подпроцессом (напр. `mcpLab --serve`,
-см. модуль [`mcpLab`](../mcpLab/README.md)) и отдаёт его инструменты модели. На старте — один
+`-mcpServer "<команда>"` (Chat-only) поднимает MCP-сервер подпроцессом (напр.
+[`openmeteo-mcp`](../mcps/openmeteo-mcp/README.md)) и отдаёт его инструменты модели. На старте — один
 `tools/list`, схема каждого инструмента → Gemini `functionDeclarations`. Когда модель отвечает
 `functionCall` вместо текста, CLI выполняет его через `tools/call`, скармливает результат обратно
 `functionResponse` и переспрашивает — до нескольких раундов — пока модель не выдаст финальный текст.
 Tool-обмен эфемерный (в историю едет только финальный ответ), в транскрипте — колонка `mcp │` (TUI)
 / строки `[tool] …` (plain). **Только Gemini** — другие провайдеры не моделируют function calling.
+
+Флаг **повторяемый** — несколько серверов сразу. Каждый поднимается отдельным подпроцессом;
+`McpToolRouter` объединяет их каталоги и роутит каждый вызов на сервер-владельца по имени инструмента
+(коллизия имён между серверами — ошибка на старте). Так модель проходит длинный флоу через инструменты
+с РАЗНЫХ серверов:
+
+```bash
+# кросс-серверная цепочка: погода [openmeteo-mcp] → документ [localfs-mcp] → файл [localfs-mcp]
+OM=$(pwd)/../mcps/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp
+FS=$(pwd)/../mcps/localfs-mcp/build/install/localfs-mcp/bin/localfs-mcp
+cliJvmApp -prompt "Узнай погоду в Москве, добавь её в документ и сохрани в файл moscow.md" \
+  -mcpServer "$OM" -mcpServer "$FS"
+# → ~/.project01-localfs/documents/moscow.md
+```
 
 ### Планировщик — `-schedule`
 
@@ -261,8 +275,8 @@ Tool-обмен эфемерный (в историю едет только фи
 расписание не шумит). Без `-schedule` планировщик не поднимается — wire/вывод байт-в-байт прежний.
 
 ```bash
-# периодический сбор погоды через mcpLab-инструмент (collect — без токенов на сбор)
-cliJvmApp -prompt "ok" -mcpServer "$(pwd)/../mcpLab/build/install/mcpLab/bin/mcpLab --serve" \
+# периодический сбор погоды через openmeteo-mcp-инструмент (collect — без токенов на сбор)
+cliJvmApp -prompt "ok" -mcpServer "$(pwd)/../mcps/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp" \
   -schedule collect tool current_weather args '{"city":"Moscow"}' every 30 -session collect-demo
 
 # периодический агентный ход (тратит токены каждые 60 c)

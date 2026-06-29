@@ -9,14 +9,14 @@ or any concrete data source. Everything domain-specific is injected.
 
 The same scheduler is needed in two places that must not duplicate it:
 
-- **mcpLab** (an MCP server) — exposes scheduling *tools* and collects data in the
+- **openmeteo-mcp** (an MCP server) — exposes scheduling *tools* and collects data in the
   background while it runs.
 - **cliJvmApp** (the agent) — polls an MCP tool on a schedule and summarises on its
   own side.
 
 Both depend on this one module and sit on top of it **additively**
 (`implementation(projects.scheduling)`). The core stays dependency-free (no `:shared`),
-so mcpLab can use it without pulling in the LLM stack — preserving its standalone build.
+so openmeteo-mcp can use it without pulling in the LLM stack — preserving its standalone build.
 
 ## API
 
@@ -39,13 +39,13 @@ so mcpLab can use it without pulling in the LLM stack — preserving its standal
 
 ## Integration (done)
 
-**mcpLab (Н2):** `WeatherTaskHandler` over `OpenMeteoClient`; MCP tools
+**openmeteo-mcp:** `WeatherTaskHandler` over `OpenMeteoClient`; MCP tools
 `schedule_task` / `list_tasks` / `cancel_task` / `report` delegate to
 `engine.add` / `list` / `cancel` / `summary`; `runLoop` + a periodic summary on
 `Dispatchers.IO`, cancelled on `session.onClose`; `JsonFileScheduleStore` so tasks
-survive a server restart. See [`mcpLab/README.md`](../mcpLab/README.md).
+survive a server restart. See [`mcps/openmeteo-mcp/README.md`](../mcps/openmeteo-mcp/README.md).
 
-**cliJvmApp (Н1):** `CliTaskHandler` routes a fired task by id — `collect` calls an MCP
+**cliJvmApp:** `CliTaskHandler` routes a fired task by id — `collect` calls an MCP
 tool directly via `McpToolClient.execute` (token-free) and returns its text; `agent`
 injects a `UiIntent.Submit` into the serialized MVI loop and returns `null`. Driven by the
 `-schedule` flag plus REPL `/schedule` (add · list · `clear [<id>]`); the periodic report

@@ -14,7 +14,7 @@ internal const val USAGE: String =
         "         (knobs live under -agent; repeat -agent with `stages`/`judge` for per-stage agents)\n" +
         "       [-feedFile <path> [chunkChars <int> | byLine] [feedInstruction \"<text>\"]]\n" +
         "       [-strategy <full|window|facts|summary> [keepLast <int>] [summarizeEvery <int>]]\n" +
-        "       [-mcpServer \"<command>\"]   (spawn an MCP server, e.g. \"mcpLab --serve\")\n" +
+        "       [-mcpServer \"<command>\"]   (spawn an MCP server; repeatable, one per server)\n" +
         "       [-schedule collect tool <name> [args \"<json>\"] <after|every> <sec>]   (needs -mcpServer)\n" +
         "       [-schedule agent prompt \"<text>\" <after|every> <sec>]   (repeatable; periodic report as a feed line)\n" +
         "   or: -prompt <text> -oneshot [-agent provider <…> model <…> maxTokens <int> …]   (one prompt → reply → exit)\n" +
