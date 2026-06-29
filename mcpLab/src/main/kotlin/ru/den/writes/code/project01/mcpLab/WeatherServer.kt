@@ -45,6 +45,8 @@ suspend fun runWeatherServer(
     }
     val weather = OpenMeteoClient(http)
     val engine = buildWeatherScheduler(defaultScheduleFile(), weather::currentWeather)
+    // The pipeline's middle/final stages: accumulate text into a report, then save it.
+    val report = ReportStore()
 
     val server = Server(
         serverInfo = Implementation(name = "mcpLab-weather", version = "0.1.0"),
@@ -164,9 +166,60 @@ suspend fun runWeatherServer(
         CallToolResult(content = listOf(TextContent(engine.summary())))
     }
 
+    server.addTool(
+        name = "add_to_report",
+        description = "Append a line of text to the in-memory weather report. Pass the weather " +
+            "string returned by 'current_weather'. Step 2 of the report pipeline.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "text",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Text to add, e.g. a 'current_weather' result line.")
+                    },
+                )
+            },
+            required = listOf("text"),
+        ),
+    ) { request ->
+        val text = request.arguments?.get("text")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val result = if (text == null) {
+            "Error: the 'text' argument is required."
+        } else {
+            "Added to report (${report.add(text)} entries total)."
+        }
+        CallToolResult(content = listOf(TextContent(result)))
+    }
+
+    server.addTool(
+        name = "save_to_file",
+        description = "Save the accumulated report to a file under the reports dir and return " +
+            "its path. Step 3 of the report pipeline.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "filename",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Target file name, defaults to \"report.md\".")
+                    },
+                )
+            },
+            required = emptyList(),
+        ),
+    ) { request ->
+        val filename = request.arguments?.get("filename")?.jsonPrimitive?.content
+        val entries = report.snapshot()
+        val file = reportFileFor(filename)
+        saveReport(file, report.render())
+        val result = "Saved report (${entries.size} entries) to ${file.absolutePath}."
+        CallToolResult(content = listOf(TextContent(result)))
+    }
+
     System.err.println(
-        "[mcpLab] weather MCP server ready on stdio " +
-            "(tools: current_weather, schedule_task, list_tasks, cancel_task, report)",
+        "[mcpLab] weather MCP server ready on stdio (tools: current_weather, schedule_task, " +
+            "list_tasks, cancel_task, report, add_to_report, save_to_file)",
     )
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),

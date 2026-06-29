@@ -11,10 +11,12 @@ maintained in collaboration with JetBrains). It has **two modes**:
    connects over **stdio**, calls `listTools` and prints the server's tools. No
    LLM, no API keys.
 2. **Server** (`--serve`) — runs *our own* MCP server over stdio: a
-   **`current_weather(city)`** tool plus a **background scheduler** (tools
+   **`current_weather(city)`** tool, a **background scheduler** (tools
    `schedule_task` / `list_tasks` / `cancel_task` / `report`) that collects weather
-   on a schedule and persists it. Backed by the free Open-Meteo API. This is the
-   server the LLM CLI drives through its `-mcpServer` flag (see the root README).
+   on a schedule and persists it, and a **report pipeline** (`add_to_report` /
+   `save_to_file`) the LLM composes into a chain. Backed by the free Open-Meteo
+   API. This is the server the LLM CLI drives through its `-mcpServer` flag (see
+   the root README).
 
 ## Run
 
@@ -67,6 +69,12 @@ stdio. It is meant to be **spawned by an MCP client**, not run by hand.
   task, or cancel an active one.
 - **`report`** (no input) — an aggregated summary of the data collected so far
   (count, time span, latest). Reads stored results only — **calls no model**.
+- **`add_to_report`** (`{ "text": string }`) / **`save_to_file`**
+  (`{ "filename"?: string }`) — the report pipeline. `add_to_report` appends a line
+  to an in-memory, session-scoped report; `save_to_file` writes it to
+  `~/.project01-mcplab/reports/<filename>` (default `report.md`) and returns the
+  path. Composed by the LLM into a chain: `current_weather` → `add_to_report` →
+  `save_to_file` (see the pipeline example below). State lives in `Report.kt`.
 - **Backed by** the free, key-less Open-Meteo API (`OpenMeteoClient.kt`): geocode
   the city → coordinates, then fetch current weather. Needs network, no auth.
 - **Scheduler:** the four scheduling tools delegate to a `SchedulerEngine` from
@@ -84,8 +92,25 @@ The LLM CLI uses it for function calling: `cliJvmApp -mcpServer "…/mcpLab --se
 
 ```bash
 BIN=./mcpLab/build/install/mcpLab/bin/mcpLab
-$BIN "$BIN --serve"          # → "1 tool(s):  • current_weather — …"
+$BIN "$BIN --serve"          # → "7 tool(s):  • current_weather — …"
 ```
+
+### Report pipeline (tool composition)
+
+The three report tools form a pipeline the LLM runs **on its own** — it picks the
+tools and threads each result into the next, no manual wiring:
+
+```bash
+cliJvmApp -prompt "Узнай погоду в Москве, добавь её в отчёт и сохрани отчёт в файл moscow.md" \
+          -mcpServer "$(pwd)/mcpLab/build/install/mcpLab/bin/mcpLab --serve"
+# Gemini chains:  current_weather(city=Moscow)
+#               → add_to_report(text=<that weather line>)
+#               → save_to_file(filename=moscow.md)
+# → ~/.project01-mcplab/reports/moscow.md
+```
+
+The middle step is what makes it a real pipeline: the weather string from step 1 is
+passed verbatim as the `text` argument of step 2 — data flowing **between** tools.
 
 ## Layout
 
@@ -96,13 +121,14 @@ All under `src/main/kotlin/ru/den/writes/code/project01/mcpLab/`:
 | `main.kt` | Bootstrap + dispatch: `--serve` → the weather server; `-h` → help; else the client probe. |
 | `ServerCommand.kt` | `parseServerCommand(args)` + `DEFAULT_SERVER_COMMAND` — pure command resolution. |
 | `ToolList.kt` | `ToolInfo` + `formatToolList(tools)` — pure probe-output rendering. |
-| `WeatherServer.kt` | `runWeatherServer()` — registers all five tools, runs the scheduler loops, wires `StdioServerTransport`, stays alive. |
+| `WeatherServer.kt` | `runWeatherServer()` — registers all seven tools, runs the scheduler loops, wires `StdioServerTransport`, stays alive. |
 | `OpenMeteoClient.kt` | `currentWeather(city)` over Open-Meteo + pure `formatWeather` / `weatherCodeDescription`. |
 | `WeatherTaskHandler.kt` | `TaskHandler` for the scheduler: looks up weather for a task's label (a city). |
 | `SchedulingTools.kt` | Pure `scheduleFromArgs` / `renderTask` / `renderTasks` + the `buildWeatherScheduler` factory. |
+| `Report.kt` | `ReportStore` (in-memory accumulator) + pure `renderReport` / `reportFileFor` / `saveReport` behind the `add_to_report` / `save_to_file` tools. |
 
 Pure functions are unit-tested (`ParseServerCommandTest`, `FormatToolListTest`,
-`WeatherFormatTest`, `WeatherTaskHandlerTest`, `SchedulingToolsTest`). The live
+`WeatherFormatTest`, `WeatherTaskHandlerTest`, `SchedulingToolsTest`, `ReportTest`). The live
 `connect` / `listTools` / `callTool` paths and the scheduler loops are verified by
 running the binary — they need a real subprocess.
 
