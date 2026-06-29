@@ -219,8 +219,8 @@ class CliControlsParserTest {
     @Test
     fun `when an mcp server is given - then both fronts keep the quoted command as one value`() {
         // when - then
-        assertEquals(topParsedControl(MCP_SERVER, FLAG, "mcpLab --serve"), ok("-mcpServer \"mcpLab --serve\"", FLAG))
-        assertEquals(topParsedControl(MCP_SERVER, CMD, "mcpLab --serve"), ok("/mcpServer \"mcpLab --serve\"", CMD))
+        assertEquals(topParsedControl(MCP_SERVER, FLAG, "openmeteo-mcp --serve"), ok("-mcpServer \"openmeteo-mcp --serve\"", FLAG))
+        assertEquals(topParsedControl(MCP_SERVER, CMD, "openmeteo-mcp --serve"), ok("/mcpServer \"openmeteo-mcp --serve\"", CMD))
     }
     //endregion
 

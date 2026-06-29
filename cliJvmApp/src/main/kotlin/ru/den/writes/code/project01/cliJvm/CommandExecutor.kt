@@ -391,14 +391,21 @@ internal class CommandExecutor(private val db: AppDatabase) {
                     modelId = spec.provider.modelId,
                 )
             }
-            // MCP tool server: spawn, connect, list tools once. Null when absent.
-            val mcpClient: McpToolClient? = chat?.mcpServer?.let { cmd ->
+            // MCP tool servers: spawn each, connect, list its tools once. A router fans the
+            // model's calls out to the server that owns each tool (names unique across servers).
+            val mcpClients: List<McpToolClient> = chat?.mcpServers.orEmpty().map { cmd ->
                 McpToolClient(cmd.split(Regex("\\s+")).filter { it.isNotEmpty() }).also { it.connect() }
             }
-            val toolDefs = mcpClient?.listToolDefinitions().orEmpty()
-            if (mcpClient != null) {
-                System.err.println("[mcp] ${chat?.mcpServer} → tools: ${toolDefs.joinToString { it.name }}")
-            }
+            val router: McpToolRouter? = mcpClients
+                .zip(chat?.mcpServers.orEmpty())
+                .map { (client, cmd) ->
+                    val defs = client.listToolDefinitions()
+                    System.err.println("[mcp] $cmd → tools: ${defs.joinToString { it.name }}")
+                    McpToolRouter.Route(client, defs)
+                }
+                .takeIf { it.isNotEmpty() }
+                ?.let(::McpToolRouter)
+            val toolDefs = router?.toolDefs.orEmpty()
 
             try {
                 val feedFile = (parsed as? CliCommand.RunChat)?.feedFile
@@ -430,7 +437,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
                             primary = feedSource,
                             replAfterFeed = stdinAfter,
                             toolDefs = toolDefs,
-                            toolExecutor = mcpClient,
+                            toolExecutor = router,
                         )
                     }
                 } else {
@@ -449,11 +456,11 @@ internal class CommandExecutor(private val db: AppDatabase) {
                         ),
                         view = pickView(tuiRequested, System.console() != null),
                         toolDefs = toolDefs,
-                        toolExecutor = mcpClient,
+                        toolExecutor = router,
                     )
                 }
             } finally {
-                mcpClient?.close()
+                mcpClients.forEach { it.close() }
             }
         }
     }

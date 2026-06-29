@@ -68,21 +68,30 @@ class CliControlsCommandParserFieldsTest {
     }
 
     @Test
-    fun `when session, tui and mcpServer are given - then all land on the command`() {
+    fun `when session, tui and one mcpServer are given - then all land on the command`() {
         // when
-        val chat = chat("-prompt", "hi", "-session", "foo", "-tui", "-mcpServer", "mcpLab --serve")
+        val chat = chat("-prompt", "hi", "-session", "foo", "-tui", "-mcpServer", "openmeteo-mcp")
 
         // then
         assertEquals("foo", chat.session)
         assertTrue(chat.tui)
-        assertEquals("mcpLab --serve", chat.mcpServer)
+        assertEquals(listOf("openmeteo-mcp"), chat.mcpServers)
+    }
+
+    @Test
+    fun `when mcpServer is repeated - then every server lands in order`() {
+        // when
+        val chat = chat("-prompt", "hi", "-mcpServer", "openmeteo-mcp", "-mcpServer", "localfs-mcp")
+
+        // then
+        assertEquals(listOf("openmeteo-mcp", "localfs-mcp"), chat.mcpServers)
     }
 
     @Test
     fun `when collect and agent tasks are scheduled - then both land as schedule specs`() {
         // when — collect needs an MCP server; two repeatable -schedule groups
         val chat = chat(
-            "-prompt", "hi", "-mcpServer", "mcpLab --serve",
+            "-prompt", "hi", "-mcpServer", "openmeteo-mcp",
             "-schedule", "collect", "tool", "current_weather", "args", "{\"city\":\"Paris\"}", "every", "30",
             "-schedule", "agent", "prompt", "daily digest", "after", "60",
         )

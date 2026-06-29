@@ -123,7 +123,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
             stageAgents = stageAgents,
             tui = controls.has(TUI),
             judgeAgents = judgeAgents,
-            mcpServer = controls.last(MCP_SERVER)?.value,
+            mcpServers = controls.filter { it.arg == MCP_SERVER }.mapNotNull { it.value },
             schedules = scheduleSpecs(controls),
         )
     }

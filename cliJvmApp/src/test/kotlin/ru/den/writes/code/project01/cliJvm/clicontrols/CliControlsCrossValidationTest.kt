@@ -42,7 +42,7 @@ class CliControlsCrossValidationTest {
             listOf("-task", "auth") to TASK,
             listOf("-rule", "no spring") to RULE,
             listOf("-tui") to TUI,
-            listOf("-mcpServer", "mcpLab --serve") to MCP_SERVER,
+            listOf("-mcpServer", "openmeteo-mcp") to MCP_SERVER,
             listOf("-agent", "main", "mode", "system") to MODE,
             listOf("-agent", "main", "stages", "execution..done") to STAGES,
             listOf("-agent", "checker", "judge") to JUDGE,
