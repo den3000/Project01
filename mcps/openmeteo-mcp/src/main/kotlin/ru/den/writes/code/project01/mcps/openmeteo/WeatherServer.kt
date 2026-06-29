@@ -31,8 +31,9 @@ import kotlinx.serialization.json.put
  * Runs our own MCP server over stdio. Exposes `current_weather` plus the scheduler tools
  * (`schedule_task` / `list_tasks` / `cancel_task` / `report`), all backed by the free
  * Open-Meteo API. While a client is connected, a background ticker fires due tasks every
- * [tickMs] and a reporter logs the aggregated summary every [summaryEveryMs]; both run on
- * `Dispatchers.IO` and are cancelled on disconnect. stdout is the JSON-RPC channel — every
+ * [tickMs] and a reporter logs the aggregated summary (only when it changes) every
+ * [summaryEveryMs]; both run on `Dispatchers.IO` and are cancelled on disconnect. With no
+ * scheduled tasks the reporter stays silent. stdout is the JSON-RPC channel — every
  * diagnostic goes to stderr so it can't corrupt the protocol stream. Blocks until the
  * client disconnects (stdin closes).
  */
@@ -179,12 +180,19 @@ suspend fun runWeatherServer(
     // Background scheduler: tick due tasks every tickMs and log the aggregated summary
     // every summaryEveryMs, both on Dispatchers.IO. They live exactly as long as the
     // client connection — done.join() unblocks on disconnect, then both are cancelled.
+    // The reporter logs only when the summary CHANGES (baseline = the current, empty one),
+    // so a server with no scheduled tasks stays silent instead of spamming "No results yet."
     coroutineScope {
         val ticker = launch(Dispatchers.IO) { engine.runLoop(tickMs) }
         val reporter = launch(Dispatchers.IO) {
+            var last = engine.summary()
             while (isActive) {
                 delay(summaryEveryMs)
-                System.err.println("[openmeteo-mcp] ${engine.summary()}")
+                val summary = engine.summary()
+                if (summary != last) {
+                    System.err.println("[openmeteo-mcp] $summary")
+                    last = summary
+                }
             }
         }
         done.join()
