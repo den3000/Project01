@@ -23,33 +23,45 @@ class CliCommandOnlyGrammarTest {
     //region reuse / exit / help
     @Test
     fun `when a command-only control is used on its front - then it parses bare`() {
+        // given
+        val sfc = CMD
+        val controls = listOf(REUSE, EXIT, HELP)
+
         // when
         val parser = CliControlsParser()
 
         // then
-        assertMatchParserCmd("/reuse", ExpectedControl(surface = CMD, arg = REUSE), parser)
-        assertMatchParserCmd("/exit", ExpectedControl(surface = CMD, arg = EXIT), parser)
-        assertMatchParserCmd("/help", ExpectedControl(surface = CMD, arg = HELP), parser)
+        controls.forEach { cli ->
+            assertMatchParserCmd("/${cli.title}", ExpectedControl(surface = sfc, arg = cli), parser)
+        }
     }
 
     @Test
     fun `when a command-only control is used as a flag - then wrong surface`() {
+        // given
+        val sfc = FLAG
+        val controls = listOf(REUSE, EXIT, HELP)
+
         // when
         val parser = CliControlsParser()
 
         // then
-        assertMatchParserError("-reuse".toArgsList(), ParseError.WrongSurface("reuse", FLAG), parser)
-        assertMatchParserError("-exit".toArgsList(), ParseError.WrongSurface("exit", FLAG), parser)
-        assertMatchParserError("-help".toArgsList(), ParseError.WrongSurface("help", FLAG), parser)
+        controls.forEach { cli ->
+            assertMatchParserError("-${cli.title}".toArgsList(), ParseError.WrongSurface(cli.title, sfc), parser)
+        }
     }
 
     @Test
     fun `when an unknown control is typed - then UnknownControl`() {
+        // given
+        val sfc = CMD
+        val unknown = "nope"
+
         // when
         val parser = CliControlsParser()
 
         // then
-        assertMatchParserError(CMD, "/nope", ParseError.UnknownControl("nope"), parser)
+        assertMatchParserError(sfc, "/$unknown", ParseError.UnknownControl(unknown), parser)
     }
     //endregion
 }
