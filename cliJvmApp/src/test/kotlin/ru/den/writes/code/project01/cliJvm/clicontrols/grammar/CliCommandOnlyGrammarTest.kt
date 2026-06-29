@@ -23,7 +23,7 @@ class CliCommandOnlyGrammarTest {
     //region reuse / exit / help
     @Test
     fun `when a command-only control is used on its front - then it parses bare`() {
-        // given
+        // when
         val parser = CliControlsParser()
 
         // then
@@ -34,7 +34,7 @@ class CliCommandOnlyGrammarTest {
 
     @Test
     fun `when a command-only control is used as a flag - then wrong surface`() {
-        // given
+        // when
         val parser = CliControlsParser()
 
         // then
@@ -45,7 +45,7 @@ class CliCommandOnlyGrammarTest {
 
     @Test
     fun `when an unknown control is typed - then UnknownControl`() {
-        // given
+        // when
         val parser = CliControlsParser()
 
         // then

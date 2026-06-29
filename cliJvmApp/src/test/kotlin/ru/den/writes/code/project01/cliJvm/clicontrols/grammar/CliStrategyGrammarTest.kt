@@ -63,7 +63,6 @@ class CliStrategyGrammarTest {
         }
         assertMatchParserFlag("$cmd window keepLast 8".toArgsList(), top(cli, sfc, value = "window", subs = listOf(sub(cli, KEEP_LAST, value = "8"))), parser)
         assertMatchParserFlag("$cmd summary keepLast 4 summarizeEvery 5".toArgsList(), top(cli, sfc, value = "summary", subs = listOf(sub(cli, KEEP_LAST, value = "4"), sub(cli, SUMMARIZE_EVERY, value = "5"))), parser)
-        // keepLast min is 0, so a bounds-negative uses a non-integer; a dash value still reaches the sub
         assertMatchParserError("$cmd window keepLast abc".toArgsList(), ParseError.BadValue(KEEP_LAST, "abc", "an integer"), parser)
         assertMatchParserError("$cmd window keepLast -3".toArgsList(), ParseError.BadValue(KEEP_LAST, "-3", "an integer >= 0"), parser)
         assertMatchParserError("-keepLast 4".toArgsList(), ParseError.WrongSurface("keepLast", FLAG), parser)

@@ -5,6 +5,7 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ONESHOT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsParser
