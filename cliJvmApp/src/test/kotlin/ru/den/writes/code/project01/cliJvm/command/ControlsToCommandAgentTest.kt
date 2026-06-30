@@ -75,7 +75,8 @@ class ControlsToCommandAgentTest {
         assertEquals(10, actual.summarizeEvery)
         assertNull(actual.task)
         assertEquals(false, actual.tui)
-        assertNull(actual.mcpServer)
+        assertEquals(emptyList<String>(), actual.mcpServers)
+        assertEquals(0, actual.schedules.size)
     }
 
     @Test

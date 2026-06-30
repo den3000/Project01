@@ -47,7 +47,8 @@ class ControlsToCommandChatTest {
         assertEquals(0, actual.stageAgents.size)
         assertEquals(false, actual.tui)
         assertEquals(0, actual.judgeAgents.size)
-        assertNull(actual.mcpServer)
+        assertEquals(emptyList<String>(), actual.mcpServers)
+        assertEquals(0, actual.schedules.size)
     }
 
     @Test
@@ -72,7 +73,7 @@ class ControlsToCommandChatTest {
         assertEquals(8, actual.keepLast)
         assertEquals(12, actual.summarizeEvery)
         assertEquals(true, actual.tui)
-        assertEquals("mcpLab --serve", actual.mcpServer)
+        assertEquals(listOf("mcpLab --serve"), actual.mcpServers)
         // agent-fields stay default (owned by ControlsToCommandAgentTest)
         assertNull(actual.maxTokens)
         assertNull(actual.profile)
