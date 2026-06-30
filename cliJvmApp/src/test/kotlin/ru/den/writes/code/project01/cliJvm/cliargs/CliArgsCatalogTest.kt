@@ -1,21 +1,21 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols
+package ru.den.writes.code.project01.cliJvm.cliargs
 
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.KEEP_LAST
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.KEEP_LAST
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROMPT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STRATEGY
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.FLAG
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Catalog meta-invariants (structure of [CliControls.all] — not grammar) plus the
- * argv-splitting mechanic of [CliControlsParser.parseArgv]: one argv splits into
+ * Catalog meta-invariants (structure of [CliArgs.all] — not grammar) plus the
+ * argv-splitting mechanic of [CliArgsParser.parseArgv]: one argv splits into
  * one control group per `-flag`. Per-control grammar lives in the grammar suite.
  */
-class CliControlsCatalogTest {
+class CliArgsCatalogTest {
 
-    private val parser = CliControlsParser()
+    private val parser = CliArgsParser()
 
     //region argv splitting
     @Test
@@ -41,10 +41,10 @@ class CliControlsCatalogTest {
     @Test
     fun `when inspecting subcommands - then every parent chain roots at a top-level control`() {
         // given
-        val topArgs = CliControls.all.filter { it.isTopLevel }.map { it.arg }.toSet()
+        val topArgs = CliArgs.all.filter { it.isTopLevel }.map { it.arg }.toSet()
 
         // when - then
-        CliControls.all.filter { !it.isTopLevel }.forEach { spec ->
+        CliArgs.all.filter { !it.isTopLevel }.forEach { spec ->
             val root = spec.parent!!.first()
             assertTrue(root in topArgs, "sub '${spec.token}' roots at '$root' which has no top-level control")
         }
@@ -53,7 +53,7 @@ class CliControlsCatalogTest {
     @Test
     fun `when inspecting top-level controls - then each arg appears once so lookup is deterministic`() {
         // when
-        val dups = CliControls.all.filter { it.isTopLevel }.groupBy { it.arg }.filterValues { it.size > 1 }
+        val dups = CliArgs.all.filter { it.isTopLevel }.groupBy { it.arg }.filterValues { it.size > 1 }
 
         // then
         assertTrue(dups.isEmpty(), "duplicate top-level args: ${dups.keys}")

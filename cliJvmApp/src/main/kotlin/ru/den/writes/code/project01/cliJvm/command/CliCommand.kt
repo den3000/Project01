@@ -9,7 +9,7 @@ import ru.den.writes.code.project01.shared.memory.MemoryMode
 /**
  * The domain layer — WHAT the CLI was asked to do, decoupled from HOW the args
  * were parsed. A [CommandParser] turns `Array<String>` into one of these; a
- * [CommandExecutor] runs it. Parsing runs through the [CliControls] front, so
+ * [CommandExecutor] runs it. Parsing runs through the [CliArgs] front, so
  * execution stays agnostic to how the args were read.
  */
 internal sealed interface CliCommand {

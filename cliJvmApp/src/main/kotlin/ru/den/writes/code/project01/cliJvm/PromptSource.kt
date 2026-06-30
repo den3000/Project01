@@ -192,7 +192,7 @@ private val controlsToBranch = ControlsToBranchCommand()
  * Classify a `/`-command typed at the REPL into a [BranchCommand], or null if
  * [line] isn't one (it falls through as a normal prompt). Top-level so both
  * [StdinPromptSource] and the TUI intent source share one classifier. Delegates
- * to the shared clicontrols catalog ([ControlsToBranchCommand]) on the command
+ * to the shared cliargs catalog ([ControlsToBranchCommand]) on the command
  * front, so the `/`-grammar and the startup `-`-grammar stay one declarative
  * source. Multi-word values must be quoted (`/rule "no emojis"`), matching the
  * catalog tokenizer.

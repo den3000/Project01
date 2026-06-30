@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols
+package ru.den.writes.code.project01.cliJvm.cliargs
 
 /**
  * The result layer: what the user actually invoked. A control plus its parsed
@@ -9,25 +9,25 @@ package ru.den.writes.code.project01.cliJvm.clicontrols
  * A thin downstream mapper would turn this into a typed domain command; the
  * grammar (descriptors) stays separate from the domain.
  */
-data class ParsedControl(
-    val spec: ControlSpec,
+data class ParsedArg(
+    val spec: ArgSpec,
     val value: String? = null,
-    val subs: List<ParsedControl> = emptyList(),
+    val subs: List<ParsedArg> = emptyList(),
 ) {
-    val arg: CliControlsArg get() = spec.arg
+    val arg: CliArg get() = spec.arg
 
     /** The first sub invoked under [arg], or null. */
-    fun sub(arg: CliControlsArg): ParsedControl? = subs.firstOrNull { it.arg == arg }
+    fun sub(arg: CliArg): ParsedArg? = subs.firstOrNull { it.arg == arg }
 }
 
 /** Outcome of parsing one control. */
 internal sealed interface ParseResult {
-    data class Ok(val control: ParsedControl) : ParseResult
+    data class Ok(val control: ParsedArg) : ParseResult
     data class Err(val error: ParseError) : ParseResult
 }
 
 /** Outcome of parsing a whole startup argv: the controls that parsed + every error found. */
-data class BatchResult(val controls: List<ParsedControl>, val errors: List<ParseError>) {
+data class BatchResult(val controls: List<ParsedArg>, val errors: List<ParseError>) {
     val isValid: Boolean get() = errors.isEmpty()
 }
 
@@ -51,21 +51,21 @@ sealed interface ParseError {
         override val message = "'$token' can't be used as a ${surface.name.lowercase()}"
     }
 
-    data class MissingValue(val arg: CliControlsArg) : ParseError {
+    data class MissingValue(val arg: CliArg) : ParseError {
         override val message = "'${arg.title}' needs a value"
     }
 
-    data class BadValue(val arg: CliControlsArg, val raw: String, val reason: String) : ParseError {
+    data class BadValue(val arg: CliArg, val raw: String, val reason: String) : ParseError {
         override val message = "'${arg.title}' got '$raw' — expected $reason"
     }
 
-    data class ValueNotAllowedHere(val arg: CliControlsArg, val surface: Surface) : ParseError {
+    data class ValueNotAllowedHere(val arg: CliArg, val surface: Surface) : ParseError {
         override val message = "'${arg.title}' takes no value as a ${surface.name.lowercase()}"
     }
 
     data class WrongParentValue(
-        val arg: CliControlsArg,
-        val parent: CliControlsArg,
+        val arg: CliArg,
+        val parent: CliArg,
         val parentValue: String?,
         val allowed: Set<String>,
     ) : ParseError {
@@ -76,11 +76,11 @@ sealed interface ParseError {
         override val message = "unexpected '$token'"
     }
 
-    data class Requires(val arg: CliControlsArg, val missing: CliControlsArg) : ParseError {
+    data class Requires(val arg: CliArg, val missing: CliArg) : ParseError {
         override val message = "'${arg.title}' requires '${missing.title}'"
     }
 
-    data class Conflicts(val arg: CliControlsArg, val with: CliControlsArg) : ParseError {
+    data class Conflicts(val arg: CliArg, val with: CliArg) : ParseError {
         override val message = "'${arg.title}' can't be combined with '${with.title}'"
     }
 }

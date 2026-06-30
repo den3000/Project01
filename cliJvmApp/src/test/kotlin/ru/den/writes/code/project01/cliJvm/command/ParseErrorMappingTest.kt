@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.command
 
 import ru.den.writes.code.project01.cliJvm.CliArgsException
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParseError
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -15,7 +15,7 @@ class ParseErrorMappingTest {
     @Test
     fun `when MissingValue - then MissingRequiredArgument on the flag`() {
         // given
-        val error = ParseError.MissingValue(CliControlsArg.PROMPT)
+        val error = ParseError.MissingValue(CliArg.PROMPT)
 
         // when
         val actual = error.toCliArgsException()
@@ -27,7 +27,7 @@ class ParseErrorMappingTest {
     @Test
     fun `when Requires - then MissingRequiredArgument on the missing flag`() {
         // given
-        val error = ParseError.Requires(CliControlsArg.INFLATE, CliControlsArg.SESSION)
+        val error = ParseError.Requires(CliArg.INFLATE, CliArg.SESSION)
 
         // when
         val actual = error.toCliArgsException()
@@ -54,17 +54,17 @@ class ParseErrorMappingTest {
     fun `when a value-ish error - then InvalidArgumentValue carrying arg, raw and reason`() {
         // given
         val cases = listOf(
-            ParseError.BadValue(CliControlsArg.MAX_TOKENS, "abc", "an integer")
+            ParseError.BadValue(CliArg.MAX_TOKENS, "abc", "an integer")
                 to Triple("-maxTokens", "abc", "an integer"),
-            ParseError.Conflicts(CliControlsArg.ONESHOT, CliControlsArg.TUI)
+            ParseError.Conflicts(CliArg.ONESHOT, CliArg.TUI)
                 to Triple("-oneshot", "-tui", "not combinable with -tui"),
             ParseError.WrongSurface("reuse", Surface.FLAG)
                 to Triple("reuse", "flag", "valid on this surface"),
             ParseError.UnknownControl("nope")
                 to Triple("nope", "nope", "a known control"),
-            ParseError.ValueNotAllowedHere(CliControlsArg.SESSION, Surface.CMD)
+            ParseError.ValueNotAllowedHere(CliArg.SESSION, Surface.CMD)
                 to Triple("-session", "cmd", "no value on this surface"),
-            ParseError.WrongParentValue(CliControlsArg.SUMMARIZE_EVERY, CliControlsArg.STRATEGY, "window", setOf("summary"))
+            ParseError.WrongParentValue(CliArg.SUMMARIZE_EVERY, CliArg.STRATEGY, "window", setOf("summary"))
                 to Triple("-summarizeEvery", "window", "parent in summary"),
             ParseError.UnexpectedToken("me")
                 to Triple("me", "me", "not expected here"),

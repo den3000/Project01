@@ -1,31 +1,31 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols.grammar
+package ru.den.writes.code.project01.cliJvm.cliargs.grammar
 
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FORMAT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SWITCH
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsParser
-import ru.den.writes.code.project01.cliJvm.clicontrols.ExpectedControl
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParseError
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserCmd
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserError
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserFlag
-import ru.den.writes.code.project01.cliJvm.clicontrols.sub
-import ru.den.writes.code.project01.cliJvm.clicontrols.toArgsList
-import ru.den.writes.code.project01.cliJvm.clicontrols.top
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.BRANCH
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CLEAR
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CONSTRAINTS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CONTEXT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.FORMAT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.NOTE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PAUSE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROFILE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.RESUME
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.RULE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SESSION
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SHOW
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STYLE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SWITCH
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TASK
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.project01.cliJvm.cliargs.ExpectedControl
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.CMD
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.FLAG
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserCmd
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserError
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserFlag
+import ru.den.writes.code.project01.cliJvm.cliargs.sub
+import ru.den.writes.code.project01.cliJvm.cliargs.toArgsList
+import ru.den.writes.code.project01.cliJvm.cliargs.top
 import kotlin.test.Test
 
 class CliEntityGrammarTest {
@@ -41,7 +41,7 @@ class CliEntityGrammarTest {
         val arg2 = "taskId" // string
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserCmd("$cmd", ExpectedControl(surface = sfc, arg = cli), parser)
@@ -62,7 +62,7 @@ class CliEntityGrammarTest {
         val arg2 = "taskId" // string
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserFlag("$cmd".toArgsList(), top(cli, sfc), parser)
@@ -86,7 +86,7 @@ class CliEntityGrammarTest {
         val arg = "branch_name"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserCmd("$cmd", ExpectedControl(surface = sfc, arg = cli), parser)
@@ -108,7 +108,7 @@ class CliEntityGrammarTest {
         val arg = "branch_name"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserError("$cmd $arg".toArgsList(), ParseError.WrongSurface(cli.title, sfc), parser)
@@ -125,7 +125,7 @@ class CliEntityGrammarTest {
         val name = "demo"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserCmd("$cmd", ExpectedControl(surface = sfc, arg = cli), parser)
@@ -146,7 +146,7 @@ class CliEntityGrammarTest {
         val longName = "a".repeat(65)
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserFlag("$cmd".toArgsList(), top(cli, sfc), parser)
@@ -170,7 +170,7 @@ class CliEntityGrammarTest {
         val text = "terse and short"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserCmd("$cmd", ExpectedControl(surface = sfc, arg = cli), parser)
@@ -197,7 +197,7 @@ class CliEntityGrammarTest {
         val text = "terse and short"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserFlag("$cmd".toArgsList(), top(cli, sfc), parser)
@@ -225,7 +225,7 @@ class CliEntityGrammarTest {
         val note = "did x"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserCmd("$cmd", ExpectedControl(surface = sfc, arg = cli), parser)
@@ -248,7 +248,7 @@ class CliEntityGrammarTest {
         val note = "did x"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserFlag("$cmd".toArgsList(), top(cli, sfc), parser)

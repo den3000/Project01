@@ -1,12 +1,12 @@
 package ru.den.writes.code.project01.cliJvm.command
 
 import ru.den.writes.code.project01.cliJvm.CliArgsException
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParseError
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 
 /**
- * Bridge a CliControls [ParseError] onto the legacy [CliArgsException] hierarchy,
- * so the CliControls front throws the same exception type `main` already catches
+ * Bridge a CliArgs [ParseError] onto the legacy [CliArgsException] hierarchy,
+ * so the CliArgs front throws the same exception type `main` already catches
  * (prints message + USAGE). Missing-something errors map to
  * [CliArgsException.MissingRequiredArgument]; everything else to
  * [CliArgsException.InvalidArgumentValue], preserving the offending arg / raw /
@@ -39,4 +39,4 @@ internal fun ParseError.toCliArgsException(): CliArgsException = when (this) {
 }
 
 /** Present a catalog arg the way the legacy errors name flags: `-<title>`. */
-private fun flag(arg: CliControlsArg): String = "-${arg.title}"
+private fun flag(arg: CliArg): String = "-${arg.title}"

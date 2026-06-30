@@ -10,7 +10,7 @@ import kotlin.test.assertNull
 
 /**
  * Direct coverage for [parseSlashCommand], the REPL `/`-command classifier shared
- * by the stdin REPL and the TUI intent source. It delegates to the clicontrols
+ * by the stdin REPL and the TUI intent source. It delegates to the cliargs
  * catalog on the command front, so these cases pin the catalog grammar's
  * `/`-spellings (multi-word values are quoted) and the fall-through-to-prompt
  * behaviour for non-commands.

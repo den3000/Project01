@@ -1,34 +1,34 @@
 package ru.den.writes.code.project01.cliJvm.command
 
 import ru.den.writes.code.project01.cliJvm.BranchCommand
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AFTER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ARGS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EVERY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FORMAT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SCHEDULE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SWITCH
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TOOL
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsParser
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParseResult
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParsedControl
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AFTER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AGENT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.ARGS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.BRANCH
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CLEAR
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CONSTRAINTS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CONTEXT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.EVERY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.FORMAT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MEMORY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.NOTE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PAUSE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROFILE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROMPT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.RESUME
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.RULE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SCHEDULE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SHOW
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STYLE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SWITCH
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TASK
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TOOL
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseResult
+import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 
@@ -50,7 +50,7 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
  * pause/resume/note act on the **active** task; and the memory-injection mode is
  * flipped with `agent mode <preamble|system>` (the agent always exists).
  */
-internal class ControlsToBranchCommand(private val parser: CliControlsParser = CliControlsParser()) {
+internal class ControlsToBranchCommand(private val parser: CliArgsParser = CliArgsParser()) {
 
     /** The branch/memory command for [line], or null if it isn't one (→ a normal prompt). */
     fun parse(line: String): BranchCommand? = when (val r = parser.parse(line, Surface.CMD)) {
@@ -58,7 +58,7 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
         is ParseResult.Err -> null
     }
 
-    private fun map(c: ParsedControl): BranchCommand? = when (c.arg) {
+    private fun map(c: ParsedArg): BranchCommand? = when (c.arg) {
         BRANCH -> branch(c)
         MEMORY -> BranchCommand.ShowMemory
         AGENT -> agentMode(c)
@@ -69,7 +69,7 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
         else -> null // session/strategy/inflate/mcp/reuse/exit/help — not in-session commands
     }
 
-    private fun branch(c: ParsedControl): BranchCommand? {
+    private fun branch(c: ParsedArg): BranchCommand? {
         c.sub(SHOW)?.let { return if (c.value == null) BranchCommand.Checkpoint else null } // `branch show` = current branch + count
         c.sub(SWITCH)?.let { return BranchCommand.Switch(it.value.orEmpty()) }
         c.sub(CLEAR)?.let {
@@ -82,7 +82,7 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
         return c.value?.let(BranchCommand::Branch) ?: BranchCommand.ListBranches
     }
 
-    private fun profile(c: ParsedControl): BranchCommand? {
+    private fun profile(c: ParsedArg): BranchCommand? {
         val name = c.value
         // A section keyword as a sub (`profile [<name>] <section> [<text>]`); value absent = clear.
         val section = SECTIONS.firstNotNullOfOrNull { arg -> c.sub(arg)?.let { it.value to section(arg) } }
@@ -113,7 +113,7 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
         return name?.let(BranchCommand::SwitchProfile) ?: BranchCommand.ListProfiles
     }
 
-    private fun rule(c: ParsedControl): BranchCommand? {
+    private fun rule(c: ParsedArg): BranchCommand? {
         c.sub(CLEAR)?.let {
             return when {
                 it.value != null -> BranchCommand.RemoveRule(it.value)
@@ -124,7 +124,7 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
         return BranchCommand.AddRule(c.value.orEmpty())
     }
 
-    private fun task(c: ParsedControl): BranchCommand? {
+    private fun task(c: ParsedArg): BranchCommand? {
         c.sub(CLEAR)?.let {
             return when {
                 it.value != null -> BranchCommand.DeleteTask(it.value)
@@ -140,7 +140,7 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
     }
 
     /** `/schedule collect tool <name> [args …] | agent prompt "<text>"` + after/every <sec>. */
-    private fun schedule(c: ParsedControl): BranchCommand? {
+    private fun schedule(c: ParsedArg): BranchCommand? {
         // clear [<id>] = cancel one / all active; bare /schedule (no kind) = list.
         c.sub(CLEAR)?.let {
             return if (it.value != null) BranchCommand.CancelSchedule(it.value) else BranchCommand.ClearSchedules
@@ -160,13 +160,13 @@ internal class ControlsToBranchCommand(private val parser: CliControlsParser = C
     }
 
     /** `agent mode <preamble|system>` flips the live memory-injection mode. */
-    private fun agentMode(c: ParsedControl): BranchCommand? = when (c.sub(MODE)?.value) {
+    private fun agentMode(c: ParsedArg): BranchCommand? = when (c.sub(MODE)?.value) {
         "preamble" -> BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE)
         "system" -> BranchCommand.SetMemoryMode(MemoryMode.SYSTEM)
         else -> null // `none` can't disable a live provider; other agent subs aren't in-session ops
     }
 
-    private fun section(arg: CliControlsArg): ProfileSection = ProfileSection.byKeyword(arg.title)!!
+    private fun section(arg: CliArg): ProfileSection = ProfileSection.byKeyword(arg.title)!!
 
     private companion object {
         val SECTIONS = listOf(STYLE, FORMAT, CONSTRAINTS, CONTEXT)

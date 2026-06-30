@@ -1,44 +1,44 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols.crossvalidation
+package ru.den.writes.code.project01.cliJvm.cliargs.crossvalidation
 
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BY_LINE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MAX_TOKENS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ONESHOT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SCHEDULE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TOOL
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsParser
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParseError
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserError
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserFlag
-import ru.den.writes.code.project01.cliJvm.clicontrols.sub
-import ru.den.writes.code.project01.cliJvm.clicontrols.toArgsList
-import ru.den.writes.code.project01.cliJvm.clicontrols.top
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AGENT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.BY_LINE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CHUNK_CHARS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.FEED_FILE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.INFLATE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.JUDGE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MAX_TOKENS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MCP_SERVER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.ONESHOT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROFILE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROMPT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.RULE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SCHEDULE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SESSION
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STAGES
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STRATEGY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TASK
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TOOL
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TUI
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.FLAG
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserError
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserFlag
+import ru.den.writes.code.project01.cliJvm.cliargs.sub
+import ru.den.writes.code.project01.cliJvm.cliargs.toArgsList
+import ru.den.writes.code.project01.cliJvm.cliargs.top
 import kotlin.test.Test
 
 /**
  * Cross-control validation — the declarative `requires` / `excludes` the batch
  * validator runs after each group parses. This is argv-level only: it fires from
- * [CliControlsParser.parseArgv], never from a single-control `parse`, so the
+ * [CliArgsParser.parseArgv], never from a single-control `parse`, so the
  * grammar suites (per-control) can't express it — it lives here.
  */
 class CliCrossValidationTest {
 
-    private val parser = CliControlsParser()
+    private val parser = CliArgsParser()
 
     //region oneshot exclusivity
     @Test

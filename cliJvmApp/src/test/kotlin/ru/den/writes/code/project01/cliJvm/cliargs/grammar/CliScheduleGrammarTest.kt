@@ -1,24 +1,24 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols.grammar
+package ru.den.writes.code.project01.cliJvm.cliargs.grammar
 
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AFTER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ARGS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EVERY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SCHEDULE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TOOL
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsParser
-import ru.den.writes.code.project01.cliJvm.clicontrols.ExpectedControl
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParseError
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserCmd
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserError
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserFlag
-import ru.den.writes.code.project01.cliJvm.clicontrols.sub
-import ru.den.writes.code.project01.cliJvm.clicontrols.toArgsList
-import ru.den.writes.code.project01.cliJvm.clicontrols.top
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AFTER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.ARGS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CLEAR
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.EVERY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MCP_SERVER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROMPT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SCHEDULE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TOOL
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.project01.cliJvm.cliargs.ExpectedControl
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.CMD
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.FLAG
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserCmd
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserError
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserFlag
+import ru.den.writes.code.project01.cliJvm.cliargs.sub
+import ru.den.writes.code.project01.cliJvm.cliargs.toArgsList
+import ru.den.writes.code.project01.cliJvm.cliargs.top
 import kotlin.test.Test
 
 /**
@@ -38,7 +38,7 @@ class CliScheduleGrammarTest {
         val cmd = "/schedule"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserCmd("$cmd", ExpectedControl(surface = sfc, arg = cli), parser)
@@ -68,7 +68,7 @@ class CliScheduleGrammarTest {
         val cmd = "-schedule"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then — agent needs no mcpServer; collect's tool requires one (carried here so argv stays valid)
         assertMatchParserFlag(

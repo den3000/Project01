@@ -1,16 +1,16 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols.grammar
+package ru.den.writes.code.project01.cliJvm.cliargs.grammar
 
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EXIT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.HELP
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.REUSE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsParser
-import ru.den.writes.code.project01.cliJvm.clicontrols.ExpectedControl
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParseError
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserCmd
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserError
-import ru.den.writes.code.project01.cliJvm.clicontrols.toArgsList
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.EXIT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.HELP
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.REUSE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.project01.cliJvm.cliargs.ExpectedControl
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.CMD
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.FLAG
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserCmd
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserError
+import ru.den.writes.code.project01.cliJvm.cliargs.toArgsList
 import kotlin.test.Test
 
 /**
@@ -28,7 +28,7 @@ class CliCommandOnlyGrammarTest {
         val controls = listOf(REUSE, EXIT, HELP)
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         controls.forEach { cli ->
@@ -43,7 +43,7 @@ class CliCommandOnlyGrammarTest {
         val controls = listOf(REUSE, EXIT, HELP)
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         controls.forEach { cli ->
@@ -58,7 +58,7 @@ class CliCommandOnlyGrammarTest {
         val unknown = "nope"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserError(sfc, "/$unknown", ParseError.UnknownControl(unknown), parser)

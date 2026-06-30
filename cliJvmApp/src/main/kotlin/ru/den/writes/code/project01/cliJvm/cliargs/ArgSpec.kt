@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols
+package ru.den.writes.code.project01.cliJvm.cliargs
 
 /** Task FSM stages, in order — the legal endpoints of a `stages <from..to>` range. */
 private val STAGE_ORDER = listOf("clarification", "planning", "execution", "validation", "done")
@@ -77,9 +77,9 @@ data class ValueSpec(val kind: ValueKind, val required: Boolean)
 
 /**
  * One control descriptor — the single source of truth for one token's grammar.
- * The catalog ([CliControls.all]) is a flat list of these; the parser consults it
+ * The catalog ([CliArgs.all]) is a flat list of these; the parser consults it
  * instead of branching on hard-coded constants. This is the data layer; what the
- * user actually invoked is a [ParsedControl] (the result layer).
+ * user actually invoked is a [ParsedArg] (the result layer).
  *
  * @property arg the token this describes.
  * @property surfaces where it may appear (only checked for a top-level head; subs
@@ -95,14 +95,14 @@ data class ValueSpec(val kind: ValueKind, val required: Boolean)
  * @property parentValueIn for a sub: the parent values it's valid under (e.g.
  *   `summarizeEvery` only under `strategy summary`); null = no such constraint.
  */
-data class ControlSpec(
-    val arg: CliControlsArg,
+data class ArgSpec(
+    val arg: CliArg,
     val surfaces: Set<Surface>,
-    val parent: List<CliControlsArg>? = null,
+    val parent: List<CliArg>? = null,
     val value: ValueSpec? = null,
     val valueSurfaces: Set<Surface> = surfaces,
-    val requires: Set<CliControlsArg> = emptySet(),
-    val excludes: Set<CliControlsArg> = emptySet(),
+    val requires: Set<CliArg> = emptySet(),
+    val excludes: Set<CliArg> = emptySet(),
     val parentValueIn: Set<String>? = null,
     val usage: String = "",
 ) {

@@ -1,34 +1,34 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols
+package ru.den.writes.code.project01.cliJvm.cliargs
 
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 internal fun top(
-    arg: CliControlsArg,
+    arg: CliArg,
     surface: Surface,
     value: String? = null,
-    subs: List<ParsedControl> = emptyList(),
-): ParsedControl = ParsedControl(requireNotNull(CliControls.topLevel(arg, surface)), value, subs)
+    subs: List<ParsedArg> = emptyList(),
+): ParsedArg = ParsedArg(requireNotNull(CliArgs.topLevel(arg, surface)), value, subs)
 
 internal fun sub(
-    parent: CliControlsArg,
-    arg: CliControlsArg,
+    parent: CliArg,
+    arg: CliArg,
     value: String? = null,
-    subs: List<ParsedControl> = emptyList(),
-): ParsedControl = ParsedControl(requireNotNull(CliControls.subOf(listOf(parent), arg.title)), value, subs)
+    subs: List<ParsedArg> = emptyList(),
+): ParsedArg = ParsedArg(requireNotNull(CliArgs.subOf(listOf(parent), arg.title)), value, subs)
 
 data class ExpectedControl(
     val surface: Surface,
-    val arg: CliControlsArg,
-    val subs: List<ParsedControl> = emptyList(),
+    val arg: CliArg,
+    val subs: List<ParsedArg> = emptyList(),
     val value: String? = null,
 )
 
 internal fun assertMatchParserCmd(
     input: String,
     expected: ExpectedControl,
-    parser: CliControlsParser,
+    parser: CliArgsParser,
 ) {
     val actual = parser.parse(input, Surface.CMD)
 
@@ -41,7 +41,7 @@ internal fun assertMatchParserError(
     surface: Surface,
     input: String,
     expected: ParseError,
-    parser: CliControlsParser,
+    parser: CliArgsParser,
 ) {
     val actual = parser.parse(input, surface)
 
@@ -52,8 +52,8 @@ internal fun assertMatchParserError(
 
 internal fun assertMatchParserFlag(
     input: List<String>,
-    expected: List<ParsedControl>,
-    parser: CliControlsParser,
+    expected: List<ParsedArg>,
+    parser: CliArgsParser,
 ) {
     val actual = parser.parseArgv(input)
     assertTrue(actual.errors.isEmpty(), actual.errors.joinToString { it.toString() + it.message })
@@ -62,8 +62,8 @@ internal fun assertMatchParserFlag(
 
 internal fun assertMatchParserFlag(
     input: List<String>,
-    expected: ParsedControl,
-    parser: CliControlsParser,
+    expected: ParsedArg,
+    parser: CliArgsParser,
 ) {
     assertMatchParserFlag(input, listOf(expected), parser)
 }
@@ -71,7 +71,7 @@ internal fun assertMatchParserFlag(
 internal fun assertMatchParserError(
     input: List<String>,
     errors: List<ParseError>,
-    parser: CliControlsParser,
+    parser: CliArgsParser,
 ) {
     val actual = parser.parseArgv(input)
     assertEquals(errors, actual.errors)
@@ -80,7 +80,7 @@ internal fun assertMatchParserError(
 internal fun assertMatchParserError(
     input: List<String>,
     error: ParseError,
-    parser: CliControlsParser,
+    parser: CliArgsParser,
 ) {
     assertMatchParserError(input, listOf(error), parser)
 }

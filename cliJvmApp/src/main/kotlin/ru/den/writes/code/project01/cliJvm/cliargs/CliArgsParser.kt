@@ -1,8 +1,8 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols
+package ru.den.writes.code.project01.cliJvm.cliargs
 
 /**
  * The ONE parser for both fronts. It owns no per-control knowledge — it walks
- * [CliControls] (the descriptor catalog) and produces a [ParsedControl]. The same
+ * [CliArgs] (the descriptor catalog) and produces a [ParsedArg]. The same
  * recursion handles a startup flag (`-profile work style "terse"`) and the
  * identical in-session command (`/profile work style "terse"`); only the leading
  * prefix differs.
@@ -12,7 +12,7 @@ package ru.den.writes.code.project01.cliJvm.clicontrols
  * belongs to an ancestor (which is how `agent`'s flat option bag terminates each
  * sub). Subs are a LIST, so both nested chains and flat bags fall out of one loop.
  */
-internal class CliControlsParser {
+internal class CliArgsParser {
 
     /** Parse a single typed line like `/profile work` ([CMD]) or `-prompt hi` ([FLAG]). */
     fun parse(line: String, surface: Surface): ParseResult = parseTokens(tokenize(line), surface)
@@ -24,7 +24,7 @@ internal class CliControlsParser {
      */
     fun parseArgv(args: List<String>): BatchResult {
         val groups = splitGroups(args)
-        val controls = mutableListOf<ParsedControl>()
+        val controls = mutableListOf<ParsedArg>()
         val errors = mutableListOf<ParseError>()
         for (group in groups) {
             when (val r = parseTokens(group, Surface.FLAG)) {
@@ -42,8 +42,8 @@ internal class CliControlsParser {
         if (tokens.isEmpty()) return ParseResult.Err(ParseError.Empty)
         val head = stripPrefix(tokens[0], surface)
             ?: return ParseResult.Err(ParseError.BadPrefix(tokens[0], surface))
-        val arg = CliControlsArg.of(head) ?: return ParseResult.Err(ParseError.UnknownControl(head))
-        val spec = CliControls.topLevel(arg, surface) ?: return ParseResult.Err(ParseError.WrongSurface(head, surface))
+        val arg = CliArg.of(head) ?: return ParseResult.Err(ParseError.UnknownControl(head))
+        val spec = CliArgs.topLevel(arg, surface) ?: return ParseResult.Err(ParseError.WrongSurface(head, surface))
 
         return when (val node = parseNode(spec, listOf(arg), tokens.drop(1), surface)) {
             is NodeResult.Err -> ParseResult.Err(node.error)
@@ -62,8 +62,8 @@ internal class CliControlsParser {
      * resumes after it).
      */
     private fun parseNode(
-        spec: ControlSpec,
-        chain: List<CliControlsArg>,
+        spec: ArgSpec,
+        chain: List<CliArg>,
         tokens: List<String>,
         surface: Surface,
     ): NodeResult {
@@ -72,7 +72,7 @@ internal class CliControlsParser {
 
         if (spec.value != null) {
             val next = tokens.getOrNull(0)
-            val nextIsSub = next != null && CliControls.subOf(chain, next) != null
+            val nextIsSub = next != null && CliArgs.subOf(chain, next) != null
             when {
                 next != null && !nextIsSub -> {
                     // valueSurfaces only gates a top-level head (e.g. session name = startup only);
@@ -88,10 +88,10 @@ internal class CliControlsParser {
             }
         }
 
-        val subs = mutableListOf<ParsedControl>()
+        val subs = mutableListOf<ParsedArg>()
         while (pos < tokens.size) {
             val token = tokens[pos]
-            val subSpec = CliControls.subOf(chain, token) ?: break // not ours → an ancestor's, or leftover
+            val subSpec = CliArgs.subOf(chain, token) ?: break // not ours → an ancestor's, or leftover
             subSpec.parentValueIn?.let { allowed ->
                 if (value !in allowed) {
                     return NodeResult.Err(ParseError.WrongParentValue(subSpec.arg, spec.arg, value, allowed))
@@ -105,11 +105,11 @@ internal class CliControlsParser {
                 }
             }
         }
-        return NodeResult.Ok(ParsedControl(spec, value, subs), pos)
+        return NodeResult.Ok(ParsedArg(spec, value, subs), pos)
     }
 
     private sealed interface NodeResult {
-        data class Ok(val control: ParsedControl, val consumed: Int) : NodeResult
+        data class Ok(val control: ParsedArg, val consumed: Int) : NodeResult
         data class Err(val error: ParseError) : NodeResult
     }
 
@@ -140,16 +140,16 @@ internal class CliControlsParser {
     /** A `-`-prefixed token whose remainder is a known control word (so it heads a group). */
     private fun startsControl(token: String): Boolean =
         token.startsWith(Surface.FLAG.prefix) &&
-            CliControlsArg.of(token.substring(Surface.FLAG.prefix.length)) != null
+            CliArg.of(token.substring(Surface.FLAG.prefix.length)) != null
 
     /** Cross-control constraints, evaluated over every arg present anywhere in the parse. */
-    private fun crossValidate(controls: List<ParsedControl>): List<ParseError> {
-        val present = mutableSetOf<CliControlsArg>()
-        fun collect(c: ParsedControl) { present.add(c.arg); c.subs.forEach(::collect) }
+    private fun crossValidate(controls: List<ParsedArg>): List<ParseError> {
+        val present = mutableSetOf<CliArg>()
+        fun collect(c: ParsedArg) { present.add(c.arg); c.subs.forEach(::collect) }
         controls.forEach(::collect)
 
         val errors = mutableListOf<ParseError>()
-        fun check(c: ParsedControl) {
+        fun check(c: ParsedArg) {
             c.spec.requires.forEach { if (it !in present) errors.add(ParseError.Requires(c.arg, it)) }
             c.spec.excludes.forEach { if (it in present) errors.add(ParseError.Conflicts(c.arg, it)) }
             c.subs.forEach(::check)

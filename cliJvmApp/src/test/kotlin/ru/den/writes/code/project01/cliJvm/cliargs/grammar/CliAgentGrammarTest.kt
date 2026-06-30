@@ -1,29 +1,29 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols.grammar
+package ru.den.writes.code.project01.cliJvm.cliargs.grammar
 
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.END_SEQUENCE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MAX_TOKENS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROVIDER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STOP_SEQUENCE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TEMPERATURE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsParser
-import ru.den.writes.code.project01.cliJvm.clicontrols.ExpectedControl
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParseError
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserCmd
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserError
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserFlag
-import ru.den.writes.code.project01.cliJvm.clicontrols.sub
-import ru.den.writes.code.project01.cliJvm.clicontrols.toArgsList
-import ru.den.writes.code.project01.cliJvm.clicontrols.top
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AGENT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CLEAR
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.END_SEQUENCE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.JUDGE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MAX_TOKENS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODEL
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROFILE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROVIDER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SHOW
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STAGES
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STOP_SEQUENCE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TEMPERATURE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.project01.cliJvm.cliargs.ExpectedControl
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.CMD
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.FLAG
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserCmd
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserError
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserFlag
+import ru.den.writes.code.project01.cliJvm.cliargs.sub
+import ru.den.writes.code.project01.cliJvm.cliargs.toArgsList
+import ru.den.writes.code.project01.cliJvm.cliargs.top
 import kotlin.test.Test
 
 /**
@@ -45,7 +45,7 @@ class CliAgentGrammarTest {
         val name = "main"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserCmd("$cmd $name", ExpectedControl(surface = sfc, arg = cli, value = name), parser)
@@ -96,7 +96,7 @@ class CliAgentGrammarTest {
         val name = "main"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then — entity ops
         assertMatchParserFlag("$cmd $name".toArgsList(), top(cli, sfc, value = name), parser)

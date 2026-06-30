@@ -4,49 +4,49 @@ import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.StageAgentSpec
 import ru.den.writes.code.project01.cliJvm.StageJudgeSpec
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AFTER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ARGS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BY_LINE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.END_SEQUENCE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EVERY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_INSTRUCTION
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.KEEP_LAST
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MAX_TOKENS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ONESHOT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROVIDER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STOP_SEQUENCE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SUMMARIZE_EVERY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TEMPERATURE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FORMAT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SCHEDULE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TOOL
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParsedControl
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AFTER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AGENT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.ARGS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.BY_LINE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CHUNK_CHARS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CLEAR
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.END_SEQUENCE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.EVERY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.FEED_FILE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.FEED_INSTRUCTION
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.INFLATE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.JUDGE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.KEEP_LAST
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MAX_TOKENS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MCP_SERVER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MEMORY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODEL
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.ONESHOT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROFILE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROMPT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROVIDER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SESSION
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STAGES
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STOP_SEQUENCE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STRATEGY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SUMMARIZE_EVERY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TASK
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TEMPERATURE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CONSTRAINTS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CONTEXT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.FORMAT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.NOTE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PAUSE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.RESUME
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.RULE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SCHEDULE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SHOW
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STYLE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TOOL
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TUI
+import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileSection
@@ -54,7 +54,7 @@ import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskStage
 
 /**
- * Maps parsed CliControls top-level [ParsedControl]s onto a domain [CliCommand]
+ * Maps parsed CliArgs top-level [ParsedArg]s onto a domain [CliCommand]
  * — the redesigned grammar's bridge to the same domain the legacy parser feeds.
  * The new grammar bundles provider/model/knobs/stages/judge under `agent`, so a
  * single agent without stages/judge is the "primary" (default agent); agents
@@ -64,14 +64,14 @@ import ru.den.writes.code.project01.shared.memory.TaskStage
  */
 internal class ControlsToCommand(private val keys: ApiKeys) {
 
-    fun map(controls: List<ParsedControl>): CliCommand {
+    fun map(controls: List<ParsedArg>): CliCommand {
         val prompt = controls.last(PROMPT)
         return if (prompt != null) promptCommand(controls, prompt) else adminCommand(controls)
     }
 
     // ---- prompt modes -----------------------------------------------------
 
-    private fun promptCommand(controls: List<ParsedControl>, prompt: ParsedControl): CliCommand {
+    private fun promptCommand(controls: List<ParsedArg>, prompt: ParsedArg): CliCommand {
         val agents = controls.filter { it.arg == AGENT }
         val primaries = agents.filter { it.sub(JUDGE) == null && it.sub(STAGES) == null }
         if (primaries.size > 1) {
@@ -128,17 +128,17 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         )
     }
 
-    private fun buildProvider(agent: ParsedControl?): ModelProvider =
+    private fun buildProvider(agent: ParsedArg?): ModelProvider =
         buildModelProvider(
             agent?.subValue(PROVIDER) ?: "gemini",
             agent?.subValue(MODEL),
             keys.gemini, keys.openRouter, keys.huggingFace,
         )
 
-    private fun stageSpec(agent: ParsedControl): StageAgentSpec =
+    private fun stageSpec(agent: ParsedArg): StageAgentSpec =
         StageAgentSpec(stageBinding(agent.subValue(STAGES)!!), buildProvider(agent), agent.subValue(PROFILE))
 
-    private fun judgeSpec(agent: ParsedControl): StageJudgeSpec {
+    private fun judgeSpec(agent: ParsedArg): StageJudgeSpec {
         if (agent.sub(STAGES) == null) {
             throw CliArgsException.InvalidArgumentValue("-agent", "judge", "a judge needs a stage span")
         }
@@ -156,7 +156,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         return TaskBinding(from, to)
     }
 
-    private fun stopSequences(agent: ParsedControl?): List<String>? {
+    private fun stopSequences(agent: ParsedArg?): List<String>? {
         val raw = agent?.subValue(STOP_SEQUENCE) ?: return null
         val parts = raw.split(Regex("\\s+")).filter { it.isNotBlank() }
         if (parts.size > MAX_STOP_SEQUENCES) {
@@ -178,11 +178,11 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         else -> ContextStrategyKind.FULL
     }
 
-    private fun scheduleSpecs(controls: List<ParsedControl>): List<ScheduleSpec> =
+    private fun scheduleSpecs(controls: List<ParsedArg>): List<ScheduleSpec> =
         controls.filter { it.arg == SCHEDULE && it.value != null }.map(::scheduleSpec)
 
     /** Build one [ScheduleSpec] from a `-schedule` control; throws on a missing/ambiguous piece. */
-    private fun scheduleSpec(c: ParsedControl): ScheduleSpec {
+    private fun scheduleSpec(c: ParsedArg): ScheduleSpec {
         val after = c.subValue(AFTER)?.toInt()
         val every = c.subValue(EVERY)?.toInt()
         if (after != null && every != null) {
@@ -208,7 +208,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
 
     // ---- admin modes ------------------------------------------------------
 
-    private fun adminCommand(controls: List<ParsedControl>): CliCommand {
+    private fun adminCommand(controls: List<ParsedArg>): CliCommand {
         controls.last(INFLATE)?.let { inflate ->
             val session = controls.last(SESSION)?.value
                 ?: throw CliArgsException.MissingRequiredArgument("-session", "required by -inflate")
@@ -232,7 +232,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         throw CliArgsException.MissingRequiredArgument("-prompt")
     }
 
-    private fun profileAction(p: ParsedControl): MemoryAction {
+    private fun profileAction(p: ParsedArg): MemoryAction {
         val name = p.value
         // A section keyword as a sub (`profile [<name>] <section> [<text>]`); value absent = clear.
         val section = SECTIONS.firstNotNullOfOrNull { arg -> p.sub(arg)?.let { it.value to section(arg) } }
@@ -263,7 +263,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         return name?.let(MemoryAction::TouchProfile) ?: MemoryAction.ListProfiles
     }
 
-    private fun ruleAction(r: ParsedControl): MemoryAction {
+    private fun ruleAction(r: ParsedArg): MemoryAction {
         r.sub(CLEAR)?.let {
             return when {
                 it.value != null -> MemoryAction.RemoveRule(it.value)
@@ -274,7 +274,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         return r.value?.let(MemoryAction::AddRule) ?: gap("rule")
     }
 
-    private fun taskAction(t: ParsedControl): MemoryAction {
+    private fun taskAction(t: ParsedArg): MemoryAction {
         t.sub(CLEAR)?.let {
             return when {
                 it.value != null -> MemoryAction.DeleteTask(it.value)
@@ -292,7 +292,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         }
     }
 
-    private fun section(arg: CliControlsArg): ProfileSection = ProfileSection.byKeyword(arg.title)!!
+    private fun section(arg: CliArg): ProfileSection = ProfileSection.byKeyword(arg.title)!!
 
     private fun gap(what: String): Nothing =
         throw CliArgsException.InvalidArgumentValue(what, what, "not expressible as a legacy command")
@@ -305,6 +305,6 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
     }
 }
 
-private fun ParsedControl.subValue(arg: CliControlsArg): String? = sub(arg)?.value
-private fun List<ParsedControl>.last(arg: CliControlsArg): ParsedControl? = lastOrNull { it.arg == arg }
-private fun List<ParsedControl>.has(arg: CliControlsArg): Boolean = any { it.arg == arg }
+private fun ParsedArg.subValue(arg: CliArg): String? = sub(arg)?.value
+private fun List<ParsedArg>.last(arg: CliArg): ParsedArg? = lastOrNull { it.arg == arg }
+private fun List<ParsedArg>.has(arg: CliArg): Boolean = any { it.arg == arg }

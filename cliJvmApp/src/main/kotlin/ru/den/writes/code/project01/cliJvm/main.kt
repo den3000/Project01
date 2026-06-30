@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.command.ApiKeys
-import ru.den.writes.code.project01.cliJvm.command.CliControlsCommandParser
+import ru.den.writes.code.project01.cliJvm.command.CliArgsCommandParser
 import ru.den.writes.code.project01.cliJvm.command.USAGE
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
@@ -25,7 +25,7 @@ private val DB_FILE: File = File(
 
 /**
  * Bootstrap: read provider keys, parse args into a [CliCommand] (the unified
- * clicontrols front), open the database, and hand the command to [CommandExecutor].
+ * cliargs front), open the database, and hand the command to [CommandExecutor].
  * Everything the CLI actually *does* lives in the command layer + executor —
  * this stays thin (parse → execute).
  */
@@ -40,7 +40,7 @@ suspend fun main(args: Array<String>) {
     )
 
     val command = try {
-        CliControlsCommandParser(keys).parse(args)
+        CliArgsCommandParser(keys).parse(args)
     } catch (e: CliArgsException) {
         System.err.println(e.message)
         if (e is CliArgsException.MissingRequiredArgument) {

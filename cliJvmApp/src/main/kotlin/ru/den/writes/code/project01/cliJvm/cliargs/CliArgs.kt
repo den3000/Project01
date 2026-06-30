@@ -1,54 +1,54 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols
+package ru.den.writes.code.project01.cliJvm.cliargs
 
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AFTER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.AGENT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ARGS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BRANCH
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.BY_LINE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CHUNK_CHARS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CLEAR
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONSTRAINTS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.CONTEXT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.END_SEQUENCE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EVERY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.EXIT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_FILE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FEED_INSTRUCTION
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.FORMAT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.HELP
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.JUDGE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.KEEP_LAST
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MAX_TOKENS
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MODEL
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.NOTE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ONESHOT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PAUSE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROVIDER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RESUME
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.REUSE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SCHEDULE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SHOW
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STOP_SEQUENCE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STYLE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SUMMARIZE_EVERY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SWITCH
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TEMPERATURE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TOOL
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.SUB
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AFTER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AGENT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.ARGS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.BRANCH
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.BY_LINE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CHUNK_CHARS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CLEAR
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CONSTRAINTS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.CONTEXT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.END_SEQUENCE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.EVERY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.EXIT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.FEED_FILE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.FEED_INSTRUCTION
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.FORMAT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.HELP
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.INFLATE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.JUDGE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.KEEP_LAST
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MAX_TOKENS
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MCP_SERVER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MEMORY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODEL
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.NOTE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.ONESHOT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PAUSE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROFILE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROMPT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROVIDER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.RESUME
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.REUSE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.RULE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SCHEDULE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SESSION
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SHOW
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STAGES
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STOP_SEQUENCE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STRATEGY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STYLE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SUMMARIZE_EVERY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SWITCH
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TASK
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TEMPERATURE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TOOL
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TUI
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.CMD
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.FLAG
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.SUB
 
 /**
  * The control catalog — ONE declarative list that both fronts (`-flag` and
@@ -58,22 +58,22 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.SUB
  * surfaces, value types and cross-constraints live here as data, not as branches
  * scattered across hand-rolled parsers.
  */
-internal object CliControls {
+internal object CliArgs {
 
-    val all: List<ControlSpec> = buildCatalog()
+    val all: List<ArgSpec> = buildCatalog()
 
-    private val topByArg: Map<CliControlsArg, List<ControlSpec>> =
+    private val topByArg: Map<CliArg, List<ArgSpec>> =
         all.filter { it.isTopLevel }.groupBy { it.arg }
-    private val subsByParent: Map<List<CliControlsArg>, List<ControlSpec>> =
+    private val subsByParent: Map<List<CliArg>, List<ArgSpec>> =
         all.filter { !it.isTopLevel }.groupBy { it.parent!! }
 
     /** The top-level descriptor for [arg] usable on [surface], or null. */
-    fun topLevel(arg: CliControlsArg, surface: Surface): ControlSpec? =
+    fun topLevel(arg: CliArg, surface: Surface): ArgSpec? =
         topByArg[arg]?.firstOrNull { surface in it.surfaces }
 
     /** The descriptor for [token] as a sub of [chain] (exact ancestor match), or null. */
-    fun subOf(chain: List<CliControlsArg>, token: String): ControlSpec? {
-        val arg = CliControlsArg.of(token) ?: return null
+    fun subOf(chain: List<CliArg>, token: String): ArgSpec? {
+        val arg = CliArg.of(token) ?: return null
         return subsByParent[chain]?.firstOrNull { it.arg == arg }
     }
 }
@@ -84,24 +84,24 @@ private fun req(kind: ValueKind) = ValueSpec(kind, required = true)
 private fun opt(kind: ValueKind) = ValueSpec(kind, required = false)
 
 private fun top(
-    arg: CliControlsArg,
+    arg: CliArg,
     surfaces: Set<Surface>,
     value: ValueSpec? = null,
     valueSurfaces: Set<Surface> = surfaces,
-    requires: Set<CliControlsArg> = emptySet(),
-    excludes: Set<CliControlsArg> = emptySet(),
+    requires: Set<CliArg> = emptySet(),
+    excludes: Set<CliArg> = emptySet(),
     usage: String = "",
-) = ControlSpec(arg, surfaces, parent = null, value, valueSurfaces, requires, excludes, usage = usage)
+) = ArgSpec(arg, surfaces, parent = null, value, valueSurfaces, requires, excludes, usage = usage)
 
 private fun sub(
-    arg: CliControlsArg,
-    parent: List<CliControlsArg>,
+    arg: CliArg,
+    parent: List<CliArg>,
     value: ValueSpec? = null,
-    requires: Set<CliControlsArg> = emptySet(),
-    excludes: Set<CliControlsArg> = emptySet(),
+    requires: Set<CliArg> = emptySet(),
+    excludes: Set<CliArg> = emptySet(),
     parentValueIn: Set<String>? = null,
     usage: String = "",
-) = ControlSpec(arg, setOf(SUB), parent, value, valueSurfaces = setOf(SUB), requires = requires, excludes = excludes, parentValueIn = parentValueIn, usage = usage)
+) = ArgSpec(arg, setOf(SUB), parent, value, valueSurfaces = setOf(SUB), requires = requires, excludes = excludes, parentValueIn = parentValueIn, usage = usage)
 
 /**
  * Declare an entity once: it gets `<entity> [<value>]` (value present = select /
@@ -111,20 +111,20 @@ private fun sub(
  * are conflicts placed on the top control only (not its show/clean subs).
  */
 private fun entity(
-    arg: CliControlsArg,
+    arg: CliArg,
     surfaces: Set<Surface>,
     selectValue: ValueKind = ValueKind.Name,
     selectSurfaces: Set<Surface> = surfaces,
-    topExcludes: Set<CliControlsArg> = emptySet(),
-    extras: List<ControlSpec> = emptyList(),
-): List<ControlSpec> = buildList {
+    topExcludes: Set<CliArg> = emptySet(),
+    extras: List<ArgSpec> = emptyList(),
+): List<ArgSpec> = buildList {
     add(top(arg, surfaces, value = opt(selectValue), valueSurfaces = selectSurfaces, excludes = topExcludes, usage = "<name> select/create · bare = list"))
     add(sub(SHOW, listOf(arg), value = opt(selectValue), usage = "show one (<name>) or all"))
     add(sub(CLEAR, listOf(arg), value = opt(selectValue), usage = "delete one (<name>) or all"))
     addAll(extras)
 }
 
-private fun buildCatalog(): List<ControlSpec> = buildList {
+private fun buildCatalog(): List<ArgSpec> = buildList {
     // ---- startup-only flags ----
     add(top(PROMPT, setOf(FLAG), value = req(ValueKind.Text), usage = "opening prompt — every run starts here"))
     add(top(ONESHOT, setOf(FLAG), usage = "single prompt → reply → exit (no REPL/session/feed)"))
@@ -193,7 +193,7 @@ private fun buildCatalog(): List<ControlSpec> = buildList {
  * calls an MCP tool on the schedule (needs `-mcpServer`); `agent prompt "<text>"` runs a turn.
  * Exactly one of `after <sec>` (one-shot) / `every <sec>` (periodic) sets the timing.
  */
-private fun scheduleControls(): List<ControlSpec> = listOf(
+private fun scheduleControls(): List<ArgSpec> = listOf(
     top(SCHEDULE, setOf(FLAG, CMD), value = opt(ValueKind.OneOf(setOf("collect", "agent"))), excludes = setOf(ONESHOT), usage = "collect <tool> | agent <prompt> + after/every <sec>; bare = list, clear [<id>] = cancel"),
     sub(CLEAR, listOf(SCHEDULE), value = opt(ValueKind.Name), usage = "cancel one task (<id>) or all active (bare)"),
     sub(TOOL, listOf(SCHEDULE), value = req(ValueKind.Name), requires = setOf(MCP_SERVER), parentValueIn = setOf("collect"), usage = "MCP tool to call (collect; needs -mcpServer)"),
@@ -203,13 +203,13 @@ private fun scheduleControls(): List<ControlSpec> = listOf(
     sub(EVERY, listOf(SCHEDULE), value = req(ValueKind.IntRange(1)), usage = "fire every N seconds"),
 )
 
-private fun profileSections(): List<ControlSpec> = listOf(STYLE, FORMAT, CONSTRAINTS, CONTEXT).map { section ->
+private fun profileSections(): List<ArgSpec> = listOf(STYLE, FORMAT, CONSTRAINTS, CONTEXT).map { section ->
     // `profile <name> <section> <text>` appends; `<section> clean` empties it — modelled as the
     // section taking optional text (absent = clear). Kept flat for the prototype.
     sub(section, listOf(PROFILE), value = opt(ValueKind.Text), usage = "append a bullet (or clear)")
 }
 
-private fun agentEntity(): List<ControlSpec> = entity(
+private fun agentEntity(): List<ArgSpec> = entity(
     AGENT, setOf(FLAG, CMD),
     extras = listOf(
         sub(PROVIDER, listOf(AGENT), value = req(ValueKind.OneOf(setOf("gemini", "openrouter", "huggingface"))), usage = "llm provider"),

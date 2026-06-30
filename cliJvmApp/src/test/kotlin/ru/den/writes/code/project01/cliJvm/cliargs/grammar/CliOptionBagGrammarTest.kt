@@ -1,22 +1,22 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols.grammar
+package ru.den.writes.code.project01.cliJvm.cliargs.grammar
 
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.INFLATE
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MCP_SERVER
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.MEMORY
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ONESHOT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
-import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsParser
-import ru.den.writes.code.project01.cliJvm.clicontrols.ExpectedControl
-import ru.den.writes.code.project01.cliJvm.clicontrols.ParseError
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.CMD
-import ru.den.writes.code.project01.cliJvm.clicontrols.Surface.FLAG
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserCmd
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserError
-import ru.den.writes.code.project01.cliJvm.clicontrols.assertMatchParserFlag
-import ru.den.writes.code.project01.cliJvm.clicontrols.toArgsList
-import ru.den.writes.code.project01.cliJvm.clicontrols.top
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.INFLATE
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MCP_SERVER
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MEMORY
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.ONESHOT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROMPT
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SESSION
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TUI
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.project01.cliJvm.cliargs.ExpectedControl
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.CMD
+import ru.den.writes.code.project01.cliJvm.cliargs.Surface.FLAG
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserCmd
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserError
+import ru.den.writes.code.project01.cliJvm.cliargs.assertMatchParserFlag
+import ru.den.writes.code.project01.cliJvm.cliargs.toArgsList
+import ru.den.writes.code.project01.cliJvm.cliargs.top
 import kotlin.test.Test
 
 /**
@@ -37,7 +37,7 @@ class CliOptionBagGrammarTest {
         val text = "hi there"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserFlag("$cmd \"$text\"".toArgsList(), top(cli, sfc, value = text), parser)
@@ -57,7 +57,7 @@ class CliOptionBagGrammarTest {
         val cmd = "-oneshot"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserFlag("$cmd".toArgsList(), top(cli, sfc), parser)
@@ -74,7 +74,7 @@ class CliOptionBagGrammarTest {
         val cmd = "-tui"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserFlag("$cmd".toArgsList(), top(cli, sfc), parser)
@@ -91,7 +91,7 @@ class CliOptionBagGrammarTest {
         val cmd = "/memory"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserCmd("$cmd", ExpectedControl(surface = sfc, arg = cli), parser)
@@ -105,7 +105,7 @@ class CliOptionBagGrammarTest {
         val cmd = "-memory"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserFlag("$cmd".toArgsList(), top(cli, sfc), parser)
@@ -122,7 +122,7 @@ class CliOptionBagGrammarTest {
         val serverCmd = "mcpLab --serve"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserCmd("$cmd \"$serverCmd\"", ExpectedControl(surface = sfc, arg = cli, value = serverCmd), parser)
@@ -137,7 +137,7 @@ class CliOptionBagGrammarTest {
         val serverCmd = "mcpLab --serve"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserFlag("$cmd \"$serverCmd\"".toArgsList(), top(cli, sfc, value = serverCmd), parser)
@@ -154,7 +154,7 @@ class CliOptionBagGrammarTest {
         val n = "5"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserCmd("$cmd $n", ExpectedControl(surface = sfc, arg = cli, value = n), parser)
@@ -169,7 +169,7 @@ class CliOptionBagGrammarTest {
         val n = "5"
 
         // when
-        val parser = CliControlsParser()
+        val parser = CliArgsParser()
 
         // then
         assertMatchParserFlag("$cmd $n -session foo".toArgsList(), listOf(top(cli, sfc, value = n), top(SESSION, sfc, value = "foo")), parser)

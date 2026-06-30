@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.clicontrols
+package ru.den.writes.code.project01.cliJvm.cliargs
 
 /**
  * A unified description of the CLI's controls (startup flags AND in-session
@@ -19,10 +19,10 @@ enum class Surface(val prefix: String) {
 /**
  * The whole token vocabulary — every word the grammar recognises, with its literal
  * [title]. One token = one entry; the same token can play several roles (e.g.
- * `profile` is a top-level entity AND a sub of `agent`) — the [ControlSpec.parent]
+ * `profile` is a top-level entity AND a sub of `agent`) — the [ArgSpec.parent]
  * chain disambiguates, so the title stays unique here.
  */
-enum class CliControlsArg(val title: String) {
+enum class CliArg(val title: String) {
     // startup-only flags
     PROMPT("prompt"),
     ONESHOT("oneshot"),
@@ -91,9 +91,9 @@ enum class CliControlsArg(val title: String) {
     ;
 
     companion object {
-        private val byTitle: Map<String, CliControlsArg> = entries.associateBy { it.title }
+        private val byTitle: Map<String, CliArg> = entries.associateBy { it.title }
 
         /** The arg whose [title] equals [token], or null if it isn't a known word. */
-        fun of(token: String): CliControlsArg? = byTitle[token]
+        fun of(token: String): CliArg? = byTitle[token]
     }
 }

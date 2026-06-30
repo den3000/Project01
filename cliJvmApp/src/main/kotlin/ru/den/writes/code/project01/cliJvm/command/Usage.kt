@@ -2,8 +2,8 @@ package ru.den.writes.code.project01.cliJvm.command
 
 /**
  * One-line-ish usage hint printed alongside a startup error. Hand-written against
- * the clicontrols grammar (a future task could generate it from
- * `CliControls.all` + `ControlSpec.usage`). Generation parity isn't pinned, so
+ * the cliargs grammar (a future task could generate it from
+ * `CliArgs.all` + `ArgSpec.usage`). Generation parity isn't pinned, so
  * keep this in step with the catalog by hand for now.
  */
 internal const val USAGE: String =
