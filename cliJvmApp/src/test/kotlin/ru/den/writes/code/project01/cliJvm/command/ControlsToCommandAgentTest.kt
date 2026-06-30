@@ -28,29 +28,16 @@ class ControlsToCommandAgentTest {
         // then
         assertIs<CliCommand.RunChat>(actual)
         assertEquals("hi", actual.prompt)
+        // agent-fields default (the full RunChat defaults live in ControlsToCommandChatTest)
         assertNull(actual.maxTokens)
         assertNull(actual.stopSequences)
         assertNull(actual.endSequence)
         assertNull(actual.temperature)
-
-        val modelProvider = assertIs<ModelProvider.Gemini>(actual.modelProvider)
-        assertEquals("gemini-2.5-flash", modelProvider.modelId)
-
-        assertNull(actual.session)
-        assertNull(actual.feedFile)
-        assertEquals(2500, actual.chunkChars)
-        assertEquals("", actual.feedInstruction)
-        assertEquals(false, actual.byLine)
-        assertEquals(ru.den.writes.code.project01.cliJvm.ContextStrategyKind.FULL, actual.strategy)
-        assertEquals(6, actual.keepLast)
-        assertEquals(10, actual.summarizeEvery)
-        assertNull(actual.task)
+        assertEquals("gemini-2.5-flash", assertIs<ModelProvider.Gemini>(actual.modelProvider).modelId)
         assertNull(actual.profile)
         assertNull(actual.memoryMode)
         assertEquals(0, actual.stageAgents.size)
-        assertEquals(false, actual.tui)
         assertEquals(0, actual.judgeAgents.size)
-        assertNull(actual.mcpServer)
     }
 
     @Test
@@ -185,6 +172,9 @@ class ControlsToCommandAgentTest {
             "/agent mode none" to null,
             "/agent show" to null,
             "/agent main" to null,
+            // generic non-commands fall through to a normal prompt
+            "/nope" to null,
+            "hello there" to null,
         )
 
         // when - then
