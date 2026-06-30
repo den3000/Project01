@@ -123,6 +123,19 @@ class ControlsToCommandChatTest {
             assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { parser.parse(input.toArgsArray()) }
         }
     }
+
+    @Test
+    fun `when multiple mcpServer flags are used - then they accumulate into the list`() {
+        // given
+        val parser = createCommandsParser()
+
+        // when
+        val actual = parser.parse("-prompt hi -mcpServer \"lab --serve\" -mcpServer \"docs --serve\"".toArgsArray())
+
+        // then
+        assertIs<CliCommand.RunChat>(actual)
+        assertEquals(listOf("lab --serve", "docs --serve"), actual.mcpServers)
+    }
     //endregion
 
     //region oneshot (RunOneShot)
