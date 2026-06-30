@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.command
 
+import ru.den.writes.code.project01.cliJvm.BranchCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.memory.MemoryMode
@@ -14,7 +15,8 @@ import kotlin.test.assertNull
 /** ControlsToCommand: partitioning `agent` controls into primary / stage / judge. */
 class ControlsToCommandAgentTest {
 
-    //region agent
+    //region flags
+
     @Test
     fun `when no agent flag used - then it is parsed to defaults`() {
         // given
@@ -168,4 +170,27 @@ class ControlsToCommandAgentTest {
             }
         }
     }
+    //endregion
+
+    //region commands
+    @Test
+    fun `when agent command used - then it behaves accordingly`() {
+        // given
+        val mapper = ControlsToBranchCommand()
+        val cases = listOf(
+            "/agent mode system" to BranchCommand.SetMemoryMode(MemoryMode.SYSTEM),
+            "/agent mode preamble" to BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE),
+            // Unsuccessful or unsupported in-session agent ops map to null (fall through as normal prompts)
+            "/agent mode loud" to null,
+            "/agent mode none" to null,
+            "/agent show" to null,
+            "/agent main" to null,
+        )
+
+        // when - then
+        cases.forEach { (input, expected) ->
+            assertEquals(expected, mapper.parse(input), input)
+        }
+    }
+    //endregion
 }
