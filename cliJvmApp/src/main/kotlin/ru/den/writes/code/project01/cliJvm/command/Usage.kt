@@ -14,7 +14,9 @@ internal const val USAGE: String =
         "         (knobs live under -agent; repeat -agent with `stages`/`judge` for per-stage agents)\n" +
         "       [-feedFile <path> [chunkChars <int> | byLine] [feedInstruction \"<text>\"]]\n" +
         "       [-strategy <full|window|facts|summary> [keepLast <int>] [summarizeEvery <int>]]\n" +
-        "       [-mcpServer \"<command>\"]   (spawn an MCP server, e.g. \"mcpLab --serve\")\n" +
+        "       [-mcpServer \"<command>\"]   (spawn an MCP server; repeatable, one per server)\n" +
+        "       [-schedule collect tool <name> [args \"<json>\"] <after|every> <sec>]   (needs -mcpServer)\n" +
+        "       [-schedule agent prompt \"<text>\" <after|every> <sec>]   (repeatable; periodic report as a feed line)\n" +
         "   or: -prompt <text> -oneshot [-agent provider <…> model <…> maxTokens <int> …]   (one prompt → reply → exit)\n" +
         "   or: -session                          (list saved sessions)\n" +
         "   or: -session clear [<name>]           (delete one session, or ALL history when bare)\n" +
@@ -27,5 +29,7 @@ internal const val USAGE: String =
         "        unnamed profile = profile.md; named profiles under profiles/<name>.md; no LLM)\n" +
         "REPL: /branch [<name> | switch <name> | show], /memory, /agent mode <preamble|system>,\n" +
         "      /profile [<name>] [<section> \"<text>\"] | show <name> | clear [<name>],\n" +
-        "      /rule \"<text>\" | clear [<id>], /task <id> | note \"<text>\" | pause | resume | clear [<id>], /reuse, /exit.\n" +
+        "      /rule \"<text>\" | clear [<id>], /task <id> | note \"<text>\" | pause | resume | clear [<id>],\n" +
+        "      /schedule [<collect tool <name> | agent prompt \"<text>\"> <after|every> <sec> | clear [<id>]] (bare = list),\n" +
+        "      /reuse, /exit.\n" +
         "Default provider is gemini. Defaults: chunkChars=2500, keepLast=6, summarizeEvery=10."

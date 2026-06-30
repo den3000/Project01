@@ -84,6 +84,7 @@ stateless), так что multi-turn контекст сохраняется; о
 | `-session clear [<name>]` | удалить историю одной сессии (или **всей** БД, если без имени) и выйти |
 | `-inflate <N> -session <name>` | продублировать последние `N` строк сессии обратно в неё (dev-операция для стресс-тестов переполнения контекста; без LLM, без сети) |
 | `-tui` | интерактивный TUI-вид (нужен настоящий TTY; несовместим с `-oneshot`) |
+| `-schedule …` | фоновые задачи по расписанию (`collect`/`agent`, `after`/`every`) — см. «Планировщик» |
 
 ## REPL: команды внутри сессии
 
@@ -102,6 +103,9 @@ stateless), так что multi-turn контекст сохраняется; о
 | `/memory` | показать активный слой памяти (режим + профиль + правила + задача) |
 | `/agent mode <preamble\|system>` | переключить режим доставки памяти на лету |
 | `/profile …`, `/rule …`, `/task …` | управление слоем памяти (см. ниже) |
+| `/schedule` | список активных фоновых задач (с их id) |
+| `/schedule collect tool <name> … \| agent prompt "<text>" <after\|every> <sec>` | добавить задачу в живой планировщик |
+| `/schedule clear [<id>]` | отменить одну задачу по id (или **все** активные — остановить расписание) |
 
 Ветка — независимый разговор под общим `session_id` (как git-ветка): уйти в касательную на
 ветке, потом `/branch switch main` обратно, не потеряв ни одну нить.
@@ -232,13 +236,52 @@ stateless), так что multi-turn контекст сохраняется; о
 
 ### MCP-инструменты — `-mcpServer`
 
-`-mcpServer "<команда>"` (Chat-only) поднимает MCP-сервер подпроцессом (напр. `mcpLab --serve`,
-см. модуль [`mcpLab`](../mcpLab/README.md)) и отдаёт его инструменты модели. На старте — один
+`-mcpServer "<команда>"` (Chat-only) поднимает MCP-сервер подпроцессом (напр.
+[`openmeteo-mcp`](../mcps/openmeteo-mcp/README.md)) и отдаёт его инструменты модели. На старте — один
 `tools/list`, схема каждого инструмента → Gemini `functionDeclarations`. Когда модель отвечает
 `functionCall` вместо текста, CLI выполняет его через `tools/call`, скармливает результат обратно
 `functionResponse` и переспрашивает — до нескольких раундов — пока модель не выдаст финальный текст.
 Tool-обмен эфемерный (в историю едет только финальный ответ), в транскрипте — колонка `mcp │` (TUI)
 / строки `[tool] …` (plain). **Только Gemini** — другие провайдеры не моделируют function calling.
+
+Флаг **повторяемый** — несколько серверов сразу. Каждый поднимается отдельным подпроцессом;
+`McpToolRouter` объединяет их каталоги и роутит каждый вызов на сервер-владельца по имени инструмента
+(коллизия имён между серверами — ошибка на старте). Так модель проходит длинный флоу через инструменты
+с РАЗНЫХ серверов:
+
+```bash
+# кросс-серверная цепочка: погода [openmeteo-mcp] → документ [localfs-mcp] → файл [localfs-mcp]
+OM=$(pwd)/../mcps/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp
+FS=$(pwd)/../mcps/localfs-mcp/build/install/localfs-mcp/bin/localfs-mcp
+cliJvmApp -prompt "Узнай погоду в Москве, добавь её в документ и сохрани в файл moscow.md" \
+  -mcpServer "$OM" -mcpServer "$FS"
+# → ~/.project01-localfs/documents/moscow.md
+```
+
+### Планировщик — `-schedule`
+
+`-schedule` ставит фоновые задачи поверх ядра [`:scheduling`](../scheduling/README.md). Повторяемый —
+несколько задач за запуск. Два вида:
+
+- **`collect tool <name> [args "<json>"] <after|every> <sec>`** — по расписанию вызывает MCP-инструмент
+  напрямую (нужен `-mcpServer`), **без обращения к модели**, и копит его текст. Раз в ~30 c reporter
+  публикует агрегированную сводку feed-строкой (тоже без LLM).
+- **`agent prompt "<text>" <after|every> <sec>`** — по расписанию инжектит `<text>` как обычный ход
+  диалога (через тот же сериализованный MVI-цикл) — это *тратит токены* на каждый ход.
+
+`after <sec>` = один раз, `every <sec>` = периодически (ровно один из двух). Управление на лету — в REPL:
+`/schedule` (список), `/schedule clear <id>` (отменить одну), `/schedule clear` (остановить расписание).
+Расписания живут на сессию (`InMemoryScheduleStore`); сводка постится только когда меняется (`agent`-only
+расписание не шумит). Без `-schedule` планировщик не поднимается — wire/вывод байт-в-байт прежний.
+
+```bash
+# периодический сбор погоды через openmeteo-mcp-инструмент (collect — без токенов на сбор)
+cliJvmApp -prompt "ok" -mcpServer "$(pwd)/../mcps/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp" \
+  -schedule collect tool current_weather args '{"city":"Moscow"}' every 30 -session collect-demo
+
+# периодический агентный ход (тратит токены каждые 60 c)
+cliJvmApp -prompt "Старт" -schedule agent prompt "краткая сводка" every 60 -session agent-demo
+```
 
 ## Каталоги моделей
 

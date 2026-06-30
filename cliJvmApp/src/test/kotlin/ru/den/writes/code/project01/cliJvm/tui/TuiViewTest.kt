@@ -5,6 +5,7 @@ import ru.den.writes.code.project01.cliJvm.CommandEntry
 import ru.den.writes.code.project01.cliJvm.Overlay
 import ru.den.writes.code.project01.cliJvm.PaletteAction
 import ru.den.writes.code.project01.cliJvm.PickerKind
+import ru.den.writes.code.project01.cliJvm.SessionStatsSnapshot
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -142,6 +143,28 @@ class TuiViewTest {
             listOf("▶ 1. /branch show — show the branch", "  2. /rule — add a rule"),
             PaletteTuiView(palette).optionLines(),
         )
+    }
+    //endregion
+
+    //region SessionPanelTuiView
+
+    @Test
+    fun `when the session panel renders - then its width is fixed regardless of the numbers`() {
+        // given — a tiny and a huge stats snapshot
+        val small = SessionPanelTuiView(
+            SessionStatsSnapshot(1, promptTokens = 5, outputTokens = 5, thoughtsTokens = 0, totalTokens = 10, costUsd = 0.0),
+        )
+        val big = SessionPanelTuiView(
+            SessionStatsSnapshot(999, promptTokens = 9_999_999, outputTokens = 999_999, thoughtsTokens = 0, totalTokens = 9_999_999, costUsd = 1234.56789),
+        )
+
+        // when — rendered at the same width
+        val smallTop = small.panelLines(60).first()
+        val bigTop = big.panelLines(60).first()
+
+        // then — the box is the SAME (fixed) width both times: no resize → no leaked top border
+        assertEquals(60, smallTop.length)
+        assertEquals(smallTop.length, bigTop.length)
     }
     //endregion
 }

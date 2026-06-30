@@ -1,0 +1,203 @@
+package ru.den.writes.code.project01.mcps.openmeteo
+
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.java.Java
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.json
+import io.modelcontextprotocol.kotlin.sdk.server.Server
+import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
+import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.io.asSink
+import kotlinx.io.asSource
+import kotlinx.io.buffered
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.put
+
+/**
+ * Runs our own MCP server over stdio. Exposes `current_weather` plus the scheduler tools
+ * (`schedule_task` / `list_tasks` / `cancel_task` / `report`), all backed by the free
+ * Open-Meteo API. While a client is connected, a background ticker fires due tasks every
+ * [tickMs] and a reporter logs the aggregated summary (only when it changes) every
+ * [summaryEveryMs]; both run on `Dispatchers.IO` and are cancelled on disconnect. With no
+ * scheduled tasks the reporter stays silent. stdout is the JSON-RPC channel — every
+ * diagnostic goes to stderr so it can't corrupt the protocol stream. Blocks until the
+ * client disconnects (stdin closes).
+ */
+suspend fun runWeatherServer(
+    tickMs: Long = 5_000,
+    summaryEveryMs: Long = 60_000,
+) {
+    val http = HttpClient(Java) {
+        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+    }
+    val weather = OpenMeteoClient(http)
+    val engine = buildWeatherScheduler(defaultScheduleFile(), weather::currentWeather)
+
+    val server = Server(
+        serverInfo = Implementation(name = "openmeteo-mcp", version = "0.1.0"),
+        options = ServerOptions(
+            capabilities = ServerCapabilities(tools = ServerCapabilities.Tools(listChanged = false)),
+        ),
+    )
+
+    server.addTool(
+        name = "current_weather",
+        description = "Get the current weather for a city by name (e.g. \"Paris\").",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "city",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "City name to look up, e.g. \"Paris\" or \"Tokyo\".")
+                    },
+                )
+            },
+            required = listOf("city"),
+        ),
+    ) { request ->
+        val city = request.arguments?.get("city")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val text = if (city == null) {
+            "Error: the 'city' argument is required."
+        } else {
+            runCatching { weather.currentWeather(city) }
+                .getOrElse { "Error fetching weather for \"$city\": ${it.message}" }
+        }
+        CallToolResult(content = listOf(TextContent(text)))
+    }
+
+    server.addTool(
+        name = "schedule_task",
+        description = "Schedule a weather lookup for a city: one-shot ('after_seconds') or " +
+            "periodic ('every_seconds'). Provide exactly one, positive. Survives a restart.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "city",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "City to look up, e.g. \"Paris\".")
+                    },
+                )
+                put(
+                    "after_seconds",
+                    buildJsonObject {
+                        put("type", "integer")
+                        put("description", "Fire once, this many seconds from now.")
+                    },
+                )
+                put(
+                    "every_seconds",
+                    buildJsonObject {
+                        put("type", "integer")
+                        put("description", "Fire repeatedly, every this many seconds.")
+                    },
+                )
+            },
+            required = listOf("city"),
+        ),
+    ) { request ->
+        val city = request.arguments?.get("city")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val after = request.arguments?.get("after_seconds")?.jsonPrimitive?.longOrNull
+        val every = request.arguments?.get("every_seconds")?.jsonPrimitive?.longOrNull
+        val schedule = scheduleFromArgs(after, every)
+        val text = when {
+            city == null -> "Error: the 'city' argument is required."
+            schedule == null -> "Error: provide exactly one positive 'after_seconds' or 'every_seconds'."
+            else -> "Scheduled ${renderTask(engine.add(city, schedule))}"
+        }
+        CallToolResult(content = listOf(TextContent(text)))
+    }
+
+    server.addTool(
+        name = "list_tasks",
+        description = "List all scheduled tasks (active, done, cancelled).",
+        inputSchema = ToolSchema(properties = buildJsonObject {}, required = emptyList()),
+    ) { _ ->
+        CallToolResult(content = listOf(TextContent(renderTasks(engine.list()))))
+    }
+
+    server.addTool(
+        name = "cancel_task",
+        description = "Cancel an active scheduled task by its id.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "id",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Task id from schedule_task / list_tasks.")
+                    },
+                )
+            },
+            required = listOf("id"),
+        ),
+    ) { request ->
+        val id = request.arguments?.get("id")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val text = when {
+            id == null -> "Error: the 'id' argument is required."
+            engine.cancel(id) -> "Cancelled task $id."
+            else -> "Error: no active task with id $id."
+        }
+        CallToolResult(content = listOf(TextContent(text)))
+    }
+
+    server.addTool(
+        name = "report",
+        description = "Return an aggregated report of the data collected by scheduled tasks so " +
+            "far (count, time span, latest). Reads stored results only — calls no model.",
+        inputSchema = ToolSchema(properties = buildJsonObject {}, required = emptyList()),
+    ) { _ ->
+        CallToolResult(content = listOf(TextContent(engine.summary())))
+    }
+
+    System.err.println(
+        "[openmeteo-mcp] weather MCP server ready on stdio (tools: current_weather, schedule_task, " +
+            "list_tasks, cancel_task, report)",
+    )
+    val transport = StdioServerTransport(
+        System.`in`.asSource().buffered(),
+        System.out.asSink().buffered(),
+    ) { /* defaults */ }
+    val session = server.createSession(transport)
+    val done = Job()
+    session.onClose { done.complete() }
+
+    // Background scheduler: tick due tasks every tickMs and log the aggregated summary
+    // every summaryEveryMs, both on Dispatchers.IO. They live exactly as long as the
+    // client connection — done.join() unblocks on disconnect, then both are cancelled.
+    // The reporter logs only when the summary CHANGES (baseline = the current, empty one),
+    // so a server with no scheduled tasks stays silent instead of spamming "No results yet."
+    coroutineScope {
+        val ticker = launch(Dispatchers.IO) { engine.runLoop(tickMs) }
+        val reporter = launch(Dispatchers.IO) {
+            var last = engine.summary()
+            while (isActive) {
+                delay(summaryEveryMs)
+                val summary = engine.summary()
+                if (summary != last) {
+                    System.err.println("[openmeteo-mcp] $summary")
+                    last = summary
+                }
+            }
+        }
+        done.join()
+        ticker.cancel()
+        reporter.cancel()
+    }
+    http.close()
+}

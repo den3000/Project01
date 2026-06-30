@@ -237,6 +237,13 @@ internal sealed interface UiIntent {
 
     /** Close the open overlay without selecting. No-op if none is open. */
     data object OverlayCancel : UiIntent
+
+    /**
+     * A background-scheduler feed line (a periodic report). Not a user turn — the loop just
+     * lays it into the transcript as a [UiLine.Notice]. Injected via
+     * [SessionViewModel.postNotice]; only ever present when the scheduler is on.
+     */
+    data class Feed(val text: String) : UiIntent
 }
 
 /**

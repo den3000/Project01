@@ -14,7 +14,7 @@ import java.util.UUID
  * [handler] is the per-tick payload; [store] is the persistence (any implementation).
  *
  * The engine does NOT create a scope or pick a Dispatcher — [runLoop] runs in whatever
- * context the integration launches it in (mcpLab uses `Dispatchers.IO`). That is what lets
+ * context the integration launches it in (openmeteo-mcp uses `Dispatchers.IO`). That is what lets
  * both integrations sit on top purely additively.
  */
 class SchedulerEngine(

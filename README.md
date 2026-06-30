@@ -16,13 +16,15 @@ KMP-проект на Compose Multiplatform под Android, iOS и Desktop (JVM)
   и персистит multi-turn REPL в локальный SQLite. Добавляет слой памяти (профиль / правила /
   task-FSM), агентов по стадиям, judge инвариантов, контекст-стратегии и MCP function calling.
   Полная дока: **[cliJvmApp/README.md](./cliJvmApp/README.md)**.
-- **[/mcpLab](./mcpLab)** — песочница для экспериментов с MCP (Model Context Protocol) на
-  официальном Kotlin MCP SDK: клиент-проба, печатающая инструменты любого stdio-сервера, и свой
-  Open-Meteo weather-сервер (`--serve`), который CLI дёргает через `-mcpServer`. Дока:
-  [mcpLab/README.md](./mcpLab/README.md).
+- **[/mcps](./mcps)** — каталог standalone MCP-серверов (Model Context Protocol) на официальном
+  Kotlin MCP SDK, которые CLI дёргает через `-mcpServer` (повторяемый — несколько серверов сразу):
+  - **[/mcps/openmeteo-mcp](./mcps/openmeteo-mcp)** — Open-Meteo weather-сервер + планировщик сбора
+    погоды. Дока: [README](./mcps/openmeteo-mcp/README.md).
+  - **[/mcps/localfs-mcp](./mcps/localfs-mcp)** — локальная ФС: накопить документ в буфере и записать
+    на диск (`append_to_document` / `save_document`). Дока: [README](./mcps/localfs-mcp/README.md).
 - **[/scheduling](./scheduling)** — переиспользуемое ядро планировщика без зависимостей
-  (отложенные + периодические задачи), задуманное под mcpLab и cliJvmApp сразу; интеграция в них
-  ещё не сделана. Дока: [scheduling/README.md](./scheduling/README.md).
+  (отложенные + периодические задачи), используется openmeteo-mcp и cliJvmApp.
+  Дока: [scheduling/README.md](./scheduling/README.md).
 - **[/cliTui](./cliTui)** — изолированная песочница для сравнения terminal-UI библиотек на JVM.
   Combo Kotter + Mordant, к которому она пришла, уже интегрирован в cliJvmApp (вид `-tui`). Дока:
   [cliTui/README.md](./cliTui/README.md).
@@ -41,7 +43,17 @@ KMP-проект на Compose Multiplatform под Android, iOS и Desktop (JVM)
 - CLI JVM-приложение: `./gradlew :cliJvmApp:installDist`, затем
   `./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -prompt "<текст>" [...флаги]` — флаги,
   каталоги моделей и recipes см. в **[cliJvmApp/README.md](./cliJvmApp/README.md)**.
-- MCP-песочница: `./gradlew :mcpLab:installDist && ./mcpLab/build/install/mcpLab/bin/mcpLab`.
+- MCP-серверы: `./gradlew :mcps:openmeteo-mcp:installDist :mcps:localfs-mcp:installDist` — бинари
+  под `mcps/<имя>/build/install/<имя>/bin/<имя>` (спавнятся клиентом, см. ниже).
+- MCP-оркестрация (два сервера, кросс-серверная цепочка) — собрать оба сервера + cliJvmApp, затем:
+  ```
+  OM=$(pwd)/mcps/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp
+  FS=$(pwd)/mcps/localfs-mcp/build/install/localfs-mcp/bin/localfs-mcp
+  cliJvmApp -prompt "Узнай погоду в Москве, добавь её в документ и сохрани в файл moscow.md" \
+            -mcpServer "$OM" -mcpServer "$FS"
+  ```
+  LLM сам строит цепочку `current_weather` [OM] → `append_to_document` [FS] → `save_document` [FS];
+  файл → `~/.project01-localfs/documents/moscow.md`.
 
 ## Запуск тестов
 
@@ -52,7 +64,7 @@ KMP-проект на Compose Multiplatform под Android, iOS и Desktop (JVM)
 - iOS-тесты: `./gradlew :shared:iosSimulatorArm64Test`
 - Тесты CLI JVM-приложения (быстрые, без сети — провайдеры застаблены `FakeLlmApi`):
   `./gradlew :cliJvmApp:test`
-- Тесты MCP-песочницы (offline): `./gradlew :mcpLab:test`
+- Тесты MCP-серверов (offline): `./gradlew :mcps:openmeteo-mcp:test :mcps:localfs-mcp:test`
 
 ---
 
