@@ -32,9 +32,9 @@ class ControlsToCommandScheduleTest {
         )
 
         // then — after = one-shot (periodic false), every = periodic true; repeated -schedule accumulates
-        assertEquals(listOf(ScheduleSpec.Collect("weather", "{}", 30, false)), collect.schedules)
-        assertEquals(listOf(ScheduleSpec.Agent("do x", 60, true)), agent.schedules)
-        assertEquals(listOf(ScheduleSpec.Agent("a", 10, false), ScheduleSpec.Agent("b", 20, true)), multiple.schedules)
+        assertEquals(listOf(ScheduleSpec.Collect("weather", "{}", 30, false)), collect.config.schedules)
+        assertEquals(listOf(ScheduleSpec.Agent("do x", 60, true)), agent.config.schedules)
+        assertEquals(listOf(ScheduleSpec.Agent("a", 10, false), ScheduleSpec.Agent("b", 20, true)), multiple.config.schedules)
     }
 
     @Test

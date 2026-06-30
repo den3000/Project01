@@ -3,6 +3,7 @@ package ru.den.writes.code.project01.cliJvm.agent
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
@@ -40,20 +41,22 @@ internal fun newChat(prompt: String, session: String?): CliCommand.RunChat = Cli
     endSequence = null,
     temperature = null,
     modelProvider = dummyGeminiProvider(),
-    session = session,
-    feedFile = null,
-    chunkChars = 2500,
-    feedInstruction = "",
-    byLine = false,
-    strategy = ContextStrategyKind.FULL,
-    keepLast = 6,
-    summarizeEvery = 10,
-    task = null,
-    profile = null,
-    memoryMode = null,
-    stageAgents = emptyList(),
-    tui = false,
-    judgeAgents = emptyList(),
+    config = SessionConfig(
+        session = session,
+        feedFile = null,
+        chunkChars = 2500,
+        feedInstruction = "",
+        byLine = false,
+        strategy = ContextStrategyKind.FULL,
+        keepLast = 6,
+        summarizeEvery = 10,
+        task = null,
+        profile = null,
+        memoryMode = null,
+        stageAgents = emptyList(),
+        tui = false,
+        judgeAgents = emptyList(),
+    ),
 )
 
 /**

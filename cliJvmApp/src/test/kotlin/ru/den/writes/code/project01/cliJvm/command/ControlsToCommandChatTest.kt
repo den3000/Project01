@@ -33,22 +33,22 @@ class ControlsToCommandChatTest {
         assertNull(actual.endSequence)
         assertNull(actual.temperature)
         assertEquals("gemini-2.5-flash", assertIs<ModelProvider.Gemini>(actual.modelProvider).modelId)
-        assertNull(actual.session)
-        assertNull(actual.feedFile)
-        assertEquals(2500, actual.chunkChars)
-        assertEquals("", actual.feedInstruction)
-        assertEquals(false, actual.byLine)
-        assertEquals(ContextStrategyKind.FULL, actual.strategy)
-        assertEquals(6, actual.keepLast)
-        assertEquals(10, actual.summarizeEvery)
-        assertNull(actual.task)
-        assertNull(actual.profile)
-        assertNull(actual.memoryMode)
-        assertEquals(0, actual.stageAgents.size)
-        assertEquals(false, actual.tui)
-        assertEquals(0, actual.judgeAgents.size)
-        assertEquals(emptyList<String>(), actual.mcpServers)
-        assertEquals(0, actual.schedules.size)
+        assertNull(actual.config.session)
+        assertNull(actual.config.feedFile)
+        assertEquals(2500, actual.config.chunkChars)
+        assertEquals("", actual.config.feedInstruction)
+        assertEquals(false, actual.config.byLine)
+        assertEquals(ContextStrategyKind.FULL, actual.config.strategy)
+        assertEquals(6, actual.config.keepLast)
+        assertEquals(10, actual.config.summarizeEvery)
+        assertNull(actual.config.task)
+        assertNull(actual.config.profile)
+        assertNull(actual.config.memoryMode)
+        assertEquals(0, actual.config.stageAgents.size)
+        assertEquals(false, actual.config.tui)
+        assertEquals(0, actual.config.judgeAgents.size)
+        assertEquals(emptyList<String>(), actual.config.mcpServers)
+        assertEquals(0, actual.config.schedules.size)
     }
 
     @Test
@@ -65,19 +65,19 @@ class ControlsToCommandChatTest {
 
         // then
         assertIs<CliCommand.RunChat>(actual)
-        assertEquals("sess", actual.session)
-        assertEquals("/path", actual.feedFile)
-        assertEquals(5000, actual.chunkChars)
-        assertEquals("feed me", actual.feedInstruction)
-        assertEquals(ContextStrategyKind.SUMMARY, actual.strategy)
-        assertEquals(8, actual.keepLast)
-        assertEquals(12, actual.summarizeEvery)
-        assertEquals(true, actual.tui)
-        assertEquals(listOf("mcpLab --serve"), actual.mcpServers)
+        assertEquals("sess", actual.config.session)
+        assertEquals("/path", actual.config.feedFile)
+        assertEquals(5000, actual.config.chunkChars)
+        assertEquals("feed me", actual.config.feedInstruction)
+        assertEquals(ContextStrategyKind.SUMMARY, actual.config.strategy)
+        assertEquals(8, actual.config.keepLast)
+        assertEquals(12, actual.config.summarizeEvery)
+        assertEquals(true, actual.config.tui)
+        assertEquals(listOf("mcpLab --serve"), actual.config.mcpServers)
         // agent-fields stay default (owned by ControlsToCommandAgentTest)
         assertNull(actual.maxTokens)
-        assertNull(actual.profile)
-        assertNull(actual.memoryMode)
+        assertNull(actual.config.profile)
+        assertNull(actual.config.memoryMode)
     }
 
     @Test
@@ -91,10 +91,10 @@ class ControlsToCommandChatTest {
 
         // then
         assertIs<CliCommand.RunChat>(byLine)
-        assertEquals(true, byLine.byLine)
+        assertEquals(true, byLine.config.byLine)
         assertIs<CliCommand.RunChat>(window)
-        assertEquals(ContextStrategyKind.WINDOW, window.strategy)
-        assertEquals(4, window.keepLast)
+        assertEquals(ContextStrategyKind.WINDOW, window.config.strategy)
+        assertEquals(4, window.config.keepLast)
     }
 
     @Test
@@ -134,7 +134,7 @@ class ControlsToCommandChatTest {
 
         // then
         assertIs<CliCommand.RunChat>(actual)
-        assertEquals(listOf("lab --serve", "docs --serve"), actual.mcpServers)
+        assertEquals(listOf("lab --serve", "docs --serve"), actual.config.mcpServers)
     }
     //endregion
 

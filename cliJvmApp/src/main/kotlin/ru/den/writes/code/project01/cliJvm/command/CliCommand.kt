@@ -1,10 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
-import ru.den.writes.code.project01.cliJvm.StageAgentSpec
-import ru.den.writes.code.project01.cliJvm.StageJudgeSpec
 import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.shared.memory.MemoryMode
 
 /**
  * The domain layer — WHAT the CLI was asked to do, decoupled from HOW the args
@@ -40,9 +36,9 @@ internal sealed interface CliCommand {
     }
 
     /**
-     * Interactive chat: send the opening [prompt], then REPL, persisting each
-     * turn to [session] (generated id when null). Fields are the chat
-     * configuration the runtime needs; semantics mirror the `-flag` docs.
+     * Interactive chat: send the opening [prompt], then REPL, persisting each turn
+     * to the session in [config]. Per-turn generation knobs live on [RunPrompt];
+     * the session-lifetime setup the runtime hydrates is the [SessionConfig] payload.
      */
     data class RunChat(
         override val prompt: String,
@@ -51,22 +47,7 @@ internal sealed interface CliCommand {
         override val endSequence: String?,
         override val temperature: Double?,
         override val modelProvider: ModelProvider,
-        val session: String?,
-        val feedFile: String?,
-        val chunkChars: Int,
-        val feedInstruction: String,
-        val byLine: Boolean,
-        val strategy: ContextStrategyKind,
-        val keepLast: Int,
-        val summarizeEvery: Int,
-        val task: String?,
-        val profile: String?,
-        val memoryMode: MemoryMode?,
-        val stageAgents: List<StageAgentSpec>,
-        val tui: Boolean,
-        val judgeAgents: List<StageJudgeSpec>,
-        val mcpServers: List<String> = emptyList(),
-        val schedules: List<ScheduleSpec> = emptyList(),
+        val config: SessionConfig,
     ) : RunPrompt
 
     /** Single turn: send [prompt], print the reply, exit. No history / session. */

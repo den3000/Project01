@@ -7,6 +7,7 @@ import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.shared.memory.MemoryLayer
 import ru.den.writes.code.project01.shared.memory.MemoryMode
@@ -533,20 +534,22 @@ class AgentMemoryTest {
             model = GeminiModel.Known.Gemini25Flash,
             apiKey = "test-key",
         ),
-        session = session,
-        feedFile = null,
-        chunkChars = 2500,
-        feedInstruction = "",
-        byLine = false,
-        strategy = ContextStrategyKind.FULL,
-        keepLast = 6,
-        summarizeEvery = 10,
-        task = null,
-        profile = null,
-        memoryMode = null,
-        stageAgents = emptyList(),
-        tui = false,
-        judgeAgents = emptyList(),
+        config = SessionConfig(
+            session = session,
+            feedFile = null,
+            chunkChars = 2500,
+            feedInstruction = "",
+            byLine = false,
+            strategy = ContextStrategyKind.FULL,
+            keepLast = 6,
+            summarizeEvery = 10,
+            task = null,
+            profile = null,
+            memoryMode = null,
+            stageAgents = emptyList(),
+            tui = false,
+            judgeAgents = emptyList(),
+        ),
     )
 
     private fun stdinSource(script: String): StdinPromptSource =

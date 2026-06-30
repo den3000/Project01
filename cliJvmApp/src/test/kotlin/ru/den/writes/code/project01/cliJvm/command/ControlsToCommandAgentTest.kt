@@ -34,10 +34,10 @@ class ControlsToCommandAgentTest {
         assertNull(actual.endSequence)
         assertNull(actual.temperature)
         assertEquals("gemini-2.5-flash", assertIs<ModelProvider.Gemini>(actual.modelProvider).modelId)
-        assertNull(actual.profile)
-        assertNull(actual.memoryMode)
-        assertEquals(0, actual.stageAgents.size)
-        assertEquals(0, actual.judgeAgents.size)
+        assertNull(actual.config.profile)
+        assertNull(actual.config.memoryMode)
+        assertEquals(0, actual.config.stageAgents.size)
+        assertEquals(0, actual.config.judgeAgents.size)
     }
 
     @Test
@@ -61,22 +61,22 @@ class ControlsToCommandAgentTest {
         val modelProvider = assertIs<ModelProvider.OpenRouter>(actual.modelProvider)
         assertEquals("deepseek/deepseek-r1:free", modelProvider.modelId)
 
-        assertEquals("coder", actual.profile)
-        assertEquals(MemoryMode.SYSTEM, actual.memoryMode)
+        assertEquals("coder", actual.config.profile)
+        assertEquals(MemoryMode.SYSTEM, actual.config.memoryMode)
 
         // Session defaults (not configured here)
-        assertNull(actual.session)
-        assertNull(actual.feedFile)
-        assertEquals(2500, actual.chunkChars)
-        assertEquals("", actual.feedInstruction)
-        assertEquals(false, actual.byLine)
-        assertEquals(ru.den.writes.code.project01.cliJvm.ContextStrategyKind.FULL, actual.strategy)
-        assertEquals(6, actual.keepLast)
-        assertEquals(10, actual.summarizeEvery)
-        assertNull(actual.task)
-        assertEquals(false, actual.tui)
-        assertEquals(emptyList<String>(), actual.mcpServers)
-        assertEquals(0, actual.schedules.size)
+        assertNull(actual.config.session)
+        assertNull(actual.config.feedFile)
+        assertEquals(2500, actual.config.chunkChars)
+        assertEquals("", actual.config.feedInstruction)
+        assertEquals(false, actual.config.byLine)
+        assertEquals(ru.den.writes.code.project01.cliJvm.ContextStrategyKind.FULL, actual.config.strategy)
+        assertEquals(6, actual.config.keepLast)
+        assertEquals(10, actual.config.summarizeEvery)
+        assertNull(actual.config.task)
+        assertEquals(false, actual.config.tui)
+        assertEquals(emptyList<String>(), actual.config.mcpServers)
+        assertEquals(0, actual.config.schedules.size)
     }
 
     @Test
@@ -120,20 +120,20 @@ class ControlsToCommandAgentTest {
 
         // then
         assertIs<CliCommand.RunChat>(actual)
-        assertEquals(MemoryMode.SYSTEM, actual.memoryMode)
-        assertEquals("auth", actual.task)
+        assertEquals(MemoryMode.SYSTEM, actual.config.memoryMode)
+        assertEquals("auth", actual.config.task)
         
-        assertEquals(2, actual.stageAgents.size)
-        assertEquals("interviewer", actual.stageAgents[0].profileName)
-        assertEquals(TaskBinding(TaskStage.CLARIFICATION, TaskStage.PLANNING), actual.stageAgents[0].binding)
-        assertEquals("gemini-2.5-pro", actual.stageAgents[0].provider.modelId)
+        assertEquals(2, actual.config.stageAgents.size)
+        assertEquals("interviewer", actual.config.stageAgents[0].profileName)
+        assertEquals(TaskBinding(TaskStage.CLARIFICATION, TaskStage.PLANNING), actual.config.stageAgents[0].binding)
+        assertEquals("gemini-2.5-pro", actual.config.stageAgents[0].provider.modelId)
         
-        assertEquals("coder", actual.stageAgents[1].profileName)
-        assertEquals(TaskBinding(TaskStage.EXECUTION, TaskStage.DONE), actual.stageAgents[1].binding)
-        assertEquals("gemini-2.5-flash", actual.stageAgents[1].provider.modelId)
+        assertEquals("coder", actual.config.stageAgents[1].profileName)
+        assertEquals(TaskBinding(TaskStage.EXECUTION, TaskStage.DONE), actual.config.stageAgents[1].binding)
+        assertEquals("gemini-2.5-flash", actual.config.stageAgents[1].provider.modelId)
 
-        assertEquals(1, actual.judgeAgents.size)
-        val judge = actual.judgeAgents.single()
+        assertEquals(1, actual.config.judgeAgents.size)
+        val judge = actual.config.judgeAgents.single()
         assertEquals(TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE), judge.binding)
         val openRouter = assertIs<ModelProvider.OpenRouter>(judge.provider)
         assertEquals("deepseek/deepseek-r1:free", openRouter.modelId)

@@ -313,10 +313,10 @@ internal class CommandExecutor(private val db: AppDatabase) {
     private suspend fun runPromptCommand(parsed: CliCommand.RunPrompt) {
         val historyStore: HistoryStore? = when (parsed) {
             is CliCommand.RunChat -> {
-                val sessionId = parsed.session ?: generateSessionId()
+                val sessionId = parsed.config.session ?: generateSessionId()
                 // "Resume" = a passed name AND existing history under it. Otherwise
                 // it's new — announce the id so the user can return via -session.
-                val isResume = parsed.session != null &&
+                val isResume = parsed.config.session != null &&
                     db.messageDao().all(sessionId).isNotEmpty()
                 if (!isResume) {
                     System.err.println("[session] new session: $sessionId")
@@ -352,28 +352,28 @@ internal class CommandExecutor(private val db: AppDatabase) {
             val chat = parsed as? CliCommand.RunChat
             val strategy: ContextStrategy = if (chat == null) {
                 ContextStrategy.FullHistory
-            } else when (chat.strategy) {
+            } else when (chat.config.strategy) {
                 ContextStrategyKind.FULL -> ContextStrategy.FullHistory
-                ContextStrategyKind.WINDOW -> ContextStrategy.SlidingWindow(chat.keepLast)
-                ContextStrategyKind.FACTS -> StickyFacts(chat.keepLast)
+                ContextStrategyKind.WINDOW -> ContextStrategy.SlidingWindow(chat.config.keepLast)
+                ContextStrategyKind.FACTS -> StickyFacts(chat.config.keepLast)
                 ContextStrategyKind.SUMMARY -> ContextStrategy.Summary(
-                    HistoryCompressor(keepLast = chat.keepLast, summarizeEvery = chat.summarizeEvery),
+                    HistoryCompressor(keepLast = chat.config.keepLast, summarizeEvery = chat.config.summarizeEvery),
                 )
             }
             // Memory layer: wired only when memoryMode is set; otherwise the wire
             // bytes are byte-identical to a no-memory run.
-            val memory: MemoryProvider? = chat?.memoryMode?.let { mode ->
+            val memory: MemoryProvider? = chat?.config?.memoryMode?.let { mode ->
                 MEMORY_ROOT.mkdirs()
                 MemoryProvider(
                     store = MemoryStore(MEMORY_ROOT),
                     initialMode = mode,
-                    initialTaskId = chat.task,
-                    initialProfileName = chat.profile,
+                    initialTaskId = chat.config.task,
+                    initialProfileName = chat.config.profile,
                 )
             }
             // Per-stage agents: one RoutedAgent per spec, each its own LlmApi +
             // fixed profile. Empty for single-agent sessions.
-            val routedAgents: List<RoutedAgent> = chat?.stageAgents.orEmpty().map { spec ->
+            val routedAgents: List<RoutedAgent> = chat?.config?.stageAgents.orEmpty().map { spec ->
                 RoutedAgent(
                     binding = spec.binding,
                     responder = AgentResponder(
@@ -384,7 +384,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
                 )
             }
             // Per-stage invariant judges: one RoutedJudge per spec on its own model.
-            val routedJudges: List<RoutedJudge> = chat?.judgeAgents.orEmpty().map { spec ->
+            val routedJudges: List<RoutedJudge> = chat?.config?.judgeAgents.orEmpty().map { spec ->
                 RoutedJudge(
                     binding = spec.binding,
                     checker = LlmInvariantJudge(buildLlmApi(spec.provider)),
@@ -393,11 +393,11 @@ internal class CommandExecutor(private val db: AppDatabase) {
             }
             // MCP tool servers: spawn each, connect, list its tools once. A router fans the
             // model's calls out to the server that owns each tool (names unique across servers).
-            val mcpClients: List<McpToolClient> = chat?.mcpServers.orEmpty().map { cmd ->
+            val mcpClients: List<McpToolClient> = chat?.config?.mcpServers.orEmpty().map { cmd ->
                 McpToolClient(cmd.split(Regex("\\s+")).filter { it.isNotEmpty() }).also { it.connect() }
             }
             val router: McpToolRouter? = mcpClients
-                .zip(chat?.mcpServers.orEmpty())
+                .zip(chat?.config?.mcpServers.orEmpty())
                 .map { (client, cmd) ->
                     val defs = client.listToolDefinitions()
                     System.err.println("[mcp] $cmd → tools: ${defs.joinToString { it.name }}")
@@ -408,19 +408,19 @@ internal class CommandExecutor(private val db: AppDatabase) {
             val toolDefs = router?.toolDefs.orEmpty()
 
             try {
-                val feedFile = (parsed as? CliCommand.RunChat)?.feedFile
+                val feedFile = (parsed as? CliCommand.RunChat)?.config?.feedFile
                 if (feedFile != null) {
                     // File-driven feed: open the reader, hand a feed source to the
                     // session (line-by-line or fixed chunks), then REPL after EOF.
                     // `use` closes the reader when the session returns.
                     File(feedFile).bufferedReader(Charsets.UTF_8).use { reader ->
-                        val feedSource: PromptSource = if (parsed.byLine) {
-                            LineFilePromptSource(reader = reader, instruction = parsed.feedInstruction)
+                        val feedSource: PromptSource = if (parsed.config.byLine) {
+                            LineFilePromptSource(reader = reader, instruction = parsed.config.feedInstruction)
                         } else {
                             ChunkedFilePromptSource(
                                 reader = reader,
-                                chunkChars = parsed.chunkChars,
-                                instruction = parsed.feedInstruction,
+                                chunkChars = parsed.config.chunkChars,
+                                instruction = parsed.config.feedInstruction,
                             )
                         }
                         val stdinAfter = StdinPromptSource(
@@ -442,7 +442,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
                     }
                 } else {
                     // Stdin REPL — TUI when -tui and a real TTY, else plain.
-                    val tuiRequested = (parsed as? CliCommand.RunChat)?.tui ?: false
+                    val tuiRequested = (parsed as? CliCommand.RunChat)?.config?.tui ?: false
                     runSession(
                         cliArgs = parsed,
                         llmApi = llmApi,
@@ -485,7 +485,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
         toolExecutor: ToolExecutor? = null,
     ) {
         val multiAgent = routedAgents.isNotEmpty()
-        val schedules = (cliArgs as? CliCommand.RunChat)?.schedules.orEmpty()
+        val schedules = (cliArgs as? CliCommand.RunChat)?.config?.schedules.orEmpty()
         val schedulerEnabled = schedules.isNotEmpty()
         val engine = TurnEngine(
             cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor,
