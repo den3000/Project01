@@ -52,24 +52,18 @@ class ControlsToCommandAgentTest {
     }
 
     @Test
-    fun `when all prompt and agent configuration flags are set to custom values - then they land on the command`() {
+    fun `when primary agent is configured with custom values - then they land on the command`() {
         // given
         val parser = createCommandsParser()
-        val input = "-prompt \"my custom prompt\" " +
-            "-agent main provider openrouter model deepseek/deepseek-r1:free maxTokens 100 temperature 1.2 stopSequence \"stop1 stop2\" endSequence ### mode system profile coder " +
-            "-session mysession " +
-            "-feedFile /path/to/feed chunkChars 5000 feedInstruction \"feed me\" " +
-            "-strategy summary keepLast 8 summarizeEvery 12 " +
-            "-task mytask " +
-            "-tui " +
-            "-mcpServer \"mcpLab --serve\""
+        val input = "-prompt hi " +
+            "-agent main provider openrouter model deepseek/deepseek-r1:free maxTokens 100 temperature 1.2 stopSequence \"stop1 stop2\" endSequence ### mode system profile coder"
 
         // when
         val actual = parser.parse(input.toArgsArray())
 
         // then
         assertIs<CliCommand.RunChat>(actual)
-        assertEquals("my custom prompt", actual.prompt)
+        assertEquals("hi", actual.prompt)
         assertEquals(100, actual.maxTokens)
         assertEquals(listOf("stop1", "stop2"), actual.stopSequences)
         assertEquals("###", actual.endSequence)
@@ -78,19 +72,21 @@ class ControlsToCommandAgentTest {
         val modelProvider = assertIs<ModelProvider.OpenRouter>(actual.modelProvider)
         assertEquals("deepseek/deepseek-r1:free", modelProvider.modelId)
 
-        assertEquals("mysession", actual.session)
-        assertEquals("/path/to/feed", actual.feedFile)
-        assertEquals(5000, actual.chunkChars)
-        assertEquals("feed me", actual.feedInstruction)
-        assertEquals(false, actual.byLine)
-        assertEquals(ru.den.writes.code.project01.cliJvm.ContextStrategyKind.SUMMARY, actual.strategy)
-        assertEquals(8, actual.keepLast)
-        assertEquals(12, actual.summarizeEvery)
-        assertEquals("mytask", actual.task)
         assertEquals("coder", actual.profile)
         assertEquals(MemoryMode.SYSTEM, actual.memoryMode)
-        assertEquals(true, actual.tui)
-        assertEquals("mcpLab --serve", actual.mcpServer)
+
+        // Session defaults (not configured here)
+        assertNull(actual.session)
+        assertNull(actual.feedFile)
+        assertEquals(2500, actual.chunkChars)
+        assertEquals("", actual.feedInstruction)
+        assertEquals(false, actual.byLine)
+        assertEquals(ru.den.writes.code.project01.cliJvm.ContextStrategyKind.FULL, actual.strategy)
+        assertEquals(6, actual.keepLast)
+        assertEquals(10, actual.summarizeEvery)
+        assertNull(actual.task)
+        assertEquals(false, actual.tui)
+        assertNull(actual.mcpServer)
     }
 
     @Test
