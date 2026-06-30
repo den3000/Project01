@@ -8,14 +8,17 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
+/** ParseErrorMapping: each [ParseError] variant → its [CliArgsException] for `main` to print. */
 class ParseErrorMappingTest {
 
     //region missing-required mappings
-
     @Test
     fun `when MissingValue - then MissingRequiredArgument on the flag`() {
+        // given
+        val error = ParseError.MissingValue(CliControlsArg.PROMPT)
+
         // when
-        val actual = ParseError.MissingValue(CliControlsArg.PROMPT).toCliArgsException()
+        val actual = error.toCliArgsException()
 
         // then
         assertEquals("-prompt", assertIs<CliArgsException.MissingRequiredArgument>(actual).argName)
@@ -23,8 +26,11 @@ class ParseErrorMappingTest {
 
     @Test
     fun `when Requires - then MissingRequiredArgument on the missing flag`() {
+        // given
+        val error = ParseError.Requires(CliControlsArg.INFLATE, CliControlsArg.SESSION)
+
         // when
-        val actual = ParseError.Requires(CliControlsArg.INFLATE, CliControlsArg.SESSION).toCliArgsException()
+        val actual = error.toCliArgsException()
 
         // then
         assertEquals("-session", assertIs<CliArgsException.MissingRequiredArgument>(actual).argName)
@@ -32,8 +38,11 @@ class ParseErrorMappingTest {
 
     @Test
     fun `when Empty - then MissingRequiredArgument`() {
+        // given
+        val error = ParseError.Empty
+
         // when
-        val actual = ParseError.Empty.toCliArgsException()
+        val actual = error.toCliArgsException()
 
         // then
         assertEquals("(input)", assertIs<CliArgsException.MissingRequiredArgument>(actual).argName)
@@ -41,7 +50,6 @@ class ParseErrorMappingTest {
     //endregion
 
     //region invalid-value mappings
-
     @Test
     fun `when a value-ish error - then InvalidArgumentValue carrying arg, raw and reason`() {
         // given
