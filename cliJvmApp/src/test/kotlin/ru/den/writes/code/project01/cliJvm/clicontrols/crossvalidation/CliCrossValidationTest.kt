@@ -13,10 +13,12 @@ import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.ONESHOT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROFILE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.PROMPT
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.RULE
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SCHEDULE
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.SESSION
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STAGES
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.STRATEGY
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TASK
+import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TOOL
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsArg.TUI
 import ru.den.writes.code.project01.cliJvm.clicontrols.CliControlsParser
 import ru.den.writes.code.project01.cliJvm.clicontrols.ParseError
@@ -55,6 +57,7 @@ class CliCrossValidationTest {
             "-agent main mode system" to MODE,
             "-agent main stages execution..done" to STAGES,
             "-agent checker judge" to JUDGE,
+            "-schedule agent prompt \"recap\" every 30" to SCHEDULE,
         )
 
         // when - then — one invariant (oneshot excludes each) over an extending list
@@ -104,6 +107,18 @@ class CliCrossValidationTest {
         assertMatchParserError(
             "-feedFile d.txt byLine chunkChars 100".toArgsList(),
             listOf(ParseError.Conflicts(BY_LINE, CHUNK_CHARS), ParseError.Conflicts(CHUNK_CHARS, BY_LINE)),
+            parser,
+        )
+    }
+    //endregion
+
+    //region schedule requires mcpServer
+    @Test
+    fun `when a collect schedule lacks an mcp server - then its tool requires one`() {
+        // when - then — collect's tool calls an MCP tool, so it needs -mcpServer
+        assertMatchParserError(
+            "-prompt hi -schedule collect tool weather every 30".toArgsList(),
+            ParseError.Requires(TOOL, MCP_SERVER),
             parser,
         )
     }
