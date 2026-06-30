@@ -1,0 +1,89 @@
+package ru.den.writes.code.project01.cliJvm.command
+
+import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.CliArgsException
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+
+/**
+ * schedule entity: startup `-schedule` → RunChat.schedules (list of ScheduleSpec),
+ * in-session `/schedule` → BranchCommand. `after` = one-shot, `every` = periodic;
+ * collect calls an MCP tool (needs -mcpServer), agent runs a prompt.
+ */
+class ControlsToCommandScheduleTest {
+
+    //region flags
+    @Test
+    fun `when schedule flags are used - then they map to RunChat schedules`() {
+        // given
+        val parser = createCommandsParser()
+
+        // when
+        val collect = assertIs<CliCommand.RunChat>(
+            parser.parse("-prompt hi -mcpServer \"lab\" -schedule collect tool weather args \"{}\" after 30".toArgsArray()),
+        )
+        val agent = assertIs<CliCommand.RunChat>(
+            parser.parse("-prompt hi -schedule agent prompt \"do x\" every 60".toArgsArray()),
+        )
+        val multiple = assertIs<CliCommand.RunChat>(
+            parser.parse("-prompt hi -schedule agent prompt \"a\" after 10 -schedule agent prompt \"b\" every 20".toArgsArray()),
+        )
+
+        // then — after = one-shot (periodic false), every = periodic true; repeated -schedule accumulates
+        assertEquals(listOf(ScheduleSpec.Collect("weather", "{}", 30, false)), collect.schedules)
+        assertEquals(listOf(ScheduleSpec.Agent("do x", 60, true)), agent.schedules)
+        assertEquals(listOf(ScheduleSpec.Agent("a", 10, false), ScheduleSpec.Agent("b", 20, true)), multiple.schedules)
+    }
+
+    @Test
+    fun `when schedule flags are invalid - then rejected`() {
+        // given
+        val parser = createCommandsParser()
+        val cases = listOf(
+            "-prompt hi -mcpServer \"lab\" -schedule collect tool X after 10 every 20", // after + every
+            "-prompt hi -schedule collect after 30",   // collect needs a tool
+            "-prompt hi -schedule agent after 30",      // agent needs a prompt
+            "-prompt hi -schedule agent prompt \"x\"",  // needs after or every
+        )
+
+        // when - then
+        cases.forEach { input ->
+            assertFailsWith<CliArgsException>(input) { parser.parse(input.toArgsArray()) }
+        }
+    }
+    //endregion
+
+    //region commands
+    @Test
+    fun `when a schedule command is used - then it behaves accordingly`() {
+        // given
+        val mapper = ControlsToBranchCommand()
+        val cases = listOf(
+            "/schedule" to BranchCommand.ListSchedules,
+            "/schedule clear" to BranchCommand.ClearSchedules,
+            "/schedule clear 001" to BranchCommand.CancelSchedule("001"),
+            "/schedule collect tool weather args \"{}\" after 30" to BranchCommand.Schedule(ScheduleSpec.Collect("weather", "{}", 30, false)),
+            "/schedule agent prompt \"do x\" every 60" to BranchCommand.Schedule(ScheduleSpec.Agent("do x", 60, true)),
+        )
+
+        // when - then
+        cases.forEach { (input, expected) -> assertEquals(expected, mapper.parse(input), input) }
+    }
+
+    @Test
+    fun `when a schedule command is invalid - then it falls through to a prompt`() {
+        // given
+        val mapper = ControlsToBranchCommand()
+        val cases: List<Pair<String, BranchCommand?>> = listOf(
+            "/schedule collect after 30" to null,                  // no tool
+            "/schedule agent prompt \"x\"" to null,                // no timing
+            "/schedule collect tool X after 10 every 20" to null,  // both after and every
+        )
+
+        // when - then
+        cases.forEach { (input, expected) -> assertEquals(expected, mapper.parse(input), input) }
+    }
+    //endregion
+}
