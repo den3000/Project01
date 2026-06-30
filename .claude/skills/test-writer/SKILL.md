@@ -13,20 +13,19 @@ description: How to write Kotlin unit tests in this project's house style — ba
 
 Backtick-имя, всё **с маленькой буквы**, формат `` `when <action> - then <result>` ``. Никакого camelCase, никаких заглавных в начале.
 
-**Плохо:**
-```kotlin
-@Test fun dashSessionsReturnsListSessions() { ... }
-@Test fun `Dash sessions returns ListSessions object`() { ... }
-@Test fun `dash sessions returns ListSessions object`() { ... }
-```
-
 **Хорошо:**
 ```kotlin
-@Test fun `when -sessions arg passed - then CliArgs_ListSessions returned`() { ... }
-@Test fun `when prompt is empty - then MissingRequiredArgument thrown`() { ... }
+@Test fun `when -entities passed - then CliArgs_ListEntities returned`() { ... }
 ```
 
 Тире между when и then — **обычное `-` в окружении пробелов**, не `—`.
+
+**Плохо:**
+```kotlin
+@Test fun dashEntitiesReturnsListEntities() { ... }
+@Test fun `Dash entities returns ListEntities object`() { ... }
+@Test fun `dash entities returns ListEntities object`() { ... }
+```
 
 ## 2. Тело теста
 
@@ -34,30 +33,69 @@ Backtick-имя, всё **с маленькой буквы**, формат `` `w
 
 ```kotlin
 @Test
-fun `when -sessions arg passed - then CliArgs_ListSessions returned`() {
+fun `when -entities arg passed - then CliArgs_ListEntities returned`() {
     // given
-    val args = arrayOf("-sessions")
+    val args = arrayOf("-entities")
 
     // when
     val actual = parseCliArgsWithDummyKeys(args)
 
     // then
-    val expected = CliArgs.ListSessions
+    val expected = CliArgs.ListEntities
     assertEquals(expected, actual)
 }
 ```
 
 Где есть «результат» и «ожидание» — называть `actual` и `expected` явно. Это спасает diff при провале (порядок аргументов `assertEquals` — `expected, actual`, см. §6).
 
+Примеры как тесты писать **не нужно**
+
+1. Не нужно сваливать всё в одну строку - это не читаемо
+```kotlin
+@Test
+fun `when -entities arg passed - then CliArgs_ListEntities returned`() {
+    // when - then
+    assertEquals(CliArgs.ListEntities, parseCliArgsWithDummyKeys(arrayOf("-entities")))
+}
+```
+
+2. Не нужно добавлять комментарии к given | when | then секциям
+```kotlin
+@Test
+fun `when -entities arg passed - then CliArgs_ListEntities returned`() {
+    // given - one argument entities
+    val args = arrayOf("-entities")
+
+    // when - parsing it parseCliArgsWithDummyKeys 
+    val actual = parseCliArgsWithDummyKeys(args)
+
+    // then - expect and actual matches
+    val expected = CliArgs.ListEntities
+    assertEquals(expected, actual)
+}
+```
+
+3. Не нужно разделять секцию ассертов доп. комментариями
+```kotlin
+@Test
+fun `when -entities arg passed - then CliArgs_ListEntities returned`() {
+    // given
+    val args = arrayOf("-entities")
+
+    // when 
+    val actual = parseCliArgsWithDummyKeys(args)
+
+    // then
+    // expected value - ListEntities
+    val expected = CliArgs.ListEntities
+    // expected matches ListEntities
+    assertEquals(expected, actual)
+}
+```
+
 ## 3. Region-разделители
 
 Когда в файле логические подгруппы — оборачивать в `//region` / `//endregion`. **Не** `// --- ... ---`.
-
-**Плохо:**
-```kotlin
-// --- mode conflicts and validation errors ------------------------
-@Test fun ...
-```
 
 **Хорошо:**
 ```kotlin
@@ -69,16 +107,22 @@ fun `when -sessions arg passed - then CliArgs_ListSessions returned`() {
 
 Android Studio такие region'ы сворачивает, что напрямую решает проблему «не вижу что в файле». Внутри одного region — тесты одной семантической группы.
 
+**Плохо:**
+```kotlin
+// --- mode conflicts and validation errors ------------------------
+@Test fun ...
+```
+
+Android Studio с такими комментариями ничего не делает — мы теряем возможность читать тесты в свёрнутом виде.
+
 ## 4. Размер файла
 
 **Soft limit — 15 тестов. Hard limit — 20.** Если файл подходит к 20+ — **разбить** перед тем как добавлять новый тест.
 
-Как разбивать: один region → один новый тестовый класс. Например, `CliArgsTest` (на 80 тестов) разнести как:
-- `CliArgsModeSelectionTest` (`-sessions` / `-clean` / `-oneshot` / `-inflate` выбор режима)
-- `CliArgsProviderRoutingTest` (gemini / openrouter / huggingface)
-- `CliArgsFeedModeTest` (`-feedFile` / `-chunkChars` / `-byLine`)
-- `CliArgsStrategyTest` (`-strategy` / `-compress` / `-keepLast` / `-summarizeEvery`)
-- `CliArgsValidationErrorsTest` (conflicts, invalid values)
+Как разбивать: один region → один новый тестовый класс. Например, `EntitiesTest` (на 80 тестов) разнести как:
+- `EntitiesViewTest` (`-entities` / `-show` / `-details`)
+- `EntitiesCRUDTest` (`-insert` / `-delete` / `-read`)
+- `EntitiesFileTest` (`-file` / `-limit`)
 
 Один тестовый файл должен быть «осилимым за один взгляд» — это и есть смысл лимита. 80 тестов в одном файле никто не читает целиком.
 
@@ -92,24 +136,19 @@ Android Studio такие region'ы сворачивает, что напрям�
 
 ```
 до:                              после:
-cliJvm/                          cliJvm/
-└── CliArgsTest.kt   (80)        └── cliArgs/
-                                     ├── CliArgsModeSelectionTest.kt
-                                     ├── CliArgsProviderRoutingTest.kt
-                                     ├── CliArgsValidationTest.kt
-                                     ├── CliArgsFeedModeTest.kt
-                                     ├── CliArgsInflateTest.kt
-                                     ├── CliArgsUsageTest.kt
-                                     ├── CliArgsCompressionTest.kt
-                                     └── CliArgsStrategyTest.kt
+app/                             app/
+└── EntitiesTest.kt   (80)       └── entities/
+                                     ├── EntitiesViewTest.kt
+                                     ├── EntitiesCRUDTest.kt
+                                     └── EntitiesFileTest.kt
 ```
 
-Зачем папка: 8 файлов рядом с `AgentTest.kt`, `FakeLlmApi.kt`, `TestDb.kt` и т.п. — это шум в Project view. Папка `cliArgs/` визуально группирует «всё про парсинг CLI» и читается как одна сущность.
+Зачем папка: 3 файла рядом с условными `ProvidersTest.kt`, `ApisTest.kt`, `DbTest.kt` и т.п. — это шум в Project view. Папка `entities/` визуально группирует «всё про работу Entities» и читается как одна сущность.
 
 Что меняется технически:
-- **Package** в каждом перенесённом файле — добавить суффикс по имени папки: `package …cliJvm` → `package …cliJvm.cliArgs`. IntelliJ/Studio будет ругаться на несоответствие path и package, поэтому соответствие держим.
+- **Package** в каждом перенесённом файле — добавить суффикс по имени папки: `package …app` → `package …app.entities`. IntelliJ/Studio будет ругаться на несоответствие path и package, поэтому соответствие держим.
 - **Видимость**: на `internal` это не влияет — `internal` это module-private, а не package-private; sub-package видит `internal` родителя в том же compile module. На `public`-классах из родительского пакета тестам всё видно как раньше.
-- **Импорты в тестах не меняются** — они уже импортировали по полному имени (или вообще не импортировали, потому что были в том же пакете, что и тестируемый класс). После переноса добавятся `import …cliJvm.CliArgs` и т.п. — это IDE сделает автоматически при компиляции, либо `kotlinc` ругнётся и подскажет.
+- **Импорты в тестах не меняются** — они уже импортировали по полному имени (или вообще не импортировали, потому что были в том же пакете, что и тестируемый класс). После переноса добавятся `import …app.entities` и т.п. — это IDE сделает автоматически при компиляции, либо `kotlinc` ругнётся и подскажет.
 
 Когда **не** предлагать папку:
 - Разбиение на ровно 2 файла, оба коротких — лишний уровень вложенности дороже визуального шума.
@@ -121,11 +160,6 @@ cliJvm/                          cliJvm/
 
 **В конце файла**, после всех `@Test`-методов. Имена — **явные**, не однословные:
 
-**Плохо:**
-```kotlin
-private fun parse(vararg args: String) = CliArgs.from(...)
-```
-
 **Хорошо:**
 ```kotlin
 private fun parseCliArgsWithDummyKeys(vararg args: String): CliArgs =
@@ -135,6 +169,11 @@ private fun parseCliArgsWithDummyKeys(vararg args: String): CliArgs =
         openRouterApiKey = DUMMY_OPENROUTER_KEY,
         huggingFaceApiKey = DUMMY_HUGGINGFACE_KEY,
     )
+```
+
+**Плохо:**
+```kotlin
+private fun parse(vararg args: String) = CliArgs.from(...)
 ```
 
 **Factory-функции для тестовых данных** — там же, в конце:
@@ -158,48 +197,59 @@ private companion object {
 }
 ```
 
+Если какая то хэлпер функция или константа повторяется в 2ух и более тестах, то она обязательно должна быть
+вынесена в соответствующий файл с утилитами, например `app/entities/EntitiesTestUtils.kt`, если отталкиваться
+от схемы выше.
+
 ## 6. Один логический assert на тест
 
-Один тест проверяет **одно поведение**. Если связанные проверки (поля одного объекта) — пачкой ОК:
+Один unit-тест проверяет **одно поведение**. Если связанные проверки (поля одного объекта) — пачкой ОК:
 
 ```kotlin
 // then
-assertEquals("hi", chat.prompt)
-assertEquals(100, chat.maxTokens)
-assertEquals(0.7, chat.temperature)
+assertEquals("hi", entity.text)
+assertEquals(100, entity.value)
+assertEquals(0.7, entity.point)
 ```
 
-— это всё про «параметры одного `Chat`», норм. Но **не** надо в одном тесте проверять, что парсинг прошёл, потом что DB записала, потом что API вернула. Это три разных теста.
+— это всё про «параметры одного `Entity`», норм. Но **не** надо в одном тесте проверять, что парсинг 
+прошёл, потом что DB записала, потом что API вернула. Это три разных unit-теста. Такое тестирование,
+проверка нескольких доменов, может быть выполнено в рамках интеграционного тестирование, но оно
+не рассматривается в данном документе.
 
-Порядок аргументов `assertEquals` — **`expected, actual`** (как в kotlin.test). И **не** `assertTrue(x == y)` — пиши `assertEquals(y, x)`: при провале увидишь `expected: <…> but was: <…>`, а не голый `false`.
+Порядок аргументов `assertEquals` — **`expected, actual`** (как в kotlin.test). 
+И **не** `assertTrue(x == y)` — пиши `assertEquals(y, x)`: при провале увидишь `expected: <…> but was: <…>`, 
+а не голый `false`.
 
 ## 7. Видимость для тестов — через `internal`, не reflection
 
-Если функция нужна для теста, но не должна быть public API — пометить `internal`. Reflection не использовать. Это сигнал, что либо тест слишком глубоко лезет, либо функция должна быть protected/internal по дизайну.
+Если функция нужна для теста, но не должна быть public API — пометить `internal`. Reflection не использовать. 
+Это сигнал, что либо тест слишком глубоко лезет, либо функция должна быть protected/internal по дизайну.
 
 ```kotlin
-// в main: ru/den/.../HistoryCompressor.kt
+// в main: ru/den/.../Entity.kt
 internal fun foldOldestPair(...) { ... }
 
-// в test: HistoryCompressorTest.kt — internal видна, потому что
+// в test: EntityTest.kt — internal видна, потому что
 // test sourceSet делит package и module с main
 ```
 
 ## 8. Тестирование suspend и корутин
 
-**`kotlinx.coroutines.test.runTest`**, не `runBlocking`. `runTest` пропускает delay, виртуальное время, нормальный exception propagation.
+**`kotlinx.coroutines.test.runTest`**, не `runBlocking`. `runTest` пропускает delay, виртуальное время, 
+нормальный exception propagation.
 
 ```kotlin
 import kotlinx.coroutines.test.runTest
 
 @Test
-fun `when maybeCompact below threshold - then null returned and api not called`() = runTest {
+fun `when verifyThreshhold below threshold - then null returned and api not called`() = runTest {
     // given
-    val fakeApi = FakeLlmApi(reply = "should not be called")
-    val compressor = HistoryCompressor(api = fakeApi, threshold = 10)
+    val fakeApi = FakeApi(reply = "should not be called")
+    val entity = Entity(api = fakeApi, threshold = 10)
 
     // when
-    val actual = compressor.maybeCompact(messages = listOf(message(), message()))
+    val actual = entity.verifyThreshhold(messages = listOf(something(), something()))
 
     // then
     assertNull(actual)
@@ -207,11 +257,14 @@ fun `when maybeCompact below threshold - then null returned and api not called`(
 }
 ```
 
-Если на JVM нужен явный `TestDispatcher` (управление временем) — `runTest` его сам создаёт и шарит как `coroutineContext[TestCoroutineScheduler]`. Прокидывать в подсистемы как параметр конструктора, не через `Dispatchers.setMain` — это Android-патерн, тут не нужен.
+Если на JVM нужен явный `TestDispatcher` (управление временем) — `runTest` его сам создаёт и шарит 
+как `coroutineContext[TestCoroutineScheduler]`. Прокидывать в подсистемы как параметр конструктора, 
+не через `Dispatchers.setMain` — это Android-патерн, тут не нужен.
 
 ## 9. Тестирование Flow
 
-Собирать через `.toList()`. Если flow бесконечный или горячий — `take(N).toList()`. Никаких внешних библиотек типа `turbine` — их в проекте нет, не тащить.
+Собирать через `.toList()`. Если flow бесконечный или горячий — `take(N).toList()`. Никаких внешних 
+библиотек типа `turbine` — их в проекте нет, не тащить.
 
 ```kotlin
 @Test
@@ -265,22 +318,21 @@ internal class FakeLlmApi(
 
 ## 11. Дискуссионные правила (можно нарушать, если контекст оправдывает)
 
-**E. Параметризация через `forEach`.** Общее правило — **писать N отдельных `@Test`-методов**, не один с `listOf(case1, case2, …).forEach`. Это сохраняет читабельность имён `when X - then Y` и точное сообщение об ошибке.
+**E. Параметризация через `forEach`.** Общее правило — **писать N отдельных `@Test`-методов**, не 
+один с `listOf(case1, case2, …).forEach`. Это сохраняет читабельность имён `when X - then Y` и точное сообщение об ошибке.
 
 Но **есть случаи, где `forEach` оправдан**:
 - Проверка «USAGE упоминает каждый флаг» — один логический assert, расширяемый список (см. `USAGE mentions every public flag` в `CliArgsTest`).
 - Smoke-обход справочного списка (все значения enum, все элементы registry).
 - Когда раздувание в 15 одинаковых @Test'ов засорит файл без пользы.
 
-В таких случаях — внутри `forEach` использовать message-параметр `assertX(actual, expected, "message about case")`, чтобы при провале было видно какой именно кейс упал.
+В таких случаях — внутри `forEach` использовать message-параметр `assertX(actual, expected, "message about case")`, 
+чтобы при провале было видно какой именно кейс упал.
 
-**F. `@Before` / `@After` для общего setup.** Общее правило — **не использовать**, фикстуру создавать в `// given` каждого теста (или factory-функцией внизу). `@Before` прячет state, читатель не понимает откуда взялся `db`/`api`.
-
-Но **исключения уместны**:
-- Дорогой setup (поднять in-memory DB, см. `TestDb`) — раз создать в `@Before`, потом переиспользовать.
-- Очень короткий тест-класс (5-7 тестов) на одну и ту же фикстуру — повторять её в каждом тесте раздражает читателя сильнее, чем `@Before`.
-
-Если используешь `@Before` — назвать поля так, чтобы по имени было ясно что это shared fixture (`private lateinit var sharedDb: TestDb`), и **`@After` обязательно**, если в `@Before` есть resource что закрывается.
+**F. `@Before` / `@After` для общего setup.** Общее правило — **не использовать**, фикстуру 
+создавать в `// given` каждого теста (или factory-функцией внизу). `@Before` прячет state, читатель 
+не понимает откуда взялся `db`/`api`. Если инстанцирование очень грамоздкое, то писать для него
+вспомогательные функции.
 
 ## 12. Чего не делать
 
@@ -289,6 +341,17 @@ internal class FakeLlmApi(
 - **Не использовать `Thread.sleep` / `runBlocking { delay(…) }`** для синхронизации. `runTest` даёт виртуальное время; на нём `delay()` пропускается.
 - **Не писать assert на «оно не упало»** — если тест просто запускает функцию и не проверяет результат, это не тест. Проверять конкретное наблюдаемое поведение (возвращаемое значение, побочный эффект в fake, exception).
 - **Не комментировать `@Ignore` сломанные тесты** — починить или удалить. Если не починить сейчас — открыть отдельный TODO, и не коммитить ignored.
+
+## 13. Grammar-тесты парсинга (clicontrols/grammar)
+
+Узкий, но строгий паттерн для тестов разбора CLI-грамматики (`CliControlsParser` → `ParsedControl`). Эталон — `clicontrols/grammar/CliEntityGrammarTest.kt`. Хелперы — `clicontrols/CliControlsTestUtils.kt` (`assertMatchParserCmd` / `assertMatchParserFlag` / `assertMatchParserError`, `ExpectedControl` / `top` / `sub` / `toArgsList`).
+
+- **Один `@Test` на (контрол × фронт).** Имя: `` `when <control> <front> grammar used - then it is parsed accordingly` `` (или `- then it fails` для чисто-негативного, как branch на FLAG).
+- **given выделяет всё:** `cli` (CliControlsArg), `sfc` (Surface), `cmd` (строка `-flag` / `/cmd`), значения (`name` / `text` / `id` / …). НЕ инлайнить значения, фронт или имена прямо в `then` — всё в given. `// then` — голый, без пояснений (формы говорят сами за себя).
+- **Паритет фронтов.** FLAG-тест повторяет формы CMD-теста один-в-один (плюс FLAG-специфичные негативы). FLAG не должен быть беднее CMD. Surface-асимметрия (value только на одном фронте, контрол command-only) — выражается явно негативом, не молчаливым пропуском.
+- **Исчерпывающее покрытие, не «представители».** Все варианты sub / секции / режима / enum-значения — через `forEach` по списку (идиома §11.E здесь **норма**, не исключение). Покрыл `style` → покрой все 4 секции (+ форма «секция без текста = clear», + unnamed); покрыл `window` → покрой все 4 strategy-режима (+ combo); покрыл 2 agent-sub → покрой все 10. «Доказал механизм на одном» — НЕ достаточно: тест-документация должна показывать каждую форму.
+- **Позитив и негатив рядом** в region своего контрола. Негативы — по природе фронта: CMD → `assertMatchParserCmd` / single `parse`; FLAG → `assertMatchParserFlag` / `parseArgv`. Cross-validation (`Conflicts` / `Requires`) ловится только через `parseArgv` → её место в `crossvalidation/`, не в per-control grammar-файле. Мета-инварианты каталога (`CliControls.all`) — не грамматика, отдельный `CliControlsCatalogTest`.
+- **Контрол обоих фронтов → два теста** (`command` + `flag`), каждый со своим `sfc` в given. Контрол одного фронта → один тест + негатив на неверном фронте (`WrongSurface` через `cli.title`).
 
 ## Проверка после написания
 
@@ -300,4 +363,6 @@ internal class FakeLlmApi(
 
 ## Когда правила противоречат друг другу
 
-Если возникает «у меня есть legacy-файл `Foo.kt` на 60 тестов, мне нужно добавить ещё один — правило 4 говорит разбить, но пользователь не просил рефакторинг» — **не разбивать молча**. Спросить: «Файл уже за лимитом, добавляю тест в текущий стиль (как было) или сначала разнесём по region'ам?» Решение — пользователя.
+Если возникает «у меня есть legacy-файл `Foo.kt` на 60 тестов, мне нужно добавить ещё один — правило
+4 говорит разбить, но пользователь не просил рефакторинг» — **не разбивать молча**. Спросить: «Файл 
+уже за лимитом, добавляю тест в текущий стиль (как было) или сначала разнесём по region'ам?» Решение — пользователя.
