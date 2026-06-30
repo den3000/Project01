@@ -1,12 +1,12 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/** task entity: startup `-task` → MemoryOp, in-session `/task` → BranchCommand. */
+/** task entity: startup `-task` → MemoryOp, in-session `/task` → SessionCommand. */
 class ControlsToCommandTaskTest {
 
     //region flags
@@ -47,14 +47,14 @@ class ControlsToCommandTaskTest {
     @Test
     fun `when a task command is used - then it behaves accordingly`() {
         // given
-        val mapper = ControlsToBranchCommand()
+        val mapper = ControlsToIntent()
         val cases = listOf(
-            "/task auth" to BranchCommand.SetTask("auth"),
-            "/task note \"did x\"" to BranchCommand.AppendTaskNote("did x"),
-            "/task pause" to BranchCommand.PauseTask,
-            "/task resume" to BranchCommand.ResumeTask,
-            "/task clear auth" to BranchCommand.DeleteTask("auth"),
-            "/task clear" to BranchCommand.ClearTasks,
+            "/task auth" to SessionCommand.SetTask("auth"),
+            "/task note \"did x\"" to SessionCommand.AppendTaskNote("did x"),
+            "/task pause" to SessionCommand.PauseTask,
+            "/task resume" to SessionCommand.ResumeTask,
+            "/task clear auth" to SessionCommand.DeleteTask("auth"),
+            "/task clear" to SessionCommand.ClearTasks,
         )
 
         // when - then

@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.tui
 
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CommandEntry
 import ru.den.writes.code.project01.cliJvm.Overlay
 import ru.den.writes.code.project01.cliJvm.PaletteAction
@@ -81,7 +81,7 @@ class TuiViewTest {
     @Test
     fun `when a slash command - then SlashCommand`() {
         // when - then
-        assertEquals(UiIntent.SlashCommand(BranchCommand.Branch("exp")), toIntent("/branch exp"))
+        assertEquals(UiIntent.SlashCommand(SessionCommand.Branch("exp")), toIntent("/branch exp"))
     }
 
     @Test
@@ -102,7 +102,7 @@ class TuiViewTest {
     @Test
     fun `when a picker command carries an argument - then it stays a SlashCommand`() {
         // when - then — the argument form is untouched, only the bare form opens a picker
-        assertEquals(UiIntent.SlashCommand(BranchCommand.SwitchProfile("work")), toIntent("/profile work"))
+        assertEquals(UiIntent.SlashCommand(SessionCommand.SwitchProfile("work")), toIntent("/profile work"))
     }
 
     @Test
@@ -132,7 +132,7 @@ class TuiViewTest {
         // given
         val palette = Overlay.Palette(
             listOf(
-                CommandEntry("/branch show", "show the branch", PaletteAction.Run(BranchCommand.Checkpoint)),
+                CommandEntry("/branch show", "show the branch", PaletteAction.Run(SessionCommand.Checkpoint)),
                 CommandEntry("/rule", "add a rule", PaletteAction.Prefill("/rule ")),
             ),
             cursor = 0,

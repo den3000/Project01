@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,7 +9,7 @@ import kotlin.test.assertIs
 
 /**
  * schedule entity: startup `-schedule` → RunChat.schedules (list of ScheduleSpec),
- * in-session `/schedule` → BranchCommand. `after` = one-shot, `every` = periodic;
+ * in-session `/schedule` → SessionCommand. `after` = one-shot, `every` = periodic;
  * collect calls an MCP tool (needs -mcpServer), agent runs a prompt.
  */
 class ControlsToCommandScheduleTest {
@@ -59,13 +59,13 @@ class ControlsToCommandScheduleTest {
     @Test
     fun `when a schedule command is used - then it behaves accordingly`() {
         // given
-        val mapper = ControlsToBranchCommand()
+        val mapper = ControlsToIntent()
         val cases = listOf(
-            "/schedule" to BranchCommand.ListSchedules,
-            "/schedule clear" to BranchCommand.ClearSchedules,
-            "/schedule clear 001" to BranchCommand.CancelSchedule("001"),
-            "/schedule collect tool weather args \"{}\" after 30" to BranchCommand.Schedule(ScheduleSpec.Collect("weather", "{}", 30, false)),
-            "/schedule agent prompt \"do x\" every 60" to BranchCommand.Schedule(ScheduleSpec.Agent("do x", 60, true)),
+            "/schedule" to SessionCommand.ListSchedules,
+            "/schedule clear" to SessionCommand.ClearSchedules,
+            "/schedule clear 001" to SessionCommand.CancelSchedule("001"),
+            "/schedule collect tool weather args \"{}\" after 30" to SessionCommand.Schedule(ScheduleSpec.Collect("weather", "{}", 30, false)),
+            "/schedule agent prompt \"do x\" every 60" to SessionCommand.Schedule(ScheduleSpec.Agent("do x", 60, true)),
         )
 
         // when - then
@@ -75,8 +75,8 @@ class ControlsToCommandScheduleTest {
     @Test
     fun `when a schedule command is invalid - then it falls through to a prompt`() {
         // given
-        val mapper = ControlsToBranchCommand()
-        val cases: List<Pair<String, BranchCommand?>> = listOf(
+        val mapper = ControlsToIntent()
+        val cases: List<Pair<String, SessionCommand?>> = listOf(
             "/schedule collect after 30" to null,                  // no tool
             "/schedule agent prompt \"x\"" to null,                // no timing
             "/schedule collect tool X after 10 every 20" to null,  // both after and every

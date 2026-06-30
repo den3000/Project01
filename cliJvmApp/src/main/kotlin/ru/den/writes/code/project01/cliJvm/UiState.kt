@@ -27,7 +27,7 @@ internal data class UiState(
 
 /**
  * What a modal picker selects. Each kind carries its panel title and tells the
- * view-model which existing [BranchCommand] a chosen option maps to — the picker
+ * view-model which existing [SessionCommand] a chosen option maps to — the picker
  * is a TUI-only input modality over commands that already exist, not new logic.
  */
 internal enum class PickerKind(val title: String) {
@@ -66,7 +66,7 @@ internal sealed interface Overlay {
 
     /**
      * Pick one option from a list, applying an existing command: the view-model
-     * maps the chosen [options] entry to the [BranchCommand] for its [kind].
+     * maps the chosen [options] entry to the [SessionCommand] for its [kind].
      */
     data class Picker(
         val kind: PickerKind,
@@ -99,7 +99,7 @@ internal data class CommandEntry(val name: String, val help: String, val action:
 /** What selecting a [CommandEntry] does — all over commands / intents that already exist. */
 internal sealed interface PaletteAction {
     /** Run a no-argument command (e.g. `/checkpoint`, `/branches`). */
-    data class Run(val command: BranchCommand) : PaletteAction
+    data class Run(val command: SessionCommand) : PaletteAction
 
     /** Open a picker for a command that chooses from a set (e.g. `/profile-use`). */
     data class Pick(val kind: PickerKind) : PaletteAction
@@ -217,7 +217,7 @@ internal sealed interface UiIntent {
     data class Submit(val text: String) : UiIntent
 
     /** Run a classified `/`-command (see [parseSlashCommand]). */
-    data class SlashCommand(val command: BranchCommand) : UiIntent
+    data class SlashCommand(val command: SessionCommand) : UiIntent
 
     /** Resend the last model reply (REPL `/reuse`); a no-op if there's none yet. */
     data object Reuse : UiIntent

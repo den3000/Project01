@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.agent
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
@@ -172,7 +172,7 @@ class PlainViewGoldenTest {
             // when — opening turn (2 messages persisted), then a /branch command
             val out = runPlain(
                 goldenChat("hi", "alpha"), fake, store,
-                intents(UiIntent.SlashCommand(BranchCommand.Branch("exp"))),
+                intents(UiIntent.SlashCommand(SessionCommand.Branch("exp"))),
             )
 
             // then

@@ -1,12 +1,12 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/** branch entity: command-only — no startup `-branch`; in-session `/branch` → BranchCommand. */
+/** branch entity: command-only — no startup `-branch`; in-session `/branch` → SessionCommand. */
 class ControlsToCommandBranchTest {
 
     //region flags
@@ -29,14 +29,14 @@ class ControlsToCommandBranchTest {
     @Test
     fun `when a branch command is used - then it behaves accordingly`() {
         // given
-        val mapper = ControlsToBranchCommand()
-        val cases: List<Pair<String, BranchCommand?>> = listOf(
-            "/branch" to BranchCommand.ListBranches,
-            "/branch exp" to BranchCommand.Branch("exp"),
-            "/branch switch exp" to BranchCommand.Switch("exp"),
-            "/branch show" to BranchCommand.Checkpoint,
-            "/branch clear exp" to BranchCommand.DeleteBranch("exp"),
-            "/branch clear" to BranchCommand.ClearBranches,
+        val mapper = ControlsToIntent()
+        val cases: List<Pair<String, SessionCommand?>> = listOf(
+            "/branch" to SessionCommand.ListBranches,
+            "/branch exp" to SessionCommand.Branch("exp"),
+            "/branch switch exp" to SessionCommand.Switch("exp"),
+            "/branch show" to SessionCommand.Checkpoint,
+            "/branch clear exp" to SessionCommand.DeleteBranch("exp"),
+            "/branch clear" to SessionCommand.ClearBranches,
             "/branch exp clear" to null, // wrong order → not a command
         )
 

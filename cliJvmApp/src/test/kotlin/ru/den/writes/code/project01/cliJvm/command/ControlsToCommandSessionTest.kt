@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -50,9 +50,9 @@ class ControlsToCommandSessionTest {
     @Test
     fun `when a session or memory command is used - then it behaves accordingly`() {
         // given
-        val mapper = ControlsToBranchCommand()
-        val cases: List<Pair<String, BranchCommand?>> = listOf(
-            "/memory" to BranchCommand.ShowMemory,
+        val mapper = ControlsToIntent()
+        val cases: List<Pair<String, SessionCommand?>> = listOf(
+            "/memory" to SessionCommand.ShowMemory,
             "/session" to null, // session is not an in-session command → a normal prompt
         )
 

@@ -256,7 +256,7 @@ class AgentMemoryTest {
     @Test
     fun `slash agent mode with garbage falls through as a normal prompt`() = runTest {
         // /agent mode without a valid value isn't a recognised command, so
-        // parseBranchCommand returns null and the line travels as a user
+        // parseSessionCommand returns null and the line travels as a user
         // prompt — the agent sends a second turn and the mode stays put.
         TestDb().use { harness ->
             withTempMemoryRoot { root ->

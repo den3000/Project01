@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.command.ControlsToBranchCommand
+import ru.den.writes.code.project01.cliJvm.command.ControlsToIntent
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileSection
@@ -14,7 +14,7 @@ import java.io.Reader
  */
 internal sealed interface PromptResult {
     data class Prompt(val text: String) : PromptResult
-    data class Command(val command: BranchCommand) : PromptResult
+    data class Command(val command: SessionCommand) : PromptResult
 
     /** REPL `/reuse`: resend the last model reply (the view-model holds it). */
     data object Reuse : PromptResult
@@ -22,77 +22,77 @@ internal sealed interface PromptResult {
 }
 
 /**
- * A branch-management or memory-management command typed at the REPL.
- * [StdinPromptSource] only classifies the line into one of these;
- * [CommandRunner] executes the (suspend) DB/disk work, so the source stays pure
- * and synchronous.
+ * A branch-management or memory-management command issued in-session (a
+ * `/`-command at the REPL, a TUI palette pick). The classifier only turns a line
+ * into one of these; [CommandRunner] executes the (suspend) DB/disk work, so the
+ * classifier stays pure and synchronous.
  */
-internal sealed interface BranchCommand {
-    data object Checkpoint : BranchCommand
-    data object ListBranches : BranchCommand
-    data class Branch(val name: String) : BranchCommand
-    data class Switch(val name: String) : BranchCommand
+internal sealed interface SessionCommand {
+    data object Checkpoint : SessionCommand
+    data object ListBranches : SessionCommand
+    data class Branch(val name: String) : SessionCommand
+    data class Switch(val name: String) : SessionCommand
 
     /** Delete one branch by name — the per-branch twin of `session clear`; never the active one. */
-    data class DeleteBranch(val name: String) : BranchCommand
+    data class DeleteBranch(val name: String) : SessionCommand
     /** Delete every branch except the current one. */
-    data object ClearBranches : BranchCommand
+    data object ClearBranches : SessionCommand
 
     /** Print the active mode + the saved profile/rules/task. */
-    data object ShowMemory : BranchCommand
+    data object ShowMemory : SessionCommand
     /** Append [text] to a [section] of the unnamed profile. */
-    data class AddProfileItem(val section: ProfileSection, val text: String) : BranchCommand
+    data class AddProfileItem(val section: ProfileSection, val text: String) : SessionCommand
     /** Empty one section of the unnamed profile; the rest survive. */
-    data class ClearProfileSection(val section: ProfileSection) : BranchCommand
+    data class ClearProfileSection(val section: ProfileSection) : SessionCommand
     /** Drop the unnamed profile entirely. */
-    data object ClearProfile : BranchCommand
+    data object ClearProfile : SessionCommand
 
     // --- Named profiles --------------------------------------------
     /** Switch the active named profile (touch-creates if missing). */
-    data class SwitchProfile(val name: String) : BranchCommand
+    data class SwitchProfile(val name: String) : SessionCommand
     /** List every named profile under `profiles/`. */
-    data object ListProfiles : BranchCommand
+    data object ListProfiles : SessionCommand
     /** Print one named profile's structure. */
-    data class ShowProfile(val name: String) : BranchCommand
+    data class ShowProfile(val name: String) : SessionCommand
     /** Append a bullet to [section] of a named profile. */
-    data class AddNamedProfileItem(val name: String, val section: ProfileSection, val text: String) : BranchCommand
+    data class AddNamedProfileItem(val name: String, val section: ProfileSection, val text: String) : SessionCommand
     /** Empty a [section] of a named profile. */
-    data class ClearNamedProfileSection(val name: String, val section: ProfileSection) : BranchCommand
+    data class ClearNamedProfileSection(val name: String, val section: ProfileSection) : SessionCommand
     /** Delete the named profile file. */
-    data class ClearNamedProfile(val name: String) : BranchCommand
+    data class ClearNamedProfile(val name: String) : SessionCommand
     /** Delete every profile — all named ones and the unnamed default. */
-    data object ClearAllProfiles : BranchCommand
+    data object ClearAllProfiles : SessionCommand
 
     /** Append a new rule under `rules/`. */
-    data class AddRule(val text: String) : BranchCommand
+    data class AddRule(val text: String) : SessionCommand
     /** Delete the rule with this id (three-digit prefix). */
-    data class RemoveRule(val id: String) : BranchCommand
+    data class RemoveRule(val id: String) : SessionCommand
     /** Delete every rule. */
-    data object ClearRules : BranchCommand
+    data object ClearRules : SessionCommand
     /** Switch the active task id (creates an empty task file if absent). */
-    data class SetTask(val taskId: String) : BranchCommand
+    data class SetTask(val taskId: String) : SessionCommand
     /** Append a note to the currently-active task. */
-    data class AppendTaskNote(val note: String) : BranchCommand
+    data class AppendTaskNote(val note: String) : SessionCommand
     /** Pause the active task — hold its stage; auto-advance is suppressed. */
-    data object PauseTask : BranchCommand
+    data object PauseTask : SessionCommand
     /** Resume the active task — clear the pause flag; auto-advance resumes. */
-    data object ResumeTask : BranchCommand
+    data object ResumeTask : SessionCommand
     /** Delete one task by id. */
-    data class DeleteTask(val taskId: String) : BranchCommand
+    data class DeleteTask(val taskId: String) : SessionCommand
     /** Delete every task. */
-    data object ClearTasks : BranchCommand
+    data object ClearTasks : SessionCommand
     /** Flip the memory-injection mode (PREAMBLE ↔ SYSTEM). */
-    data class SetMemoryMode(val mode: MemoryMode) : BranchCommand
+    data class SetMemoryMode(val mode: MemoryMode) : SessionCommand
 
     /** Add a scheduled task in-session (`/schedule collect … | agent …`). */
-    data class Schedule(val spec: ScheduleSpec) : BranchCommand
+    data class Schedule(val spec: ScheduleSpec) : SessionCommand
 
     /** List active scheduled tasks (`/schedule`). */
-    data object ListSchedules : BranchCommand
+    data object ListSchedules : SessionCommand
     /** Cancel one scheduled task by id (`/schedule clear <id>`). */
-    data class CancelSchedule(val id: String) : BranchCommand
+    data class CancelSchedule(val id: String) : SessionCommand
     /** Cancel every active scheduled task (`/schedule clear`) — stops the schedule. */
-    data object ClearSchedules : BranchCommand
+    data object ClearSchedules : SessionCommand
 }
 
 /**
@@ -186,18 +186,18 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
 }
 
 /** Shared catalog-backed classifier for the `/`-command (CMD) front. */
-private val controlsToBranch = ControlsToBranchCommand()
+private val controlsToBranch = ControlsToIntent()
 
 /**
- * Classify a `/`-command typed at the REPL into a [BranchCommand], or null if
+ * Classify a `/`-command typed at the REPL into a [SessionCommand], or null if
  * [line] isn't one (it falls through as a normal prompt). Top-level so both
  * [StdinPromptSource] and the TUI intent source share one classifier. Delegates
- * to the shared cliargs catalog ([ControlsToBranchCommand]) on the command
+ * to the shared cliargs catalog ([ControlsToIntent]) on the command
  * front, so the `/`-grammar and the startup `-`-grammar stay one declarative
  * source. Multi-word values must be quoted (`/rule "no emojis"`), matching the
  * catalog tokenizer.
  */
-internal fun parseSlashCommand(line: String): BranchCommand? = controlsToBranch.parse(line)
+internal fun parseSlashCommand(line: String): SessionCommand? = controlsToBranch.parse(line)
 
 /**
  * Every `/`-command as a palette row — the single source the TUI command palette
@@ -210,10 +210,10 @@ internal fun commandCatalog(): List<CommandEntry> = listOf(
     CommandEntry("/task", "set or switch the active task", PaletteAction.Pick(PickerKind.Task)),
     CommandEntry("/branch", "switch the session branch", PaletteAction.Pick(PickerKind.Branch)),
     CommandEntry("/agent mode", "switch the memory injection mode", PaletteAction.Pick(PickerKind.MemoryMode)),
-    CommandEntry("/branch show", "show the current branch and message count", PaletteAction.Run(BranchCommand.Checkpoint)),
-    CommandEntry("/memory", "show the active memory layer", PaletteAction.Run(BranchCommand.ShowMemory)),
-    CommandEntry("/task pause", "pause the active task (hold its stage)", PaletteAction.Run(BranchCommand.PauseTask)),
-    CommandEntry("/task resume", "resume the active task", PaletteAction.Run(BranchCommand.ResumeTask)),
+    CommandEntry("/branch show", "show the current branch and message count", PaletteAction.Run(SessionCommand.Checkpoint)),
+    CommandEntry("/memory", "show the active memory layer", PaletteAction.Run(SessionCommand.ShowMemory)),
+    CommandEntry("/task pause", "pause the active task (hold its stage)", PaletteAction.Run(SessionCommand.PauseTask)),
+    CommandEntry("/task resume", "resume the active task", PaletteAction.Run(SessionCommand.ResumeTask)),
     CommandEntry("/reuse", "resend the last model reply", PaletteAction.Reuse),
     CommandEntry("/rule", "add a memory rule", PaletteAction.Prefill("/rule ")),
     CommandEntry("/task note", "append a note to the active task", PaletteAction.Prefill("/task note ")),

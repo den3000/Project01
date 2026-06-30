@@ -1,12 +1,12 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/** rule entity: startup `-rule` → MemoryOp, in-session `/rule` → BranchCommand. */
+/** rule entity: startup `-rule` → MemoryOp, in-session `/rule` → SessionCommand. */
 class ControlsToCommandRuleTest {
 
     //region flags
@@ -45,11 +45,11 @@ class ControlsToCommandRuleTest {
     @Test
     fun `when a rule command is used - then it behaves accordingly`() {
         // given
-        val mapper = ControlsToBranchCommand()
+        val mapper = ControlsToIntent()
         val cases = listOf(
-            "/rule \"always kotlin\"" to BranchCommand.AddRule("always kotlin"),
-            "/rule clear 003" to BranchCommand.RemoveRule("003"),
-            "/rule clear" to BranchCommand.ClearRules,
+            "/rule \"always kotlin\"" to SessionCommand.AddRule("always kotlin"),
+            "/rule clear 003" to SessionCommand.RemoveRule("003"),
+            "/rule clear" to SessionCommand.ClearRules,
         )
 
         // when - then

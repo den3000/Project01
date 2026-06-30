@@ -147,7 +147,7 @@ internal class SessionViewModel(
      * (a command result is a session-state report). PlainView is unaffected:
      * State and Notice both go to stderr verbatim.
      */
-    private suspend fun runCommand(command: BranchCommand) {
+    private suspend fun runCommand(command: SessionCommand) {
         commandRunner.run(command).forEach { appendState(it) }
     }
 
@@ -207,7 +207,7 @@ internal class SessionViewModel(
     /**
      * Resolve the open [picker] against the typed [text] (empty → cursor row, a
      * 1-based number → that row, anything else → cancel). A valid choice closes
-     * the picker and runs the mapped [BranchCommand] through the same
+     * the picker and runs the mapped [SessionCommand] through the same
      * [CommandRunner] the REPL uses — the picker adds no new domain logic.
      */
     private suspend fun selectPicker(picker: Overlay.Picker, text: String) {
@@ -217,11 +217,11 @@ internal class SessionViewModel(
     }
 
     /** Map a picked option to the existing command that applies it. */
-    private fun pickerCommand(kind: PickerKind, option: String): BranchCommand = when (kind) {
-        PickerKind.Profile -> BranchCommand.SwitchProfile(option)
-        PickerKind.Task -> BranchCommand.SetTask(option)
-        PickerKind.Branch -> BranchCommand.Switch(option)
-        PickerKind.MemoryMode -> BranchCommand.SetMemoryMode(MemoryMode.valueOf(option.uppercase()))
+    private fun pickerCommand(kind: PickerKind, option: String): SessionCommand = when (kind) {
+        PickerKind.Profile -> SessionCommand.SwitchProfile(option)
+        PickerKind.Task -> SessionCommand.SetTask(option)
+        PickerKind.Branch -> SessionCommand.Switch(option)
+        PickerKind.MemoryMode -> SessionCommand.SetMemoryMode(MemoryMode.valueOf(option.uppercase()))
     }
 
     /** Open the command palette over the full catalog (static — no dependency to gate on). */

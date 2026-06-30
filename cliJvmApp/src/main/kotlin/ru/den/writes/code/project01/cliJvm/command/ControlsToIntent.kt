@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AFTER
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AGENT
@@ -33,7 +33,7 @@ import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 
 /**
- * Maps a typed REPL line onto an in-session [BranchCommand] by parsing it against
+ * Maps a typed REPL line onto an in-session [SessionCommand] by parsing it against
  * the shared catalog on the [Surface.CMD] front — the `/`-command twin of
  * [ControlsToCommand] (which feeds the startup `CliCommand`). One entity grammar
  * serves both fronts; only the target domain differs. A line that isn't a known
@@ -50,17 +50,17 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
  * pause/resume/note act on the **active** task; and the memory-injection mode is
  * flipped with `agent mode <preamble|system>` (the agent always exists).
  */
-internal class ControlsToBranchCommand(private val parser: CliArgsParser = CliArgsParser()) {
+internal class ControlsToIntent(private val parser: CliArgsParser = CliArgsParser()) {
 
     /** The branch/memory command for [line], or null if it isn't one (→ a normal prompt). */
-    fun parse(line: String): BranchCommand? = when (val r = parser.parse(line, Surface.CMD)) {
+    fun parse(line: String): SessionCommand? = when (val r = parser.parse(line, Surface.CMD)) {
         is ParseResult.Ok -> map(r.control)
         is ParseResult.Err -> null
     }
 
-    private fun map(c: ParsedArg): BranchCommand? = when (c.arg) {
+    private fun map(c: ParsedArg): SessionCommand? = when (c.arg) {
         BRANCH -> branch(c)
-        MEMORY -> BranchCommand.ShowMemory
+        MEMORY -> SessionCommand.ShowMemory
         AGENT -> agentMode(c)
         PROFILE -> profile(c)
         RULE -> rule(c)
@@ -69,83 +69,83 @@ internal class ControlsToBranchCommand(private val parser: CliArgsParser = CliAr
         else -> null // session/strategy/inflate/mcp/reuse/exit/help — not in-session commands
     }
 
-    private fun branch(c: ParsedArg): BranchCommand? {
-        c.sub(SHOW)?.let { return if (c.value == null) BranchCommand.Checkpoint else null } // `branch show` = current branch + count
-        c.sub(SWITCH)?.let { return BranchCommand.Switch(it.value.orEmpty()) }
+    private fun branch(c: ParsedArg): SessionCommand? {
+        c.sub(SHOW)?.let { return if (c.value == null) SessionCommand.Checkpoint else null } // `branch show` = current branch + count
+        c.sub(SWITCH)?.let { return SessionCommand.Switch(it.value.orEmpty()) }
         c.sub(CLEAR)?.let {
             return when {
-                it.value != null -> BranchCommand.DeleteBranch(it.value)  // `branch clear <name>`
-                c.value == null -> BranchCommand.ClearBranches            // bare `branch clear` = all but current
+                it.value != null -> SessionCommand.DeleteBranch(it.value)  // `branch clear <name>`
+                c.value == null -> SessionCommand.ClearBranches            // bare `branch clear` = all but current
                 else -> null                                              // `branch <name> clear` — wrong order
             }
         }
-        return c.value?.let(BranchCommand::Branch) ?: BranchCommand.ListBranches
+        return c.value?.let(SessionCommand::Branch) ?: SessionCommand.ListBranches
     }
 
-    private fun profile(c: ParsedArg): BranchCommand? {
+    private fun profile(c: ParsedArg): SessionCommand? {
         val name = c.value
         // A section keyword as a sub (`profile [<name>] <section> [<text>]`); value absent = clear.
         val section = SECTIONS.firstNotNullOfOrNull { arg -> c.sub(arg)?.let { it.value to section(arg) } }
         c.sub(SHOW)?.let {
             return when {
-                it.value != null -> BranchCommand.ShowProfile(it.value)
-                name == null -> BranchCommand.ListProfiles      // bare `profile show` = list
+                it.value != null -> SessionCommand.ShowProfile(it.value)
+                name == null -> SessionCommand.ListProfiles      // bare `profile show` = list
                 else -> null                                    // `profile <name> show` — wrong order
             }
         }
         if (section != null) {
             val (text, sec) = section
             return when {
-                name == null && text != null -> BranchCommand.AddProfileItem(sec, text)
-                name == null -> BranchCommand.ClearProfileSection(sec)
-                text != null -> BranchCommand.AddNamedProfileItem(name, sec, text)
-                else -> BranchCommand.ClearNamedProfileSection(name, sec)
+                name == null && text != null -> SessionCommand.AddProfileItem(sec, text)
+                name == null -> SessionCommand.ClearProfileSection(sec)
+                text != null -> SessionCommand.AddNamedProfileItem(name, sec, text)
+                else -> SessionCommand.ClearNamedProfileSection(name, sec)
             }
         }
         c.sub(CLEAR)?.let {
             return when {
-                it.value != null -> BranchCommand.ClearNamedProfile(it.value)
-                name == null -> BranchCommand.ClearAllProfiles  // bare `profile clear` = all
+                it.value != null -> SessionCommand.ClearNamedProfile(it.value)
+                name == null -> SessionCommand.ClearAllProfiles  // bare `profile clear` = all
                 else -> null                                    // `profile <name> clear` — wrong order
             }
         }
         // In-session select = activate (touch-creates if missing); bare = list.
-        return name?.let(BranchCommand::SwitchProfile) ?: BranchCommand.ListProfiles
+        return name?.let(SessionCommand::SwitchProfile) ?: SessionCommand.ListProfiles
     }
 
-    private fun rule(c: ParsedArg): BranchCommand? {
+    private fun rule(c: ParsedArg): SessionCommand? {
         c.sub(CLEAR)?.let {
             return when {
-                it.value != null -> BranchCommand.RemoveRule(it.value)
-                c.value == null -> BranchCommand.ClearRules     // bare `rule clear` = all
+                it.value != null -> SessionCommand.RemoveRule(it.value)
+                c.value == null -> SessionCommand.ClearRules     // bare `rule clear` = all
                 else -> null                                    // `rule <text> clear` — wrong order
             }
         }
-        return BranchCommand.AddRule(c.value.orEmpty())
+        return SessionCommand.AddRule(c.value.orEmpty())
     }
 
-    private fun task(c: ParsedArg): BranchCommand? {
+    private fun task(c: ParsedArg): SessionCommand? {
         c.sub(CLEAR)?.let {
             return when {
-                it.value != null -> BranchCommand.DeleteTask(it.value)
-                c.value == null -> BranchCommand.ClearTasks     // bare `task clear` = all
+                it.value != null -> SessionCommand.DeleteTask(it.value)
+                c.value == null -> SessionCommand.ClearTasks     // bare `task clear` = all
                 else -> null                                    // `task <id> clear` — wrong order
             }
         }
         // pause/resume/note act on the active task (no id).
-        c.sub(PAUSE)?.let { return BranchCommand.PauseTask }
-        c.sub(RESUME)?.let { return BranchCommand.ResumeTask }
-        c.sub(NOTE)?.let { return BranchCommand.AppendTaskNote(it.value.orEmpty()) }
-        return BranchCommand.SetTask(c.value.orEmpty())
+        c.sub(PAUSE)?.let { return SessionCommand.PauseTask }
+        c.sub(RESUME)?.let { return SessionCommand.ResumeTask }
+        c.sub(NOTE)?.let { return SessionCommand.AppendTaskNote(it.value.orEmpty()) }
+        return SessionCommand.SetTask(c.value.orEmpty())
     }
 
     /** `/schedule collect tool <name> [args …] | agent prompt "<text>"` + after/every <sec>. */
-    private fun schedule(c: ParsedArg): BranchCommand? {
+    private fun schedule(c: ParsedArg): SessionCommand? {
         // clear [<id>] = cancel one / all active; bare /schedule (no kind) = list.
         c.sub(CLEAR)?.let {
-            return if (it.value != null) BranchCommand.CancelSchedule(it.value) else BranchCommand.ClearSchedules
+            return if (it.value != null) SessionCommand.CancelSchedule(it.value) else SessionCommand.ClearSchedules
         }
-        if (c.value == null) return BranchCommand.ListSchedules
+        if (c.value == null) return SessionCommand.ListSchedules
         val after = c.sub(AFTER)?.value?.toIntOrNull()
         val every = c.sub(EVERY)?.value?.toIntOrNull()
         if (after != null && every != null) return null
@@ -156,13 +156,13 @@ internal class ControlsToBranchCommand(private val parser: CliArgsParser = CliAr
             "agent" -> ScheduleSpec.Agent(c.sub(PROMPT)?.value ?: return null, seconds, periodic)
             else -> return null
         }
-        return BranchCommand.Schedule(spec)
+        return SessionCommand.Schedule(spec)
     }
 
     /** `agent mode <preamble|system>` flips the live memory-injection mode. */
-    private fun agentMode(c: ParsedArg): BranchCommand? = when (c.sub(MODE)?.value) {
-        "preamble" -> BranchCommand.SetMemoryMode(MemoryMode.PREAMBLE)
-        "system" -> BranchCommand.SetMemoryMode(MemoryMode.SYSTEM)
+    private fun agentMode(c: ParsedArg): SessionCommand? = when (c.sub(MODE)?.value) {
+        "preamble" -> SessionCommand.SetMemoryMode(MemoryMode.PREAMBLE)
+        "system" -> SessionCommand.SetMemoryMode(MemoryMode.SYSTEM)
         else -> null // `none` can't disable a live provider; other agent subs aren't in-session ops
     }
 

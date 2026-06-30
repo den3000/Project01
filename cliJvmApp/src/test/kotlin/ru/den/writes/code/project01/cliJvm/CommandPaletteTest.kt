@@ -33,7 +33,7 @@ class CommandPaletteTest {
     @Test
     fun `when a command takes no argument - then it maps to a Run or Reuse`() {
         // when - then
-        assertEquals(PaletteAction.Run(BranchCommand.Checkpoint), actionOf("/branch show"))
+        assertEquals(PaletteAction.Run(SessionCommand.Checkpoint), actionOf("/branch show"))
         assertEquals(PaletteAction.Reuse, actionOf("/reuse"))
     }
 

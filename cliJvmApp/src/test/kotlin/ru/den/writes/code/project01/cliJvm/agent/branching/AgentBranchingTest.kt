@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.agent.branching
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.PromptResult
 import ru.den.writes.code.project01.cliJvm.StdinPromptSource
@@ -61,10 +61,10 @@ class AgentBranchingTest {
 
         // when - then
         // Branch family.
-        assertEquals(PromptResult.Command(BranchCommand.Branch("alt")), classify("/branch alt"))
-        assertEquals(PromptResult.Command(BranchCommand.Switch("alt")), classify("/branch switch alt"))
-        assertEquals(PromptResult.Command(BranchCommand.ListBranches), classify("/branch"))
-        assertEquals(PromptResult.Command(BranchCommand.Checkpoint), classify("/branch show"))
+        assertEquals(PromptResult.Command(SessionCommand.Branch("alt")), classify("/branch alt"))
+        assertEquals(PromptResult.Command(SessionCommand.Switch("alt")), classify("/branch switch alt"))
+        assertEquals(PromptResult.Command(SessionCommand.ListBranches), classify("/branch"))
+        assertEquals(PromptResult.Command(SessionCommand.Checkpoint), classify("/branch show"))
         // Non-branch terminators.
         assertEquals(PromptResult.Stop, classify("/exit"))
         // Plain text falls through unchanged.

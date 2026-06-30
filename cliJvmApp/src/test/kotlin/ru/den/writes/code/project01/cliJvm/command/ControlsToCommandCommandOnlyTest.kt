@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -35,8 +35,8 @@ class ControlsToCommandCommandOnlyTest {
     @Test
     fun `when a command-only control is typed - then the mapper leaves it to the REPL`() {
         // given
-        val mapper = ControlsToBranchCommand()
-        val cases: List<Pair<String, BranchCommand?>> = listOf(
+        val mapper = ControlsToIntent()
+        val cases: List<Pair<String, SessionCommand?>> = listOf(
             "/reuse" to null,
             "/exit" to null,
             "/help" to null,

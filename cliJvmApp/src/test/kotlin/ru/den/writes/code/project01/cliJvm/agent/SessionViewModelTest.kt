@@ -5,7 +5,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.ChannelIntentSource
 import ru.den.writes.code.project01.cliJvm.command.CliCommand
 import ru.den.writes.code.project01.cliJvm.CommandRunner
@@ -122,7 +122,7 @@ class SessionViewModelTest {
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
-            vm.run(intents(UiIntent.SlashCommand(BranchCommand.Checkpoint), UiIntent.Exit))
+            vm.run(intents(UiIntent.SlashCommand(SessionCommand.Checkpoint), UiIntent.Exit))
 
             // then — a command result is a state line, so the TUI columns it like the resume banner
             assertTrue(
