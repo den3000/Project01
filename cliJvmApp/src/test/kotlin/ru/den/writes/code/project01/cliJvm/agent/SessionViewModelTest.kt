@@ -122,7 +122,7 @@ class SessionViewModelTest {
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
-            vm.run(intents(UiIntent.SlashCommand(SessionCommand.Checkpoint), UiIntent.Exit))
+            vm.run(intents(SessionCommand.Checkpoint, UiIntent.Exit))
 
             // then — a command result is a state line, so the TUI columns it like the resume banner
             assertTrue(

@@ -94,7 +94,7 @@ internal class SessionViewModel(
                     is Overlay.Palette -> selectPalette(overlay, intent.text)
                 }
                 UiIntent.Reuse -> lastReply?.let { runTurn(it) }
-                is UiIntent.SlashCommand -> runCommand(intent.command)
+                is SessionCommand -> runCommand(intent)
                 is UiIntent.OpenPicker -> openPicker(intent.kind)
                 UiIntent.OpenPalette -> openPalette()
                 UiIntent.OverlayUp -> state.update { it.copy(overlay = it.overlay?.moved(-1)) }

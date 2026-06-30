@@ -79,9 +79,9 @@ class TuiViewTest {
     }
 
     @Test
-    fun `when a slash command - then SlashCommand`() {
+    fun `when a slash command - then the SessionCommand intent`() {
         // when - then
-        assertEquals(UiIntent.SlashCommand(SessionCommand.Branch("exp")), toIntent("/branch exp"))
+        assertEquals(SessionCommand.Branch("exp"), toIntent("/branch exp"))
     }
 
     @Test
@@ -100,9 +100,9 @@ class TuiViewTest {
     }
 
     @Test
-    fun `when a picker command carries an argument - then it stays a SlashCommand`() {
+    fun `when a picker command carries an argument - then it stays a SessionCommand`() {
         // when - then — the argument form is untouched, only the bare form opens a picker
-        assertEquals(UiIntent.SlashCommand(SessionCommand.SwitchProfile("work")), toIntent("/profile work"))
+        assertEquals(SessionCommand.SwitchProfile("work"), toIntent("/profile work"))
     }
 
     @Test

@@ -172,7 +172,7 @@ class PlainViewGoldenTest {
             // when — opening turn (2 messages persisted), then a /branch command
             val out = runPlain(
                 goldenChat("hi", "alpha"), fake, store,
-                intents(UiIntent.SlashCommand(SessionCommand.Branch("exp"))),
+                intents(SessionCommand.Branch("exp")),
             )
 
             // then

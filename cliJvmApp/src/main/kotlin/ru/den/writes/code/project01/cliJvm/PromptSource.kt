@@ -23,11 +23,14 @@ internal sealed interface PromptResult {
 
 /**
  * A branch-management or memory-management command issued in-session (a
- * `/`-command at the REPL, a TUI palette pick). The classifier only turns a line
- * into one of these; [CommandRunner] executes the (suspend) DB/disk work, so the
- * classifier stays pure and synchronous.
+ * `/`-command at the REPL, a TUI palette pick). It is a [UiIntent]: the classifier
+ * turns a line straight into one of these and the view-model drives it like any
+ * other intent, handing the (suspend) DB/disk work to [CommandRunner] so the
+ * classifier stays pure and synchronous. Grouped under one sealed sub-interface so
+ * [CommandRunner] stays exhaustive over just the command intents, not the whole
+ * [UiIntent] vocabulary.
  */
-internal sealed interface SessionCommand {
+internal sealed interface SessionCommand : UiIntent {
     data object Checkpoint : SessionCommand
     data object ListBranches : SessionCommand
     data class Branch(val name: String) : SessionCommand

@@ -207,7 +207,11 @@ internal fun mcpToolLines(calls: List<ExecutedToolCall>, modelId: String): List<
     calls.lastOrNull()?.let { add("prompt: ${it.output}") }
 }
 
-/** What a view sends to the view-model. Semantics, not raw keys. */
+/**
+ * What a view sends to the view-model. Semantics, not raw keys. A classified
+ * `/`-command is itself a [UiIntent] — see [SessionCommand], the sub-group the
+ * view-model routes to [CommandRunner].
+ */
 internal sealed interface UiIntent {
     /**
      * Send [text] as the next user turn — or, when an overlay is open, select
@@ -215,9 +219,6 @@ internal sealed interface UiIntent {
      * branches on [UiState.overlay], so a view needn't know which mode it's in.
      */
     data class Submit(val text: String) : UiIntent
-
-    /** Run a classified `/`-command (see [parseSlashCommand]). */
-    data class SlashCommand(val command: SessionCommand) : UiIntent
 
     /** Resend the last model reply (REPL `/reuse`); a no-op if there's none yet. */
     data object Reuse : UiIntent

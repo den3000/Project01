@@ -146,5 +146,5 @@ internal fun toIntent(text: String): UiIntent? = when {
     text.equals("/task", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Task)
     text.equals("/branch", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Branch)
     text.equals("/agent mode", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.MemoryMode)
-    else -> parseSlashCommand(text)?.let { UiIntent.SlashCommand(it) } ?: UiIntent.Submit(text)
+    else -> parseSlashCommand(text) ?: UiIntent.Submit(text)
 }
