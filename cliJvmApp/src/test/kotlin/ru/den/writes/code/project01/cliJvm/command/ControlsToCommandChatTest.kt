@@ -155,6 +155,7 @@ class ControlsToCommandChatTest {
 
         // then
         val oneShot = assertIs<CliCommand.RunOneShot>(actual)
+        assertEquals("hi", oneShot.prompt)
         assertEquals(100, oneShot.maxTokens)
         assertEquals(listOf("stop1", "stop2"), oneShot.stopSequences)
         assertEquals("###", oneShot.endSequence)
