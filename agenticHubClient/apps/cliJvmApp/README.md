@@ -460,13 +460,12 @@ Downstream-мапперы живут в `commandMappers/`: `CliArgsToStartComman
 | `cliargs/CliArg.kt` | `Surface` + словарь токенов `CliArg` |
 | `cliargs/ArgSpec.kt` | `ValueKind`/`ValueSpec` (декларативная валидация) + `ArgSpec` |
 | `cliargs/CliArgs.kt` | каталог `all` + билдеры `entity()/top()/sub()` + lookups |
-| `cliargs/ParsedArg.kt` | `ParsedArg` + `ParseResult`/`ParseError`/`BatchResult` + access-хелперы `subValue`/`last`/`has` |
+| `cliargs/ParsedArg.kt` | `ParsedArg` + `ParseResult`/`BatchResult` + `ParseError` (единый словарь ошибок разбора: богатые парсер-варианты + generic `MissingRequired`/`Invalid`/`TooManyValues` + маркер-семья `MissingArg` для USAGE) + access-хелперы `subValue`/`last`/`has` |
 | `cliargs/CliArgsParser.kt` | парсер обоих фронтов + batch + кросс-валидация |
-| `cliargs/ParseErrorMapping.kt` | `ParseError` → `CliArgsException` |
 | `cliargs/Usage.kt` | `USAGE` (ручной текст помощи) |
-| `commandMappers/CliArgsToStartCommandMapper.kt` | startup: `parse(args)` = `parseArgv` → `map` → `StartCommand` |
-| `commandMappers/CliArgToSessionCommandMapper.kt` | CMD-строка → `SessionCommand` (in-session) |
-| `ModelProviders.kt` | `ApiKeys` + `ModelProviderFactory` (изолятор ключей; адаптер `ParsedArg` → `features:llm.buildModelProvider`, транслирует `ModelProviderError` → `CliArgsException`) |
+| `commandMappers/CliArgsToStartCommandMapper.kt` | startup: `parse(args)` = `parseArgv` → `map` → `ParsedStartCommand` (`Ok(StartCommand)`/`Err(ParseError)`); пост-парсинг-проверки bail'ят `MapBail(ParseError.*)` |
+| `commandMappers/CliArgToSessionCommandMapper.kt` | CMD-строка → `SessionCommand` (in-session; ошибка → `null`) |
+| `ModelProviders.kt` | `ApiKeys` + `ModelProviderFactory` (изолятор ключей; адаптер `ParsedArg` → `features:llm.buildModelProvider`, транслирует `ModelProviderError` → `ParseError` через bail) |
 
 ### Текущие ограничения
 
