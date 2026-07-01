@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.agent.testSessionMapper
+import ru.den.writes.code.project01.cliJvm.agent.createStdinPromptSource
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
@@ -52,7 +52,7 @@ class AgentStageRoutingTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                 )
 
@@ -79,7 +79,7 @@ class AgentStageRoutingTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                     routedAgents = listOf(routed(TaskStage.PLANNING, TaskStage.EXECUTION, planner)),
                 )
@@ -108,7 +108,7 @@ class AgentStageRoutingTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                     routedAgents = listOf(routed(TaskStage.EXECUTION, TaskStage.VALIDATION, later)),
                 )
@@ -138,7 +138,7 @@ class AgentStageRoutingTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                     routedAgents = listOf(
                         routed(TaskStage.PLANNING, TaskStage.EXECUTION, planner, profileName = "planner"),
@@ -171,7 +171,7 @@ class AgentStageRoutingTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
-                    promptSource = stdinSource("go on\n/exit\n"),
+                    promptSource = createStdinPromptSource("go on\n/exit\n"),
                     memory = memory,
                     routedAgents = listOf(
                         routed(TaskStage.PLANNING, TaskStage.PLANNING, planner),
@@ -205,7 +205,7 @@ class AgentStageRoutingTest {
                     runSessionForTest(
                         newChat(prompt = "hi", session = "demo"),
                         fallback, store,
-                        promptSource = stdinSource("/exit\n"),
+                        promptSource = createStdinPromptSource("/exit\n"),
                         memory = memory,
                         routedAgents = listOf(
                             routed(
@@ -240,7 +240,7 @@ class AgentStageRoutingTest {
                     runSessionForTest(
                         newChat(prompt = "hi", session = "demo"),
                         fake, store,
-                        promptSource = stdinSource("/exit\n"),
+                        promptSource = createStdinPromptSource("/exit\n"),
                         memory = memory,
                     )
                 }
@@ -292,8 +292,6 @@ class AgentStageRoutingTest {
         ),
     )
 
-    private fun stdinSource(script: String): StdinPromptSource =
-        StdinPromptSource(BufferedReader(StringReader(script)), testSessionMapper)
 
     private inline fun withTempMemoryRoot(block: (java.io.File) -> Unit) {
         val dir = Files.createTempDirectory("project01-agent-routing-").toFile()

@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.agent.testSessionMapper
+import ru.den.writes.code.project01.cliJvm.agent.createStdinPromptSource
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
@@ -49,7 +49,7 @@ class AgentJudgeTest {
                 runSessionForTest(
                     newChat(prompt = "build auth", session = "demo"),
                     fake, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                     routedJudges = listOf(violatingJudge),
                 )
@@ -78,7 +78,7 @@ class AgentJudgeTest {
                 runSessionForTest(
                     newChat(prompt = "build auth", session = "demo"),
                     fake, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                     routedJudges = listOf(cleanJudge),
                 )
@@ -116,7 +116,7 @@ class AgentJudgeTest {
                 runSessionForTest(
                     newChat(prompt = "go", session = "demo"),
                     fake, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                     routedJudges = listOf(narrowJudge),
                 )
@@ -170,8 +170,6 @@ class AgentJudgeTest {
         ),
     )
 
-    private fun stdinSource(script: String): StdinPromptSource =
-        StdinPromptSource(BufferedReader(StringReader(script)), testSessionMapper)
 
     private inline fun withTempMemoryRoot(block: (java.io.File) -> Unit) {
         val dir = Files.createTempDirectory("project01-agent-judge-").toFile()

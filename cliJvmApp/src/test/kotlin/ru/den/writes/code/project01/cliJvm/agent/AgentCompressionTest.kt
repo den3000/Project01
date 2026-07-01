@@ -38,7 +38,7 @@ class AgentCompressionTest {
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
-                promptSource = stdinSource("p2\np3\n/exit\n"),
+                promptSource = createStdinPromptSource("p2\np3\n/exit\n"),
                 strategy = ContextStrategy.Summary(compressor),
             )
 
@@ -88,7 +88,7 @@ class AgentCompressionTest {
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
-                promptSource = stdinSource("p2\np3\n/exit\n"),
+                promptSource = createStdinPromptSource("p2\np3\n/exit\n"),
                 strategy = ContextStrategy.Summary(compressor),
             )
 
@@ -136,7 +136,7 @@ class AgentCompressionTest {
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
-                promptSource = stdinSource("/exit\n"),
+                promptSource = createStdinPromptSource("/exit\n"),
                 strategy = ContextStrategy.Summary(compressor),
             )
 

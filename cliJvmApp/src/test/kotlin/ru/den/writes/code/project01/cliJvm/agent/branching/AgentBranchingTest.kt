@@ -1,6 +1,5 @@
 package ru.den.writes.code.project01.cliJvm.agent.branching
 
-import ru.den.writes.code.project01.cliJvm.agent.testSessionMapper
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
@@ -10,7 +9,7 @@ import ru.den.writes.code.project01.cliJvm.PromptResult
 import ru.den.writes.code.project01.cliJvm.StdinPromptSource
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.agent.newChat
-import ru.den.writes.code.project01.cliJvm.agent.stdinSource
+import ru.den.writes.code.project01.cliJvm.agent.createStdinPromptSource
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import java.io.BufferedReader
 import java.io.StringReader
@@ -38,7 +37,7 @@ class AgentBranchingTest {
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
-                promptSource = stdinSource("/branch alt\n/branch switch alt\na1\n/exit\n"),
+                promptSource = createStdinPromptSource("/branch alt\n/branch switch alt\na1\n/exit\n"),
             )
 
             // then
@@ -59,7 +58,7 @@ class AgentBranchingTest {
         // given
         // Helper to classify a single line through a fresh source.
         fun classify(line: String): PromptResult =
-            StdinPromptSource(BufferedReader(StringReader("$line\n")), testSessionMapper).nextPrompt()
+            createStdinPromptSource("$line\n").nextPrompt()
 
         // when - then
         // Branch family.

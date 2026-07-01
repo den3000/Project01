@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.agent.testSessionMapper
+import ru.den.writes.code.project01.cliJvm.agent.createStdinPromptSource
 
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
@@ -42,7 +42,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                runSessionForTest(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory)
+                runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
                 val msgs = fake.calls.single().messages
                 assertEquals(3, msgs.size, "expected [USER frame, ASSISTANT ack, USER prompt]")
@@ -76,7 +76,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                runSessionForTest(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory)
+                runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
                 val msgs = fake.calls.single().messages
                 val systemMsgs = msgs.takeWhile { it.role == Role.SYSTEM }
@@ -102,7 +102,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(dao, sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                runSessionForTest(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory)
+                runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
                 val rows = dao.all(sessionId = "demo")
                 assertEquals(2, rows.size, "exactly the user prompt and the model reply")
@@ -122,7 +122,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                runSessionForTest(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory)
+                runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
                 // No memory frame at all — opening prompt is the lone entry.
                 assertEquals(listOf(Message(Role.USER, "hi")), fake.calls.single().messages)
@@ -146,7 +146,7 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/agent mode system\ngo on\n/exit\n"),
+                    promptSource = createStdinPromptSource("/agent mode system\ngo on\n/exit\n"),
                     memory = memory,
                 )
 
@@ -174,7 +174,7 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/rule \"No Spring Boot\"\n/exit\n"),
+                    promptSource = createStdinPromptSource("/rule \"No Spring Boot\"\n/exit\n"),
                     memory = memory,
                 )
 
@@ -199,7 +199,7 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/task auth\n/task note \"Ktor + JWT chosen\"\n/exit\n"),
+                    promptSource = createStdinPromptSource("/task auth\n/task note \"Ktor + JWT chosen\"\n/exit\n"),
                     memory = memory,
                 )
 
@@ -224,7 +224,7 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/task note stranded\n/exit\n"),
+                    promptSource = createStdinPromptSource("/task note stranded\n/exit\n"),
                     memory = memory,
                 )
 
@@ -246,7 +246,7 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/profile\n/exit\n"),
+                    promptSource = createStdinPromptSource("/profile\n/exit\n"),
                     memory = memory,
                 )
 
@@ -274,7 +274,7 @@ class AgentMemoryTest {
 
                 runSessionForTest(
                     chat, fake, store,
-                    promptSource = stdinSource("/agent mode shrug\n/exit\n"),
+                    promptSource = createStdinPromptSource("/agent mode shrug\n/exit\n"),
                     memory = memory,
                 )
 
@@ -295,7 +295,7 @@ class AgentMemoryTest {
 
             runSessionForTest(
                 chat, fake, store,
-                promptSource = stdinSource("/memory\n/profile yo\n/rule no\n/exit\n"),
+                promptSource = createStdinPromptSource("/memory\n/profile yo\n/rule no\n/exit\n"),
                 memory = null,
             )
 
@@ -326,7 +326,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                runSessionForTest(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory)
+                runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
                 val frame = fake.calls.single().messages.first().text
                 assertTrue(frame.startsWith(MemoryLayer.PROFILE_HEADING))
@@ -349,7 +349,7 @@ class AgentMemoryTest {
                     val fake = FakeLlmApi().apply { queueText("ok") }
                     val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                     val chat = newChat(prompt = "Как реализовать кэш?", session = "demo")
-                    runSessionForTest(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory)
+                    runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
                     captured = fake.calls.single().messages.first().text
                 }
             }
@@ -392,7 +392,7 @@ class AgentMemoryTest {
                     chat,
                     fake,
                     store,
-                    promptSource = stdinSource("/profile style \"кратко на русском\"\n/exit\n"),
+                    promptSource = createStdinPromptSource("/profile style \"кратко на русском\"\n/exit\n"),
                     memory = memory,
                 )
 
@@ -419,7 +419,7 @@ class AgentMemoryTest {
                     chat,
                     fake,
                     store,
-                    promptSource = stdinSource("/profile clear\n/exit\n"),
+                    promptSource = createStdinPromptSource("/profile clear\n/exit\n"),
                     memory = memory,
                 )
 
@@ -447,7 +447,7 @@ class AgentMemoryTest {
                 val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
-                runSessionForTest(chat, fake, store, promptSource = stdinSource("/exit\n"), memory = memory)
+                runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
                 val frame = fake.calls.single().messages.first().text
                 assertTrue(frame.contains("Style:\n- кратко"))
@@ -480,7 +480,7 @@ class AgentMemoryTest {
                     chat,
                     fake,
                     store,
-                    promptSource = stdinSource("/profile python-junior\nsecond\n/exit\n"),
+                    promptSource = createStdinPromptSource("/profile python-junior\nsecond\n/exit\n"),
                     memory = memory,
                 )
 
@@ -507,7 +507,7 @@ class AgentMemoryTest {
                     chat,
                     fake,
                     store,
-                    promptSource = stdinSource(
+                    promptSource = createStdinPromptSource(
                         "/profile kotlin-senior style кратко\n" +
                             "/profile kotlin-senior constraints Kotlin\n" +
                             "/exit\n"
@@ -554,8 +554,6 @@ class AgentMemoryTest {
         ),
     )
 
-    private fun stdinSource(script: String): StdinPromptSource =
-        StdinPromptSource(BufferedReader(StringReader(script)), testSessionMapper)
 
     private inline fun withTempMemoryRoot(block: (java.io.File) -> Unit) {
         val dir = Files.createTempDirectory("project01-agent-memory-").toFile()

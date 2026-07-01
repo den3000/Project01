@@ -74,7 +74,7 @@ internal fun dummyGeminiProvider(
 internal val testSessionMapper = CliArgToSessionCommandMapper(CliArgsParser())
 
 /** Pre-loaded stdin source that hands the REPL the given script line by line. */
-internal fun stdinSource(script: String): StdinPromptSource =
+internal fun createStdinPromptSource(script: String): StdinPromptSource =
     StdinPromptSource(BufferedReader(StringReader(script)), testSessionMapper)
 
 /**

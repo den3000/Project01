@@ -32,7 +32,7 @@ class AgentStickyFactsTest {
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
-                promptSource = stdinSource("p2\n/exit\n"),
+                promptSource = createStdinPromptSource("p2\n/exit\n"),
                 strategy = StickyFacts(keepLast = 2),
             )
 
@@ -82,7 +82,7 @@ class AgentStickyFactsTest {
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
-                promptSource = stdinSource("p2\n/exit\n"),
+                promptSource = createStdinPromptSource("p2\n/exit\n"),
                 strategy = StickyFacts(keepLast = 2),
             )
 

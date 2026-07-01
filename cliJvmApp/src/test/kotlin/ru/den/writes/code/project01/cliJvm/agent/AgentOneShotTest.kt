@@ -35,7 +35,7 @@ class AgentOneShotTest {
             )
 
             // when
-            runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = stdinSource(""))
+            runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = createStdinPromptSource(""))
 
             // then
             assertEquals(1, fakeApi.calls.size)
@@ -61,7 +61,7 @@ class AgentOneShotTest {
         )
 
         // when
-        runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = stdinSource(""))
+        runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = createStdinPromptSource(""))
 
         // then
         val expected = GenerationParams(

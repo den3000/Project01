@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.agent.testSessionMapper
+import ru.den.writes.code.project01.cliJvm.agent.createStdinPromptSource
 
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import kotlinx.coroutines.test.runTest
@@ -47,7 +47,7 @@ class AgentTaskStateTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                 )
 
@@ -74,7 +74,7 @@ class AgentTaskStateTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                 )
 
@@ -100,7 +100,7 @@ class AgentTaskStateTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                 )
 
@@ -126,7 +126,7 @@ class AgentTaskStateTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                 )
 
@@ -155,7 +155,7 @@ class AgentTaskStateTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
-                    promptSource = stdinSource("/task pause\n/task resume\n/exit\n"),
+                    promptSource = createStdinPromptSource("/task pause\n/task resume\n/exit\n"),
                     memory = memory,
                 )
 
@@ -179,7 +179,7 @@ class AgentTaskStateTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fake, store,
-                    promptSource = stdinSource("/task fresh\n/exit\n"),
+                    promptSource = createStdinPromptSource("/task fresh\n/exit\n"),
                     memory = memory,
                 )
 
@@ -217,8 +217,6 @@ class AgentTaskStateTest {
         ),
     )
 
-    private fun stdinSource(script: String): StdinPromptSource =
-        StdinPromptSource(BufferedReader(StringReader(script)), testSessionMapper)
 
     private inline fun withTempMemoryRoot(block: (java.io.File) -> Unit) {
         val dir = Files.createTempDirectory("project01-agent-taskstate-").toFile()
