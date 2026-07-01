@@ -22,7 +22,7 @@ import java.util.UUID
  * Builders for the objects a session runs on. Plain functions (no receiver) —
  * each constructs one runtime collaborator from a [StartCommand.RunChat] config
  * and/or a shared [HttpClient]. The getters that *derive* a value from the parsed
- * state live in `SessionAccessors`.
+ * state live in `SessionInitialStateExtensions`.
  */
 
 /** Generous request timeout — LLM responses can take a while. */
