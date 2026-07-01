@@ -28,6 +28,7 @@ kotlin {
             // (AppDatabase/DAO/entities) backs RoomHistoryStore → api too.
             api(projects.agenticHubClient.features.agent)
             api(projects.agenticHubClient.platform.database)
+            implementation(projects.agenticHubClient.platform.fileSystem)
             implementation(libs.kotlinx.coroutinesCore)
         }
     }

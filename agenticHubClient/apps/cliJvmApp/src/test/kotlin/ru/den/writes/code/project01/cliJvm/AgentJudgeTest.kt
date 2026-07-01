@@ -37,7 +37,7 @@ class AgentJudgeTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given — task at clarification; the model would advance, but the judge objects
-                val memStore = FileMemoryStore(root).apply {
+                val memStore = FileMemoryStore(root.absolutePath).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                     addRule("Kotlin only, no Spring")
                 }
@@ -66,7 +66,7 @@ class AgentJudgeTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root).apply {
+                val memStore = FileMemoryStore(root.absolutePath).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                     addRule("Kotlin only, no Spring")
                 }
@@ -95,7 +95,7 @@ class AgentJudgeTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given — task at execution, but the judge only covers clarification..planning
-                val memStore = FileMemoryStore(root).apply {
+                val memStore = FileMemoryStore(root.absolutePath).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.EXECUTION))
                     addRule("Kotlin only, no Spring")
                 }

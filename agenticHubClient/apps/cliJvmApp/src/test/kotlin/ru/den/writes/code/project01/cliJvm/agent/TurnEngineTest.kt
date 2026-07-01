@@ -95,7 +95,7 @@ class TurnEngineTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fake = FakeLlmApi().apply { queueText("on it [[stage:execution]]") }
                 val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
@@ -119,7 +119,7 @@ class TurnEngineTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given — DONE isn't reachable from PLANNING
-                val memStore = FileMemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fake = FakeLlmApi().apply { queueText("skip ahead [[stage:done]]") }
                 val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
@@ -143,7 +143,7 @@ class TurnEngineTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fb") }
                 val planner = FakeLlmApi().apply { queueText("planned") }

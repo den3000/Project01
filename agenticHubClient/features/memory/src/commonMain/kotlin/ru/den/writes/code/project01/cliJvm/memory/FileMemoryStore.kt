@@ -1,5 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.memory
 
+import ru.den.writes.code.project01.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.project01.platform.filesystem.localFileSystem
 import ru.den.writes.code.project01.shared.memory.ProfileData
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.RuleEntry
@@ -7,7 +9,6 @@ import ru.den.writes.code.project01.shared.memory.TaskNotes
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import ru.den.writes.code.project01.shared.memory.parseProfileData
 import ru.den.writes.code.project01.shared.memory.renderProfileData
-import java.io.File
 
 /**
  * File-backed [MemoryStore]: reads and writes the long-term (profile +
@@ -15,7 +16,9 @@ import java.io.File
  * memory (chat history, summaries, sticky facts) is owned by `HistoryStore`
  * and lives in the Room database, untouched by this class.
  *
- * Layout under [root]:
+ * All I/O goes through the injected [LocalFileSystem] port (defaulting to the
+ * platform's [localFileSystem]) — no direct file-type dependency, so the store
+ * itself is multiplatform. [root] is a path string; the layout under it:
  *
  * ```
  * <root>/
@@ -31,18 +34,19 @@ import java.io.File
  * can edit files between turns and see the change immediately. Files are
  * plain markdown — anyone can `cat`/`vim` them outside the CLI.
  */
-public class FileMemoryStore(private val root: File) : MemoryStore {
+public class FileMemoryStore(
+    private val root: String,
+    private val fs: LocalFileSystem = localFileSystem(),
+) : MemoryStore {
     init {
-        root.mkdirs()
-        rulesDir.mkdirs()
-        tasksDir.mkdirs()
-        profilesDir.mkdirs()
+        fs.mkdirs(root)
+        fs.mkdirs(rulesDir)
+        fs.mkdirs(tasksDir)
+        fs.mkdirs(profilesDir)
     }
 
     /** Returns the on-disk file contents trimmed; null if absent or blank. */
-    override fun loadProfile(): String? = profileFile
-        .takeIf { it.exists() }
-        ?.readText(Charsets.UTF_8)
+    override fun loadProfile(): String? = fs.readText(profileFile)
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
 
@@ -50,9 +54,9 @@ public class FileMemoryStore(private val root: File) : MemoryStore {
     override fun saveProfile(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) {
-            profileFile.delete()
+            fs.delete(profileFile)
         } else {
-            profileFile.writeText(trimmed + "\n", Charsets.UTF_8)
+            fs.writeText(profileFile, trimmed + "\n")
         }
     }
 
@@ -109,19 +113,14 @@ public class FileMemoryStore(private val root: File) : MemoryStore {
     // fallback when no named profile is active.
 
     /** Profile names that have a `profiles/<name>.md` file, sorted. */
-    override fun listProfileNames(): List<String> = profilesDir.listFiles()
-        ?.asSequence()
-        ?.filter { it.isFile && it.name.endsWith(".md") }
-        ?.map { it.nameWithoutExtension }
-        ?.sorted()
-        ?.toList()
-        ?: emptyList()
+    override fun listProfileNames(): List<String> = fs.listFileNames(profilesDir)
+        .filter { it.endsWith(".md") }
+        .map { it.removeSuffix(".md") }
+        .sorted()
 
     /** Parse `profiles/<name>.md`; null if the file is absent / blank. */
     override fun loadNamedProfile(name: String): ProfileData? {
-        val file = namedProfileFile(name)
-        if (!file.exists()) return null
-        val raw = file.readText(Charsets.UTF_8).trim()
+        val raw = fs.readText(namedProfileFile(name))?.trim() ?: return null
         if (raw.isEmpty()) return null
         return parseProfileData(raw).takeUnless { it.isEmpty() }
     }
@@ -131,12 +130,11 @@ public class FileMemoryStore(private val root: File) : MemoryStore {
      * deletes the file — touch-create stays via [touchNamedProfile].
      */
     override fun saveNamedProfile(name: String, data: ProfileData) {
-        val file = namedProfileFile(name)
         val rendered = renderProfileData(data).trim()
         if (rendered.isEmpty()) {
-            file.delete()
+            fs.delete(namedProfileFile(name))
         } else {
-            file.writeText(rendered + "\n", Charsets.UTF_8)
+            fs.writeText(namedProfileFile(name), rendered + "\n")
         }
     }
 
@@ -155,7 +153,7 @@ public class FileMemoryStore(private val root: File) : MemoryStore {
     }
 
     /** Delete `profiles/<name>.md`; returns true iff a file was removed. */
-    override fun clearNamedProfile(name: String): Boolean = namedProfileFile(name).delete()
+    override fun clearNamedProfile(name: String): Boolean = fs.delete(namedProfileFile(name))
 
     /**
      * Delete every named profile AND the unnamed default `profile.md`. Returns
@@ -163,10 +161,10 @@ public class FileMemoryStore(private val root: File) : MemoryStore {
      * regardless). Backs bare `profile clear` — the "nuke all profiles" form.
      */
     override fun clearAllProfiles(): Int {
-        val removed = (profilesDir.listFiles() ?: emptyArray())
-            .filter { it.isFile && it.name.endsWith(".md") }
-            .count { it.delete() }
-        profileFile.delete()
+        val removed = fs.listFileNames(profilesDir)
+            .filter { it.endsWith(".md") }
+            .count { fs.delete("$profilesDir/$it") }
+        fs.delete(profileFile)
         return removed
     }
 
@@ -176,11 +174,10 @@ public class FileMemoryStore(private val root: File) : MemoryStore {
      * [listProfileNames] before the first bullet is added.
      */
     override fun touchNamedProfile(name: String) {
-        val file = namedProfileFile(name)
-        if (!file.exists()) file.writeText("", Charsets.UTF_8)
+        if (!fs.exists(namedProfileFile(name))) fs.writeText(namedProfileFile(name), "")
     }
 
-    private fun namedProfileFile(name: String): File = File(profilesDir, "$name.md")
+    private fun namedProfileFile(name: String): String = "$profilesDir/$name.md"
 
     /**
      * List rules from `rules/` in ascending id order. File-name shape:
@@ -188,17 +185,13 @@ public class FileMemoryStore(private val root: File) : MemoryStore {
      * matching that shape is silently skipped — keeps stray notes from
      * the user's text editor out of the prompt.
      */
-    override fun listRules(): List<RuleEntry> = rulesDir.listFiles()
-        ?.asSequence()
-        ?.mapNotNull { file ->
-            val match = RULE_FILE_NAME.matchEntire(file.name) ?: return@mapNotNull null
-            val id = match.groupValues[1]
-            val text = file.readText(Charsets.UTF_8).trim()
-            if (text.isEmpty()) null else RuleEntry(id, text)
+    override fun listRules(): List<RuleEntry> = fs.listFileNames(rulesDir)
+        .mapNotNull { name ->
+            val match = RULE_FILE_NAME.matchEntire(name) ?: return@mapNotNull null
+            val text = fs.readText("$rulesDir/$name")?.trim().orEmpty()
+            if (text.isEmpty()) null else RuleEntry(match.groupValues[1], text)
         }
-        ?.sortedBy { it.id }
-        ?.toList()
-        ?: emptyList()
+        .sortedBy { it.id }
 
     /**
      * Append a new rule. Id is the smallest free three-digit number
@@ -212,9 +205,9 @@ public class FileMemoryStore(private val root: File) : MemoryStore {
         require(trimmed.isNotEmpty()) { "rule text must not be blank" }
         val existing = listRules().mapNotNull { it.id.toIntOrNull() }
         val nextNumber = (existing.maxOrNull() ?: 0) + 1
-        val id = NUMBER_FORMAT.format(nextNumber)
+        val id = numberId(nextNumber)
         val slug = slugify(trimmed).ifEmpty { "rule" }
-        File(rulesDir, "$id-$slug.md").writeText(trimmed + "\n", Charsets.UTF_8)
+        fs.writeText("$rulesDir/$id-$slug.md", trimmed + "\n")
         return RuleEntry(id, trimmed)
     }
 
@@ -224,36 +217,32 @@ public class FileMemoryStore(private val root: File) : MemoryStore {
      * how loud to be about it).
      */
     override fun removeRule(id: String): Boolean {
-        val file = rulesDir.listFiles()
-            ?.firstOrNull { RULE_FILE_NAME.matchEntire(it.name)?.groupValues?.get(1) == id }
+        val name = fs.listFileNames(rulesDir)
+            .firstOrNull { RULE_FILE_NAME.matchEntire(it)?.groupValues?.get(1) == id }
             ?: return false
-        return file.delete()
+        return fs.delete("$rulesDir/$name")
     }
 
     /** Delete every rule file. Returns how many were removed. Backs bare `rule clear`. */
-    override fun clearRules(): Int = (rulesDir.listFiles() ?: emptyArray())
-        .filter { RULE_FILE_NAME.matchEntire(it.name) != null }
-        .count { it.delete() }
+    override fun clearRules(): Int = fs.listFileNames(rulesDir)
+        .filter { RULE_FILE_NAME.matchEntire(it) != null }
+        .count { fs.delete("$rulesDir/$it") }
 
     /** All task ids that have a `tasks/<id>.md` file, sorted alphabetically. */
-    override fun listTaskIds(): List<String> = tasksDir.listFiles()
-        ?.asSequence()
-        ?.filter { it.isFile && it.name.endsWith(".md") }
-        ?.map { it.nameWithoutExtension }
-        ?.sorted()
-        ?.toList()
-        ?: emptyList()
+    override fun listTaskIds(): List<String> = fs.listFileNames(tasksDir)
+        .filter { it.endsWith(".md") }
+        .map { it.removeSuffix(".md") }
+        .sorted()
 
     /** Parse `tasks/<taskId>.md`; null if the file is absent. */
     override fun loadTask(taskId: String): TaskNotes? {
-        val file = taskFile(taskId)
-        if (!file.exists()) return null
-        return parseTaskNotes(taskId, file.readText(Charsets.UTF_8))
+        val raw = fs.readText(taskFile(taskId)) ?: return null
+        return parseTaskNotes(taskId, raw)
     }
 
     /** Overwrite `tasks/<taskId>.md` from [notes]. */
     override fun saveTask(notes: TaskNotes) {
-        taskFile(notes.taskId).writeText(renderTaskNotes(notes), Charsets.UTF_8)
+        fs.writeText(taskFile(notes.taskId), renderTaskNotes(notes))
     }
 
     /**
@@ -270,28 +259,30 @@ public class FileMemoryStore(private val root: File) : MemoryStore {
     }
 
     /** Delete `tasks/<taskId>.md`; returns true iff a file was removed. */
-    override fun deleteTask(taskId: String): Boolean = taskFile(taskId).delete()
+    override fun deleteTask(taskId: String): Boolean = fs.delete(taskFile(taskId))
 
     /** Delete every task file. Returns how many were removed. Backs bare `task clear`. */
-    override fun clearTasks(): Int = (tasksDir.listFiles() ?: emptyArray())
-        .filter { it.isFile && it.name.endsWith(".md") }
-        .count { it.delete() }
+    override fun clearTasks(): Int = fs.listFileNames(tasksDir)
+        .filter { it.endsWith(".md") }
+        .count { fs.delete("$tasksDir/$it") }
 
-    private val profileFile: File get() = File(root, PROFILE_FILE_NAME)
-    private val rulesDir: File get() = File(root, RULES_DIR)
-    private val tasksDir: File get() = File(root, TASKS_DIR)
-    private val profilesDir: File get() = File(root, PROFILES_DIR)
-    private fun taskFile(taskId: String): File = File(tasksDir, "$taskId.md")
+    private val profileFile: String get() = "$root/$PROFILE_FILE_NAME"
+    private val rulesDir: String get() = "$root/$RULES_DIR"
+    private val tasksDir: String get() = "$root/$TASKS_DIR"
+    private val profilesDir: String get() = "$root/$PROFILES_DIR"
+    private fun taskFile(taskId: String): String = "$tasksDir/$taskId.md"
 
-    companion object {
-        const val PROFILE_FILE_NAME: String = "profile.md"
-        const val RULES_DIR: String = "rules"
-        const val TASKS_DIR: String = "tasks"
-        const val PROFILES_DIR: String = "profiles"
+    public companion object {
+        public const val PROFILE_FILE_NAME: String = "profile.md"
+        public const val RULES_DIR: String = "rules"
+        public const val TASKS_DIR: String = "tasks"
+        public const val PROFILES_DIR: String = "profiles"
 
         private val RULE_FILE_NAME = Regex("^(\\d{3})-[a-z0-9-]+\\.md$")
         private const val SLUG_MAX_LENGTH = 40
-        private const val NUMBER_FORMAT = "%03d"
+
+        /** Zero-pad [n] to a three-digit rule id (`%03d` без java.util.Formatter). */
+        private fun numberId(n: Int): String = n.toString().padStart(3, '0')
 
         /**
          * Lowercase + collapse-non-ASCII-alphanum-to-dash + trim dashes +

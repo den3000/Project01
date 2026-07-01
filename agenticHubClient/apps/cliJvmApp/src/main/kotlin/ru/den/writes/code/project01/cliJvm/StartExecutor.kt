@@ -75,7 +75,7 @@ internal class StartExecutor(private val db: AppDatabase) {
      */
     private fun handleMemoryCommand(action: MemoryAction) {
         MEMORY_ROOT.mkdirs()
-        val store = FileMemoryStore(MEMORY_ROOT)
+        val store = FileMemoryStore(MEMORY_ROOT.absolutePath)
         when (action) {
             is MemoryAction.Show -> {
                 // Temporary provider in PREAMBLE mode for describe() — no task

@@ -200,7 +200,7 @@ class CommandRunnerTest {
     fun `when setting the memory mode - then it reports the new mode`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val memory = MemoryProvider(FileMemoryStore(root), MemoryMode.PREAMBLE)
+            val memory = MemoryProvider(FileMemoryStore(root.absolutePath), MemoryMode.PREAMBLE)
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
 
             // when - then
@@ -215,7 +215,7 @@ class CommandRunnerTest {
     fun `when setting a new task - then it reports the active task and initial stage`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val memory = MemoryProvider(FileMemoryStore(root), MemoryMode.SYSTEM)
+            val memory = MemoryProvider(FileMemoryStore(root.absolutePath), MemoryMode.SYSTEM)
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
 
             // when - then
@@ -230,7 +230,7 @@ class CommandRunnerTest {
     fun `when listing named profiles - then the active one is marked`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = FileMemoryStore(root).apply {
+            val mstore = FileMemoryStore(root.absolutePath).apply {
                 touchNamedProfile("work")
                 touchNamedProfile("home")
             }
@@ -251,7 +251,7 @@ class CommandRunnerTest {
     fun `when removing a rule by id - then it reports the removal and then its absence`() = runTest {
         withTempMemoryRoot { root ->
             // given — one rule on disk
-            val mstore = FileMemoryStore(root)
+            val mstore = FileMemoryStore(root.absolutePath)
             val rule = mstore.addRule("always kotlin")
             val memory = MemoryProvider(mstore, MemoryMode.SYSTEM)
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
@@ -266,7 +266,7 @@ class CommandRunnerTest {
     fun `when clearing all rules - then it reports the count`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = FileMemoryStore(root).apply { addRule("a"); addRule("b") }
+            val mstore = FileMemoryStore(root.absolutePath).apply { addRule("a"); addRule("b") }
             val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
 
             // when - then
@@ -279,7 +279,7 @@ class CommandRunnerTest {
     fun `when deleting a task then clearing tasks - then each reports`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = FileMemoryStore(root).apply { saveTask(TaskNotes("auth")); saveTask(TaskNotes("ui")) }
+            val mstore = FileMemoryStore(root.absolutePath).apply { saveTask(TaskNotes("auth")); saveTask(TaskNotes("ui")) }
             val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
 
             // when - then — delete one by id, second call finds nothing, then clear the rest
@@ -294,7 +294,7 @@ class CommandRunnerTest {
     fun `when clearing all profiles - then named and unnamed are gone`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = FileMemoryStore(root).apply {
+            val mstore = FileMemoryStore(root.absolutePath).apply {
                 saveProfile("legacy")
                 addNamedProfileItem("work", ProfileSection.STYLE, "кратко")
             }

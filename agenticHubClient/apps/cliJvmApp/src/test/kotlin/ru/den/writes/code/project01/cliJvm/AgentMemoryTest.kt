@@ -32,7 +32,7 @@ class AgentMemoryTest {
     fun `PREAMBLE mode prepends a USER memory frame and ASSISTANT ack to the wire list`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root).apply {
+                val memStore = FileMemoryStore(root.absolutePath).apply {
                     saveProfile("I write Kotlin")
                     addRule("No Spring")
                 }
@@ -61,7 +61,7 @@ class AgentMemoryTest {
     fun `SYSTEM mode emits all Role-SYSTEM messages before any USER message`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root).apply {
+                val memStore = FileMemoryStore(root.absolutePath).apply {
                     saveProfile("I write Kotlin")
                     addRule("No Spring")
                     saveTask(TaskNotes(taskId = "auth", goal = "JWT login"))
@@ -94,7 +94,7 @@ class AgentMemoryTest {
     fun `memory frames never land in the persisted history`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root).apply { saveProfile("anything") }
+                val memStore = FileMemoryStore(root.absolutePath).apply { saveProfile("anything") }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.SYSTEM)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
@@ -115,7 +115,7 @@ class AgentMemoryTest {
     fun `memory layer is empty when nothing is saved so wire shape stays untouched`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root)  // empty profile / rules / tasks
+                val memStore = FileMemoryStore(root.absolutePath)  // empty profile / rules / tasks
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
@@ -134,7 +134,7 @@ class AgentMemoryTest {
     fun `slash agent mode flips the next turn's wire shape mid-session`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root).apply { saveProfile("Kotlin only") }
+                val memStore = FileMemoryStore(root.absolutePath).apply { saveProfile("Kotlin only") }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply {
@@ -165,7 +165,7 @@ class AgentMemoryTest {
     fun `slash rule adds a numbered rule file`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root)
+                val memStore = FileMemoryStore(root.absolutePath)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
@@ -190,7 +190,7 @@ class AgentMemoryTest {
     fun `slash task sets active id and slash task-note appends to it`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root)
+                val memStore = FileMemoryStore(root.absolutePath)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
@@ -215,7 +215,7 @@ class AgentMemoryTest {
     fun `slash task note without an active task does not crash and writes nothing`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root)
+                val memStore = FileMemoryStore(root.absolutePath)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
@@ -237,7 +237,7 @@ class AgentMemoryTest {
     fun `slash profile bare lists profiles and leaves the store empty`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root)
+                val memStore = FileMemoryStore(root.absolutePath)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
@@ -262,7 +262,7 @@ class AgentMemoryTest {
         // prompt — the agent sends a second turn and the mode stays put.
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root).apply { saveProfile("anything") }
+                val memStore = FileMemoryStore(root.absolutePath).apply { saveProfile("anything") }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply {
@@ -311,7 +311,7 @@ class AgentMemoryTest {
     fun `structured profile renders subsection labels into the wire`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root).apply {
+                val memStore = FileMemoryStore(root.absolutePath).apply {
                     saveProfileData(
                         ProfileData(
                             style = listOf("кратко", "русский"),
@@ -344,7 +344,7 @@ class AgentMemoryTest {
             var captured: String? = null
             TestDb().use { harness ->
                 withTempMemoryRoot { root ->
-                    val memStore = FileMemoryStore(root).apply { saveProfileData(profile) }
+                    val memStore = FileMemoryStore(root.absolutePath).apply { saveProfileData(profile) }
                     val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
                     val fake = FakeLlmApi().apply { queueText("ok") }
                     val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
@@ -382,7 +382,7 @@ class AgentMemoryTest {
     fun `slash profile section appends a bullet to the store`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root)
+                val memStore = FileMemoryStore(root.absolutePath)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
                 val fake = FakeLlmApi().apply { queueText("ok") }
                 val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
@@ -406,7 +406,7 @@ class AgentMemoryTest {
     fun `slash profile clear drops every section including legacy free text`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root).apply {
+                val memStore = FileMemoryStore(root.absolutePath).apply {
                     saveProfile("legacy free text")
                     addProfileItem(ProfileSection.STYLE, "кратко")
                 }
@@ -434,7 +434,7 @@ class AgentMemoryTest {
     fun `dash profile flag pre-selects the active named profile`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root).apply {
+                val memStore = FileMemoryStore(root.absolutePath).apply {
                     addNamedProfileItem("kotlin-senior", ProfileSection.STYLE, "кратко")
                     addNamedProfileItem("kotlin-senior", ProfileSection.CONSTRAINTS, "Kotlin")
                 }
@@ -460,7 +460,7 @@ class AgentMemoryTest {
     fun `slash profile name switches the active profile and the next turn picks the new wire`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root).apply {
+                val memStore = FileMemoryStore(root.absolutePath).apply {
                     addNamedProfileItem("kotlin-senior", ProfileSection.STYLE, "кратко")
                     addNamedProfileItem("python-junior", ProfileSection.STYLE, "подробно")
                 }
@@ -497,7 +497,7 @@ class AgentMemoryTest {
     fun `slash profile name section appends to the named profile even when it is not active`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = FileMemoryStore(root)
+                val memStore = FileMemoryStore(root.absolutePath)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
                 val fake = FakeLlmApi().apply { queueText("ok") }
                 val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")

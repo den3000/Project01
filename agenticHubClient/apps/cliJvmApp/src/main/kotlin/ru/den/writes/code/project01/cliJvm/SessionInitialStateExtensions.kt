@@ -41,7 +41,7 @@ internal fun StartCommand.SessionInitialState.memoryProvider(): MemoryProvider? 
     is StartCommand.RunChat -> config.memoryMode?.let { mode ->
         MEMORY_ROOT.mkdirs()
         MemoryProvider(
-            store = FileMemoryStore(MEMORY_ROOT),
+            store = FileMemoryStore(MEMORY_ROOT.absolutePath),
             initialMode = mode,
             initialTaskId = config.task,
             initialProfileName = config.profile,
