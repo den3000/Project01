@@ -25,7 +25,7 @@ import androidx.room.Entity
  * everything unchanged.
  */
 @Entity(tableName = "summaries", primaryKeys = ["session_id", "branch_id"])
-internal data class SummaryEntity(
+public data class SummaryEntity(
     @ColumnInfo(name = "session_id") val sessionId: String,
     @ColumnInfo(name = "summary_text") val summaryText: String,
     @ColumnInfo(name = "covered_count") val coveredCount: Int,

@@ -19,7 +19,7 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
  * [PricingRegistry]) are still counted toward token totals but contribute
  * zero cost; that's "best honest answer" — we don't fabricate a rate.
  */
-internal fun SessionStats.seedFrom(rows: List<MessageEntity>, pricing: (String) -> ModelPricing?) {
+public fun SessionStats.seedFrom(rows: List<MessageEntity>, pricing: (String) -> ModelPricing?) {
     rows.forEach { row ->
         val usage = row.toUsageOrNull() ?: return@forEach
         val cost = row.modelId?.let(pricing)?.let { PricingRegistry.cost(usage, it) } ?: 0.0

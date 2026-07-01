@@ -29,7 +29,7 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
  * (switchable via [switchTo]); all load/append/summary/facts operations are
  * scoped to that (session, branch) pair.
  */
-internal class RoomHistoryStore(
+public class RoomHistoryStore(
     private val dao: MessageDao,
     private val sessionId: String,
     initialBranch: String = DEFAULT_BRANCH,

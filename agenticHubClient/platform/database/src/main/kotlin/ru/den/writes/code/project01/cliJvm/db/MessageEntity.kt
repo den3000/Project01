@@ -6,7 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /** Default branch every session lives on until the user forks one. */
-internal const val DEFAULT_BRANCH: String = "main"
+public const val DEFAULT_BRANCH: String = "main"
 
 /**
  * One persisted message row.
@@ -40,7 +40,7 @@ internal const val DEFAULT_BRANCH: String = "main"
     tableName = "messages",
     indices = [Index(value = ["session_id", "branch_id"])],
 )
-internal data class MessageEntity(
+public data class MessageEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     @ColumnInfo(name = "session_id") val sessionId: String,
     val role: String,

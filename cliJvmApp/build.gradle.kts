@@ -3,7 +3,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.kotlinSerialization)
-    alias(libs.plugins.ksp)
     application
 }
 
@@ -11,6 +10,7 @@ dependencies {
     implementation(projects.shared)
     implementation(projects.agenticHubClient.features.viewModel)
     implementation(projects.agenticHubClient.platform.config)
+    implementation(projects.agenticHubClient.platform.database)
     implementation(projects.scheduling)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.java)
@@ -28,7 +28,6 @@ dependencies {
     implementation(libs.mordant)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.sqlite.bundled)
-    ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.kotlin.testJunit)
     testImplementation(libs.junit)

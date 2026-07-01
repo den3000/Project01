@@ -15,7 +15,7 @@ import androidx.room.Entity
  * Cost is recomputed from tokens + model, never stored.
  */
 @Entity(tableName = "facts", primaryKeys = ["session_id", "branch_id"])
-internal data class FactsEntity(
+public data class FactsEntity(
     @ColumnInfo(name = "session_id") val sessionId: String,
     @ColumnInfo(name = "branch_id") val branchId: String = DEFAULT_BRANCH,
     @ColumnInfo(name = "facts_json") val factsJson: String,

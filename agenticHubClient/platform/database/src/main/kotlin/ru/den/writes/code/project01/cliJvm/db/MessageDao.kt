@@ -16,7 +16,7 @@ import androidx.room.Upsert
  * with no extra ceremony.
  */
 @Dao
-internal interface MessageDao {
+public interface MessageDao {
     @Query("SELECT * FROM messages WHERE session_id = :sessionId AND branch_id = :branchId ORDER BY id ASC")
     suspend fun all(sessionId: String, branchId: String = DEFAULT_BRANCH): List<MessageEntity>
 
@@ -162,7 +162,7 @@ internal interface MessageDao {
 }
 
 /** Row shape returned by [MessageDao.listSessions]. */
-internal data class SessionSummary(
+public data class SessionSummary(
     val sessionId: String,
     val branchId: String,
     val count: Int,

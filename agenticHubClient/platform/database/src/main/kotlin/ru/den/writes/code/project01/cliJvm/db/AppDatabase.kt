@@ -38,7 +38,7 @@ import androidx.sqlite.execSQL
     // needed and Room's "missing schema-location" warning is silenced.
     exportSchema = false,
 )
-internal abstract class AppDatabase : RoomDatabase() {
+public abstract class AppDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
 }
 
@@ -48,7 +48,7 @@ internal abstract class AppDatabase : RoomDatabase() {
  * after the upgrade — they just have NULLs in the new fields, which is
  * exactly what HistoryStore expects for "no token data was recorded".
  */
-internal val MIGRATION_1_2: Migration = object : Migration(1, 2) {
+public val MIGRATION_1_2: Migration = object : Migration(1, 2) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("ALTER TABLE messages ADD COLUMN model_id TEXT")
         connection.execSQL("ALTER TABLE messages ADD COLUMN prompt_tokens INTEGER")
@@ -68,7 +68,7 @@ internal val MIGRATION_1_2: Migration = object : Migration(1, 2) {
  * schema JSON to diff against, so if this drifts from the entity Room's
  * runtime identity check throws on the first open of a migrated DB.
  */
-internal val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+public val MIGRATION_2_3: Migration = object : Migration(2, 3) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL(
             "CREATE TABLE IF NOT EXISTS `summaries` (" +
@@ -101,7 +101,7 @@ internal val MIGRATION_2_3: Migration = object : Migration(2, 3) {
  * throws on first open. The CREATE statements are copied verbatim from the
  * generated `AppDatabase_Impl.createAllTables`.
  */
-internal val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+public val MIGRATION_3_4: Migration = object : Migration(3, 4) {
     override fun migrate(connection: SQLiteConnection) {
         // messages: rebuild with branch_id (backfilled 'main') + composite index.
         connection.execSQL(
