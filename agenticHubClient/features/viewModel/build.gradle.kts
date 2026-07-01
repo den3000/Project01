@@ -9,6 +9,7 @@ dependencies {
     // Portable conversation runtime (MVI stack + agent routing + ports). Depends
     // on the domain features; scheduling is JVM-only, so this module is JVM for
     // now (KMP-ification — expect/actual for the platform ports — is deferred).
+    api(projects.agenticHubClient.features.memory)
     api(projects.agenticHubClient.features.agent)
     implementation(projects.agenticHubClient.platform.logging)
     implementation(projects.scheduling)

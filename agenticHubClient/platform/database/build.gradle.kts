@@ -31,12 +31,6 @@ kotlin {
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.kotlinx.coroutinesCore)
         }
-        jvmMain.dependencies {
-            // RoomHistoryStore bridges the Room DB to the (JVM-only) conversation
-            // runtime: it implements the HistoryStore port and seeds SessionStats.
-            implementation(projects.agenticHubClient.features.viewModel)
-            implementation(projects.agenticHubClient.features.agent)
-        }
     }
 }
 
