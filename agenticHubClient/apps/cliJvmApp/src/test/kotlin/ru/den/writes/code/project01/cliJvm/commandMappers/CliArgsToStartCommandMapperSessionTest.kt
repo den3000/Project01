@@ -1,10 +1,11 @@
 package ru.den.writes.code.project01.cliJvm.commandMappers
 
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+
 import ru.den.writes.code.project01.cliJvm.SessionCommand
-import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 
 /**
  * session entity + adjacent admin (inflate / memory): startup → admin StartCommand;
@@ -27,7 +28,7 @@ class CliArgsToStartCommandMapperSessionTest {
         )
 
         // when - then
-        cases.forEach { (input, expected) -> assertEquals(expected, mapper.parse(input.toArgsArray()), input) }
+        cases.forEach { (input, expected) -> assertEquals(expected, mapper.parseOk(input.toArgsArray()), input) }
     }
 
     @Test
@@ -40,10 +41,10 @@ class CliArgsToStartCommandMapperSessionTest {
 
         // when - then
         notExpressible.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
+            mapper.assertInvalid(input.toArgsArray(), input)
         }
         // inflate without a session is a missing-required, not an invalid-value
-        assertFailsWith<CliArgsException.MissingRequiredArgument> { mapper.parse("-inflate 5".toArgsArray()) }
+        assertIs<ParseError.MissingArg>(mapper.parseErr("-inflate 5".toArgsArray()))
     }
     //endregion
 

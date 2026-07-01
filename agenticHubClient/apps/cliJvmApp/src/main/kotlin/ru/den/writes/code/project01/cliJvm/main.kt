@@ -2,8 +2,10 @@ package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommandMapper
 import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgsToStartCommandMapper
+import ru.den.writes.code.project01.cliJvm.commandMappers.ParsedStartCommand
 import ru.den.writes.code.project01.cliJvm.cliargs.USAGE
 import ru.den.writes.code.project01.cliJvm.db.buildDatabase
 import kotlin.system.exitProcess
@@ -32,14 +34,15 @@ suspend fun main(args: Array<String>) {
     val startMapper = CliArgsToStartCommandMapper(parser, ModelProviderFactory(keys))
     val sessionMapper = CliArgToSessionCommandMapper(parser)
 
-    val command = try {
-        startMapper.parse(args)
-    } catch (e: CliArgsException) {
-        System.err.println(e.message)
-        if (e is CliArgsException.MissingRequiredArgument) {
-            System.err.println(USAGE)
+    val command = when (val outcome = startMapper.parse(args)) {
+        is ParsedStartCommand.Ok -> outcome.command
+        is ParsedStartCommand.Err -> {
+            System.err.println(outcome.error.message)
+            if (outcome.error is ParseError.MissingArg) {
+                System.err.println(USAGE)
+            }
+            exitProcess(1)
         }
-        exitProcess(1)
     }
 
     val db = buildDatabase()

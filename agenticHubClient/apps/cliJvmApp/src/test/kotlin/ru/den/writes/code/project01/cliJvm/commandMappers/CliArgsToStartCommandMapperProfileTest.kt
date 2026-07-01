@@ -1,11 +1,12 @@
 package ru.den.writes.code.project01.cliJvm.commandMappers
 
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+
 import ru.den.writes.code.project01.cliJvm.SessionCommand
-import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 
 /** profile entity: startup `-profile` → MemoryOp, in-session `/profile` → SessionCommand. */
 class CliArgsToStartCommandMapperProfileTest {
@@ -35,7 +36,7 @@ class CliArgsToStartCommandMapperProfileTest {
             kotlin.test.assertEquals(
                 ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
                     action
-                ), mapper.parse(input.toArgsArray()), input
+                ), mapper.parseOk(input.toArgsArray()), input
             )
         }
     }
@@ -57,7 +58,7 @@ class CliArgsToStartCommandMapperProfileTest {
                 kotlin.test.assertEquals(
                     ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
                         action
-                    ), mapper.parse(input.toArgsArray()), input
+                    ), mapper.parseOk(input.toArgsArray()), input
                 )
             }
         }
@@ -74,7 +75,7 @@ class CliArgsToStartCommandMapperProfileTest {
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
+            mapper.assertInvalid(input.toArgsArray(), input)
         }
     }
     //endregion

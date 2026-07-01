@@ -1,10 +1,11 @@
 package ru.den.writes.code.project01.cliJvm.commandMappers
 
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+
 import ru.den.writes.code.project01.cliJvm.SessionCommand
-import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 
 /** branch entity: command-only — no startup `-branch`; in-session `/branch` → SessionCommand. */
 class CliArgsToStartCommandMapperBranchTest {
@@ -20,7 +21,7 @@ class CliArgsToStartCommandMapperBranchTest {
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
+            mapper.assertInvalid(input.toArgsArray(), input)
         }
     }
     //endregion

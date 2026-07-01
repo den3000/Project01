@@ -1,7 +1,8 @@
 package ru.den.writes.code.project01.cliJvm.commandMappers
 
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+
 import ru.den.writes.code.project01.cliJvm.SessionCommand
-import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.shared.llm.ModelProvider
@@ -10,7 +11,6 @@ import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
@@ -25,7 +25,7 @@ class CliArgsToStartCommandMapperAgentTest {
         val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val actual = mapper.parse("-prompt hi".toArgsArray())
+        val actual = mapper.parseOk("-prompt hi".toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -50,7 +50,7 @@ class CliArgsToStartCommandMapperAgentTest {
             "-agent main provider openrouter model deepseek/deepseek-r1:free maxTokens 100 temperature 1.2 stopSequence \"stop1 stop2\" endSequence ### mode system profile coder"
 
         // when
-        val actual = mapper.parse(input.toArgsArray())
+        val actual = mapper.parseOk(input.toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -97,14 +97,12 @@ class CliArgsToStartCommandMapperAgentTest {
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) {
-                mapper.parse(input.toArgsArray())
-            }
+            mapper.assertInvalid(input.toArgsArray(), input)
         }
 
-        assertFailsWith<CliArgsException.TooManyValues> {
-            mapper.parse("-prompt hi -agent main stopSequence \"a b c d e f\"".toArgsArray())
-        }
+        assertIs<ParseError.TooManyValues>(
+            mapper.parseErr("-prompt hi -agent main stopSequence \"a b c d e f\"".toArgsArray()),
+        )
     }
 
     @Test
@@ -118,7 +116,7 @@ class CliArgsToStartCommandMapperAgentTest {
             "-agent provider openrouter model deepseek/deepseek-r1:free judge stages clarification..done"
 
         // when
-        val actual = mapper.parse(input.toArgsArray())
+        val actual = mapper.parseOk(input.toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -155,9 +153,7 @@ class CliArgsToStartCommandMapperAgentTest {
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) {
-                mapper.parse(input.toArgsArray())
-            }
+            mapper.assertInvalid(input.toArgsArray(), input)
         }
     }
     //endregion

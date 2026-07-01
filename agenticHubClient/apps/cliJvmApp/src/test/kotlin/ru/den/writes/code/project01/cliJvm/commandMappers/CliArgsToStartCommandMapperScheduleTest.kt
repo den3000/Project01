@@ -1,10 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.SessionCommand
-import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertIs
 
 /**
@@ -22,13 +21,13 @@ class CliArgsToStartCommandMapperScheduleTest {
 
         // when
         val collect = assertIs<ru.den.writes.code.project01.cliJvm.command.StartCommand.RunChat>(
-            mapper.parse("-prompt hi -mcpServer \"lab\" -schedule collect tool weather args \"{}\" after 30".toArgsArray()),
+            mapper.parseOk("-prompt hi -mcpServer \"lab\" -schedule collect tool weather args \"{}\" after 30".toArgsArray()),
         )
         val agent = assertIs<ru.den.writes.code.project01.cliJvm.command.StartCommand.RunChat>(
-            mapper.parse("-prompt hi -schedule agent prompt \"do x\" every 60".toArgsArray()),
+            mapper.parseOk("-prompt hi -schedule agent prompt \"do x\" every 60".toArgsArray()),
         )
         val multiple = assertIs<ru.den.writes.code.project01.cliJvm.command.StartCommand.RunChat>(
-            mapper.parse("-prompt hi -schedule agent prompt \"a\" after 10 -schedule agent prompt \"b\" every 20".toArgsArray()),
+            mapper.parseOk("-prompt hi -schedule agent prompt \"a\" after 10 -schedule agent prompt \"b\" every 20".toArgsArray()),
         )
 
         // then — after = one-shot (periodic false), every = periodic true; repeated -schedule accumulates
@@ -50,7 +49,7 @@ class CliArgsToStartCommandMapperScheduleTest {
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException>(input) { mapper.parse(input.toArgsArray()) }
+            assertNotNull(mapper.parseErr(input.toArgsArray()), input)
         }
     }
     //endregion

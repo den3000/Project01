@@ -4,6 +4,8 @@ import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODEL
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROVIDER
 import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
 import ru.den.writes.code.project01.cliJvm.cliargs.subValue
+import ru.den.writes.code.project01.cliJvm.commandMappers.bailInvalid
+import ru.den.writes.code.project01.cliJvm.commandMappers.bailMissing
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.ModelProviderError
 import ru.den.writes.code.project01.shared.llm.PROVIDER_GEMINI
@@ -22,8 +24,10 @@ internal data class ApiKeys(
  * The one place the provider API keys live after startup. Resolves a parsed
  * `-agent provider/model` (its `provider`/`model` sub-values) into a typed
  * [ModelProvider] via the neutral `buildModelProvider` (features:llm), injecting
- * the keys. Translates its [ModelProviderError] into the CLI's [CliArgsException]
- * so `main` can print USAGE on a missing key. Built once in `main` from [ApiKeys].
+ * the keys. Translates its [ModelProviderError] into a [ParseError] (via the
+ * mapper's bail helpers) so `main` renders it + USAGE on a missing key. Built once
+ * in `main` from [ApiKeys]; `buildProvider` runs inside the mapper, so its bail
+ * propagates to `parse()`'s [ParsedStartCommand.Err].
  */
 internal class ModelProviderFactory(private val keys: ApiKeys) {
     fun buildProvider(agent: ParsedArg?): ModelProvider =
@@ -34,11 +38,9 @@ internal class ModelProviderFactory(private val keys: ApiKeys) {
                 keys.gemini, keys.openRouter, keys.huggingFace,
             )
         } catch (e: ModelProviderError.MissingApiKey) {
-            throw CliArgsException.MissingRequiredArgument(
-                e.keyName, "set ${e.keyName} in local.properties or as an env var",
-            )
+            bailMissing(e.keyName, "set ${e.keyName} in local.properties or as an env var")
         } catch (e: ModelProviderError.UnknownProvider) {
-            throw CliArgsException.InvalidArgumentValue(
+            bailInvalid(
                 "-provider", e.providerRaw,
                 "one of: $PROVIDER_GEMINI, $PROVIDER_OPENROUTER, $PROVIDER_HUGGINGFACE",
             )

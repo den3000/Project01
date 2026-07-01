@@ -1,12 +1,12 @@
 package ru.den.writes.code.project01.cliJvm.commandMappers
 
-import ru.den.writes.code.project01.cliJvm.CliArgsException
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
@@ -24,7 +24,7 @@ class CliArgsToStartCommandMapperChatTest {
         val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val actual = mapper.parse("-prompt hi".toArgsArray())
+        val actual = mapper.parseOk("-prompt hi".toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -62,7 +62,7 @@ class CliArgsToStartCommandMapperChatTest {
             "-tui -mcpServer \"mcpLab --serve\""
 
         // when
-        val actual = mapper.parse(input.toArgsArray())
+        val actual = mapper.parseOk(input.toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -87,8 +87,8 @@ class CliArgsToStartCommandMapperChatTest {
         val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val byLine = mapper.parse("-prompt hi -feedFile /path byLine".toArgsArray())
-        val window = mapper.parse("-prompt hi -strategy window keepLast 4".toArgsArray())
+        val byLine = mapper.parseOk("-prompt hi -feedFile /path byLine".toArgsArray())
+        val window = mapper.parseOk("-prompt hi -strategy window keepLast 4".toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(byLine)
@@ -104,8 +104,8 @@ class CliArgsToStartCommandMapperChatTest {
         val mapper = createCliArgsToStartCommandMapper()
 
         // when - then
-        assertIs<StartCommand.RunChat>(mapper.parse("-prompt hi".toArgsArray()))
-        assertIs<StartCommand.RunOneShot>(mapper.parse("-prompt hi -oneshot".toArgsArray()))
+        assertIs<StartCommand.RunChat>(mapper.parseOk("-prompt hi".toArgsArray()))
+        assertIs<StartCommand.RunOneShot>(mapper.parseOk("-prompt hi -oneshot".toArgsArray()))
     }
 
     @Test
@@ -114,14 +114,14 @@ class CliArgsToStartCommandMapperChatTest {
         val mapper = createCliArgsToStartCommandMapper()
 
         // when - then
-        assertFailsWith<CliArgsException.MissingRequiredArgument> { mapper.parse("".toArgsArray()) }
+        assertIs<ParseError.MissingArg>(mapper.parseErr("".toArgsArray()))
         val cases = listOf(
             "-nope",                // unknown control
             "-prompt tell me",      // unquoted trailing word
             "-strategy bogus",      // bad enum value (parse-error bridge)
         )
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
+            mapper.assertInvalid(input.toArgsArray(), input)
         }
     }
 
@@ -131,7 +131,7 @@ class CliArgsToStartCommandMapperChatTest {
         val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val actual = mapper.parse("-prompt hi -mcpServer \"lab --serve\" -mcpServer \"docs --serve\"".toArgsArray())
+        val actual = mapper.parseOk("-prompt hi -mcpServer \"lab --serve\" -mcpServer \"docs --serve\"".toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -146,7 +146,7 @@ class CliArgsToStartCommandMapperChatTest {
         val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val actual = mapper.parse("-prompt hi -oneshot".toArgsArray())
+        val actual = mapper.parseOk("-prompt hi -oneshot".toArgsArray())
 
         // then
         val oneShot = assertIs<StartCommand.RunOneShot>(actual)
@@ -166,7 +166,7 @@ class CliArgsToStartCommandMapperChatTest {
             "-agent provider openrouter model deepseek/deepseek-r1:free maxTokens 100 temperature 1.2 stopSequence \"stop1 stop2\" endSequence ###"
 
         // when
-        val actual = mapper.parse(input.toArgsArray())
+        val actual = mapper.parseOk(input.toArgsArray())
 
         // then
         val oneShot = assertIs<StartCommand.RunOneShot>(actual)

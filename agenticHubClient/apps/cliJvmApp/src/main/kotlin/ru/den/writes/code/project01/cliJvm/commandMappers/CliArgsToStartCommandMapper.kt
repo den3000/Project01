@@ -1,6 +1,5 @@
 package ru.den.writes.code.project01.cliJvm.commandMappers
 
-import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.ModelProviderFactory
 import ru.den.writes.code.project01.shared.llm.MAX_STOP_SEQUENCES
@@ -51,7 +50,7 @@ import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
 import ru.den.writes.code.project01.cliJvm.cliargs.has
 import ru.den.writes.code.project01.cliJvm.cliargs.last
 import ru.den.writes.code.project01.cliJvm.cliargs.subValue
-import ru.den.writes.code.project01.cliJvm.cliargs.toCliArgsException
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 import ru.den.writes.code.project01.cliJvm.command.MemoryAction
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
@@ -60,6 +59,31 @@ import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskStage
+
+/**
+ * The outcome of [CliArgsToStartCommandMapper.parse]: a mapped [StartCommand], or a
+ * [ParseError] describing the first rejection (rendered by `main`).
+ */
+internal sealed interface ParsedStartCommand {
+    data class Ok(val command: StartCommand) : ParsedStartCommand
+    data class Err(val error: ParseError) : ParsedStartCommand
+}
+
+/**
+ * Early-exit carrier: a deep post-parse check throws this; [CliArgsToStartCommandMapper.parse]
+ * catches it and turns it into [ParsedStartCommand.Err]. Never escapes the mapper.
+ */
+internal class MapBail(val error: ParseError) : RuntimeException()
+
+/** Bail out of mapping with a post-parse semantic [ParseError]. */
+internal fun bailMissing(argName: String, detail: String? = null): Nothing =
+    throw MapBail(ParseError.MissingRequired(argName, detail))
+
+internal fun bailInvalid(argName: String, rawValue: String, expectedType: String): Nothing =
+    throw MapBail(ParseError.Invalid(argName, rawValue, expectedType))
+
+internal fun bailTooMany(argName: String, count: Int, maxAllowed: Int): Nothing =
+    throw MapBail(ParseError.TooManyValues(argName, count, maxAllowed))
 
 /**
  * The runtime arg front: parse args with the cliargs grammar and map the top-level
@@ -76,14 +100,18 @@ internal class CliArgsToStartCommandMapper(
 ) {
 
     /**
-     * Parse [args] with the cliargs grammar and map them onto a [ru.den.writes.code.project01.cliJvm.command.StartCommand].
-     *
-     * @throws CliArgsException on invalid input (the type `main` prints).
+     * Parse [args] with the cliargs grammar and map them onto a [StartCommand], or
+     * return a [ParseError] describing the first rejection (`main` renders it +
+     * USAGE for the [ParseError.MissingArg] family).
      */
-    fun parse(args: Array<String>): StartCommand {
+    fun parse(args: Array<String>): ParsedStartCommand {
         val batch = parser.parseArgv(args.toList())
-        batch.errors.firstOrNull()?.let { throw it.toCliArgsException() }
-        return map(batch.controls)
+        batch.errors.firstOrNull()?.let { return ParsedStartCommand.Err(it) }
+        return try {
+            ParsedStartCommand.Ok(map(batch.controls))
+        } catch (b: MapBail) {
+            ParsedStartCommand.Err(b.error)
+        }
     }
 
     private fun map(controls: List<ParsedArg>): StartCommand {
@@ -97,7 +125,7 @@ internal class CliArgsToStartCommandMapper(
         val agents = controls.filter { it.arg == AGENT }
         val primaries = agents.filter { it.sub(JUDGE) == null && it.sub(STAGES) == null }
         if (primaries.size > 1) {
-            throw CliArgsException.InvalidArgumentValue("-agent", "(multiple)", "exactly one agent without stages/judge")
+            bailInvalid("-agent", "(multiple)", "exactly one agent without stages/judge")
         }
         val primary = primaries.singleOrNull()
 
@@ -117,10 +145,10 @@ internal class CliArgsToStartCommandMapper(
         val judgeAgents = agents.filter { it.sub(JUDGE) != null }.map { judgeSpec(it) }
         val memoryMode = memoryMode(primary?.subValue(MODE))
         if (stageAgents.isNotEmpty() && memoryMode == null) {
-            throw CliArgsException.InvalidArgumentValue("-agent", "stages", "stage agents need a memory mode")
+            bailInvalid("-agent", "stages", "stage agents need a memory mode")
         }
         if (judgeAgents.isNotEmpty() && stageAgents.isEmpty()) {
-            throw CliArgsException.InvalidArgumentValue("-agent", "judge", "a judge needs a stage agent")
+            bailInvalid("-agent", "judge", "a judge needs a stage agent")
         }
         val feed = controls.last(FEED_FILE)
         val strategy = controls.last(STRATEGY)
@@ -158,10 +186,10 @@ internal class CliArgsToStartCommandMapper(
 
     private fun judgeSpec(agent: ParsedArg): StageJudgeSpec {
         if (agent.sub(STAGES) == null) {
-            throw CliArgsException.InvalidArgumentValue("-agent", "judge", "a judge needs a stage span")
+            bailInvalid("-agent", "judge", "a judge needs a stage span")
         }
         if (agent.sub(PROFILE) != null) {
-            throw CliArgsException.InvalidArgumentValue("-agent", "judge", "a judge takes no profile")
+            bailInvalid("-agent", "judge", "a judge takes no profile")
         }
         return StageJudgeSpec(stageBinding(agent.subValue(STAGES)!!), modelProviderFactory.buildProvider(agent))
     }
@@ -178,7 +206,7 @@ internal class CliArgsToStartCommandMapper(
         val raw = agent?.subValue(STOP_SEQUENCE) ?: return null
         val parts = raw.split(Regex("\\s+")).filter { it.isNotBlank() }
         if (parts.size > MAX_STOP_SEQUENCES) {
-            throw CliArgsException.TooManyValues("-stopSequence", parts.size, MAX_STOP_SEQUENCES)
+            bailTooMany("-stopSequence", parts.size, MAX_STOP_SEQUENCES)
         }
         return parts
     }
@@ -204,23 +232,23 @@ internal class CliArgsToStartCommandMapper(
         val after = c.subValue(AFTER)?.toInt()
         val every = c.subValue(EVERY)?.toInt()
         if (after != null && every != null) {
-            throw CliArgsException.InvalidArgumentValue("-schedule", "after+every", "use exactly one of after / every")
+            bailInvalid("-schedule", "after+every", "use exactly one of after / every")
         }
         val seconds = after ?: every
-            ?: throw CliArgsException.MissingRequiredArgument("-schedule", "needs after <sec> or every <sec>")
+            ?: bailMissing("-schedule", "needs after <sec> or every <sec>")
         val periodic = every != null
         return when (c.value) {
             "collect" -> ScheduleSpec.Collect(
                 tool = c.subValue(TOOL)
-                    ?: throw CliArgsException.MissingRequiredArgument("-schedule collect", "needs tool <name>"),
+                    ?: bailMissing("-schedule collect", "needs tool <name>"),
                 args = c.subValue(ARGS), seconds = seconds, periodic = periodic,
             )
             "agent" -> ScheduleSpec.Agent(
                 prompt = c.subValue(PROMPT)
-                    ?: throw CliArgsException.MissingRequiredArgument("-schedule agent", "needs prompt <text>"),
+                    ?: bailMissing("-schedule agent", "needs prompt <text>"),
                 seconds = seconds, periodic = periodic,
             )
-            else -> throw CliArgsException.InvalidArgumentValue("-schedule", c.value ?: "", "collect or agent")
+            else -> bailInvalid("-schedule", c.value ?: "", "collect or agent")
         }
     }
 
@@ -229,7 +257,7 @@ internal class CliArgsToStartCommandMapper(
     private fun adminCommand(controls: List<ParsedArg>): StartCommand {
         controls.last(INFLATE)?.let { inflate ->
             val session = controls.last(SESSION)?.value
-                ?: throw CliArgsException.MissingRequiredArgument("-session", "required by -inflate")
+                ?: bailMissing("-session", "required by -inflate")
             return StartCommand.InflateSession(session, inflate.value!!.toInt())
         }
         controls.last(SESSION)?.let { session ->
@@ -247,7 +275,7 @@ internal class CliArgsToStartCommandMapper(
         controls.last(PROFILE)?.let { return StartCommand.MemoryOp(profileAction(it)) }
         controls.last(RULE)?.let { return StartCommand.MemoryOp(ruleAction(it)) }
         controls.last(TASK)?.let { return StartCommand.MemoryOp(taskAction(it)) }
-        throw CliArgsException.MissingRequiredArgument("-prompt")
+        bailMissing("-prompt")
     }
 
     private fun profileAction(p: ParsedArg): MemoryAction {
@@ -313,7 +341,7 @@ internal class CliArgsToStartCommandMapper(
     private fun section(arg: CliArg): ProfileSection = ProfileSection.byKeyword(arg.title)!!
 
     private fun gap(what: String): Nothing =
-        throw CliArgsException.InvalidArgumentValue(what, what, "not expressible as a legacy command")
+        bailInvalid(what, what, "not expressible as a legacy command")
 
     private companion object {
         val SECTIONS = listOf(STYLE, FORMAT, CONSTRAINTS, CONTEXT)

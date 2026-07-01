@@ -1,10 +1,11 @@
 package ru.den.writes.code.project01.cliJvm.commandMappers
 
+import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
+
 import ru.den.writes.code.project01.cliJvm.SessionCommand
-import ru.den.writes.code.project01.cliJvm.CliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 
 /** task entity: startup `-task` → MemoryOp, in-session `/task` → SessionCommand. */
 class CliArgsToStartCommandMapperTaskTest {
@@ -27,7 +28,7 @@ class CliArgsToStartCommandMapperTaskTest {
             kotlin.test.assertEquals(
                 ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
                     action
-                ), mapper.parse(input.toArgsArray()), input
+                ), mapper.parseOk(input.toArgsArray()), input
             )
         }
     }
@@ -42,7 +43,7 @@ class CliArgsToStartCommandMapperTaskTest {
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
+            mapper.assertInvalid(input.toArgsArray(), input)
         }
     }
     //endregion
