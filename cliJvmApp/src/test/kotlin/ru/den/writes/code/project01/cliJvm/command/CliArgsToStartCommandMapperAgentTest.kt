@@ -12,15 +12,15 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
-/** ControlsToCommand: partitioning `agent` controls into primary / stage / judge. */
-class ControlsToCommandAgentTest {
+/** CliArgsToStartCommandMapper: partitioning `agent` controls into primary / stage / judge. */
+class CliArgsToStartCommandMapperAgentTest {
 
     //region flags
 
     @Test
     fun `when no agent flag used - then it is parsed to defaults`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
 
         // when
         val actual = parser.parse("-prompt hi".toArgsArray())
@@ -28,7 +28,7 @@ class ControlsToCommandAgentTest {
         // then
         assertIs<StartCommand.RunChat>(actual)
         assertEquals("hi", actual.prompt)
-        // agent-fields default (the full RunChat defaults live in ControlsToCommandChatTest)
+        // agent-fields default (the full RunChat defaults live in CliArgsToStartCommandMapperChatTest)
         assertNull(actual.maxTokens)
         assertNull(actual.stopSequences)
         assertNull(actual.endSequence)
@@ -43,7 +43,7 @@ class ControlsToCommandAgentTest {
     @Test
     fun `when primary agent is configured with custom values - then they land on the command`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val input = "-prompt hi " +
             "-agent main provider openrouter model deepseek/deepseek-r1:free maxTokens 100 temperature 1.2 stopSequence \"stop1 stop2\" endSequence ### mode system profile coder"
 
@@ -82,7 +82,7 @@ class ControlsToCommandAgentTest {
     @Test
     fun `when agent has invalid params - then throws InvalidArgumentValue`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val cases = listOf(
             "-prompt hi -agent main maxTokens -5",
             "-prompt hi -agent main maxTokens abc",
@@ -108,7 +108,7 @@ class ControlsToCommandAgentTest {
     @Test
     fun `when stage and judge agents span the run - then primary mode plus two stage agents and a judge land`() {
         // given — the full multi-agent demo: stages/judge are -agent subs, memory mode is the primary's mode
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val input = "-prompt go -session demo -task auth " +
             "-agent provider gemini model gemini-2.5-flash mode system " +
             "-agent provider gemini model gemini-2.5-pro profile interviewer stages clarification..planning " +
@@ -142,7 +142,7 @@ class ControlsToCommandAgentTest {
     @Test
     fun `when stage or judge configuration violates constraints - then rejected`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val cases = listOf(
             "-prompt hi -agent a -agent b",
             "-prompt hi -agent s stages execution..execution provider gemini model x",

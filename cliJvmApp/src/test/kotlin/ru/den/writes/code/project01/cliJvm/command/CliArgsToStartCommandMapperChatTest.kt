@@ -12,15 +12,15 @@ import kotlin.test.assertNull
 /**
  * The RunChat / RunOneShot construction from non-agent controls: prompt mode +
  * feedFile / strategy / session-field / tui / mcpServer. Owns the full RunChat
- * defaults; agent-fields are covered in ControlsToCommandAgentTest.
+ * defaults; agent-fields are covered in CliArgsToStartCommandMapperAgentTest.
  */
-class ControlsToCommandChatTest {
+class CliArgsToStartCommandMapperChatTest {
 
     //region flags (RunChat)
     @Test
     fun `when no config flags are used - then RunChat defaults`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
 
         // when
         val actual = parser.parse("-prompt hi".toArgsArray())
@@ -54,7 +54,7 @@ class ControlsToCommandChatTest {
     @Test
     fun `when chat config flags are set - then they land on the command`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val input = "-prompt hi -session sess " +
             "-feedFile /path chunkChars 5000 feedInstruction \"feed me\" " +
             "-strategy summary keepLast 8 summarizeEvery 12 " +
@@ -74,7 +74,7 @@ class ControlsToCommandChatTest {
         assertEquals(12, actual.config.summarizeEvery)
         assertEquals(true, actual.config.tui)
         assertEquals(listOf("mcpLab --serve"), actual.config.mcpServers)
-        // agent-fields stay default (owned by ControlsToCommandAgentTest)
+        // agent-fields stay default (owned by CliArgsToStartCommandMapperAgentTest)
         assertNull(actual.maxTokens)
         assertNull(actual.config.profile)
         assertNull(actual.config.memoryMode)
@@ -83,7 +83,7 @@ class ControlsToCommandChatTest {
     @Test
     fun `when alternative feed and strategy forms are used - then they land`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
 
         // when
         val byLine = parser.parse("-prompt hi -feedFile /path byLine".toArgsArray())
@@ -100,7 +100,7 @@ class ControlsToCommandChatTest {
     @Test
     fun `when a prompt mode is selected - then RunChat or RunOneShot`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
 
         // when - then
         assertIs<StartCommand.RunChat>(parser.parse("-prompt hi".toArgsArray()))
@@ -110,7 +110,7 @@ class ControlsToCommandChatTest {
     @Test
     fun `when prompt flags are invalid - then rejected`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
 
         // when - then
         assertFailsWith<CliArgsException.MissingRequiredArgument> { parser.parse("".toArgsArray()) }
@@ -127,7 +127,7 @@ class ControlsToCommandChatTest {
     @Test
     fun `when multiple mcpServer flags are used - then they accumulate into the list`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
 
         // when
         val actual = parser.parse("-prompt hi -mcpServer \"lab --serve\" -mcpServer \"docs --serve\"".toArgsArray())
@@ -142,7 +142,7 @@ class ControlsToCommandChatTest {
     @Test
     fun `when oneshot has no config - then RunOneShot defaults`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
 
         // when
         val actual = parser.parse("-prompt hi -oneshot".toArgsArray())
@@ -160,7 +160,7 @@ class ControlsToCommandChatTest {
     @Test
     fun `when oneshot carries generation knobs - then RunOneShot all-set`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val input = "-prompt hi -oneshot " +
             "-agent provider openrouter model deepseek/deepseek-r1:free maxTokens 100 temperature 1.2 stopSequence \"stop1 stop2\" endSequence ###"
 

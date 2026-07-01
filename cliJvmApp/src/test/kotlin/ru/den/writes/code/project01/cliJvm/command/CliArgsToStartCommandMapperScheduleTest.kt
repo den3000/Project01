@@ -12,13 +12,13 @@ import kotlin.test.assertIs
  * in-session `/schedule` → SessionCommand. `after` = one-shot, `every` = periodic;
  * collect calls an MCP tool (needs -mcpServer), agent runs a prompt.
  */
-class ControlsToCommandScheduleTest {
+class CliArgsToStartCommandMapperScheduleTest {
 
     //region flags
     @Test
     fun `when schedule flags are used - then they map to RunChat schedules`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
 
         // when
         val collect = assertIs<StartCommand.RunChat>(
@@ -40,7 +40,7 @@ class ControlsToCommandScheduleTest {
     @Test
     fun `when schedule flags are invalid - then rejected`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val cases = listOf(
             "-prompt hi -mcpServer \"lab\" -schedule collect tool X after 10 every 20", // after + every
             "-prompt hi -schedule collect after 30",   // collect needs a tool

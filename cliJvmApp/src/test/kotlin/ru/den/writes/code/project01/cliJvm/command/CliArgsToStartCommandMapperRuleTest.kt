@@ -7,13 +7,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /** rule entity: startup `-rule` → MemoryOp, in-session `/rule` → SessionCommand. */
-class ControlsToCommandRuleTest {
+class CliArgsToStartCommandMapperRuleTest {
 
     //region flags
     @Test
     fun `when rule flags are used - then they map to the matching MemoryOp`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val cases = listOf(
             "-rule \"always kotlin\"" to MemoryAction.AddRule("always kotlin"),
             "-rule clear 003" to MemoryAction.RemoveRule("003"),
@@ -29,7 +29,7 @@ class ControlsToCommandRuleTest {
     @Test
     fun `when rule flags are invalid - then rejected`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val cases = listOf(
             "-rule", // bare rule list has no startup target — not expressible
         )

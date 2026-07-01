@@ -11,13 +11,13 @@ import kotlin.test.assertFailsWith
  * the mapper leaves them to the REPL (`null`) — `StdinPromptSource` handles `/quit`,
  * `/exit`, `/reuse` directly, ahead of the catalog classifier.
  */
-class ControlsToCommandCommandOnlyTest {
+class CliArgsToStartCommandMapperCommandOnlyTest {
 
     //region flags
     @Test
     fun `when a command-only control is used as a startup flag - then rejected`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val cases = listOf(
             "-prompt hi -reuse",
             "-prompt hi -exit",

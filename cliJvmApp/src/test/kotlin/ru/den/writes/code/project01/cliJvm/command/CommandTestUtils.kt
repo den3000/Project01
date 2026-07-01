@@ -10,7 +10,7 @@ import ru.den.writes.code.project01.cliJvm.cliargs.toArgsList
  * about the mapped [StartCommand].
  */
 
-internal fun createCommandsParser(): CliArgsToStartCommandMapper =
+internal fun createMapper(): CliArgsToStartCommandMapper =
     CliArgsToStartCommandMapper(
         CliArgsParser(),
         ModelProviderFactory(ApiKeys(DUMMY_GEMINI_KEY, DUMMY_OPENROUTER_KEY, DUMMY_HUGGINGFACE_KEY)),

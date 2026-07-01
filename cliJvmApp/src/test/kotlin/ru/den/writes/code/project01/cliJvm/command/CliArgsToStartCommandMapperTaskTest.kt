@@ -7,13 +7,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /** task entity: startup `-task` → MemoryOp, in-session `/task` → SessionCommand. */
-class ControlsToCommandTaskTest {
+class CliArgsToStartCommandMapperTaskTest {
 
     //region flags
     @Test
     fun `when task flags are used - then they map to the matching MemoryOp`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val cases = listOf(
             "-task auth" to MemoryAction.SetTask("auth"),
             "-task auth pause" to MemoryAction.PauseTask("auth"),
@@ -31,7 +31,7 @@ class ControlsToCommandTaskTest {
     @Test
     fun `when task flags are invalid - then rejected`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val cases = listOf(
             "-task auth note \"did x\"", // task note has no startup target — not expressible
         )

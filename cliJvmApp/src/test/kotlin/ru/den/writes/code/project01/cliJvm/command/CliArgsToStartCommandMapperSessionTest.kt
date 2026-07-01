@@ -10,13 +10,13 @@ import kotlin.test.assertFailsWith
  * session entity + adjacent admin (inflate / memory): startup → admin StartCommand;
  * `/session` isn't an in-session command (→ null), `/memory` shows the layer.
  */
-class ControlsToCommandSessionTest {
+class CliArgsToStartCommandMapperSessionTest {
 
     //region flags
     @Test
     fun `when session, inflate or memory flags are used - then they map to the admin command`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val cases = listOf(
             "-session" to StartCommand.ListSessions,
             "-session clear" to StartCommand.CleanHistory,
@@ -32,7 +32,7 @@ class ControlsToCommandSessionTest {
     @Test
     fun `when session or inflate flags are invalid - then rejected`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val notExpressible = listOf(
             "-session show", // per-session show has no startup target
         )

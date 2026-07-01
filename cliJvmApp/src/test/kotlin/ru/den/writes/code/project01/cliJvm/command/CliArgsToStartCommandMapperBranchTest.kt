@@ -7,13 +7,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /** branch entity: command-only — no startup `-branch`; in-session `/branch` → SessionCommand. */
-class ControlsToCommandBranchTest {
+class CliArgsToStartCommandMapperBranchTest {
 
     //region flags
     @Test
     fun `when branch is used as a startup flag - then rejected (command-only)`() {
         // given
-        val parser = createCommandsParser()
+        val parser = createMapper()
         val cases = listOf(
             "-prompt hi -branch exp", // branch is CMD-only — wrong surface as a flag
         )
