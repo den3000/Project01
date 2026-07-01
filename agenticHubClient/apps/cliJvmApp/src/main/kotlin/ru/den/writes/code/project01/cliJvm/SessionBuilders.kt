@@ -7,18 +7,12 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
-import ru.den.writes.code.project01.shared.agent.AgentConfig
-import ru.den.writes.code.project01.shared.agent.AgentResponder
-import ru.den.writes.code.project01.shared.invariant.LlmInvariantJudge
-import ru.den.writes.code.project01.shared.llm.GenerationParams
-import ru.den.writes.code.project01.shared.llm.buildLlmApi
-import java.util.UUID
 
 /**
- * Builders for the objects a session runs on. Plain functions (no receiver) —
- * each constructs one runtime collaborator from a [StartCommand.RunChat] config
- * and/or a shared [HttpClient]. The getters that *derive* a value from the parsed
- * state live in `SessionInitialStateExtensions`.
+ * App-side wiring for a session: the concrete HTTP client and the MCP-client
+ * fan-out (the one bit that knows about the [McpToolClient] platform impl). The
+ * portable builders (agents/judges/session-id) live in `AgentBuilders` in
+ * features:viewModel.
  */
 
 /** Generous request timeout — LLM responses can take a while. */
@@ -39,37 +33,6 @@ internal fun buildHttpClient(): HttpClient = HttpClient(Java) {
     install(HttpTimeout) {
         requestTimeoutMillis = REQUEST_TIMEOUT_MS
     }
-}
-
-/**
- * Per-stage agents: one [RoutedAgent] per spec, each its own [LlmApi] + fixed
- * profile, sharing [params]. Empty for single-agent sessions.
- */
-internal fun buildRoutedAgents(
-    chat: StartCommand.RunChat?,
-    client: HttpClient,
-    params: GenerationParams,
-): List<RoutedAgent> = chat?.config?.stageAgents.orEmpty().map { spec ->
-    RoutedAgent(
-        binding = spec.binding,
-        responder = AgentResponder(
-            AgentConfig(buildLlmApi(spec.provider, client), params, spec.profileName),
-        ),
-        profileName = spec.profileName,
-        modelId = spec.provider.modelId,
-    )
-}
-
-/** Per-stage invariant judges: one [RoutedJudge] per spec on its own model. */
-internal fun buildJudges(
-    chat: StartCommand.RunChat?,
-    client: HttpClient,
-): List<RoutedJudge> = chat?.config?.judgeAgents.orEmpty().map { spec ->
-    RoutedJudge(
-        binding = spec.binding,
-        checker = LlmInvariantJudge(buildLlmApi(spec.provider, client)),
-        modelId = spec.provider.modelId,
-    )
 }
 
 /** One [McpToolClient] per configured MCP server command (not yet connected). */
@@ -95,9 +58,3 @@ internal suspend fun buildToolRouter(
     }
     .takeIf { it.isNotEmpty() }
     ?.let(::McpToolRouter)
-
-/**
- * Eight-char hex slice off a random UUID — readable, easy to retype, ~4 billion
- * values. Matches `^[a-zA-Z0-9_-]+$`, so it's a valid `-session` to resume.
- */
-internal fun generateSessionId(): String = UUID.randomUUID().toString().take(8)

@@ -13,7 +13,7 @@ import ru.den.writes.code.project01.shared.llm.ToolExecutor
  * (into the serialized MVI loop) and returns null. [actions] is filled after the tasks are
  * added, so it is read at tick time.
  */
-internal class CliTaskHandler(
+public class CliTaskHandler(
     private val actions: Map<String, ScheduleAction>,
     private val toolExecutor: ToolExecutor?,
 ) : TaskHandler {

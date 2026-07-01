@@ -49,7 +49,7 @@ internal suspend fun runSession(
     val llmApi: LlmApi = buildLlmApi(initialState.modelProvider, client)
     val chat = initialState as? StartCommand.RunChat
     val strategy: ContextStrategy = initialState.contextStrategy()
-    val memory: MemoryProvider? = initialState.memoryProvider()
+    val memory: MemoryProvider? = initialState.memoryProvider(MEMORY_ROOT.absolutePath)
     val routedAgents: List<RoutedAgent> = buildRoutedAgents(chat, client, initialState.toGenerationParams())
     val routedJudges: List<RoutedJudge> = buildJudges(chat, client)
     val mcpClients: List<McpToolClient> = buildMcpToolClients(chat).onEach { it.connect() }
