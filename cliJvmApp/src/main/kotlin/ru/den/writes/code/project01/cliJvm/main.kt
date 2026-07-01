@@ -25,7 +25,7 @@ private val DB_FILE: File = File(
 
 /**
  * Bootstrap: read provider keys, parse args into a [StartCommand] (the unified
- * cliargs front), open the database, and hand the command to [CommandExecutor].
+ * cliargs front), open the database, and hand the command to [StartExecutor].
  * Everything the CLI actually *does* lives in the command layer + executor —
  * this stays thin (parse → execute).
  */
@@ -62,7 +62,7 @@ suspend fun main(args: Array<String>) {
         .build()
 
     try {
-        CommandExecutor(db).run(command)
+        StartExecutor(db).run(command)
     } finally {
         db.close()
     }

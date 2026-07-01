@@ -5,7 +5,7 @@ import ru.den.writes.code.project01.shared.llm.ModelProvider
 /**
  * The domain layer — WHAT the CLI was asked to do, decoupled from HOW the args
  * were parsed. A [CommandParser] turns `Array<String>` into one of these; a
- * [CommandExecutor] runs it. Parsing runs through the [CliArgs] front, so
+ * [StartExecutor] runs it. Parsing runs through the [CliArgs] front, so
  * execution stays agnostic to how the args were read.
  */
 internal sealed interface StartCommand {

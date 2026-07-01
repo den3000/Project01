@@ -71,7 +71,7 @@ private val MEMORY_ROOT: File = File(
  * (HTTP client + MVI stack). Owns only the [db]; the HTTP client is opened per
  * prompt-command and closed with it.
  */
-internal class CommandExecutor(private val db: AppDatabase) {
+internal class StartExecutor(private val db: AppDatabase) {
 
     suspend fun run(command: StartCommand) {
         when (command) {

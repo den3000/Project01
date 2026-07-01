@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.command
 
 /**
  * A scheduled task parsed from `-schedule` / `/schedule`: what to run and how often. The
- * runtime ([CommandExecutor]) turns [seconds]/[periodic] into a scheduling Schedule and
+ * runtime ([StartExecutor]) turns [seconds]/[periodic] into a scheduling Schedule and
  * routes by variant — collect calls an MCP tool, agent injects a turn.
  */
 internal sealed interface ScheduleSpec {
