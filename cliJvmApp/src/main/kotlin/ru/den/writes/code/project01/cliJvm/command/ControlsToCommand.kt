@@ -22,11 +22,9 @@ import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MAX_TOKENS
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MCP_SERVER
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MEMORY
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODE
-import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODEL
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.ONESHOT
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROFILE
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROMPT
-import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROVIDER
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.SESSION
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STAGES
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STOP_SEQUENCE
@@ -47,7 +45,6 @@ import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STYLE
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TOOL
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TUI
 import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
-import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskBinding
@@ -63,6 +60,8 @@ import ru.den.writes.code.project01.shared.memory.TaskStage
  * `InvalidArgumentValue` "not expressible …" (see [gap]).
  */
 internal class ControlsToCommand(private val keys: ApiKeys) {
+
+    private val providers = ModelProviderFactory(keys)
 
     fun map(controls: List<ParsedArg>): StartCommand {
         val prompt = controls.last(PROMPT)
@@ -87,7 +86,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
                 stopSequences = stopSequences(primary),
                 endSequence = primary?.subValue(END_SEQUENCE),
                 temperature = primary?.subValue(TEMPERATURE)?.toDouble(),
-                modelProvider = buildProvider(primary),
+                modelProvider = providers.buildProvider(primary),
             )
         }
 
@@ -108,7 +107,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
             stopSequences = stopSequences(primary),
             endSequence = primary?.subValue(END_SEQUENCE),
             temperature = primary?.subValue(TEMPERATURE)?.toDouble(),
-            modelProvider = buildProvider(primary),
+            modelProvider = providers.buildProvider(primary),
             config = SessionConfig(
                 session = controls.last(SESSION)?.value,
                 feedFile = feed?.value,
@@ -130,15 +129,8 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         )
     }
 
-    private fun buildProvider(agent: ParsedArg?): ModelProvider =
-        buildModelProvider(
-            agent?.subValue(PROVIDER) ?: "gemini",
-            agent?.subValue(MODEL),
-            keys.gemini, keys.openRouter, keys.huggingFace,
-        )
-
     private fun stageSpec(agent: ParsedArg): StageAgentSpec =
-        StageAgentSpec(stageBinding(agent.subValue(STAGES)!!), buildProvider(agent), agent.subValue(PROFILE))
+        StageAgentSpec(stageBinding(agent.subValue(STAGES)!!), providers.buildProvider(agent), agent.subValue(PROFILE))
 
     private fun judgeSpec(agent: ParsedArg): StageJudgeSpec {
         if (agent.sub(STAGES) == null) {
@@ -147,7 +139,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         if (agent.sub(PROFILE) != null) {
             throw CliArgsException.InvalidArgumentValue("-agent", "judge", "a judge takes no profile")
         }
-        return StageJudgeSpec(stageBinding(agent.subValue(STAGES)!!), buildProvider(agent))
+        return StageJudgeSpec(stageBinding(agent.subValue(STAGES)!!), providers.buildProvider(agent))
     }
 
     /** Both ends are already validated (known stages, from ≤ to) by the catalog's StageRange. */
@@ -306,7 +298,3 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         const val DEFAULT_SUMMARIZE_EVERY = 10
     }
 }
-
-private fun ParsedArg.subValue(arg: CliArg): String? = sub(arg)?.value
-private fun List<ParsedArg>.last(arg: CliArg): ParsedArg? = lastOrNull { it.arg == arg }
-private fun List<ParsedArg>.has(arg: CliArg): Boolean = any { it.arg == arg }
