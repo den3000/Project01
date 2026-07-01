@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.agent
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.SessionCommand
-import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
@@ -216,7 +216,7 @@ class PlainViewGoldenTest {
     //region helpers
 
     private suspend fun runPlain(
-        chat: CliCommand.RunPrompt,
+        chat: StartCommand.RunPrompt,
         api: LlmApi,
         store: HistoryStore?,
         primary: IntentSource,
@@ -232,7 +232,7 @@ class PlainViewGoldenTest {
         return captureStdoutStderr { view.run(vm, primary, followUp) }
     }
 
-    private fun goldenChat(prompt: String, session: String?): CliCommand.RunChat =
+    private fun goldenChat(prompt: String, session: String?): StartCommand.RunChat =
         newChat(prompt, session).copy(
             modelProvider = ModelProvider.Gemini(GeminiModel.Custom("golden-stub"), apiKey = "test-key"),
         )

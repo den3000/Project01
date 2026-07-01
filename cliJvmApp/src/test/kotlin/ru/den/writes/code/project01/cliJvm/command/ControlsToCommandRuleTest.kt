@@ -22,7 +22,7 @@ class ControlsToCommandRuleTest {
 
         // when - then
         cases.forEach { (input, action) ->
-            assertEquals(CliCommand.MemoryOp(action), parser.parse(input.toArgsArray()), input)
+            assertEquals(StartCommand.MemoryOp(action), parser.parse(input.toArgsArray()), input)
         }
     }
 

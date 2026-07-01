@@ -3,10 +3,10 @@ package ru.den.writes.code.project01.cliJvm.command
 import ru.den.writes.code.project01.cliJvm.cliargs.toArgsList
 
 /**
- * Shared helpers for the command-mapping tests (`ParsedArg → CliCommand` front).
+ * Shared helpers for the command-mapping tests (`ParsedArg → StartCommand` front).
  * The `argv → ParsedArg` grammar is covered in `cliargs/grammar`; here the
  * input is a single command line, split via [toArgsArray], and the assertions are
- * about the mapped [CliCommand].
+ * about the mapped [StartCommand].
  */
 
 internal fun createCommandsParser(): CliArgsCommandParser =

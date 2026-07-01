@@ -26,7 +26,7 @@ class ControlsToCommandChatTest {
         val actual = parser.parse("-prompt hi".toArgsArray())
 
         // then
-        assertIs<CliCommand.RunChat>(actual)
+        assertIs<StartCommand.RunChat>(actual)
         assertEquals("hi", actual.prompt)
         assertNull(actual.maxTokens)
         assertNull(actual.stopSequences)
@@ -64,7 +64,7 @@ class ControlsToCommandChatTest {
         val actual = parser.parse(input.toArgsArray())
 
         // then
-        assertIs<CliCommand.RunChat>(actual)
+        assertIs<StartCommand.RunChat>(actual)
         assertEquals("sess", actual.config.session)
         assertEquals("/path", actual.config.feedFile)
         assertEquals(5000, actual.config.chunkChars)
@@ -90,9 +90,9 @@ class ControlsToCommandChatTest {
         val window = parser.parse("-prompt hi -strategy window keepLast 4".toArgsArray())
 
         // then
-        assertIs<CliCommand.RunChat>(byLine)
+        assertIs<StartCommand.RunChat>(byLine)
         assertEquals(true, byLine.config.byLine)
-        assertIs<CliCommand.RunChat>(window)
+        assertIs<StartCommand.RunChat>(window)
         assertEquals(ContextStrategyKind.WINDOW, window.config.strategy)
         assertEquals(4, window.config.keepLast)
     }
@@ -103,8 +103,8 @@ class ControlsToCommandChatTest {
         val parser = createCommandsParser()
 
         // when - then
-        assertIs<CliCommand.RunChat>(parser.parse("-prompt hi".toArgsArray()))
-        assertIs<CliCommand.RunOneShot>(parser.parse("-prompt hi -oneshot".toArgsArray()))
+        assertIs<StartCommand.RunChat>(parser.parse("-prompt hi".toArgsArray()))
+        assertIs<StartCommand.RunOneShot>(parser.parse("-prompt hi -oneshot".toArgsArray()))
     }
 
     @Test
@@ -133,7 +133,7 @@ class ControlsToCommandChatTest {
         val actual = parser.parse("-prompt hi -mcpServer \"lab --serve\" -mcpServer \"docs --serve\"".toArgsArray())
 
         // then
-        assertIs<CliCommand.RunChat>(actual)
+        assertIs<StartCommand.RunChat>(actual)
         assertEquals(listOf("lab --serve", "docs --serve"), actual.config.mcpServers)
     }
     //endregion
@@ -148,7 +148,7 @@ class ControlsToCommandChatTest {
         val actual = parser.parse("-prompt hi -oneshot".toArgsArray())
 
         // then
-        val oneShot = assertIs<CliCommand.RunOneShot>(actual)
+        val oneShot = assertIs<StartCommand.RunOneShot>(actual)
         assertEquals("hi", oneShot.prompt)
         assertNull(oneShot.maxTokens)
         assertNull(oneShot.stopSequences)
@@ -168,7 +168,7 @@ class ControlsToCommandChatTest {
         val actual = parser.parse(input.toArgsArray())
 
         // then
-        val oneShot = assertIs<CliCommand.RunOneShot>(actual)
+        val oneShot = assertIs<StartCommand.RunOneShot>(actual)
         assertEquals("hi", oneShot.prompt)
         assertEquals(100, oneShot.maxTokens)
         assertEquals(listOf("stop1", "stop2"), oneShot.stopSequences)

@@ -5,7 +5,7 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
 /**
  * What a memory invocation does — the domain command behind `-memory …` (legacy)
  * and the `profile`/`rule`/`task` entity ops (CliArgs). Carried by
- * [CliCommand.MemoryOp]; executed against the on-disk memory store.
+ * [StartCommand.MemoryOp]; executed against the on-disk memory store.
  */
 internal sealed interface MemoryAction {
     /** Print every layer (mode, profile, rules, active task). */

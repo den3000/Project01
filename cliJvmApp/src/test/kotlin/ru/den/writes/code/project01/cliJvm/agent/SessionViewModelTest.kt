@@ -7,7 +7,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.ChannelIntentSource
-import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.commandCatalog
@@ -422,7 +422,7 @@ class SessionViewModelTest {
     //region helpers
 
     private fun newVm(
-        chat: CliCommand.RunPrompt,
+        chat: StartCommand.RunPrompt,
         api: LlmApi,
         store: HistoryStore?,
         strategy: ContextStrategy = ContextStrategy.FullHistory,
@@ -444,7 +444,7 @@ class SessionViewModelTest {
         return MemoryProvider(store, MemoryMode.PREAMBLE)
     }
 
-    private fun oneShot(prompt: String): CliCommand.RunOneShot = CliCommand.RunOneShot(
+    private fun oneShot(prompt: String): StartCommand.RunOneShot = StartCommand.RunOneShot(
         prompt = prompt,
         maxTokens = null,
         stopSequences = null,

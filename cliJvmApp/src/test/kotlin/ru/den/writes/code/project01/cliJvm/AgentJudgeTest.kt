@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
-import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
@@ -143,7 +143,7 @@ class AgentJudgeTest {
         modelId = "test-judge",
     )
 
-    private fun newChat(prompt: String, session: String?): CliCommand.RunChat = CliCommand.RunChat(
+    private fun newChat(prompt: String, session: String?): StartCommand.RunChat = StartCommand.RunChat(
         prompt = prompt,
         maxTokens = null,
         stopSequences = null,

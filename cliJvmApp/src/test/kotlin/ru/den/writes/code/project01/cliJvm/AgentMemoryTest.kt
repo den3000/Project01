@@ -6,7 +6,7 @@ import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.shared.memory.MemoryLayer
@@ -524,7 +524,7 @@ class AgentMemoryTest {
 
     // --- helpers ----------------------------------------------------
 
-    private fun newChat(prompt: String, session: String?): CliCommand.RunChat = CliCommand.RunChat(
+    private fun newChat(prompt: String, session: String?): StartCommand.RunChat = StartCommand.RunChat(
         prompt = prompt,
         maxTokens = null,
         stopSequences = null,

@@ -32,7 +32,7 @@ class ControlsToCommandProfileTest {
 
         // when - then
         cases.forEach { (input, action) ->
-            assertEquals(CliCommand.MemoryOp(action), parser.parse(input.toArgsArray()), input)
+            assertEquals(StartCommand.MemoryOp(action), parser.parse(input.toArgsArray()), input)
         }
     }
 
@@ -50,7 +50,7 @@ class ControlsToCommandProfileTest {
                 "-profile $kw" to MemoryAction.ClearProfileSection(sec),
             )
             cases.forEach { (input, action) ->
-                assertEquals(CliCommand.MemoryOp(action), parser.parse(input.toArgsArray()), input)
+                assertEquals(StartCommand.MemoryOp(action), parser.parse(input.toArgsArray()), input)
             }
         }
     }

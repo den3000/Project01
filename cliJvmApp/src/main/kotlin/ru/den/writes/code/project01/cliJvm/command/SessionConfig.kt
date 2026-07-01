@@ -11,9 +11,9 @@ import ru.den.writes.code.project01.shared.memory.MemoryMode
  * strategy, memory + task/profile, per-stage agents and judges, the file-feed,
  * MCP servers, schedules, and the TUI toggle.
  *
- * Carried as the typed payload of [CliCommand.RunChat]. Pulled out of the command
+ * Carried as the typed payload of [StartCommand.RunChat]. Pulled out of the command
  * so the "initial config the session runs with" is one named type, distinct from
- * the command envelope ([CliCommand]) and the per-turn knobs ([CliCommand.RunPrompt]).
+ * the command envelope ([StartCommand]) and the per-turn knobs ([StartCommand.RunPrompt]).
  */
 internal data class SessionConfig(
     val session: String?,

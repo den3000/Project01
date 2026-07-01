@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
@@ -190,7 +190,7 @@ class AgentTaskStateTest {
 
     //region helpers
 
-    private fun newChat(prompt: String, session: String?): CliCommand.RunChat = CliCommand.RunChat(
+    private fun newChat(prompt: String, session: String?): StartCommand.RunChat = StartCommand.RunChat(
         prompt = prompt,
         maxTokens = null,
         stopSequences = null,

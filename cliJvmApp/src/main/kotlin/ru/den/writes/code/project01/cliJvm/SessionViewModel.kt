@@ -6,7 +6,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
-import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.shared.memory.MemoryMode
@@ -26,7 +26,7 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
  * [lastReply], and feed continuation keys off the source's own `terminated`.
  */
 internal class SessionViewModel(
-    private val cliArgs: CliCommand.RunPrompt,
+    private val cliArgs: StartCommand.RunPrompt,
     private val engine: TurnEngine,
     private val commandRunner: CommandRunner,
     private val historyStore: HistoryStore?,
@@ -65,7 +65,7 @@ internal class SessionViewModel(
         val inbox = schedulerInbox
         hydrate()
         if (!runTurn(cliArgs.prompt)) primary.onTurnFailed()
-        if (cliArgs is CliCommand.RunOneShot) {
+        if (cliArgs is StartCommand.RunOneShot) {
             effects.send(UiEffect.Exit)
             return@coroutineScope
         }

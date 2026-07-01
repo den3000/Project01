@@ -54,7 +54,7 @@ import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskStage
 
 /**
- * Maps parsed CliArgs top-level [ParsedArg]s onto a domain [CliCommand]
+ * Maps parsed CliArgs top-level [ParsedArg]s onto a domain [StartCommand]
  * — the redesigned grammar's bridge to the same domain the legacy parser feeds.
  * The new grammar bundles provider/model/knobs/stages/judge under `agent`, so a
  * single agent without stages/judge is the "primary" (default agent); agents
@@ -64,14 +64,14 @@ import ru.den.writes.code.project01.shared.memory.TaskStage
  */
 internal class ControlsToCommand(private val keys: ApiKeys) {
 
-    fun map(controls: List<ParsedArg>): CliCommand {
+    fun map(controls: List<ParsedArg>): StartCommand {
         val prompt = controls.last(PROMPT)
         return if (prompt != null) promptCommand(controls, prompt) else adminCommand(controls)
     }
 
     // ---- prompt modes -----------------------------------------------------
 
-    private fun promptCommand(controls: List<ParsedArg>, prompt: ParsedArg): CliCommand {
+    private fun promptCommand(controls: List<ParsedArg>, prompt: ParsedArg): StartCommand {
         val agents = controls.filter { it.arg == AGENT }
         val primaries = agents.filter { it.sub(JUDGE) == null && it.sub(STAGES) == null }
         if (primaries.size > 1) {
@@ -81,7 +81,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
 
         if (controls.has(ONESHOT)) {
             // The catalog already bars session/feed/strategy/tui/mcp/mode/stages/judge with oneshot.
-            return CliCommand.RunOneShot(
+            return StartCommand.RunOneShot(
                 prompt = prompt.value!!,
                 maxTokens = primary?.subValue(MAX_TOKENS)?.toInt(),
                 stopSequences = stopSequences(primary),
@@ -102,7 +102,7 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
         }
         val feed = controls.last(FEED_FILE)
         val strategy = controls.last(STRATEGY)
-        return CliCommand.RunChat(
+        return StartCommand.RunChat(
             prompt = prompt.value!!,
             maxTokens = primary?.subValue(MAX_TOKENS)?.toInt(),
             stopSequences = stopSequences(primary),
@@ -210,27 +210,27 @@ internal class ControlsToCommand(private val keys: ApiKeys) {
 
     // ---- admin modes ------------------------------------------------------
 
-    private fun adminCommand(controls: List<ParsedArg>): CliCommand {
+    private fun adminCommand(controls: List<ParsedArg>): StartCommand {
         controls.last(INFLATE)?.let { inflate ->
             val session = controls.last(SESSION)?.value
                 ?: throw CliArgsException.MissingRequiredArgument("-session", "required by -inflate")
-            return CliCommand.InflateSession(session, inflate.value!!.toInt())
+            return StartCommand.InflateSession(session, inflate.value!!.toInt())
         }
         controls.last(SESSION)?.let { session ->
-            if (session.value == null && session.subs.isEmpty()) return CliCommand.ListSessions
+            if (session.value == null && session.subs.isEmpty()) return StartCommand.ListSessions
             session.sub(CLEAR)?.let { clear ->
                 return when {
-                    clear.value != null -> CliCommand.CleanSession(clear.value)
-                    session.value == null -> CliCommand.CleanHistory
+                    clear.value != null -> StartCommand.CleanSession(clear.value)
+                    session.value == null -> StartCommand.CleanHistory
                     else -> gap("session <name> clear")   // wrong order: use `session clear <name>`
                 }
             }
             gap("session ${session.subs.firstOrNull()?.arg?.title ?: session.value}")
         }
-        controls.last(MEMORY)?.let { return CliCommand.MemoryOp(MemoryAction.Show) }
-        controls.last(PROFILE)?.let { return CliCommand.MemoryOp(profileAction(it)) }
-        controls.last(RULE)?.let { return CliCommand.MemoryOp(ruleAction(it)) }
-        controls.last(TASK)?.let { return CliCommand.MemoryOp(taskAction(it)) }
+        controls.last(MEMORY)?.let { return StartCommand.MemoryOp(MemoryAction.Show) }
+        controls.last(PROFILE)?.let { return StartCommand.MemoryOp(profileAction(it)) }
+        controls.last(RULE)?.let { return StartCommand.MemoryOp(ruleAction(it)) }
+        controls.last(TASK)?.let { return StartCommand.MemoryOp(taskAction(it)) }
         throw CliArgsException.MissingRequiredArgument("-prompt")
     }
 

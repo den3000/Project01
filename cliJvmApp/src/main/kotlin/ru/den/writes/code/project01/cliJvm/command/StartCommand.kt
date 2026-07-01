@@ -8,25 +8,25 @@ import ru.den.writes.code.project01.shared.llm.ModelProvider
  * [CommandExecutor] runs it. Parsing runs through the [CliArgs] front, so
  * execution stays agnostic to how the args were read.
  */
-internal sealed interface CliCommand {
+internal sealed interface StartCommand {
 
     /** Print the saved-session list and exit — no LLM, no app runtime. */
-    data object ListSessions : CliCommand
+    data object ListSessions : StartCommand
 
     /** Wipe every message / summary / fact row and exit. */
-    data object CleanHistory : CliCommand
+    data object CleanHistory : StartCommand
 
     /** Delete one session's history by name (per-session twin of [CleanHistory]). */
-    data class CleanSession(val sessionId: String) : CliCommand
+    data class CleanSession(val sessionId: String) : StartCommand
 
     /** Duplicate the last [n] rows of session [sessionId] in place (dev stress aid). */
-    data class InflateSession(val sessionId: String, val n: Int) : CliCommand
+    data class InflateSession(val sessionId: String, val n: Int) : StartCommand
 
     /** Read or write the on-disk memory files, then exit (no LLM, no session). */
-    data class MemoryOp(val action: MemoryAction) : CliCommand
+    data class MemoryOp(val action: MemoryAction) : StartCommand
 
     /** Common shape of the LLM-talking commands — generation knobs + provider. */
-    sealed interface RunPrompt : CliCommand {
+    sealed interface RunPrompt : StartCommand {
         val prompt: String
         val maxTokens: Int?
         val stopSequences: List<String>?

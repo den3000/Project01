@@ -26,7 +26,7 @@ class ControlsToCommandAgentTest {
         val actual = parser.parse("-prompt hi".toArgsArray())
 
         // then
-        assertIs<CliCommand.RunChat>(actual)
+        assertIs<StartCommand.RunChat>(actual)
         assertEquals("hi", actual.prompt)
         // agent-fields default (the full RunChat defaults live in ControlsToCommandChatTest)
         assertNull(actual.maxTokens)
@@ -51,7 +51,7 @@ class ControlsToCommandAgentTest {
         val actual = parser.parse(input.toArgsArray())
 
         // then
-        assertIs<CliCommand.RunChat>(actual)
+        assertIs<StartCommand.RunChat>(actual)
         assertEquals("hi", actual.prompt)
         assertEquals(100, actual.maxTokens)
         assertEquals(listOf("stop1", "stop2"), actual.stopSequences)
@@ -119,7 +119,7 @@ class ControlsToCommandAgentTest {
         val actual = parser.parse(input.toArgsArray())
 
         // then
-        assertIs<CliCommand.RunChat>(actual)
+        assertIs<StartCommand.RunChat>(actual)
         assertEquals(MemoryMode.SYSTEM, actual.config.memoryMode)
         assertEquals("auth", actual.config.task)
         

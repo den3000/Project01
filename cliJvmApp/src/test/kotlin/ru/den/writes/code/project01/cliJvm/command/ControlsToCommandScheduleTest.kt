@@ -21,13 +21,13 @@ class ControlsToCommandScheduleTest {
         val parser = createCommandsParser()
 
         // when
-        val collect = assertIs<CliCommand.RunChat>(
+        val collect = assertIs<StartCommand.RunChat>(
             parser.parse("-prompt hi -mcpServer \"lab\" -schedule collect tool weather args \"{}\" after 30".toArgsArray()),
         )
-        val agent = assertIs<CliCommand.RunChat>(
+        val agent = assertIs<StartCommand.RunChat>(
             parser.parse("-prompt hi -schedule agent prompt \"do x\" every 60".toArgsArray()),
         )
-        val multiple = assertIs<CliCommand.RunChat>(
+        val multiple = assertIs<StartCommand.RunChat>(
             parser.parse("-prompt hi -schedule agent prompt \"a\" after 10 -schedule agent prompt \"b\" every 20".toArgsArray()),
         )
 

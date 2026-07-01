@@ -24,7 +24,7 @@ private val DB_FILE: File = File(
 )
 
 /**
- * Bootstrap: read provider keys, parse args into a [CliCommand] (the unified
+ * Bootstrap: read provider keys, parse args into a [StartCommand] (the unified
  * cliargs front), open the database, and hand the command to [CommandExecutor].
  * Everything the CLI actually *does* lives in the command layer + executor —
  * this stays thin (parse → execute).

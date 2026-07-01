@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /**
- * session entity + adjacent admin (inflate / memory): startup → admin CliCommand;
+ * session entity + adjacent admin (inflate / memory): startup → admin StartCommand;
  * `/session` isn't an in-session command (→ null), `/memory` shows the layer.
  */
 class ControlsToCommandSessionTest {
@@ -18,11 +18,11 @@ class ControlsToCommandSessionTest {
         // given
         val parser = createCommandsParser()
         val cases = listOf(
-            "-session" to CliCommand.ListSessions,
-            "-session clear" to CliCommand.CleanHistory,
-            "-session clear demo" to CliCommand.CleanSession("demo"),
-            "-inflate 5 -session demo" to CliCommand.InflateSession("demo", 5),
-            "-memory" to CliCommand.MemoryOp(MemoryAction.Show),
+            "-session" to StartCommand.ListSessions,
+            "-session clear" to StartCommand.CleanHistory,
+            "-session clear demo" to StartCommand.CleanSession("demo"),
+            "-inflate 5 -session demo" to StartCommand.InflateSession("demo", 5),
+            "-memory" to StartCommand.MemoryOp(MemoryAction.Show),
         )
 
         // when - then

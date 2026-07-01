@@ -13,7 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.MemoryAction
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
@@ -65,7 +65,7 @@ private val MEMORY_ROOT: File = File(
 )
 
 /**
- * Runs a parsed [CliCommand] against the runtime — the "how" to the parser's
+ * Runs a parsed [StartCommand] against the runtime — the "how" to the parser's
  * "what". Holds the execution logic lifted out of `main`: list / clean /
  * inflate / memory ops (no LLM, no app runtime) and the chat / one-shot path
  * (HTTP client + MVI stack). Owns only the [db]; the HTTP client is opened per
@@ -73,14 +73,14 @@ private val MEMORY_ROOT: File = File(
  */
 internal class CommandExecutor(private val db: AppDatabase) {
 
-    suspend fun run(command: CliCommand) {
+    suspend fun run(command: StartCommand) {
         when (command) {
-            is CliCommand.ListSessions -> printSessionList(db.messageDao())
-            is CliCommand.CleanHistory -> cleanHistory()
-            is CliCommand.CleanSession -> cleanSession(command.sessionId)
-            is CliCommand.InflateSession -> inflateSession(command)
-            is CliCommand.MemoryOp -> handleMemoryCommand(command.action)
-            is CliCommand.RunPrompt -> runPromptCommand(command)
+            is StartCommand.ListSessions -> printSessionList(db.messageDao())
+            is StartCommand.CleanHistory -> cleanHistory()
+            is StartCommand.CleanSession -> cleanSession(command.sessionId)
+            is StartCommand.InflateSession -> inflateSession(command)
+            is StartCommand.MemoryOp -> handleMemoryCommand(command.action)
+            is StartCommand.RunPrompt -> runPromptCommand(command)
         }
     }
 
@@ -227,7 +227,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
      * token counts are cleared so [SessionStats] doesn't double-count usage that
      * was already billed. The next real turn sees the inflated history.
      */
-    private suspend fun inflateSession(command: CliCommand.InflateSession) {
+    private suspend fun inflateSession(command: StartCommand.InflateSession) {
         val dao = db.messageDao()
         val tail = dao.tail(command.sessionId, command.n)
         if (tail.isEmpty()) {
@@ -306,13 +306,13 @@ internal class CommandExecutor(private val db: AppDatabase) {
     /**
      * Shared chat / one-shot path. Both need an HTTP client + an [LlmApi]; they
      * differ only in whether they own a [HistoryStore]. The concrete [LlmApi] is
-     * picked by [CliCommand.RunPrompt.modelProvider]. Chat may swap stdin for a
-     * file-feed source via [CliCommand.RunChat.feedFile]; the reader's lifecycle
+     * picked by [StartCommand.RunPrompt.modelProvider]. Chat may swap stdin for a
+     * file-feed source via [StartCommand.RunChat.feedFile]; the reader's lifecycle
      * is bounded by `use { }` rather than leaked into the session.
      */
-    private suspend fun runPromptCommand(parsed: CliCommand.RunPrompt) {
+    private suspend fun runPromptCommand(parsed: StartCommand.RunPrompt) {
         val historyStore: HistoryStore? = when (parsed) {
-            is CliCommand.RunChat -> {
+            is StartCommand.RunChat -> {
                 val sessionId = parsed.config.session ?: generateSessionId()
                 // "Resume" = a passed name AND existing history under it. Otherwise
                 // it's new — announce the id so the user can return via -session.
@@ -323,7 +323,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
                 }
                 HistoryStore(db.messageDao(), sessionId)
             }
-            is CliCommand.RunOneShot -> null
+            is StartCommand.RunOneShot -> null
         }
 
         // One client for the whole session: avoids the cold-start race that
@@ -349,7 +349,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
             val llmApi: LlmApi = buildLlmApi(parsed.modelProvider)
             // Map the strategy kind to a concrete ContextStrategy, wiring runtime
             // deps. RunOneShot has no history, so the `as?` guard yields FullHistory.
-            val chat = parsed as? CliCommand.RunChat
+            val chat = parsed as? StartCommand.RunChat
             val strategy: ContextStrategy = if (chat == null) {
                 ContextStrategy.FullHistory
             } else when (chat.config.strategy) {
@@ -408,7 +408,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
             val toolDefs = router?.toolDefs.orEmpty()
 
             try {
-                val feedFile = (parsed as? CliCommand.RunChat)?.config?.feedFile
+                val feedFile = (parsed as? StartCommand.RunChat)?.config?.feedFile
                 if (feedFile != null) {
                     // File-driven feed: open the reader, hand a feed source to the
                     // session (line-by-line or fixed chunks), then REPL after EOF.
@@ -442,7 +442,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
                     }
                 } else {
                     // Stdin REPL — TUI when -tui and a real TTY, else plain.
-                    val tuiRequested = (parsed as? CliCommand.RunChat)?.config?.tui ?: false
+                    val tuiRequested = (parsed as? StartCommand.RunChat)?.config?.tui ?: false
                     runSession(
                         cliArgs = parsed,
                         llmApi = llmApi,
@@ -471,7 +471,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
      * 16s throttle applies only to a feed source; interactive stdin runs full speed.
      */
     private suspend fun runSession(
-        cliArgs: CliCommand.RunPrompt,
+        cliArgs: StartCommand.RunPrompt,
         llmApi: LlmApi,
         historyStore: HistoryStore?,
         strategy: ContextStrategy,
@@ -485,7 +485,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
         toolExecutor: ToolExecutor? = null,
     ) {
         val multiAgent = routedAgents.isNotEmpty()
-        val schedules = (cliArgs as? CliCommand.RunChat)?.config?.schedules.orEmpty()
+        val schedules = (cliArgs as? StartCommand.RunChat)?.config?.schedules.orEmpty()
         val schedulerEnabled = schedules.isNotEmpty()
         val engine = TurnEngine(
             cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor,
