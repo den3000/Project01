@@ -447,7 +447,7 @@ Per-entity расширения: `profile <name> <section> [<text>]` (секци
    имя известного контрола — иначе он значение, так доезжают `-3`/`-v`) и гоняет кросс-валидацию.
    Результат — `ParsedArg(spec, value, subs)`; ошибки — типизированный `ParseError`.
 
-Downstream-мапперы живут в `command/`: `CliArgsToStartCommandMapper` (startup args → `StartCommand`;
+Downstream-мапперы живут в `commandMappers/`: `CliArgsToStartCommandMapper` (startup args → `StartCommand`;
 `parse` = `parseArgv` + `map`, держит `CliArgsParser` + `ModelProviderFactory`) и
 `CliArgToSessionCommandMapper` (CMD-строка → `SessionCommand`, держит `CliArgsParser`). Оба маппера
 `main` строит из ОДНОГО `CliArgsParser()`; ключи изолированы в `ModelProviderFactory`. Грамматика
@@ -460,19 +460,20 @@ Downstream-мапперы живут в `command/`: `CliArgsToStartCommandMapper
 | `cliargs/CliArg.kt` | `Surface` + словарь токенов `CliArg` |
 | `cliargs/ArgSpec.kt` | `ValueKind`/`ValueSpec` (декларативная валидация) + `ArgSpec` |
 | `cliargs/CliArgs.kt` | каталог `all` + билдеры `entity()/top()/sub()` + lookups |
-| `cliargs/ParsedArg.kt` | `ParsedArg` + `ParseResult`/`ParseError`/`BatchResult` |
+| `cliargs/ParsedArg.kt` | `ParsedArg` + `ParseResult`/`ParseError`/`BatchResult` + access-хелперы `subValue`/`last`/`has` |
 | `cliargs/CliArgsParser.kt` | парсер обоих фронтов + batch + кросс-валидация |
-| `command/CliArgsToStartCommandMapper.kt` | startup: `parse(args)` = `parseArgv` → `map` → `StartCommand` |
-| `command/CliArgToSessionCommandMapper.kt` | CMD-строка → `SessionCommand` (in-session) |
-| `command/ModelProviders.kt` | `ApiKeys` + `ModelProviderFactory` (изолятор ключей) + `buildModelProvider` |
-| `command/ParsedArgAccess.kt` | `subValue`/`last`/`has` над `ParsedArg` (общие для маппера и фабрики) |
+| `cliargs/ParseErrorMapping.kt` | `ParseError` → `CliArgsException` |
+| `cliargs/Usage.kt` | `USAGE` (ручной текст помощи) |
+| `commandMappers/CliArgsToStartCommandMapper.kt` | startup: `parse(args)` = `parseArgv` → `map` → `StartCommand` |
+| `commandMappers/CliArgToSessionCommandMapper.kt` | CMD-строка → `SessionCommand` (in-session) |
+| `ModelProviders.kt` | `ApiKeys` + `ModelProviderFactory` (изолятор ключей; адаптер `ParsedArg` → `features:llm.buildModelProvider`, транслирует `ModelProviderError` → `CliArgsException`) |
 
 ### Текущие ограничения
 
 - **MCP/инструменты** — пока session-wide (`-mcpServer`); per-agent (`agent <name> mcp …`) не сделано.
 - **`agent mode none` live** — `MemoryMode` не моделирует off-state; отключить инъекцию посреди
   сессии нельзя (только не задать `mode` на старте).
-- **USAGE** — генерируется вручную (`command/Usage.kt`), не из каталога.
+- **USAGE** — генерируется вручную (`cliargs/Usage.kt`), не из каталога.
 - Один `/`-ввод = один контрол; несколько контролов в строке не поддержано.
 
 ## Тесты
@@ -482,6 +483,6 @@ Downstream-мапперы живут в `command/`: `CliArgsToStartCommandMapper
 ```
 
 Offline и быстро — все провайдеры застаблены через `FakeLlmApi`, сети нет. Парсинг покрыт
-`cliargs/*Test` (grammar/crossvalidation) + `command/CliArgsToStartCommandMapper*Test` (оба маппера);
+`cliargs/*Test` (grammar/crossvalidation) + `commandMappers/CliArgsToStartCommandMapper*Test` (оба маппера);
 MVI-стек диалога — через хелпер `runSessionForTest`, байт-в-байт вывод пинит `PlainViewGoldenTest`.
 Ядро LLM/pricing/context/memory живёт в `:shared` — `./gradlew :shared:jvmTest`.
