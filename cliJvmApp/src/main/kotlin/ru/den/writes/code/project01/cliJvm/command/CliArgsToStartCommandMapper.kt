@@ -57,12 +57,12 @@ import ru.den.writes.code.project01.shared.memory.TaskStage
  * provider/model/knobs/stages/judge under `agent`, so a single agent without
  * stages/judge is the "primary" (default agent); agents with `stages` become stage
  * agents, with `judge` become judges. Provider resolution (and the API keys) is
- * delegated to [providers]; productions with no domain target throw an
+ * delegated to [modelProviderFactory]; productions with no domain target throw an
  * `InvalidArgumentValue` "not expressible …" (see [gap]).
  */
 internal class CliArgsToStartCommandMapper(
     private val parser: CliArgsParser,
-    private val providers: ModelProviderFactory,
+    private val modelProviderFactory: ModelProviderFactory,
 ) {
 
     /**
@@ -99,7 +99,7 @@ internal class CliArgsToStartCommandMapper(
                 stopSequences = stopSequences(primary),
                 endSequence = primary?.subValue(END_SEQUENCE),
                 temperature = primary?.subValue(TEMPERATURE)?.toDouble(),
-                modelProvider = providers.buildProvider(primary),
+                modelProvider = modelProviderFactory.buildProvider(primary),
             )
         }
 
@@ -120,7 +120,7 @@ internal class CliArgsToStartCommandMapper(
             stopSequences = stopSequences(primary),
             endSequence = primary?.subValue(END_SEQUENCE),
             temperature = primary?.subValue(TEMPERATURE)?.toDouble(),
-            modelProvider = providers.buildProvider(primary),
+            modelProvider = modelProviderFactory.buildProvider(primary),
             config = SessionConfig(
                 session = controls.last(SESSION)?.value,
                 feedFile = feed?.value,
@@ -143,7 +143,7 @@ internal class CliArgsToStartCommandMapper(
     }
 
     private fun stageSpec(agent: ParsedArg): StageAgentSpec =
-        StageAgentSpec(stageBinding(agent.subValue(STAGES)!!), providers.buildProvider(agent), agent.subValue(PROFILE))
+        StageAgentSpec(stageBinding(agent.subValue(STAGES)!!), modelProviderFactory.buildProvider(agent), agent.subValue(PROFILE))
 
     private fun judgeSpec(agent: ParsedArg): StageJudgeSpec {
         if (agent.sub(STAGES) == null) {
@@ -152,7 +152,7 @@ internal class CliArgsToStartCommandMapper(
         if (agent.sub(PROFILE) != null) {
             throw CliArgsException.InvalidArgumentValue("-agent", "judge", "a judge takes no profile")
         }
-        return StageJudgeSpec(stageBinding(agent.subValue(STAGES)!!), providers.buildProvider(agent))
+        return StageJudgeSpec(stageBinding(agent.subValue(STAGES)!!), modelProviderFactory.buildProvider(agent))
     }
 
     /** Both ends are already validated (known stages, from ≤ to) by the catalog's StageRange. */
