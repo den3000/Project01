@@ -35,6 +35,7 @@ plugins {
 include(":agenticHubClient:platform:logging")
 include(":agenticHubClient:platform:config")
 include(":agenticHubClient:platform:database")
+include(":agenticHubClient:platform:fileSystem")
 include(":agenticHubClient:platform:memoryProvider")
 include(":agenticHubClient:features:llm")
 include(":agenticHubClient:features:agent")
