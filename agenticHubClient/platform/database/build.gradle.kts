@@ -27,7 +27,9 @@ kotlin {
             // Room-KMP DB layer (AppDatabase/DAO/entities) + the common
             // buildDatabase() that navigates driver/migrations/WAL. The bundled
             // SQLite driver is multiplatform (jvm/android/native).
-            implementation(libs.androidx.room.runtime)
+            // api: AppDatabase extends RoomDatabase, so the Room runtime is part of
+            // this module's public surface (consumers call AppDatabase methods).
+            api(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.kotlinx.coroutinesCore)
         }
