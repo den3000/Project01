@@ -46,9 +46,10 @@ kotlin {
         }
         commonMain.dependencies {
             implementation(projects.agenticHubClient.platform.logging)
-            // Re-exported (api) so consumers still reach LLM types through the
-            // remaining shared domain (AgentConfig exposes LlmApi, etc.) while
-            // shared is being dismantled into features/*.
+            // Re-exported (api) so consumers (cliJvmApp) still reach the
+            // domain + LLM types through shared while it is being dismantled
+            // into features/*. features:agent transitively re-exports features:llm.
+            api(projects.agenticHubClient.features.agent)
             api(projects.agenticHubClient.features.llm)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

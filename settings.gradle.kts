@@ -34,6 +34,7 @@ plugins {
 
 include(":agenticHubClient:platform:logging")
 include(":agenticHubClient:features:llm")
+include(":agenticHubClient:features:agent")
 include(":androidApp")
 include(":desktopApp")
 include(":cliJvmApp")
