@@ -31,7 +31,7 @@ import java.io.File
  * can edit files between turns and see the change immediately. Files are
  * plain markdown — anyone can `cat`/`vim` them outside the CLI.
  */
-internal class FileMemoryStore(private val root: File) : MemoryStore {
+public class FileMemoryStore(private val root: File) : MemoryStore {
     init {
         root.mkdirs()
         rulesDir.mkdirs()
@@ -300,7 +300,7 @@ internal class FileMemoryStore(private val root: File) : MemoryStore {
          * NAME is mangled. Returns "" if nothing usable remains; caller
          * substitutes a fallback.
          */
-        internal fun slugify(text: String): String {
+        public fun slugify(text: String): String {
             val ascii = text.lowercase()
                 .replace(Regex("[^a-z0-9]+"), "-")
                 .trim('-')
@@ -314,7 +314,7 @@ internal class FileMemoryStore(private val root: File) : MemoryStore {
          * extra/unknown sections are silently dropped (forward compat
          * for fields a future demo might add).
          */
-        internal fun parseTaskNotes(taskId: String, raw: String): TaskNotes {
+        public fun parseTaskNotes(taskId: String, raw: String): TaskNotes {
             val sections = mutableMapOf<String, String>()
             var current: String? = null
             val body = StringBuilder()
@@ -349,7 +349,7 @@ internal class FileMemoryStore(private val root: File) : MemoryStore {
          * sections are omitted so a `cat` of the file doesn't show
          * `## Goal\n\n## Stage\n…` placeholders.
          */
-        internal fun renderTaskNotes(notes: TaskNotes): String = buildString {
+        public fun renderTaskNotes(notes: TaskNotes): String = buildString {
             appendLine("# Task: ${notes.taskId}")
             notes.goal?.takeIf { it.isNotBlank() }?.let {
                 appendLine()

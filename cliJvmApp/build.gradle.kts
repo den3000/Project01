@@ -11,6 +11,7 @@ dependencies {
     implementation(projects.agenticHubClient.features.viewModel)
     implementation(projects.agenticHubClient.platform.config)
     implementation(projects.agenticHubClient.platform.database)
+    implementation(projects.agenticHubClient.platform.memoryProvider)
     implementation(projects.scheduling)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.java)
