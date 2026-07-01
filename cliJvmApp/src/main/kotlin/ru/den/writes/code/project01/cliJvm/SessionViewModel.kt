@@ -26,7 +26,7 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
  * [lastReply], and feed continuation keys off the source's own `terminated`.
  */
 internal class SessionViewModel(
-    private val cliArgs: StartCommand.RunPrompt,
+    private val cliArgs: StartCommand.SessionInitialState,
     private val engine: TurnEngine,
     private val commandRunner: CommandRunner,
     private val historyStore: HistoryStore?,

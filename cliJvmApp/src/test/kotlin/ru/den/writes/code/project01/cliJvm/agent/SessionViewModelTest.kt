@@ -422,7 +422,7 @@ class SessionViewModelTest {
     //region helpers
 
     private fun newVm(
-        chat: StartCommand.RunPrompt,
+        chat: StartCommand.SessionInitialState,
         api: LlmApi,
         store: HistoryStore?,
         strategy: ContextStrategy = ContextStrategy.FullHistory,

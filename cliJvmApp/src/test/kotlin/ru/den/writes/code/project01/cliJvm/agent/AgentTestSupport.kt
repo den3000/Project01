@@ -61,7 +61,7 @@ internal fun newChat(prompt: String, session: String?): StartCommand.RunChat = S
 
 /**
  * Agent doesn't dispatch on the provider (the concrete `LlmApi` is already
- * stubbed via `FakeLlmApi`), but `StartCommand.RunPrompt` insists on a
+ * stubbed via `FakeLlmApi`), but `StartCommand.SessionInitialState` insists on a
  * non-null [ModelProvider], so tests pass this throwaway.
  */
 internal fun dummyGeminiProvider(
@@ -78,7 +78,7 @@ internal fun stdinSource(script: String): StdinPromptSource =
  * offline and assert on its PlainView output.
  */
 internal suspend fun runSessionForTest(
-    cliArgs: StartCommand.RunPrompt,
+    cliArgs: StartCommand.SessionInitialState,
     llmApi: LlmApi,
     historyStore: HistoryStore?,
     promptSource: PromptSource = StdinPromptSource(BufferedReader(InputStreamReader(System.`in`))),

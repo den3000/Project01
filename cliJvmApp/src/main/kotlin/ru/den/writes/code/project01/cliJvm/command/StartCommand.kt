@@ -26,7 +26,7 @@ internal sealed interface StartCommand {
     data class MemoryOp(val action: MemoryAction) : StartCommand
 
     /** Common shape of the LLM-talking commands — generation knobs + provider. */
-    sealed interface RunPrompt : StartCommand {
+    sealed interface SessionInitialState : StartCommand {
         val prompt: String
         val maxTokens: Int?
         val stopSequences: List<String>?
@@ -37,7 +37,7 @@ internal sealed interface StartCommand {
 
     /**
      * Interactive chat: send the opening [prompt], then REPL, persisting each turn
-     * to the session in [config]. Per-turn generation knobs live on [RunPrompt];
+     * to the session in [config]. Per-turn generation knobs live on [SessionInitialState];
      * the session-lifetime setup the runtime hydrates is the [SessionConfig] payload.
      */
     data class RunChat(
@@ -48,7 +48,7 @@ internal sealed interface StartCommand {
         override val temperature: Double?,
         override val modelProvider: ModelProvider,
         val config: SessionConfig,
-    ) : RunPrompt
+    ) : SessionInitialState
 
     /** Single turn: send [prompt], print the reply, exit. No history / session. */
     data class RunOneShot(
@@ -58,5 +58,5 @@ internal sealed interface StartCommand {
         override val endSequence: String?,
         override val temperature: Double?,
         override val modelProvider: ModelProvider,
-    ) : RunPrompt
+    ) : SessionInitialState
 }

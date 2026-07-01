@@ -216,7 +216,7 @@ class PlainViewGoldenTest {
     //region helpers
 
     private suspend fun runPlain(
-        chat: StartCommand.RunPrompt,
+        chat: StartCommand.SessionInitialState,
         api: LlmApi,
         store: HistoryStore?,
         primary: IntentSource,

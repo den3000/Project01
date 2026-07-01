@@ -80,7 +80,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
             is StartCommand.CleanSession -> cleanSession(command.sessionId)
             is StartCommand.InflateSession -> inflateSession(command)
             is StartCommand.MemoryOp -> handleMemoryCommand(command.action)
-            is StartCommand.RunPrompt -> runPromptCommand(command)
+            is StartCommand.SessionInitialState -> runPromptCommand(command)
         }
     }
 
@@ -306,11 +306,11 @@ internal class CommandExecutor(private val db: AppDatabase) {
     /**
      * Shared chat / one-shot path. Both need an HTTP client + an [LlmApi]; they
      * differ only in whether they own a [HistoryStore]. The concrete [LlmApi] is
-     * picked by [StartCommand.RunPrompt.modelProvider]. Chat may swap stdin for a
+     * picked by [StartCommand.SessionInitialState.modelProvider]. Chat may swap stdin for a
      * file-feed source via [StartCommand.RunChat.feedFile]; the reader's lifecycle
      * is bounded by `use { }` rather than leaked into the session.
      */
-    private suspend fun runPromptCommand(parsed: StartCommand.RunPrompt) {
+    private suspend fun runPromptCommand(parsed: StartCommand.SessionInitialState) {
         val historyStore: HistoryStore? = when (parsed) {
             is StartCommand.RunChat -> {
                 val sessionId = parsed.config.session ?: generateSessionId()
@@ -471,7 +471,7 @@ internal class CommandExecutor(private val db: AppDatabase) {
      * 16s throttle applies only to a feed source; interactive stdin runs full speed.
      */
     private suspend fun runSession(
-        cliArgs: StartCommand.RunPrompt,
+        cliArgs: StartCommand.SessionInitialState,
         llmApi: LlmApi,
         historyStore: HistoryStore?,
         strategy: ContextStrategy,

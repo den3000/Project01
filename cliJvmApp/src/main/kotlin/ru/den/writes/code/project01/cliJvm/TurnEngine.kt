@@ -29,7 +29,7 @@ import kotlin.time.measureTimedValue
  * Persistence and the FSM write stay here — they aren't stdout/stderr I/O.
  */
 internal class TurnEngine(
-    private val cliArgs: StartCommand.RunPrompt,
+    private val cliArgs: StartCommand.SessionInitialState,
     private val llmApi: LlmApi,
     private val historyStore: HistoryStore?,
     private val strategy: ContextStrategy = ContextStrategy.FullHistory,
@@ -174,10 +174,10 @@ internal class TurnEngine(
  * Lift the generation-related flags from the parsed CLI into the neutral
  * [GenerationParams] that crosses the [LlmApi] boundary. `-prompt` (the
  * per-turn payload) and `-model` (configured into the concrete [LlmApi]) are
- * not part of this. Lives on the [StartCommand.RunPrompt] super-type so RunChat and
+ * not part of this. Lives on the [StartCommand.SessionInitialState] super-type so RunChat and
  * RunOneShot share the same conversion.
  */
-internal fun StartCommand.RunPrompt.toGenerationParams(): GenerationParams =
+internal fun StartCommand.SessionInitialState.toGenerationParams(): GenerationParams =
     GenerationParams(
         maxTokens = maxTokens,
         stopSequences = stopSequences,

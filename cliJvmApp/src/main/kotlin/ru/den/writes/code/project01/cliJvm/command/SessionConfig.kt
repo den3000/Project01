@@ -13,7 +13,7 @@ import ru.den.writes.code.project01.shared.memory.MemoryMode
  *
  * Carried as the typed payload of [StartCommand.RunChat]. Pulled out of the command
  * so the "initial config the session runs with" is one named type, distinct from
- * the command envelope ([StartCommand]) and the per-turn knobs ([StartCommand.RunPrompt]).
+ * the command envelope ([StartCommand]) and the per-turn knobs ([StartCommand.SessionInitialState]).
  */
 internal data class SessionConfig(
     val session: String?,
