@@ -6,15 +6,6 @@ import ru.den.writes.code.project01.scheduling.TaskHandler
 import ru.den.writes.code.project01.shared.llm.ToolCall
 import ru.den.writes.code.project01.shared.llm.ToolExecutor
 
-/** What a scheduled cliJvmApp task does when it fires. Resolved by task id at tick time. */
-internal sealed interface ScheduleAction {
-    /** Call an MCP [tool] with [arguments] and store its text (collect). */
-    data class Collect(val tool: String, val arguments: JsonObject) : ScheduleAction
-
-    /** Inject [prompt] as a turn (agent). */
-    data class Agent(val prompt: String) : ScheduleAction
-}
-
 /**
  * The scheduler's per-tick payload for cliJvmApp. Routes by task id through [actions]: a
  * collect task calls an MCP tool directly via [toolExecutor] (token-free) and returns its

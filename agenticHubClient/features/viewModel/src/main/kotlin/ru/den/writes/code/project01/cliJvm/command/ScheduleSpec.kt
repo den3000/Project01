@@ -5,7 +5,7 @@ package ru.den.writes.code.project01.cliJvm.command
  * runtime ([StartExecutor]) turns [seconds]/[periodic] into a scheduling Schedule and
  * routes by variant — collect calls an MCP tool, agent injects a turn.
  */
-internal sealed interface ScheduleSpec {
+public sealed interface ScheduleSpec {
     /** Seconds until the first (and, when [periodic], each subsequent) firing. */
     val seconds: Int
 

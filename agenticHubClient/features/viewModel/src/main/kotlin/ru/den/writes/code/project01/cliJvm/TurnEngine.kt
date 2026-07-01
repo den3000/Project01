@@ -28,7 +28,7 @@ import kotlin.time.measureTimedValue
  * the `delay(16s)` removed (the throttle belongs on the feed intent source).
  * Persistence and the FSM write stay here — they aren't stdout/stderr I/O.
  */
-internal class TurnEngine(
+public class TurnEngine(
     private val cliArgs: StartCommand.SessionInitialState,
     private val llmApi: LlmApi,
     private val historyStore: HistoryStore?,
@@ -177,7 +177,7 @@ internal class TurnEngine(
  * not part of this. Lives on the [StartCommand.SessionInitialState] super-type so RunChat and
  * RunOneShot share the same conversion.
  */
-internal fun StartCommand.SessionInitialState.toGenerationParams(): GenerationParams =
+public fun StartCommand.SessionInitialState.toGenerationParams(): GenerationParams =
     GenerationParams(
         maxTokens = maxTokens,
         stopSequences = stopSequences,

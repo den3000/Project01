@@ -7,7 +7,7 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
  * and the `profile`/`rule`/`task` entity ops (CliArgs). Carried by
  * [StartCommand.MemoryOp]; executed against the on-disk memory store.
  */
-internal sealed interface MemoryAction {
+public sealed interface MemoryAction {
     /** Print every layer (mode, profile, rules, active task). */
     data object Show : MemoryAction
     /** Append [text] to a structured [section] of the unnamed profile. */

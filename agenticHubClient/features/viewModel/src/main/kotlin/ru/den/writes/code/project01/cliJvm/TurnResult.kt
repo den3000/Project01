@@ -13,7 +13,7 @@ import ru.den.writes.code.project01.shared.memory.TaskStage
  * copy, never a live [SessionStats] reference. An async TUI renderer must not
  * be able to race the next turn's accumulation through a shared object.
  */
-internal sealed interface TurnResult {
+public sealed interface TurnResult {
 
     /**
      * A successful turn. [reply] is the model text; [modelId] / [profileName]
@@ -52,7 +52,7 @@ internal sealed interface TurnResult {
  * Decouples the footer/summary rendering from the live, still-mutating
  * [SessionStats].
  */
-internal data class SessionStatsSnapshot(
+public data class SessionStatsSnapshot(
     val turns: Int,
     val promptTokens: Int,
     val outputTokens: Int,
@@ -62,7 +62,7 @@ internal data class SessionStatsSnapshot(
 )
 
 /** Snapshot the live counters into an immutable [SessionStatsSnapshot]. */
-internal fun SessionStats.snapshot(): SessionStatsSnapshot = SessionStatsSnapshot(
+public fun SessionStats.snapshot(): SessionStatsSnapshot = SessionStatsSnapshot(
     turns = turns,
     promptTokens = totalPromptTokens,
     outputTokens = totalOutputTokens,
@@ -76,7 +76,7 @@ internal fun SessionStats.snapshot(): SessionStatsSnapshot = SessionStatsSnapsho
  * view to render into a `[task]` line (or nothing). Mirrors the branches of
  * the current `maybeAdvanceTaskStage`, lifted out of the I/O.
  */
-internal sealed interface StageAdvance {
+public sealed interface StageAdvance {
     /** Nothing to report: no memory, no active task, no signal, paused, or already there. */
     data object None : StageAdvance
 

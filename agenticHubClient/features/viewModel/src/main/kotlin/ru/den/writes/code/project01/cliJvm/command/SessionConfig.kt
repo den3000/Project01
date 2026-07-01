@@ -15,7 +15,7 @@ import ru.den.writes.code.project01.shared.memory.MemoryMode
  * so the "initial config the session runs with" is one named type, distinct from
  * the command envelope ([StartCommand]) and the per-turn knobs ([StartCommand.SessionInitialState]).
  */
-internal data class SessionConfig(
+public data class SessionConfig(
     val session: String?,
     val feedFile: String?,
     val chunkChars: Int,

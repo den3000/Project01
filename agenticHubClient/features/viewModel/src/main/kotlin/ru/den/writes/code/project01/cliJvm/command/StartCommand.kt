@@ -8,7 +8,7 @@ import ru.den.writes.code.project01.shared.llm.ModelProvider
  * these; a [StartExecutor] runs it. Parsing runs through the [CliArgs] front, so
  * execution stays agnostic to how the args were read.
  */
-internal sealed interface StartCommand {
+public sealed interface StartCommand {
 
     /** Print the saved-session list and exit — no LLM, no app runtime. */
     data object ListSessions : StartCommand

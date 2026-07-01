@@ -22,7 +22,7 @@ import ru.den.writes.code.project01.shared.llm.Role
  * [keepLast] is snapped down to even so the verbatim tail stays USER-first; the
  * injected facts pair (USER frame + ASSISTANT ack) preserves role alternation.
  */
-internal class StickyFacts(keepLast: Int) : ContextStrategy {
+public class StickyFacts(keepLast: Int) : ContextStrategy {
     private val keepLast: Int = evenDown(keepLast)
 
     /** Latest facts JSON, or null until the first successful extraction / rebind. */
@@ -63,7 +63,7 @@ internal class StickyFacts(keepLast: Int) : ContextStrategy {
  * strategy so prompt-building and the (failure-tolerant) JSON parsing are
  * unit-testable without a network or a store.
  */
-internal object FactsExtractor {
+public object FactsExtractor {
     const val FACTS_FRAME_PREFIX: String = "[Known facts so far]\n"
     const val FACTS_ACK_TEXT: String = "Understood. I'll use these facts as context for what follows."
     const val FACTS_MAX_TOKENS: Int = 256

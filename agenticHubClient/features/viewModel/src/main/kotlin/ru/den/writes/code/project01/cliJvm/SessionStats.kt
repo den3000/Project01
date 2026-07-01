@@ -16,7 +16,7 @@ import ru.den.writes.code.project01.shared.llm.Usage
  * total always reflects the current pricing — old rows re-price for
  * free when rates change.
  */
-internal class SessionStats {
+public class SessionStats {
     var totalPromptTokens: Int = 0
         private set
     var totalOutputTokens: Int = 0

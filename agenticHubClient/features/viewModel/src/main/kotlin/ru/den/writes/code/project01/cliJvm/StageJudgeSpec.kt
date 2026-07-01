@@ -9,7 +9,7 @@ import ru.den.writes.code.project01.shared.memory.TaskBinding
  * minus the profile — a judge has no persona, only a model + a stage span.
  * The host wires each into a [RoutedJudge] wrapping an `LlmInvariantJudge`.
  */
-internal data class StageJudgeSpec(
+public data class StageJudgeSpec(
     val binding: TaskBinding,
     val provider: ModelProvider,
 )

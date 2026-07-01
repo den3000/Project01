@@ -13,7 +13,7 @@ import ru.den.writes.code.project01.shared.memory.TaskNotes
  * `TurnEngine`) depends only on this interface. The file-backed
  * implementation ([FileMemoryStore]) supplies the storage layout.
  */
-internal interface MemoryStore {
+public interface MemoryStore {
     // --- Unnamed profile (profile.md) ------------------------------
     fun loadProfile(): String?
     fun saveProfile(text: String)

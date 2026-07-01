@@ -9,6 +9,7 @@ plugins {
 
 dependencies {
     implementation(projects.shared)
+    implementation(projects.agenticHubClient.features.viewModel)
     implementation(projects.agenticHubClient.platform.config)
     implementation(projects.scheduling)
     implementation(libs.ktor.client.core)

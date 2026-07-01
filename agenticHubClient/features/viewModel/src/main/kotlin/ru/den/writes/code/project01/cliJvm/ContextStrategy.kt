@@ -25,7 +25,7 @@ import ru.den.writes.code.project01.shared.llm.Message
  * The rolling-summary path lives on as [Summary], wrapping [HistoryCompressor]
  * unchanged. [FullHistory] is the default: send everything, no folding.
  */
-internal sealed interface ContextStrategy {
+public sealed interface ContextStrategy {
     fun planContext(history: List<Message>): List<Message>
     suspend fun onTurn(ctx: TurnContext) {}
     suspend fun rebind(store: HistoryStore) {}
@@ -88,7 +88,7 @@ internal sealed interface ContextStrategy {
  * derived call (summary/facts), the current turn's raw [userText], and the
  * [modelId] for overhead cost attribution.
  */
-internal class TurnContext(
+public class TurnContext(
     val store: HistoryStore,
     val llmApi: LlmApi,
     val userText: String,
@@ -101,4 +101,4 @@ internal class TurnContext(
  * concrete [ContextStrategy], wiring in runtime dependencies (the compressor,
  * the window size, …) that don't belong in parsed CLI args.
  */
-internal enum class ContextStrategyKind { FULL, WINDOW, FACTS, SUMMARY }
+public enum class ContextStrategyKind { FULL, WINDOW, FACTS, SUMMARY }

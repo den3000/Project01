@@ -9,7 +9,7 @@ import ru.den.writes.code.project01.shared.memory.TaskBinding
  * memory profile (null = the session's active profile). `main.kt` turns each
  * spec into a [RoutedAgent] with its own `LlmApi`.
  */
-internal data class StageAgentSpec(
+public data class StageAgentSpec(
     val binding: TaskBinding,
     val provider: ModelProvider,
     val profileName: String?,

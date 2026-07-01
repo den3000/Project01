@@ -16,7 +16,7 @@ import ru.den.writes.code.project01.shared.llm.Usage
  * Bound to one session and one [branchId] (switchable via [switchTo]); all
  * load/append/summary/facts operations are scoped to that (session, branch).
  */
-internal interface HistoryStore {
+public interface HistoryStore {
     /** Active conversation branch. Mutated only by [switchTo]. */
     val branchId: String
 
@@ -65,7 +65,7 @@ internal interface HistoryStore {
  * summary text + how many head messages it covers. Overhead token totals
  * are re-seeded into [HistoryStore.stats] on [HistoryStore.load], not here.
  */
-internal data class SummarySnapshot(val summaryText: String, val coveredCount: Int)
+public data class SummarySnapshot(val summaryText: String, val coveredCount: Int)
 
 /** The persisted sticky-facts blob the runtime hydrates its extractor from. */
-internal data class FactsSnapshot(val factsJson: String)
+public data class FactsSnapshot(val factsJson: String)

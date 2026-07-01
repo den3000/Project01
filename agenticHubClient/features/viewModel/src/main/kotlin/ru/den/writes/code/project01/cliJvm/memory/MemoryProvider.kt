@@ -15,7 +15,7 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
  * No I/O happens in the constructor — disk reads are deferred to
  * [memoryLayer], which is called once per turn from `Agent.send()`.
  */
-internal class MemoryProvider(
+public class MemoryProvider(
     val store: MemoryStore,
     initialMode: MemoryMode = MemoryMode.PREAMBLE,
     initialTaskId: String? = null,

@@ -12,7 +12,7 @@ import ru.den.writes.code.project01.shared.memory.TaskBinding
  * active profile). [modelId] labels the turn for the footer and cost
  * attribution — the actual model+transport live inside [responder].
  */
-internal class RoutedAgent(
+public class RoutedAgent(
     val binding: TaskBinding,
     val responder: AgentResponder,
     val profileName: String?,

@@ -13,7 +13,7 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
  * the TUI's concurrent input collectors never race over a shared `var`. Snapshots
  * all the way down (see [SessionStatsSnapshot]).
  */
-internal data class UiState(
+public data class UiState(
     /** The transcript so far, oldest first. */
     val lines: List<UiLine> = emptyList(),
     /** A turn is in flight (the model is being called). Drives the TUI spinner. */
@@ -33,7 +33,7 @@ internal data class UiState(
  * view-model which existing [SessionCommand] a chosen option maps to — the picker
  * is a TUI-only input modality over commands that already exist, not new logic.
  */
-internal enum class PickerKind(val title: String) {
+public enum class PickerKind(val title: String) {
     Profile("profile  ↑↓ · Enter · Esc"),
     Task("task  ↑↓ · Enter · Esc"),
     Branch("branch  ↑↓ · Enter · Esc"),
@@ -47,7 +47,7 @@ internal enum class PickerKind(val title: String) {
  * Pure (no terminal), so the view-model — the single writer — drives and tests
  * it offline. Ported from the cliTui spike, generalized for more than one kind.
  */
-internal sealed interface Overlay {
+public sealed interface Overlay {
     val cursor: Int
 
     /** Number of selectable rows — the bound for [selectionIndex]. */
@@ -97,10 +97,10 @@ internal sealed interface Overlay {
 }
 
 /** One row in the [Overlay.Palette]: the command [name], a one-line [help], and what selecting it does. */
-internal data class CommandEntry(val name: String, val help: String, val action: PaletteAction)
+public data class CommandEntry(val name: String, val help: String, val action: PaletteAction)
 
 /** What selecting a [CommandEntry] does — all over commands / intents that already exist. */
-internal sealed interface PaletteAction {
+public sealed interface PaletteAction {
     /** Run a no-argument command (e.g. `/checkpoint`, `/branches`). */
     data class Run(val command: SessionCommand) : PaletteAction
 
@@ -119,7 +119,7 @@ internal sealed interface PaletteAction {
  * tag should show (multi-agent sessions). Its presence — not a driver flag — is
  * what tells a view to render the `[[AGENT:]]` tag.
  */
-internal data class AgentRef(val profileName: String?, val modelId: String)
+public data class AgentRef(val profileName: String?, val modelId: String)
 
 /**
  * One rendered unit in the transcript. Each variant carries exactly the data its
@@ -127,7 +127,7 @@ internal data class AgentRef(val profileName: String?, val modelId: String)
  * view-model decomposes a finished turn into [Assistant] + [Turn] (+ [Judge] /
  * [Stage]); a view maps each variant to its renderer.
  */
-internal sealed interface UiLine {
+public sealed interface UiLine {
     /**
      * The user's submitted prompt, echoed into the transcript. The TUI renders
      * it (raw mode suppresses the terminal echo); PlainView skips it (the
@@ -201,7 +201,7 @@ internal sealed interface UiLine {
  * result, then the model the results were fed back to and the prompt (= that
  * result) it was sent as. Shared text for both renderers; each draws it its way.
  */
-internal fun mcpToolLines(calls: List<ExecutedToolCall>, modelId: String): List<String> = buildList {
+public fun mcpToolLines(calls: List<ExecutedToolCall>, modelId: String): List<String> = buildList {
     for (c in calls) {
         add("[tool] ${c.call.name}(${c.call.arguments})")
         add("[tool] → ${c.output}")
@@ -215,7 +215,7 @@ internal fun mcpToolLines(calls: List<ExecutedToolCall>, modelId: String): List<
  * `/`-command is itself a [UiIntent] — see [SessionCommand], the sub-group the
  * view-model routes to [CommandRunner].
  */
-internal sealed interface UiIntent {
+public sealed interface UiIntent {
     /**
      * Send [text] as the next user turn — or, when an overlay is open, select
      * from it (empty → the cursor row, a number → that row). The view-model
@@ -259,7 +259,7 @@ internal sealed interface UiIntent {
  * [CommandRunner] stays exhaustive over just the command intents, not the whole
  * [UiIntent] vocabulary.
  */
-internal sealed interface SessionCommand : UiIntent {
+public sealed interface SessionCommand : UiIntent {
     data object Checkpoint : SessionCommand
     data object ListBranches : SessionCommand
     data class Branch(val name: String) : SessionCommand
@@ -333,7 +333,7 @@ internal sealed interface SessionCommand : UiIntent {
  * stderr ordering against the surrounding `[continuing in REPL …]` line is
  * preserved through the single transcript.
  */
-internal sealed interface UiEffect {
+public sealed interface UiEffect {
     /** The session is over; the view should stop. */
     data object Exit : UiEffect
 

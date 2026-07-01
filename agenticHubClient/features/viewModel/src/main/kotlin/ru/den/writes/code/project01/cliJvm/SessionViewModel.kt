@@ -25,7 +25,7 @@ import ru.den.writes.code.project01.shared.pricing.PricingRegistry
  * `observeReply` / `notifyTurnFailed` source hooks are gone — `/reuse` reads
  * [lastReply], and feed continuation keys off the source's own `terminated`.
  */
-internal class SessionViewModel(
+public class SessionViewModel(
     private val cliArgs: StartCommand.SessionInitialState,
     private val engine: TurnEngine,
     private val commandRunner: CommandRunner,

@@ -15,7 +15,7 @@ import kotlin.time.Duration
  * handlers into a [ChannelIntentSource]. [next] returns null when the source
  * is exhausted (EOF / file consumed / channel closed).
  */
-internal interface IntentSource {
+public interface IntentSource {
     suspend fun next(): UiIntent?
 
     /** Signal that the last turn failed — a feed source uses this to abort. */
@@ -32,7 +32,7 @@ internal interface IntentSource {
  * passes 16s, interactive / TUI pass zero. (This is where the per-turn
  * `delay(16s)` feed throttle now lives.)
  */
-internal class PromptSourceIntents(
+public class PromptSourceIntents(
     private val source: PromptSource,
     private val throttle: Duration = Duration.ZERO,
 ) : IntentSource {
@@ -59,7 +59,7 @@ internal class PromptSourceIntents(
  * view-model loop pulls via [next]. [close] ends the loop. Unlimited buffer so
  * offers never block the render thread.
  */
-internal class ChannelIntentSource : IntentSource {
+public class ChannelIntentSource : IntentSource {
     private val channel = Channel<UiIntent>(Channel.UNLIMITED)
 
     fun offer(intent: UiIntent) {
@@ -82,7 +82,7 @@ internal class ChannelIntentSource : IntentSource {
  * drives the primary source directly, byte-for-byte unchanged.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-internal class MergedIntentSource(
+public class MergedIntentSource(
     private val primary: IntentSource,
     private val inbox: ReceiveChannel<UiIntent>,
     scope: CoroutineScope,

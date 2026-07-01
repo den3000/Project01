@@ -25,7 +25,7 @@ private const val NO_SCHEDULER = "[schedule] no scheduler in this session — la
  * [memory] provider — each yields an explanatory line when its dependency is
  * absent, mirroring the previous inline behaviour.
  */
-internal class CommandRunner(
+public class CommandRunner(
     private val historyStore: HistoryStore?,
     private val memory: MemoryProvider?,
     private val strategy: ContextStrategy,
