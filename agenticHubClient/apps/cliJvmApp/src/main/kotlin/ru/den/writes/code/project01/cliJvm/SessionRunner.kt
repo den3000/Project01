@@ -19,6 +19,7 @@ import ru.den.writes.code.project01.cliJvm.tui.TuiRenderer
 import ru.den.writes.code.project01.scheduling.InMemoryScheduleStore
 import ru.den.writes.code.project01.scheduling.SchedulerEngine
 import ru.den.writes.code.project01.shared.llm.LlmApi
+import ru.den.writes.code.project01.shared.llm.buildLlmApi
 import ru.den.writes.code.project01.shared.llm.ToolDefinition
 import ru.den.writes.code.project01.shared.llm.ToolExecutor
 import java.io.File

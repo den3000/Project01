@@ -11,11 +11,7 @@ import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.invariant.LlmInvariantJudge
 import ru.den.writes.code.project01.shared.llm.GenerationParams
-import ru.den.writes.code.project01.shared.llm.LlmApi
-import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.shared.llm.gemini.GeminiApi
-import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceApi
-import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterApi
+import ru.den.writes.code.project01.shared.llm.buildLlmApi
 import java.util.UUID
 
 /**
@@ -43,13 +39,6 @@ internal fun buildHttpClient(): HttpClient = HttpClient(Java) {
     install(HttpTimeout) {
         requestTimeoutMillis = REQUEST_TIMEOUT_MS
     }
-}
-
-/** The concrete [LlmApi] for a provider, sharing the one [client]. */
-internal fun buildLlmApi(mp: ModelProvider, client: HttpClient): LlmApi = when (mp) {
-    is ModelProvider.Gemini -> GeminiApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
-    is ModelProvider.OpenRouter -> OpenRouterApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
-    is ModelProvider.HuggingFace -> HuggingFaceApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
 }
 
 /**
