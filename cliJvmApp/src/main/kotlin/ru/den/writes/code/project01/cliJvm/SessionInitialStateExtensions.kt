@@ -19,14 +19,14 @@ import ru.den.writes.code.project01.shared.context.HistoryCompressor
  * [ContextStrategy.FullHistory]; RunChat maps its configured kind to a concrete
  * strategy, wiring the runtime deps.
  */
-internal fun StartCommand.SessionInitialState.contextStrategy(): ContextStrategy {
-    val chat = this as? StartCommand.RunChat ?: return ContextStrategy.FullHistory
-    return when (chat.config.strategy) {
+internal fun StartCommand.SessionInitialState.contextStrategy(): ContextStrategy = when (this) {
+    is StartCommand.RunOneShot -> ContextStrategy.FullHistory
+    is StartCommand.RunChat -> when (config.strategy) {
         ContextStrategyKind.FULL -> ContextStrategy.FullHistory
-        ContextStrategyKind.WINDOW -> ContextStrategy.SlidingWindow(chat.config.keepLast)
-        ContextStrategyKind.FACTS -> StickyFacts(chat.config.keepLast)
+        ContextStrategyKind.WINDOW -> ContextStrategy.SlidingWindow(config.keepLast)
+        ContextStrategyKind.FACTS -> StickyFacts(config.keepLast)
         ContextStrategyKind.SUMMARY -> ContextStrategy.Summary(
-            HistoryCompressor(keepLast = chat.config.keepLast, summarizeEvery = chat.config.summarizeEvery),
+            HistoryCompressor(keepLast = config.keepLast, summarizeEvery = config.summarizeEvery),
         )
     }
 }
@@ -35,15 +35,15 @@ internal fun StartCommand.SessionInitialState.contextStrategy(): ContextStrategy
  * The memory layer for this session, or null when no memory mode is set (then the
  * wire bytes are byte-identical to a no-memory run). RunOneShot never has memory.
  */
-internal fun StartCommand.SessionInitialState.memoryProvider(): MemoryProvider? {
-    val chat = this as? StartCommand.RunChat ?: return null
-    return chat.config.memoryMode?.let { mode ->
+internal fun StartCommand.SessionInitialState.memoryProvider(): MemoryProvider? = when (this) {
+    is StartCommand.RunOneShot -> null
+    is StartCommand.RunChat -> config.memoryMode?.let { mode ->
         MEMORY_ROOT.mkdirs()
         MemoryProvider(
             store = MemoryStore(MEMORY_ROOT),
             initialMode = mode,
-            initialTaskId = chat.config.task,
-            initialProfileName = chat.config.profile,
+            initialTaskId = config.task,
+            initialProfileName = config.profile,
         )
     }
 }
