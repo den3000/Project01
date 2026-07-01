@@ -35,7 +35,13 @@ data class BatchResult(val controls: List<ParsedArg>, val errors: List<ParseErro
 sealed interface ParseError {
     val message: String
 
-    data object Empty : ParseError {
+    /**
+     * The "something required is missing" family — `main` prints USAGE for these
+     * (an incomplete invocation), unlike the invalid-value family.
+     */
+    sealed interface MissingArg : ParseError
+
+    data object Empty : MissingArg {
         override val message = "no control given"
     }
 
@@ -51,7 +57,7 @@ sealed interface ParseError {
         override val message = "'$token' can't be used as a ${surface.name.lowercase()}"
     }
 
-    data class MissingValue(val arg: CliArg) : ParseError {
+    data class MissingValue(val arg: CliArg) : MissingArg {
         override val message = "'${arg.title}' needs a value"
     }
 
@@ -76,12 +82,31 @@ sealed interface ParseError {
         override val message = "unexpected '$token'"
     }
 
-    data class Requires(val arg: CliArg, val missing: CliArg) : ParseError {
+    data class Requires(val arg: CliArg, val missing: CliArg) : MissingArg {
         override val message = "'${arg.title}' requires '${missing.title}'"
     }
 
     data class Conflicts(val arg: CliArg, val with: CliArg) : ParseError {
         override val message = "'${arg.title}' can't be combined with '${with.title}'"
+    }
+
+    // --- Post-parse semantic errors -------------------------------------
+    // Raised by the mapper / model-provider factory (no parser source). String-
+    // based, mirroring the messages the retired CliArgsException used.
+
+    /** A required flag/sub is absent or blank (USAGE-worthy). */
+    data class MissingRequired(val argName: String, val detail: String? = null) : MissingArg {
+        override val message = "Missing required argument $argName${detail?.let { ": $it" } ?: "."}"
+    }
+
+    /** A value failed a post-parse semantic check (bad combination, unknown option, …). */
+    data class Invalid(val argName: String, val rawValue: String, val expectedType: String) : ParseError {
+        override val message = "$argName must be $expectedType, got \"$rawValue\"."
+    }
+
+    /** A flag's value carries more sub-values than the cap allows. */
+    data class TooManyValues(val argName: String, val count: Int, val maxAllowed: Int) : ParseError {
+        override val message = "$argName accepts up to $maxAllowed values, got $count."
     }
 }
 

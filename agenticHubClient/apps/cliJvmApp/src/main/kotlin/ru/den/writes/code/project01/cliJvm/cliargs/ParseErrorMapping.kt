@@ -34,6 +34,14 @@ internal fun ParseError.toCliArgsException(): CliArgsException = when (this) {
         CliArgsException.InvalidArgumentValue(token, token, "not expected here")
     is ParseError.Conflicts ->
         CliArgsException.InvalidArgumentValue(flag(arg), flag(with), "not combinable with ${flag(with)}")
+    // Post-parse semantic variants already carry their own argName/message — pass them
+    // through 1:1 (temporary; this bridge is retired once main renders ParseError directly).
+    is ParseError.MissingRequired ->
+        CliArgsException.MissingRequiredArgument(argName, detail)
+    is ParseError.Invalid ->
+        CliArgsException.InvalidArgumentValue(argName, rawValue, expectedType)
+    is ParseError.TooManyValues ->
+        CliArgsException.TooManyValues(argName, count, maxAllowed)
 }
 
 /** Present a catalog arg the way the legacy errors name flags: `-<title>`. */
