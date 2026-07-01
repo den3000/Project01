@@ -1,9 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.command.ControlsToIntent
-import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
-import ru.den.writes.code.project01.shared.memory.MemoryMode
-import ru.den.writes.code.project01.shared.memory.ProfileSection
 import java.io.BufferedReader
 import java.io.Reader
 
@@ -19,83 +16,6 @@ internal sealed interface PromptResult {
     /** REPL `/reuse`: resend the last model reply (the view-model holds it). */
     data object Reuse : PromptResult
     data object Stop : PromptResult
-}
-
-/**
- * A branch-management or memory-management command issued in-session (a
- * `/`-command at the REPL, a TUI palette pick). It is a [UiIntent]: the classifier
- * turns a line straight into one of these and the view-model drives it like any
- * other intent, handing the (suspend) DB/disk work to [CommandRunner] so the
- * classifier stays pure and synchronous. Grouped under one sealed sub-interface so
- * [CommandRunner] stays exhaustive over just the command intents, not the whole
- * [UiIntent] vocabulary.
- */
-internal sealed interface SessionCommand : UiIntent {
-    data object Checkpoint : SessionCommand
-    data object ListBranches : SessionCommand
-    data class Branch(val name: String) : SessionCommand
-    data class Switch(val name: String) : SessionCommand
-
-    /** Delete one branch by name — the per-branch twin of `session clear`; never the active one. */
-    data class DeleteBranch(val name: String) : SessionCommand
-    /** Delete every branch except the current one. */
-    data object ClearBranches : SessionCommand
-
-    /** Print the active mode + the saved profile/rules/task. */
-    data object ShowMemory : SessionCommand
-    /** Append [text] to a [section] of the unnamed profile. */
-    data class AddProfileItem(val section: ProfileSection, val text: String) : SessionCommand
-    /** Empty one section of the unnamed profile; the rest survive. */
-    data class ClearProfileSection(val section: ProfileSection) : SessionCommand
-    /** Drop the unnamed profile entirely. */
-    data object ClearProfile : SessionCommand
-
-    // --- Named profiles --------------------------------------------
-    /** Switch the active named profile (touch-creates if missing). */
-    data class SwitchProfile(val name: String) : SessionCommand
-    /** List every named profile under `profiles/`. */
-    data object ListProfiles : SessionCommand
-    /** Print one named profile's structure. */
-    data class ShowProfile(val name: String) : SessionCommand
-    /** Append a bullet to [section] of a named profile. */
-    data class AddNamedProfileItem(val name: String, val section: ProfileSection, val text: String) : SessionCommand
-    /** Empty a [section] of a named profile. */
-    data class ClearNamedProfileSection(val name: String, val section: ProfileSection) : SessionCommand
-    /** Delete the named profile file. */
-    data class ClearNamedProfile(val name: String) : SessionCommand
-    /** Delete every profile — all named ones and the unnamed default. */
-    data object ClearAllProfiles : SessionCommand
-
-    /** Append a new rule under `rules/`. */
-    data class AddRule(val text: String) : SessionCommand
-    /** Delete the rule with this id (three-digit prefix). */
-    data class RemoveRule(val id: String) : SessionCommand
-    /** Delete every rule. */
-    data object ClearRules : SessionCommand
-    /** Switch the active task id (creates an empty task file if absent). */
-    data class SetTask(val taskId: String) : SessionCommand
-    /** Append a note to the currently-active task. */
-    data class AppendTaskNote(val note: String) : SessionCommand
-    /** Pause the active task — hold its stage; auto-advance is suppressed. */
-    data object PauseTask : SessionCommand
-    /** Resume the active task — clear the pause flag; auto-advance resumes. */
-    data object ResumeTask : SessionCommand
-    /** Delete one task by id. */
-    data class DeleteTask(val taskId: String) : SessionCommand
-    /** Delete every task. */
-    data object ClearTasks : SessionCommand
-    /** Flip the memory-injection mode (PREAMBLE ↔ SYSTEM). */
-    data class SetMemoryMode(val mode: MemoryMode) : SessionCommand
-
-    /** Add a scheduled task in-session (`/schedule collect … | agent …`). */
-    data class Schedule(val spec: ScheduleSpec) : SessionCommand
-
-    /** List active scheduled tasks (`/schedule`). */
-    data object ListSchedules : SessionCommand
-    /** Cancel one scheduled task by id (`/schedule clear <id>`). */
-    data class CancelSchedule(val id: String) : SessionCommand
-    /** Cancel every active scheduled task (`/schedule clear`) — stops the schedule. */
-    data object ClearSchedules : SessionCommand
 }
 
 /**
