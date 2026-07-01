@@ -32,9 +32,9 @@ class CliArgsToStartCommandMapperScheduleTest {
         )
 
         // then — after = one-shot (periodic false), every = periodic true; repeated -schedule accumulates
-        assertEquals(listOf(_root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Collect("weather", "{}", 30, false)), collect.config.schedules)
-        assertEquals(listOf(_root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("do x", 60, true)), agent.config.schedules)
-        assertEquals(listOf(_root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("a", 10, false), _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("b", 20, true)), multiple.config.schedules)
+        assertEquals(listOf(ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Collect("weather", "{}", 30, false)), collect.config.schedules)
+        assertEquals(listOf(ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("do x", 60, true)), agent.config.schedules)
+        assertEquals(listOf(ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("a", 10, false), ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("b", 20, true)), multiple.config.schedules)
     }
 
     @Test
@@ -65,8 +65,8 @@ class CliArgsToStartCommandMapperScheduleTest {
             "/schedule clear" to SessionCommand.ClearSchedules,
             "/schedule clear 001" to SessionCommand.CancelSchedule("001"),
             "/schedule collect tool weather args \"{}\" after 30" to SessionCommand.Schedule(
-                _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Collect("weather", "{}", 30, false)),
-            "/schedule agent prompt \"do x\" every 60" to SessionCommand.Schedule(_root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("do x", 60, true)),
+                ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Collect("weather", "{}", 30, false)),
+            "/schedule agent prompt \"do x\" every 60" to SessionCommand.Schedule(ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("do x", 60, true)),
         )
 
         // when - then

@@ -15,17 +15,17 @@ class CliArgsToStartCommandMapperTaskTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-task auth" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.SetTask("auth"),
-            "-task auth pause" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.PauseTask("auth"),
-            "-task auth resume" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.ResumeTask("auth"),
-            "-task clear auth" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.DeleteTask("auth"),
-            "-task clear" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearTasks,
+            "-task auth" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.SetTask("auth"),
+            "-task auth pause" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.PauseTask("auth"),
+            "-task auth resume" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ResumeTask("auth"),
+            "-task clear auth" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.DeleteTask("auth"),
+            "-task clear" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearTasks,
         )
 
         // when - then
         cases.forEach { (input, action) ->
-            _root_ide_package_.kotlin.test.assertEquals(
-                _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
+            kotlin.test.assertEquals(
+                ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
                     action
                 ), mapper.parse(input.toArgsArray()), input
             )

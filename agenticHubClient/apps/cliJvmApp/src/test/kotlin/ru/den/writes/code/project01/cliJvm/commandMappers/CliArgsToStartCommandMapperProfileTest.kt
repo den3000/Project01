@@ -23,17 +23,17 @@ class CliArgsToStartCommandMapperProfileTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-profile" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.ListProfiles,
-            "-profile kotlin-senior" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.TouchProfile("kotlin-senior"),
-            "-profile show kotlin-senior" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.ShowProfile("kotlin-senior"),
-            "-profile clear work" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearNamedProfile("work"),
-            "-profile clear" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearAllProfiles,
+            "-profile" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ListProfiles,
+            "-profile kotlin-senior" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.TouchProfile("kotlin-senior"),
+            "-profile show kotlin-senior" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ShowProfile("kotlin-senior"),
+            "-profile clear work" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearNamedProfile("work"),
+            "-profile clear" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearAllProfiles,
         )
 
         // when - then
         cases.forEach { (input, action) ->
-            _root_ide_package_.kotlin.test.assertEquals(
-                _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
+            kotlin.test.assertEquals(
+                ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
                     action
                 ), mapper.parse(input.toArgsArray()), input
             )
@@ -48,14 +48,14 @@ class CliArgsToStartCommandMapperProfileTest {
         // when - then — text present = append, absent = clear; with a name = named, without = unnamed
         sections.forEach { (kw, sec) ->
             val cases = listOf(
-                "-profile work $kw \"some text\"" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.AddNamedProfileItem("work", sec, "some text"),
-                "-profile work $kw" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearNamedProfileSection("work", sec),
-                "-profile $kw \"some text\"" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.AddProfileItem(sec, "some text"),
-                "-profile $kw" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearProfileSection(sec),
+                "-profile work $kw \"some text\"" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.AddNamedProfileItem("work", sec, "some text"),
+                "-profile work $kw" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearNamedProfileSection("work", sec),
+                "-profile $kw \"some text\"" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.AddProfileItem(sec, "some text"),
+                "-profile $kw" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearProfileSection(sec),
             )
             cases.forEach { (input, action) ->
-                _root_ide_package_.kotlin.test.assertEquals(
-                    _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
+                kotlin.test.assertEquals(
+                    ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
                         action
                     ), mapper.parse(input.toArgsArray()), input
                 )
