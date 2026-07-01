@@ -33,15 +33,18 @@ internal val MEMORY_ROOT: File = File(
  */
 internal class StartExecutor(private val db: AppDatabase) {
 
-    suspend fun run(command: StartCommand) {
-        when (command) {
-            is StartCommand.ListSessions -> printSessionList(db.messageDao())
-            is StartCommand.CleanHistory -> cleanHistory()
-            is StartCommand.CleanSession -> cleanSession(command.sessionId)
-            is StartCommand.InflateSession -> inflateSession(command)
-            is StartCommand.MemoryOp -> handleMemoryCommand(command.action)
-            is StartCommand.SessionInitialState -> buildHttpClient().use { client -> runSession(client, db, command) }
-        }
+    /**
+     * Run [command] and return the session to launch, or null. Admin commands
+     * (list / clean / inflate / memory) execute here and yield null; a
+     * [StartCommand.SessionInitialState] is returned unrun for `main` to launch.
+     */
+    suspend fun execute(command: StartCommand): StartCommand.SessionInitialState? = when (command) {
+        is StartCommand.ListSessions -> { printSessionList(db.messageDao()); null }
+        is StartCommand.CleanHistory -> { cleanHistory(); null }
+        is StartCommand.CleanSession -> { cleanSession(command.sessionId); null }
+        is StartCommand.InflateSession -> { inflateSession(command); null }
+        is StartCommand.MemoryOp -> { handleMemoryCommand(command.action); null }
+        is StartCommand.SessionInitialState -> command
     }
 
     /** Wipe every messages / summaries / facts row — otherwise an orphan row would resurrect on a reused session id. */
