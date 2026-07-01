@@ -1,17 +1,51 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
-    alias(libs.plugins.kotlinJvm)
-    alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.ksp)
 }
 
+kotlin {
+    iosArm64()
+    iosSimulatorArm64()
+
+    jvm()
+
+    androidLibrary {
+        namespace = "ru.den.writes.code.project01.platform.database"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_11
+        }
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            // Room-KMP DB layer (AppDatabase/DAO/entities) + the common
+            // buildDatabase() that navigates driver/migrations/WAL. The bundled
+            // SQLite driver is multiplatform (jvm/android/native).
+            implementation(libs.androidx.room.runtime)
+            implementation(libs.androidx.sqlite.bundled)
+            implementation(libs.kotlinx.coroutinesCore)
+        }
+        jvmMain.dependencies {
+            // RoomHistoryStore bridges the Room DB to the (JVM-only) conversation
+            // runtime: it implements the HistoryStore port and seeds SessionStats.
+            implementation(projects.agenticHubClient.features.viewModel)
+            implementation(projects.agenticHubClient.features.agent)
+        }
+    }
+}
+
+// Room's KSP runs per target (it generates a platform-specific implementation
+// of the @Database + @ConstructedBy constructor). exportSchema = false, so no
+// schema directory is configured.
 dependencies {
-    // HistoryStore port + SessionStats + Summary/FactsSnapshot live in the
-    // conversation runtime; this module supplies the Room-backed impl. LLM
-    // domain types (Message/Role/Usage, PricingRegistry) come transitively via
-    // features:viewModel → features:agent → features:llm.
-    implementation(projects.agenticHubClient.features.viewModel)
-    implementation(libs.kotlinx.coroutinesCore)
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.sqlite.bundled)
-    ksp(libs.androidx.room.compiler)
+    add("kspJvm", libs.androidx.room.compiler)
+    add("kspAndroid", libs.androidx.room.compiler)
+    add("kspIosArm64", libs.androidx.room.compiler)
+    add("kspIosSimulatorArm64", libs.androidx.room.compiler)
 }

@@ -1,7 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.db
 
+import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.RoomDatabaseConstructor
 import androidx.room.migration.Migration
 import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.execSQL
@@ -26,9 +28,10 @@ import androidx.sqlite.execSQL
  *   `summaries` (composite PK), and adds the new `facts` table. Created by
  *   [MIGRATION_3_4], which rebuilds the two existing tables.
  *
- * Plain Kotlin JVM (not KMP), so no `@ConstructedBy` / `expect object`
- * ceremony: Room's reified `databaseBuilder<T>(name = ...)` finds the
- * KSP-generated `AppDatabase_Impl` via reflection at runtime.
+ * KMP Room: `@ConstructedBy` + the `expect object` [AppDatabaseConstructor]
+ * give Kotlin/Native a compile-time database factory (JVM/Android could use
+ * reflection, but native has none). Room's KSP generates the `actual` per
+ * target — we only declare the expect.
  */
 @Database(
     entities = [MessageEntity::class, SummaryEntity::class, FactsEntity::class],
@@ -38,8 +41,20 @@ import androidx.sqlite.execSQL
     // needed and Room's "missing schema-location" warning is silenced.
     exportSchema = false,
 )
+@ConstructedBy(AppDatabaseConstructor::class)
 public abstract class AppDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
+}
+
+/**
+ * Compile-time constructor for [AppDatabase]. Room's KSP generates the
+ * `actual object` per target; this `expect` is all we hand-write.
+ * `@Suppress("NO_ACTUAL_FOR_EXPECT")` — the actual is code-generated, not
+ * visible to the IDE until KSP runs.
+ */
+@Suppress("NO_ACTUAL_FOR_EXPECT", "KotlinNoActualForExpect")
+public expect object AppDatabaseConstructor : RoomDatabaseConstructor<AppDatabase> {
+    override fun initialize(): AppDatabase
 }
 
 /**

@@ -1,8 +1,5 @@
 package ru.den.writes.code.project01.cliJvm
 
-import androidx.room.Room
-import androidx.room.RoomDatabase
-import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.project01.cliJvm.command.ApiKeys
@@ -10,21 +7,8 @@ import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
 import ru.den.writes.code.project01.cliJvm.command.CliArgsToStartCommandMapper
 import ru.den.writes.code.project01.cliJvm.command.ModelProviderFactory
 import ru.den.writes.code.project01.cliJvm.command.USAGE
-import ru.den.writes.code.project01.cliJvm.db.AppDatabase
-import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
-import ru.den.writes.code.project01.cliJvm.db.MIGRATION_2_3
-import ru.den.writes.code.project01.cliJvm.db.MIGRATION_3_4
-import java.io.File
+import ru.den.writes.code.project01.cliJvm.db.buildDatabase
 import kotlin.system.exitProcess
-
-/**
- * Where the session history database lives. One file for all sessions,
- * discriminated by the `session_id` column.
- */
-private val DB_FILE: File = File(
-    System.getProperty("user.home"),
-    ".project01-cli/history.db",
-)
 
 /**
  * Bootstrap: read provider keys, parse args into a [StartCommand] (the unified
@@ -60,7 +44,7 @@ suspend fun main(args: Array<String>) {
         exitProcess(1)
     }
 
-    val db = database()
+    val db = buildDatabase()
     try {
         val initialState = StartExecutor(db).execute(command)
         if (initialState != null) {
@@ -69,19 +53,4 @@ suspend fun main(args: Array<String>) {
     } finally {
         db.close()
     }
-}
-
-/** Open the session history database, creating its parent dir and applying migrations. */
-private fun database(): AppDatabase {
-    DB_FILE.parentFile.mkdirs()
-    return Room.databaseBuilder<AppDatabase>(name = DB_FILE.absolutePath)
-        .setDriver(BundledSQLiteDriver())
-        // WAL lets parallel processes open the same file safely: one writer +
-        // many readers at any moment, no blocking. With our session_id
-        // discriminator, distinct -session values touch disjoint rows.
-        .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-        // v1→v2: token columns; v2→v3: `summaries`; v3→v4: branch_id + `facts`
-        // (MIGRATION_1_2 / _2_3 / _3_4). Without these, opening an older DB throws.
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
-        .build()
 }
