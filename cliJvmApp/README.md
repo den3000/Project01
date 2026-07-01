@@ -8,7 +8,7 @@ JVM-приложение, которое шлёт промпт в chat-style LLM
 уходит в REPL — каждая новая строка становится следующим промптом.
 
 Флаги старта (`-flag`) и команды внутри сессии (`/cmd`) разбираются **одним декларативным
-каталогом** (`clicontrols`) — см. [«Как устроен парсинг»](#как-устроен-парсинг-clicontrols).
+каталогом** (`cliargs`) — см. [«Как устроен парсинг»](#как-устроен-парсинг-cliargs).
 
 ## Быстрый старт
 
@@ -376,7 +376,7 @@ $BIN \
 $BIN -session
 ```
 
-## Как устроен парсинг (clicontrols)
+## Как устроен парсинг (cliargs)
 
 Раньше разбор стартовых флагов и разбор `/`-команд были два независимых «месива» из констант,
 `if`-ов и ручной валидации. Сейчас **один декларативный каталог грамматики питает оба фронта**
@@ -438,30 +438,34 @@ Per-entity расширения: `profile <name> <section> [<text>]` (секци
 
 ### Два слоя
 
-1. **Дескриптор-каталог (данные)** — `CliControls.all: List<ControlSpec>`: токен, поверхности,
+1. **Дескриптор-каталог (данные)** — `CliArgs.all: List<ArgSpec>`: токен, поверхности,
    `parent` (цепочка предков для сабов), `ValueSpec` (тип + валидатор декларативно),
    `requires`/`excludes` (кросс-ограничения), `parentValueIn` (саб легален только под определённым
    значением родителя — `summarizeEvery` лишь под `strategy summary`).
-2. **Парсер** — `CliControlsParser`: один рекурсивный обход по каталогу для обоих фронтов.
+2. **Парсер** — `CliArgsParser`: один рекурсивный обход по каталогу для обоих фронтов.
    `parseArgv` режет argv на контролы (токен с ведущим `-` открывает новую группу только если это
    имя известного контрола — иначе он значение, так доезжают `-3`/`-v`) и гоняет кросс-валидацию.
-   Результат — `ParsedControl(spec, value, subs)`; ошибки — типизированный `ParseError`.
+   Результат — `ParsedArg(spec, value, subs)`; ошибки — типизированный `ParseError`.
 
-Downstream-мапперы живут в `command/`: `ControlsToCommand` (startup → `CliCommand`) и
-`ControlsToBranchCommand` (CMD-строка → `BranchCommand`). Грамматика остаётся отделённой от домена.
+Downstream-мапперы живут в `command/`: `CliArgsToStartCommandMapper` (startup args → `StartCommand`;
+`parse` = `parseArgv` + `map`, держит `CliArgsParser` + `ModelProviderFactory`) и
+`CliArgToSessionCommandMapper` (CMD-строка → `SessionCommand`, держит `CliArgsParser`). Оба маппера
+`main` строит из ОДНОГО `CliArgsParser()`; ключи изолированы в `ModelProviderFactory`. Грамматика
+остаётся отделённой от домена.
 
 ### Карта файлов
 
 | Файл | Что |
 |---|---|
-| `clicontrols/CliControlsArg.kt` | `Surface` + словарь токенов `CliControlsArg` |
-| `clicontrols/ControlSpec.kt` | `ValueKind`/`ValueSpec` (декларативная валидация) + `ControlSpec` |
-| `clicontrols/CliControls.kt` | каталог `all` + билдеры `entity()/top()/sub()` + lookups |
-| `clicontrols/ParsedControl.kt` | `ParsedControl` + `ParseResult`/`ParseError`/`BatchResult` |
-| `clicontrols/CliControlsParser.kt` | парсер обоих фронтов + batch + кросс-валидация |
-| `command/CliControlsCommandParser.kt` | рантайм-фронт старта: `parseArgv` → `ControlsToCommand` |
-| `command/ControlsToCommand.kt` | controls → `CliCommand` (startup) |
-| `command/ControlsToBranchCommand.kt` | CMD-строка → `BranchCommand` (in-session) |
+| `cliargs/CliArg.kt` | `Surface` + словарь токенов `CliArg` |
+| `cliargs/ArgSpec.kt` | `ValueKind`/`ValueSpec` (декларативная валидация) + `ArgSpec` |
+| `cliargs/CliArgs.kt` | каталог `all` + билдеры `entity()/top()/sub()` + lookups |
+| `cliargs/ParsedArg.kt` | `ParsedArg` + `ParseResult`/`ParseError`/`BatchResult` |
+| `cliargs/CliArgsParser.kt` | парсер обоих фронтов + batch + кросс-валидация |
+| `command/CliArgsToStartCommandMapper.kt` | startup: `parse(args)` = `parseArgv` → `map` → `StartCommand` |
+| `command/CliArgToSessionCommandMapper.kt` | CMD-строка → `SessionCommand` (in-session) |
+| `command/ModelProviders.kt` | `ApiKeys` + `ModelProviderFactory` (изолятор ключей) + `buildModelProvider` |
+| `command/ParsedArgAccess.kt` | `subValue`/`last`/`has` над `ParsedArg` (общие для маппера и фабрики) |
 
 ### Текущие ограничения
 
@@ -478,6 +482,6 @@ Downstream-мапперы живут в `command/`: `ControlsToCommand` (startup
 ```
 
 Offline и быстро — все провайдеры застаблены через `FakeLlmApi`, сети нет. Парсинг покрыт
-`clicontrols/*Test` + `command/CliControlsCommandParser*Test` + `ControlsToBranchCommandTest`;
+`cliargs/*Test` (grammar/crossvalidation) + `command/CliArgsToStartCommandMapper*Test` (оба маппера);
 MVI-стек диалога — через хелпер `runSessionForTest`, байт-в-байт вывод пинит `PlainViewGoldenTest`.
 Ядро LLM/pricing/context/memory живёт в `:shared` — `./gradlew :shared:jvmTest`.

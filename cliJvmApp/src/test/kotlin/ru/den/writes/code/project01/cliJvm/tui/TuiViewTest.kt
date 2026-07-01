@@ -1,6 +1,8 @@
 package ru.den.writes.code.project01.cliJvm.tui
 
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.agent.testSessionMapper
+
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CommandEntry
 import ru.den.writes.code.project01.cliJvm.Overlay
 import ru.den.writes.code.project01.cliJvm.PaletteAction
@@ -62,54 +64,54 @@ class TuiViewTest {
     @Test
     fun `when blank - then null`() {
         // when - then
-        assertNull(toIntent(""))
+        assertNull(toIntent("", testSessionMapper))
     }
 
     @Test
     fun `when exit or quit - then Exit`() {
         // when - then
-        assertEquals(UiIntent.Exit, toIntent("/exit"))
-        assertEquals(UiIntent.Exit, toIntent("/QUIT"))
+        assertEquals(UiIntent.Exit, toIntent("/exit", testSessionMapper))
+        assertEquals(UiIntent.Exit, toIntent("/QUIT", testSessionMapper))
     }
 
     @Test
     fun `when reuse - then Reuse`() {
         // when - then
-        assertEquals(UiIntent.Reuse, toIntent("/reuse"))
+        assertEquals(UiIntent.Reuse, toIntent("/reuse", testSessionMapper))
     }
 
     @Test
-    fun `when a slash command - then SlashCommand`() {
+    fun `when a slash command - then the SessionCommand intent`() {
         // when - then
-        assertEquals(UiIntent.SlashCommand(BranchCommand.Branch("exp")), toIntent("/branch exp"))
+        assertEquals(SessionCommand.Branch("exp"), toIntent("/branch exp", testSessionMapper))
     }
 
     @Test
     fun `when plain text - then Submit`() {
         // when - then
-        assertEquals(UiIntent.Submit("hello there"), toIntent("hello there"))
+        assertEquals(UiIntent.Submit("hello there"), toIntent("hello there", testSessionMapper))
     }
 
     @Test
     fun `when an argument-less picker command - then OpenPicker of that kind`() {
         // when - then
-        assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profile"))
-        assertEquals(UiIntent.OpenPicker(PickerKind.Task), toIntent("/task"))
-        assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/branch"))
-        assertEquals(UiIntent.OpenPicker(PickerKind.MemoryMode), toIntent("/agent mode"))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Profile), toIntent("/profile", testSessionMapper))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Task), toIntent("/task", testSessionMapper))
+        assertEquals(UiIntent.OpenPicker(PickerKind.Branch), toIntent("/branch", testSessionMapper))
+        assertEquals(UiIntent.OpenPicker(PickerKind.MemoryMode), toIntent("/agent mode", testSessionMapper))
     }
 
     @Test
-    fun `when a picker command carries an argument - then it stays a SlashCommand`() {
+    fun `when a picker command carries an argument - then it stays a SessionCommand`() {
         // when - then — the argument form is untouched, only the bare form opens a picker
-        assertEquals(UiIntent.SlashCommand(BranchCommand.SwitchProfile("work")), toIntent("/profile work"))
+        assertEquals(SessionCommand.SwitchProfile("work"), toIntent("/profile work", testSessionMapper))
     }
 
     @Test
     fun `when help or question mark - then OpenPalette`() {
         // when - then
-        assertEquals(UiIntent.OpenPalette, toIntent("/help"))
-        assertEquals(UiIntent.OpenPalette, toIntent("/?"))
+        assertEquals(UiIntent.OpenPalette, toIntent("/help", testSessionMapper))
+        assertEquals(UiIntent.OpenPalette, toIntent("/?", testSessionMapper))
     }
     //endregion
 
@@ -132,7 +134,7 @@ class TuiViewTest {
         // given
         val palette = Overlay.Palette(
             listOf(
-                CommandEntry("/branch show", "show the branch", PaletteAction.Run(BranchCommand.Checkpoint)),
+                CommandEntry("/branch show", "show the branch", PaletteAction.Run(SessionCommand.Checkpoint)),
                 CommandEntry("/rule", "add a rule", PaletteAction.Prefill("/rule ")),
             ),
             cursor = 0,

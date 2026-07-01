@@ -1,14 +1,15 @@
 package ru.den.writes.code.project01.cliJvm.agent.branching
 
+
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
-import ru.den.writes.code.project01.cliJvm.BranchCommand
+import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.PromptResult
 import ru.den.writes.code.project01.cliJvm.StdinPromptSource
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.agent.newChat
-import ru.den.writes.code.project01.cliJvm.agent.stdinSource
+import ru.den.writes.code.project01.cliJvm.agent.createStdinPromptSource
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import java.io.BufferedReader
 import java.io.StringReader
@@ -36,7 +37,7 @@ class AgentBranchingTest {
                 cliArgs = chat,
                 llmApi = fakeApi,
                 historyStore = store,
-                promptSource = stdinSource("/branch alt\n/branch switch alt\na1\n/exit\n"),
+                promptSource = createStdinPromptSource("/branch alt\n/branch switch alt\na1\n/exit\n"),
             )
 
             // then
@@ -57,14 +58,14 @@ class AgentBranchingTest {
         // given
         // Helper to classify a single line through a fresh source.
         fun classify(line: String): PromptResult =
-            StdinPromptSource(BufferedReader(StringReader("$line\n"))).nextPrompt()
+            createStdinPromptSource("$line\n").nextPrompt()
 
         // when - then
         // Branch family.
-        assertEquals(PromptResult.Command(BranchCommand.Branch("alt")), classify("/branch alt"))
-        assertEquals(PromptResult.Command(BranchCommand.Switch("alt")), classify("/branch switch alt"))
-        assertEquals(PromptResult.Command(BranchCommand.ListBranches), classify("/branch"))
-        assertEquals(PromptResult.Command(BranchCommand.Checkpoint), classify("/branch show"))
+        assertEquals(PromptResult.Command(SessionCommand.Branch("alt")), classify("/branch alt"))
+        assertEquals(PromptResult.Command(SessionCommand.Switch("alt")), classify("/branch switch alt"))
+        assertEquals(PromptResult.Command(SessionCommand.ListBranches), classify("/branch"))
+        assertEquals(PromptResult.Command(SessionCommand.Checkpoint), classify("/branch show"))
         // Non-branch terminators.
         assertEquals(PromptResult.Stop, classify("/exit"))
         // Plain text falls through unchanged.

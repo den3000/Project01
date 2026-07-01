@@ -23,7 +23,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "hi", session = "alpha")
 
             // when
-            runSessionForTest(chat, fakeApi, store, promptSource = stdinSource("/exit\n"))
+            runSessionForTest(chat, fakeApi, store, promptSource = createStdinPromptSource("/exit\n"))
 
             // then
             assertEquals(1, fakeApi.calls.size)
@@ -56,7 +56,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "next", session = "alpha")
 
             // when
-            runSessionForTest(chat, fakeApi, store, promptSource = stdinSource("/exit\n"))
+            runSessionForTest(chat, fakeApi, store, promptSource = createStdinPromptSource("/exit\n"))
 
             // then
             val expected = listOf(
@@ -77,7 +77,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "hi", session = "alpha")
 
             // when
-            runSessionForTest(chat, fakeApi, store, promptSource = stdinSource("/exit\n"))
+            runSessionForTest(chat, fakeApi, store, promptSource = createStdinPromptSource("/exit\n"))
 
             // then
             assertEquals(0, harness.db.messageDao().count())
@@ -96,7 +96,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "hi", session = "fresh")
 
             // when
-            runSessionForTest(chat, fakeApi, store, promptSource = stdinSource("/exit\n"))
+            runSessionForTest(chat, fakeApi, store, promptSource = createStdinPromptSource("/exit\n"))
 
             // then
             assertTrue(fakeApi.calls.isNotEmpty())
@@ -118,7 +118,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "start", session = "alpha")
 
             // when
-            runSessionForTest(chat, fakeApi, store, promptSource = stdinSource("/reuse\n/exit\n"))
+            runSessionForTest(chat, fakeApi, store, promptSource = createStdinPromptSource("/reuse\n/exit\n"))
 
             // then
             assertEquals(2, fakeApi.calls.size)
@@ -140,7 +140,7 @@ class AgentChatTest {
             val chat = newChat(prompt = "start", session = "alpha")
 
             // when
-            runSessionForTest(chat, fakeApi, store, promptSource = stdinSource("/reuse\n/exit\n"))
+            runSessionForTest(chat, fakeApi, store, promptSource = createStdinPromptSource("/reuse\n/exit\n"))
 
             // then
             // Only the failed opening attempt. /reuse silently skipped
@@ -162,7 +162,7 @@ class AgentChatTest {
 
             // when
             // No /exit — just close the stream immediately after opening.
-            runSessionForTest(chat, fakeApi, store, promptSource = stdinSource(""))
+            runSessionForTest(chat, fakeApi, store, promptSource = createStdinPromptSource(""))
 
             // then
             // Opening turn went out; REPL didn't try to read anything else.

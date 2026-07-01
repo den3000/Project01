@@ -34,7 +34,7 @@ class AgentTokenAccountingTest {
             val chat = newChat(prompt = "hi", session = "tally")
 
             // when
-            runSessionForTest(chat, fakeApi, store, promptSource = stdinSource("/exit\n"))
+            runSessionForTest(chat, fakeApi, store, promptSource = createStdinPromptSource("/exit\n"))
 
             // then
             assertEquals(1, store.stats.turns)
@@ -63,7 +63,7 @@ class AgentTokenAccountingTest {
             // when
             // Phase 2: open a fresh store, run a turn, check that stats
             // reflect prior + new.
-            runSessionForTest(chat, fakeApi, store, promptSource = stdinSource("/exit\n"))
+            runSessionForTest(chat, fakeApi, store, promptSource = createStdinPromptSource("/exit\n"))
 
             // then
             assertEquals(2, store.stats.turns)

@@ -2,7 +2,10 @@ package ru.den.writes.code.project01.cliJvm.agent
 
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
+import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.CommandRunner
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
@@ -27,47 +30,52 @@ import java.io.StringReader
  * Shared helpers for the Agent-suite tests under
  * [ru.den.writes.code.project01.cliJvm.agent] (and its [agent.branching]
  * sub-package). Lives in its own file because every Agent*Test reuses the
- * same `CliCommand.RunChat` factory + dummy provider + stdin source — duplicating
+ * same `StartCommand.RunChat` factory + dummy provider + stdin source — duplicating
  * the 15-line factory across 8 files would mean 8 places to keep in sync
- * when [CliCommand.RunChat] gains a field. `internal` keeps these out of the main
+ * when [StartCommand.RunChat] gains a field. `internal` keeps these out of the main
  * code; same compile module → also visible to `agent.branching`.
  */
 
-internal fun newChat(prompt: String, session: String?): CliCommand.RunChat = CliCommand.RunChat(
+internal fun newChat(prompt: String, session: String?): StartCommand.RunChat = StartCommand.RunChat(
     prompt = prompt,
     maxTokens = null,
     stopSequences = null,
     endSequence = null,
     temperature = null,
     modelProvider = dummyGeminiProvider(),
-    session = session,
-    feedFile = null,
-    chunkChars = 2500,
-    feedInstruction = "",
-    byLine = false,
-    strategy = ContextStrategyKind.FULL,
-    keepLast = 6,
-    summarizeEvery = 10,
-    task = null,
-    profile = null,
-    memoryMode = null,
-    stageAgents = emptyList(),
-    tui = false,
-    judgeAgents = emptyList(),
+    config = SessionConfig(
+        session = session,
+        feedFile = null,
+        chunkChars = 2500,
+        feedInstruction = "",
+        byLine = false,
+        strategy = ContextStrategyKind.FULL,
+        keepLast = 6,
+        summarizeEvery = 10,
+        task = null,
+        profile = null,
+        memoryMode = null,
+        stageAgents = emptyList(),
+        tui = false,
+        judgeAgents = emptyList(),
+    ),
 )
 
 /**
  * Agent doesn't dispatch on the provider (the concrete `LlmApi` is already
- * stubbed via `FakeLlmApi`), but `CliCommand.RunPrompt` insists on a
+ * stubbed via `FakeLlmApi`), but `StartCommand.SessionInitialState` insists on a
  * non-null [ModelProvider], so tests pass this throwaway.
  */
 internal fun dummyGeminiProvider(
     model: GeminiModel = GeminiModel.Default,
 ): ModelProvider.Gemini = ModelProvider.Gemini(model = model, apiKey = "test-key")
 
+/** The in-session `/`-command mapper the test prompt sources classify slash lines with. */
+internal val testSessionMapper = CliArgToSessionCommandMapper(CliArgsParser())
+
 /** Pre-loaded stdin source that hands the REPL the given script line by line. */
-internal fun stdinSource(script: String): StdinPromptSource =
-    StdinPromptSource(BufferedReader(StringReader(script)))
+internal fun createStdinPromptSource(script: String): StdinPromptSource =
+    StdinPromptSource(BufferedReader(StringReader(script)), testSessionMapper)
 
 /**
  * Run a session through the production MVI stack (TurnEngine + SessionViewModel
@@ -75,10 +83,10 @@ internal fun stdinSource(script: String): StdinPromptSource =
  * offline and assert on its PlainView output.
  */
 internal suspend fun runSessionForTest(
-    cliArgs: CliCommand.RunPrompt,
+    cliArgs: StartCommand.SessionInitialState,
     llmApi: LlmApi,
     historyStore: HistoryStore?,
-    promptSource: PromptSource = StdinPromptSource(BufferedReader(InputStreamReader(System.`in`))),
+    promptSource: PromptSource = StdinPromptSource(BufferedReader(InputStreamReader(System.`in`)), testSessionMapper),
     replAfterFeed: PromptSource? = null,
     strategy: ContextStrategy = ContextStrategy.FullHistory,
     memory: MemoryProvider? = null,

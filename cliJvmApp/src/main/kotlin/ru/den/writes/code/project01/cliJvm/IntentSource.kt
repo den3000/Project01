@@ -26,10 +26,11 @@ internal interface IntentSource {
 }
 
 /**
- * Adapts a [PromptSource] into an [IntentSource]: Prompt → Submit, Command →
- * SlashCommand, Stop → null. [throttle] is applied before each intent except
- * the first — the feed source passes 16s, interactive / TUI pass zero. (This
- * is where the per-turn `delay(16s)` feed throttle now lives.)
+ * Adapts a [PromptSource] into an [IntentSource]: Prompt → Submit, Command → the
+ * classified [SessionCommand] itself (which is a [UiIntent]), Stop → null.
+ * [throttle] is applied before each intent except the first — the feed source
+ * passes 16s, interactive / TUI pass zero. (This is where the per-turn
+ * `delay(16s)` feed throttle now lives.)
  */
 internal class PromptSourceIntents(
     private val source: PromptSource,
@@ -42,7 +43,7 @@ internal class PromptSourceIntents(
         first = false
         return when (val r = source.nextPrompt()) {
             is PromptResult.Prompt -> UiIntent.Submit(r.text)
-            is PromptResult.Command -> UiIntent.SlashCommand(r.command)
+            is PromptResult.Command -> r.command
             PromptResult.Reuse -> UiIntent.Reuse
             PromptResult.Stop -> null
         }

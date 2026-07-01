@@ -1,13 +1,38 @@
 package ru.den.writes.code.project01.cliJvm.command
 
 import ru.den.writes.code.project01.cliJvm.CliArgsException
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODEL
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROVIDER
+import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceModel
 import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterModel
 
+/** Provider API keys, injected into a [ModelProviderFactory] at construction. */
+internal data class ApiKeys(
+    val gemini: String = "",
+    val openRouter: String = "",
+    val huggingFace: String = "",
+)
+
 /** Gemini API limit on the number of stop sequences. */
 internal const val MAX_STOP_SEQUENCES: Int = 5
+
+/**
+ * The one place the provider API keys live after startup. Resolves a parsed
+ * `-agent provider/model` (its `provider`/`model` sub-values) into a typed
+ * [ModelProvider], injecting the keys so nothing downstream has to carry them.
+ * Built once in `main` from [ApiKeys] and handed to the arg mapper.
+ */
+internal class ModelProviderFactory(private val keys: ApiKeys) {
+    fun buildProvider(agent: ParsedArg?): ModelProvider =
+        buildModelProvider(
+            agent?.subValue(PROVIDER) ?: PROVIDER_GEMINI,
+            agent?.subValue(MODEL),
+            keys.gemini, keys.openRouter, keys.huggingFace,
+        )
+}
 
 internal const val PROVIDER_GEMINI = "gemini"
 internal const val PROVIDER_OPENROUTER = "openrouter"

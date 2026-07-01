@@ -5,7 +5,7 @@ import ru.den.writes.code.project01.shared.llm.GenerationParams
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
@@ -25,7 +25,7 @@ class AgentOneShotTest {
             val priorCount = dao.count()
 
             val fakeApi = FakeLlmApi().apply { queueText("ok") }
-            val oneShot = CliCommand.RunOneShot(
+            val oneShot = StartCommand.RunOneShot(
                 prompt = "fire and forget",
                 maxTokens = null,
                 stopSequences = null,
@@ -35,7 +35,7 @@ class AgentOneShotTest {
             )
 
             // when
-            runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = stdinSource(""))
+            runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = createStdinPromptSource(""))
 
             // then
             assertEquals(1, fakeApi.calls.size)
@@ -51,7 +51,7 @@ class AgentOneShotTest {
     fun `when OneShot run with generation params - then params forwarded verbatim to LLM`() = runTest {
         // given
         val fakeApi = FakeLlmApi().apply { queueText("ok") }
-        val oneShot = CliCommand.RunOneShot(
+        val oneShot = StartCommand.RunOneShot(
             prompt = "x",
             maxTokens = 42,
             stopSequences = listOf("STOP"),
@@ -61,7 +61,7 @@ class AgentOneShotTest {
         )
 
         // when
-        runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = stdinSource(""))
+        runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = createStdinPromptSource(""))
 
         // then
         val expected = GenerationParams(

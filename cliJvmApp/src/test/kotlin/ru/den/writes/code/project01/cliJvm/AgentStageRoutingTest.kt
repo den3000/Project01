@@ -1,8 +1,11 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.cliJvm.agent.createStdinPromptSource
+
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
-import ru.den.writes.code.project01.cliJvm.command.CliCommand
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
+import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
@@ -49,7 +52,7 @@ class AgentStageRoutingTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                 )
 
@@ -76,7 +79,7 @@ class AgentStageRoutingTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                     routedAgents = listOf(routed(TaskStage.PLANNING, TaskStage.EXECUTION, planner)),
                 )
@@ -105,7 +108,7 @@ class AgentStageRoutingTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                     routedAgents = listOf(routed(TaskStage.EXECUTION, TaskStage.VALIDATION, later)),
                 )
@@ -135,7 +138,7 @@ class AgentStageRoutingTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
-                    promptSource = stdinSource("/exit\n"),
+                    promptSource = createStdinPromptSource("/exit\n"),
                     memory = memory,
                     routedAgents = listOf(
                         routed(TaskStage.PLANNING, TaskStage.EXECUTION, planner, profileName = "planner"),
@@ -168,7 +171,7 @@ class AgentStageRoutingTest {
                 runSessionForTest(
                     newChat(prompt = "hi", session = "demo"),
                     fallback, store,
-                    promptSource = stdinSource("go on\n/exit\n"),
+                    promptSource = createStdinPromptSource("go on\n/exit\n"),
                     memory = memory,
                     routedAgents = listOf(
                         routed(TaskStage.PLANNING, TaskStage.PLANNING, planner),
@@ -202,7 +205,7 @@ class AgentStageRoutingTest {
                     runSessionForTest(
                         newChat(prompt = "hi", session = "demo"),
                         fallback, store,
-                        promptSource = stdinSource("/exit\n"),
+                        promptSource = createStdinPromptSource("/exit\n"),
                         memory = memory,
                         routedAgents = listOf(
                             routed(
@@ -237,7 +240,7 @@ class AgentStageRoutingTest {
                     runSessionForTest(
                         newChat(prompt = "hi", session = "demo"),
                         fake, store,
-                        promptSource = stdinSource("/exit\n"),
+                        promptSource = createStdinPromptSource("/exit\n"),
                         memory = memory,
                     )
                 }
@@ -264,31 +267,31 @@ class AgentStageRoutingTest {
         modelId = modelId,
     )
 
-    private fun newChat(prompt: String, session: String?): CliCommand.RunChat = CliCommand.RunChat(
+    private fun newChat(prompt: String, session: String?): StartCommand.RunChat = StartCommand.RunChat(
         prompt = prompt,
         maxTokens = null,
         stopSequences = null,
         endSequence = null,
         temperature = null,
         modelProvider = ModelProvider.Gemini(model = GeminiModel.Default, apiKey = "test-key"),
-        session = session,
-        feedFile = null,
-        chunkChars = 2500,
-        feedInstruction = "",
-        byLine = false,
-        strategy = ContextStrategyKind.FULL,
-        keepLast = 6,
-        summarizeEvery = 10,
-        task = null,
-        profile = null,
-        memoryMode = null,
-        stageAgents = emptyList(),
-        tui = false,
-        judgeAgents = emptyList(),
+        config = SessionConfig(
+            session = session,
+            feedFile = null,
+            chunkChars = 2500,
+            feedInstruction = "",
+            byLine = false,
+            strategy = ContextStrategyKind.FULL,
+            keepLast = 6,
+            summarizeEvery = 10,
+            task = null,
+            profile = null,
+            memoryMode = null,
+            stageAgents = emptyList(),
+            tui = false,
+            judgeAgents = emptyList(),
+        ),
     )
 
-    private fun stdinSource(script: String): StdinPromptSource =
-        StdinPromptSource(BufferedReader(StringReader(script)))
 
     private inline fun withTempMemoryRoot(block: (java.io.File) -> Unit) {
         val dir = Files.createTempDirectory("project01-agent-routing-").toFile()

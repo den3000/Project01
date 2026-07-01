@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 /**
  * The command palette catalog — the single list the TUI palette renders. Pins
  * that every row names a `/`-command and that each action maps to the right
- * kind, so the palette and [parseSlashCommand] stay in step.
+ * kind, so the palette and the `/`-command mapper stay in step.
  */
 class CommandPaletteTest {
 
@@ -33,7 +33,7 @@ class CommandPaletteTest {
     @Test
     fun `when a command takes no argument - then it maps to a Run or Reuse`() {
         // when - then
-        assertEquals(PaletteAction.Run(BranchCommand.Checkpoint), actionOf("/branch show"))
+        assertEquals(PaletteAction.Run(SessionCommand.Checkpoint), actionOf("/branch show"))
         assertEquals(PaletteAction.Reuse, actionOf("/reuse"))
     }
 

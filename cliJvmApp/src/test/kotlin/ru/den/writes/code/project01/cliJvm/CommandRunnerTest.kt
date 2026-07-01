@@ -34,7 +34,7 @@ class CommandRunnerTest {
         // when - then
         assertEquals(
             listOf("[branch] branch commands need a persisted session"),
-            runner.run(BranchCommand.Checkpoint),
+            runner.run(SessionCommand.Checkpoint),
         )
     }
 
@@ -46,7 +46,7 @@ class CommandRunnerTest {
         // when - then
         assertEquals(
             listOf("[schedule] no scheduler in this session — launch with -schedule … to enable"),
-            runner.run(BranchCommand.Schedule(ScheduleSpec.Collect("current_weather", null, seconds = 30, periodic = true))),
+            runner.run(SessionCommand.Schedule(ScheduleSpec.Collect("current_weather", null, seconds = 30, periodic = true))),
         )
     }
 
@@ -60,7 +60,7 @@ class CommandRunnerTest {
             CommandRunner(historyStore = null, memory = null, strategy = ContextStrategy.FullHistory, scheduler = control)
 
         // when
-        val lines = runner.run(BranchCommand.Schedule(ScheduleSpec.Agent("recap", seconds = 60, periodic = false)))
+        val lines = runner.run(SessionCommand.Schedule(ScheduleSpec.Agent("recap", seconds = 60, periodic = false)))
 
         // then — the task is registered (one active task) and announced
         assertEquals(1, engine.list().size)
@@ -79,12 +79,12 @@ class CommandRunnerTest {
         val task = control.add(ScheduleSpec.Agent("recap", seconds = 60, periodic = false))
 
         // when - then — list shows it; clear stops all; list then empty
-        assertTrue(runner.run(BranchCommand.ListSchedules).single().contains(task.id))
+        assertTrue(runner.run(SessionCommand.ListSchedules).single().contains(task.id))
         assertEquals(
             listOf("[schedule] cancelled 1 task(s) — schedule stopped"),
-            runner.run(BranchCommand.ClearSchedules),
+            runner.run(SessionCommand.ClearSchedules),
         )
-        assertEquals(listOf("[schedule] no active tasks"), runner.run(BranchCommand.ListSchedules))
+        assertEquals(listOf("[schedule] no active tasks"), runner.run(SessionCommand.ListSchedules))
     }
 
     @Test
@@ -98,7 +98,7 @@ class CommandRunnerTest {
         )
 
         // when - then
-        assertEquals(listOf("[schedule] no active task 'nope'"), runner.run(BranchCommand.CancelSchedule("nope")))
+        assertEquals(listOf("[schedule] no active task 'nope'"), runner.run(SessionCommand.CancelSchedule("nope")))
     }
 
     @Test
@@ -113,7 +113,7 @@ class CommandRunnerTest {
             // when - then
             assertEquals(
                 listOf("[branch] forked 'main' → 'exp' (2 message(s) copied); /branch switch exp to continue on it"),
-                runner.run(BranchCommand.Branch("exp")),
+                runner.run(SessionCommand.Branch("exp")),
             )
         }
     }
@@ -128,7 +128,7 @@ class CommandRunnerTest {
             val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
 
             // when - then
-            assertEquals(listOf("[branch] deleted 'exp'"), runner.run(BranchCommand.DeleteBranch("exp")))
+            assertEquals(listOf("[branch] deleted 'exp'"), runner.run(SessionCommand.DeleteBranch("exp")))
             assertEquals(listOf("main"), harness.db.messageDao().branchesOf("s"))
         }
     }
@@ -144,7 +144,7 @@ class CommandRunnerTest {
             // when - then
             assertEquals(
                 listOf("[branch] can't delete the current branch 'main' — /branch switch <other> first"),
-                runner.run(BranchCommand.DeleteBranch("main")),
+                runner.run(SessionCommand.DeleteBranch("main")),
             )
         }
     }
@@ -160,7 +160,7 @@ class CommandRunnerTest {
             // when - then
             assertEquals(
                 listOf("[branch] no such branch 'ghost' (use /branch to list)"),
-                runner.run(BranchCommand.DeleteBranch("ghost")),
+                runner.run(SessionCommand.DeleteBranch("ghost")),
             )
         }
     }
@@ -178,7 +178,7 @@ class CommandRunnerTest {
             // when - then
             assertEquals(
                 listOf("[branch] deleted 2 branch(es) (exp, wip); kept current 'main'"),
-                runner.run(BranchCommand.ClearBranches),
+                runner.run(SessionCommand.ClearBranches),
             )
             assertEquals(listOf("main"), harness.db.messageDao().branchesOf("s"))
         }
@@ -192,7 +192,7 @@ class CommandRunnerTest {
         // when - then
         assertEquals(
             listOf("[memory] memory commands need a memory mode — start with -agent <name> mode <preamble|system>"),
-            runner.run(BranchCommand.ShowMemory),
+            runner.run(SessionCommand.ShowMemory),
         )
     }
 
@@ -206,7 +206,7 @@ class CommandRunnerTest {
             // when - then
             assertEquals(
                 listOf("[memory] mode → system"),
-                runner.run(BranchCommand.SetMemoryMode(MemoryMode.SYSTEM)),
+                runner.run(SessionCommand.SetMemoryMode(MemoryMode.SYSTEM)),
             )
         }
     }
@@ -221,7 +221,7 @@ class CommandRunnerTest {
             // when - then
             assertEquals(
                 listOf("[memory] active task → fix (new, stage ${TaskStage.INITIAL.keyword})"),
-                runner.run(BranchCommand.SetTask("fix")),
+                runner.run(SessionCommand.SetTask("fix")),
             )
         }
     }
@@ -238,7 +238,7 @@ class CommandRunnerTest {
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
 
             // when
-            val out = runner.run(BranchCommand.ListProfiles)
+            val out = runner.run(SessionCommand.ListProfiles)
 
             // then
             assertEquals("[memory] profiles:", out.first())
@@ -257,8 +257,8 @@ class CommandRunnerTest {
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
 
             // when - then — first removal succeeds, a second call finds nothing
-            assertEquals(listOf("[memory] rule ${rule.id} removed"), runner.run(BranchCommand.RemoveRule(rule.id)))
-            assertEquals(listOf("[memory] no rule with id '${rule.id}'"), runner.run(BranchCommand.RemoveRule(rule.id)))
+            assertEquals(listOf("[memory] rule ${rule.id} removed"), runner.run(SessionCommand.RemoveRule(rule.id)))
+            assertEquals(listOf("[memory] no rule with id '${rule.id}'"), runner.run(SessionCommand.RemoveRule(rule.id)))
         }
     }
 
@@ -270,7 +270,7 @@ class CommandRunnerTest {
             val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
 
             // when - then
-            assertEquals(listOf("[memory] cleared 2 rule(s)"), runner.run(BranchCommand.ClearRules))
+            assertEquals(listOf("[memory] cleared 2 rule(s)"), runner.run(SessionCommand.ClearRules))
             assertEquals(emptyList(), mstore.listRules())
         }
     }
@@ -283,9 +283,9 @@ class CommandRunnerTest {
             val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
 
             // when - then — delete one by id, second call finds nothing, then clear the rest
-            assertEquals(listOf("[memory] task 'auth' deleted"), runner.run(BranchCommand.DeleteTask("auth")))
-            assertEquals(listOf("[memory] no task 'auth'"), runner.run(BranchCommand.DeleteTask("auth")))
-            assertEquals(listOf("[memory] cleared 1 task(s)"), runner.run(BranchCommand.ClearTasks))
+            assertEquals(listOf("[memory] task 'auth' deleted"), runner.run(SessionCommand.DeleteTask("auth")))
+            assertEquals(listOf("[memory] no task 'auth'"), runner.run(SessionCommand.DeleteTask("auth")))
+            assertEquals(listOf("[memory] cleared 1 task(s)"), runner.run(SessionCommand.ClearTasks))
             assertEquals(emptyList(), mstore.listTaskIds())
         }
     }
@@ -301,7 +301,7 @@ class CommandRunnerTest {
             val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
 
             // when - then
-            assertEquals(listOf("[memory] all profiles cleared (1 named + unnamed)"), runner.run(BranchCommand.ClearAllProfiles))
+            assertEquals(listOf("[memory] all profiles cleared (1 named + unnamed)"), runner.run(SessionCommand.ClearAllProfiles))
             assertEquals(emptyList(), mstore.listProfileNames())
             assertNull(mstore.loadProfileData())
         }

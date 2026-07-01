@@ -31,19 +31,19 @@ internal class CommandRunner(
     private val strategy: ContextStrategy,
     private val scheduler: SchedulerControl? = null,
 ) {
-    suspend fun run(command: BranchCommand): List<String> = buildList {
+    suspend fun run(command: SessionCommand): List<String> = buildList {
         when (command) {
-            BranchCommand.Checkpoint -> withHistoryStore { store ->
+            SessionCommand.Checkpoint -> withHistoryStore { store ->
                 add(
                     "[checkpoint] branch '${store.branchId}', ${store.messages.size} message(s) — " +
                         "use /branch <name> to fork a new branch from here"
                 )
             }
-            BranchCommand.ListBranches -> withHistoryStore { store ->
+            SessionCommand.ListBranches -> withHistoryStore { store ->
                 val branches = store.branches()
                 add("[branches] " + branches.joinToString(", ") { if (it == store.branchId) "* $it" else it })
             }
-            is BranchCommand.Branch -> withHistoryStore { store ->
+            is SessionCommand.Branch -> withHistoryStore { store ->
                 val name = command.name
                 when {
                     !name.matches(BRANCH_NAME_REGEX) ->
@@ -62,7 +62,7 @@ internal class CommandRunner(
                     }
                 }
             }
-            is BranchCommand.Switch -> withHistoryStore { store ->
+            is SessionCommand.Switch -> withHistoryStore { store ->
                 val name = command.name
                 when {
                     name == store.branchId -> add("[branch] already on '$name'")
@@ -75,7 +75,7 @@ internal class CommandRunner(
                     }
                 }
             }
-            is BranchCommand.DeleteBranch -> withHistoryStore { store ->
+            is SessionCommand.DeleteBranch -> withHistoryStore { store ->
                 val name = command.name
                 when {
                     name == store.branchId ->
@@ -88,7 +88,7 @@ internal class CommandRunner(
                     }
                 }
             }
-            BranchCommand.ClearBranches -> withHistoryStore { store ->
+            SessionCommand.ClearBranches -> withHistoryStore { store ->
                 val others = store.branches().filter { it != store.branchId }
                 if (others.isEmpty()) {
                     add("[branch] no other branches to clear (on '${store.branchId}')")
@@ -97,10 +97,10 @@ internal class CommandRunner(
                     add("[branch] deleted ${others.size} branch(es) (${others.joinToString(", ")}); kept current '${store.branchId}'")
                 }
             }
-            BranchCommand.ShowMemory -> withMemory { mem ->
+            SessionCommand.ShowMemory -> withMemory { mem ->
                 add("[memory]\n${mem.describe()}")
             }
-            is BranchCommand.AddProfileItem -> withMemory { mem ->
+            is SessionCommand.AddProfileItem -> withMemory { mem ->
                 if (command.text.isBlank()) {
                     add("[memory] /profile ${command.section.keyword} needs the new text")
                 } else {
@@ -109,15 +109,15 @@ internal class CommandRunner(
                     add("[memory] profile.${command.section.keyword} += \"${command.text}\" ($count item(s) total)")
                 }
             }
-            is BranchCommand.ClearProfileSection -> withMemory { mem ->
+            is SessionCommand.ClearProfileSection -> withMemory { mem ->
                 mem.store.clearProfileSection(command.section)
                 add("[memory] profile.${command.section.keyword} cleared")
             }
-            BranchCommand.ClearProfile -> withMemory { mem ->
+            SessionCommand.ClearProfile -> withMemory { mem ->
                 mem.store.clearProfile()
                 add("[memory] profile cleared")
             }
-            is BranchCommand.SwitchProfile -> withMemory { mem ->
+            is SessionCommand.SwitchProfile -> withMemory { mem ->
                 val name = command.name
                 if (!isValidProfileName(name)) {
                     add("[memory] invalid profile name '$name' (alphanumeric / '_' / '-', up to 64 chars)")
@@ -126,7 +126,7 @@ internal class CommandRunner(
                     add("[memory] active profile → $name")
                 }
             }
-            BranchCommand.ListProfiles -> withMemory { mem ->
+            SessionCommand.ListProfiles -> withMemory { mem ->
                 val names = mem.store.listProfileNames()
                 val active = mem.activeProfileName()
                 if (names.isEmpty()) {
@@ -139,7 +139,7 @@ internal class CommandRunner(
                     }
                 }
             }
-            is BranchCommand.ShowProfile -> withMemory { mem ->
+            is SessionCommand.ShowProfile -> withMemory { mem ->
                 val name = command.name
                 val data = mem.store.loadNamedProfile(name)
                 if (data == null) {
@@ -154,7 +154,7 @@ internal class CommandRunner(
                     }
                 }
             }
-            is BranchCommand.AddNamedProfileItem -> withMemory { mem ->
+            is SessionCommand.AddNamedProfileItem -> withMemory { mem ->
                 val name = command.name
                 if (!isValidProfileName(name)) {
                     add("[memory] invalid profile name '$name'")
@@ -166,20 +166,20 @@ internal class CommandRunner(
                     add("[memory] profile.$name.${command.section.keyword} += \"${command.text}\" ($count item(s) total)")
                 }
             }
-            is BranchCommand.ClearNamedProfileSection -> withMemory { mem ->
+            is SessionCommand.ClearNamedProfileSection -> withMemory { mem ->
                 mem.store.clearNamedProfileSection(command.name, command.section)
                 add("[memory] profile.${command.name}.${command.section.keyword} cleared")
             }
-            is BranchCommand.ClearNamedProfile -> withMemory { mem ->
+            is SessionCommand.ClearNamedProfile -> withMemory { mem ->
                 val removed = mem.store.clearNamedProfile(command.name)
                 if (removed) add("[memory] profile '${command.name}' removed")
                 else add("[memory] no profile named '${command.name}'")
             }
-            BranchCommand.ClearAllProfiles -> withMemory { mem ->
+            SessionCommand.ClearAllProfiles -> withMemory { mem ->
                 val n = mem.store.clearAllProfiles()
                 add("[memory] all profiles cleared ($n named + unnamed)")
             }
-            is BranchCommand.AddRule -> withMemory { mem ->
+            is SessionCommand.AddRule -> withMemory { mem ->
                 if (command.text.isBlank()) {
                     add("[memory] /rule needs the new rule text")
                 } else {
@@ -187,7 +187,7 @@ internal class CommandRunner(
                     add("[memory] rule ${rule.id} added")
                 }
             }
-            is BranchCommand.RemoveRule -> withMemory { mem ->
+            is SessionCommand.RemoveRule -> withMemory { mem ->
                 if (command.id.isBlank()) {
                     add("[memory] /rule clear needs a rule id")
                 } else if (mem.store.removeRule(command.id)) {
@@ -196,11 +196,11 @@ internal class CommandRunner(
                     add("[memory] no rule with id '${command.id}'")
                 }
             }
-            BranchCommand.ClearRules -> withMemory { mem ->
+            SessionCommand.ClearRules -> withMemory { mem ->
                 val n = mem.store.clearRules()
                 add("[memory] cleared $n rule(s)")
             }
-            is BranchCommand.SetTask -> withMemory { mem ->
+            is SessionCommand.SetTask -> withMemory { mem ->
                 val id = command.taskId
                 if (id.isBlank()) {
                     add("[memory] /task needs a task id")
@@ -217,7 +217,7 @@ internal class CommandRunner(
                     )
                 }
             }
-            is BranchCommand.AppendTaskNote -> withMemory { mem ->
+            is SessionCommand.AppendTaskNote -> withMemory { mem ->
                 val active = mem.activeTaskId()
                 when {
                     active == null ->
@@ -230,21 +230,21 @@ internal class CommandRunner(
                     }
                 }
             }
-            BranchCommand.PauseTask -> withMemory { mem -> togglePause(mem, paused = true) }
-            BranchCommand.ResumeTask -> withMemory { mem -> togglePause(mem, paused = false) }
-            is BranchCommand.DeleteTask -> withMemory { mem ->
+            SessionCommand.PauseTask -> withMemory { mem -> togglePause(mem, paused = true) }
+            SessionCommand.ResumeTask -> withMemory { mem -> togglePause(mem, paused = false) }
+            is SessionCommand.DeleteTask -> withMemory { mem ->
                 if (mem.store.deleteTask(command.taskId)) add("[memory] task '${command.taskId}' deleted")
                 else add("[memory] no task '${command.taskId}'")
             }
-            BranchCommand.ClearTasks -> withMemory { mem ->
+            SessionCommand.ClearTasks -> withMemory { mem ->
                 val n = mem.store.clearTasks()
                 add("[memory] cleared $n task(s)")
             }
-            is BranchCommand.SetMemoryMode -> withMemory { mem ->
+            is SessionCommand.SetMemoryMode -> withMemory { mem ->
                 mem.setMode(command.mode)
                 add("[memory] mode → ${command.mode.name.lowercase()}")
             }
-            is BranchCommand.Schedule -> {
+            is SessionCommand.Schedule -> {
                 val ctl = scheduler
                 if (ctl == null) {
                     add(NO_SCHEDULER)
@@ -255,7 +255,7 @@ internal class CommandRunner(
                     add("[schedule] task '${task.id}' added (${task.label}, $cadence)")
                 }
             }
-            BranchCommand.ListSchedules -> {
+            SessionCommand.ListSchedules -> {
                 val ctl = scheduler
                 if (ctl == null) {
                     add(NO_SCHEDULER)
@@ -265,7 +265,7 @@ internal class CommandRunner(
                     else active.forEach { add("[schedule] ${it.id}  ${it.label}  next@${it.nextRunAt}") }
                 }
             }
-            is BranchCommand.CancelSchedule -> {
+            is SessionCommand.CancelSchedule -> {
                 val ctl = scheduler
                 when {
                     ctl == null -> add(NO_SCHEDULER)
@@ -273,7 +273,7 @@ internal class CommandRunner(
                     else -> add("[schedule] no active task '${command.id}'")
                 }
             }
-            BranchCommand.ClearSchedules -> {
+            SessionCommand.ClearSchedules -> {
                 val ctl = scheduler
                 if (ctl == null) add(NO_SCHEDULER)
                 else add("[schedule] cancelled ${ctl.cancelAll()} task(s) — schedule stopped")
