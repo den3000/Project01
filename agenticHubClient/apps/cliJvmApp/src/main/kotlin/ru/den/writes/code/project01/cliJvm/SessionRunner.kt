@@ -1,23 +1,14 @@
 package ru.den.writes.code.project01.cliJvm
 
 import io.ktor.client.HttpClient
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
-import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.project01.cliJvm.tui.TuiRenderer
-import ru.den.writes.code.project01.scheduling.InMemoryScheduleStore
-import ru.den.writes.code.project01.scheduling.SchedulerEngine
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.buildLlmApi
 import ru.den.writes.code.project01.shared.llm.ToolDefinition
@@ -25,10 +16,6 @@ import ru.den.writes.code.project01.shared.llm.ToolExecutor
 import java.io.File
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-
-/** Scheduler cadence: how often to check for due tasks, and how often to publish a report. */
-private const val SCHEDULER_TICK_MS = 1_000L
-private const val SCHEDULER_REPORT_MS = 30_000L
 
 /**
  * Prepare the objects a session runs on and hand off to [runSessionInternal].
@@ -118,9 +105,10 @@ internal suspend fun runSession(
 }
 
 /**
- * Assemble the MVI stack — [TurnEngine] + [SessionViewModel] + a renderer — and
- * run it over [primary] (with an optional feed→REPL [replAfterFeed]). The 16s
- * throttle applies only to a feed source; interactive stdin runs full speed.
+ * Drive a renderer over the assembled MVI stack ([buildSessionViewModel]), running
+ * the scheduler loops alongside it when the config carries schedules. The renderer
+ * (TUI vs plain) and the 16s feed throttle are the CLI-specific bits that keep this
+ * function in the app; the portable assembly lives in features:viewModel.
  */
 internal suspend fun runSessionInternal(
     cliArgs: StartCommand.SessionInitialState,
@@ -137,36 +125,20 @@ internal suspend fun runSessionInternal(
     toolExecutor: ToolExecutor? = null,
     sessionMapper: CliArgToSessionCommandMapper,
 ) {
-    val multiAgent = routedAgents.isNotEmpty()
-    val schedules = (cliArgs as? StartCommand.RunChat)?.config?.schedules.orEmpty()
-    val schedulerEnabled = schedules.isNotEmpty()
-    val engine = TurnEngine(
+    val assembly = buildSessionViewModel(
         cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor,
     )
+    val viewModel = assembly.viewModel
 
-    // Scheduler shared by startup -schedule and in-session /schedule. Built before the
-    // command runner / view-model so the REPL adds to the same engine; the handler's
-    // submitTurn is wired once the view-model exists (breaking the construction cycle).
-    val actions = mutableMapOf<String, ScheduleAction>()
-    val handler = CliTaskHandler(actions, toolExecutor)
-    val scheduler = if (schedulerEnabled) {
-        SchedulerEngine(InMemoryScheduleStore(), handler, now = { System.currentTimeMillis() })
-    } else {
-        null
-    }
-    val control = scheduler?.let { SchedulerControl(it, actions) }
-
-    val commandRunner = CommandRunner(historyStore, memory, strategy, control)
-    val viewModel = SessionViewModel(
-        cliArgs, engine, commandRunner, historyStore, memory, strategy, multiAgent,
-        schedulerEnabled = schedulerEnabled,
-    )
-    handler.submitTurn = viewModel::submitFromScheduler
-
+    val scheduler = assembly.scheduler
+    val control = assembly.control
     coroutineScope {
         val schedulerJobs =
-            if (scheduler != null && control != null) startSchedulerLoops(scheduler, control, schedules, viewModel)
-            else emptyList()
+            if (scheduler != null && control != null) {
+                startSchedulerLoops(scheduler, control, assembly.schedules, viewModel)
+            } else {
+                emptyList()
+            }
         try {
             when (view) {
                 ViewKind.TUI -> TuiRenderer(sessionMapper).run(viewModel, ChannelIntentSource())
@@ -184,38 +156,6 @@ internal suspend fun runSessionInternal(
             viewModel.closeSchedulerInbox()
         }
     }
-}
-
-/**
- * Launch the scheduler loops on `Dispatchers.IO`: a ticker that adds the startup tasks
- * (via [control], filling the handler's action map) then fires due tasks, and a reporter
- * that posts an aggregated report as a feed line every [SCHEDULER_REPORT_MS].
- */
-private fun CoroutineScope.startSchedulerLoops(
-    engine: SchedulerEngine,
-    control: SchedulerControl,
-    schedules: List<ScheduleSpec>,
-    vm: SessionViewModel,
-): List<Job> {
-    val ticker = launch(Dispatchers.IO) {
-        for (spec in schedules) control.add(spec)
-        engine.runLoop(SCHEDULER_TICK_MS)
-    }
-    val reporter = launch(Dispatchers.IO) {
-        // Baseline = the current (usually empty) summary, so we never announce "No results yet.":
-        // post only when it CHANGES — collect tasks show progress, agent-only stays quiet, and a
-        // cancelled schedule goes silent (the summary stops moving).
-        var last = engine.summary()
-        while (isActive) {
-            delay(SCHEDULER_REPORT_MS)
-            val summary = engine.summary()
-            if (summary != last) {
-                vm.postNotice(summary)
-                last = summary
-            }
-        }
-    }
-    return listOf(ticker, reporter)
 }
 
 /** Which renderer drives a session. */
