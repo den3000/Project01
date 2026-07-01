@@ -4,8 +4,10 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import ru.den.writes.code.project01.BuildKonfig
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.project01.cliJvm.command.ApiKeys
-import ru.den.writes.code.project01.cliJvm.command.CliArgsCommandParser
+import ru.den.writes.code.project01.cliJvm.command.CliArgsToStartCommandMapper
+import ru.den.writes.code.project01.cliJvm.command.ModelProviderFactory
 import ru.den.writes.code.project01.cliJvm.command.USAGE
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
@@ -41,7 +43,7 @@ suspend fun main(args: Array<String>) {
     )
 
     val command = try {
-        CliArgsCommandParser(keys).parse(args)
+        CliArgsToStartCommandMapper(CliArgsParser(), ModelProviderFactory(keys)).parse(args)
     } catch (e: CliArgsException) {
         System.err.println(e.message)
         if (e is CliArgsException.MissingRequiredArgument) {

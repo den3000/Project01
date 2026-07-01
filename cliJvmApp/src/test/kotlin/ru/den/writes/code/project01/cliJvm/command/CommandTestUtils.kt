@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.command
 
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.project01.cliJvm.cliargs.toArgsList
 
 /**
@@ -9,8 +10,11 @@ import ru.den.writes.code.project01.cliJvm.cliargs.toArgsList
  * about the mapped [StartCommand].
  */
 
-internal fun createCommandsParser(): CliArgsCommandParser =
-    CliArgsCommandParser(ApiKeys(DUMMY_GEMINI_KEY, DUMMY_OPENROUTER_KEY, DUMMY_HUGGINGFACE_KEY))
+internal fun createCommandsParser(): CliArgsToStartCommandMapper =
+    CliArgsToStartCommandMapper(
+        CliArgsParser(),
+        ModelProviderFactory(ApiKeys(DUMMY_GEMINI_KEY, DUMMY_OPENROUTER_KEY, DUMMY_HUGGINGFACE_KEY)),
+    )
 
 /** Split a command line into argv, honouring double-quoted spans (delegates to the cliargs tokenizer). */
 internal fun String.toArgsArray(): Array<String> = toArgsList().toTypedArray()

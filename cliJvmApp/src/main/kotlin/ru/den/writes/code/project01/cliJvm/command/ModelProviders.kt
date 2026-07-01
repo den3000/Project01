@@ -9,6 +9,13 @@ import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceModel
 import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterModel
 
+/** Provider API keys, injected into a [ModelProviderFactory] at construction. */
+internal data class ApiKeys(
+    val gemini: String = "",
+    val openRouter: String = "",
+    val huggingFace: String = "",
+)
+
 /** Gemini API limit on the number of stop sequences. */
 internal const val MAX_STOP_SEQUENCES: Int = 5
 

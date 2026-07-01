@@ -35,7 +35,7 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
 /**
  * Maps a typed REPL line onto an in-session [SessionCommand] by parsing it against
  * the shared catalog on the [Surface.CMD] front — the `/`-command twin of
- * [ControlsToCommand] (which feeds the startup `StartCommand`). One entity grammar
+ * [CliArgsToStartCommandMapper] (which feeds the startup `StartCommand`). One entity grammar
  * serves both fronts; only the target domain differs. A line that isn't a known
  * control (any parse error) returns null, so the caller sends it to the model as
  * an ordinary prompt — matching the old hand-rolled `parseSlashCommand`.

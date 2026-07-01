@@ -39,7 +39,7 @@ internal class TurnEngine(
      * Per-stage invariant judges: each owns a [TaskBinding] span and audits the
      * reply of any turn whose active task stage falls in it. Empty (the
      * default) = no judging — byte-identical to before. Needs per-stage agents
-     * plus an active task to route on (enforced at parse time, see `ControlsToCommand`).
+     * plus an active task to route on (enforced at parse time, see `CliArgsToStartCommandMapper`).
      */
     private val routedJudges: List<RoutedJudge> = emptyList(),
     /**

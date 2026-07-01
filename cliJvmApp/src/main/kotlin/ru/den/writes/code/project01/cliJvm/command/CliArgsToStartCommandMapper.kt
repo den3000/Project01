@@ -5,6 +5,7 @@ import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.StageAgentSpec
 import ru.den.writes.code.project01.cliJvm.StageJudgeSpec
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AFTER
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AGENT
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.ARGS
@@ -51,19 +52,31 @@ import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskStage
 
 /**
- * Maps parsed CliArgs top-level [ParsedArg]s onto a domain [StartCommand]
- * — the redesigned grammar's bridge to the same domain the legacy parser feeds.
- * The new grammar bundles provider/model/knobs/stages/judge under `agent`, so a
- * single agent without stages/judge is the "primary" (default agent); agents
- * with `stages` become stage agents, with `judge` become judges. Defaults match
- * the legacy ones. New-grammar productions with no legacy target throw an
+ * The runtime arg front: parse args with the cliargs grammar and map the top-level
+ * [ParsedArg]s straight onto a domain [StartCommand]. The grammar bundles
+ * provider/model/knobs/stages/judge under `agent`, so a single agent without
+ * stages/judge is the "primary" (default agent); agents with `stages` become stage
+ * agents, with `judge` become judges. Provider resolution (and the API keys) is
+ * delegated to [providers]; productions with no domain target throw an
  * `InvalidArgumentValue` "not expressible …" (see [gap]).
  */
-internal class ControlsToCommand(private val keys: ApiKeys) {
+internal class CliArgsToStartCommandMapper(
+    private val parser: CliArgsParser,
+    private val providers: ModelProviderFactory,
+) {
 
-    private val providers = ModelProviderFactory(keys)
+    /**
+     * Parse [args] with the cliargs grammar and map them onto a [StartCommand].
+     *
+     * @throws CliArgsException on invalid input (the type `main` prints).
+     */
+    fun parse(args: Array<String>): StartCommand {
+        val batch = parser.parseArgv(args.toList())
+        batch.errors.firstOrNull()?.let { throw it.toCliArgsException() }
+        return map(batch.controls)
+    }
 
-    fun map(controls: List<ParsedArg>): StartCommand {
+    private fun map(controls: List<ParsedArg>): StartCommand {
         val prompt = controls.last(PROMPT)
         return if (prompt != null) promptCommand(controls, prompt) else adminCommand(controls)
     }
