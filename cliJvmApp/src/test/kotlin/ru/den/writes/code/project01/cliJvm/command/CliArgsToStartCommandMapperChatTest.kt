@@ -20,10 +20,10 @@ class CliArgsToStartCommandMapperChatTest {
     @Test
     fun `when no config flags are used - then RunChat defaults`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val actual = parser.parse("-prompt hi".toArgsArray())
+        val actual = mapper.parse("-prompt hi".toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -54,14 +54,14 @@ class CliArgsToStartCommandMapperChatTest {
     @Test
     fun `when chat config flags are set - then they land on the command`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val input = "-prompt hi -session sess " +
             "-feedFile /path chunkChars 5000 feedInstruction \"feed me\" " +
             "-strategy summary keepLast 8 summarizeEvery 12 " +
             "-tui -mcpServer \"mcpLab --serve\""
 
         // when
-        val actual = parser.parse(input.toArgsArray())
+        val actual = mapper.parse(input.toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -83,11 +83,11 @@ class CliArgsToStartCommandMapperChatTest {
     @Test
     fun `when alternative feed and strategy forms are used - then they land`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val byLine = parser.parse("-prompt hi -feedFile /path byLine".toArgsArray())
-        val window = parser.parse("-prompt hi -strategy window keepLast 4".toArgsArray())
+        val byLine = mapper.parse("-prompt hi -feedFile /path byLine".toArgsArray())
+        val window = mapper.parse("-prompt hi -strategy window keepLast 4".toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(byLine)
@@ -100,37 +100,37 @@ class CliArgsToStartCommandMapperChatTest {
     @Test
     fun `when a prompt mode is selected - then RunChat or RunOneShot`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
 
         // when - then
-        assertIs<StartCommand.RunChat>(parser.parse("-prompt hi".toArgsArray()))
-        assertIs<StartCommand.RunOneShot>(parser.parse("-prompt hi -oneshot".toArgsArray()))
+        assertIs<StartCommand.RunChat>(mapper.parse("-prompt hi".toArgsArray()))
+        assertIs<StartCommand.RunOneShot>(mapper.parse("-prompt hi -oneshot".toArgsArray()))
     }
 
     @Test
     fun `when prompt flags are invalid - then rejected`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
 
         // when - then
-        assertFailsWith<CliArgsException.MissingRequiredArgument> { parser.parse("".toArgsArray()) }
+        assertFailsWith<CliArgsException.MissingRequiredArgument> { mapper.parse("".toArgsArray()) }
         val cases = listOf(
             "-nope",                // unknown control
             "-prompt tell me",      // unquoted trailing word
             "-strategy bogus",      // bad enum value (parse-error bridge)
         )
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { parser.parse(input.toArgsArray()) }
+            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
         }
     }
 
     @Test
     fun `when multiple mcpServer flags are used - then they accumulate into the list`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val actual = parser.parse("-prompt hi -mcpServer \"lab --serve\" -mcpServer \"docs --serve\"".toArgsArray())
+        val actual = mapper.parse("-prompt hi -mcpServer \"lab --serve\" -mcpServer \"docs --serve\"".toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -142,10 +142,10 @@ class CliArgsToStartCommandMapperChatTest {
     @Test
     fun `when oneshot has no config - then RunOneShot defaults`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val actual = parser.parse("-prompt hi -oneshot".toArgsArray())
+        val actual = mapper.parse("-prompt hi -oneshot".toArgsArray())
 
         // then
         val oneShot = assertIs<StartCommand.RunOneShot>(actual)
@@ -160,12 +160,12 @@ class CliArgsToStartCommandMapperChatTest {
     @Test
     fun `when oneshot carries generation knobs - then RunOneShot all-set`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val input = "-prompt hi -oneshot " +
             "-agent provider openrouter model deepseek/deepseek-r1:free maxTokens 100 temperature 1.2 stopSequence \"stop1 stop2\" endSequence ###"
 
         // when
-        val actual = parser.parse(input.toArgsArray())
+        val actual = mapper.parse(input.toArgsArray())
 
         // then
         val oneShot = assertIs<StartCommand.RunOneShot>(actual)

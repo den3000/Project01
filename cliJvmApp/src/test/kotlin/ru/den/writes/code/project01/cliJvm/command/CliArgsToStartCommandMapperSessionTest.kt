@@ -16,7 +16,7 @@ class CliArgsToStartCommandMapperSessionTest {
     @Test
     fun `when session, inflate or memory flags are used - then they map to the admin command`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-session" to StartCommand.ListSessions,
             "-session clear" to StartCommand.CleanHistory,
@@ -26,23 +26,23 @@ class CliArgsToStartCommandMapperSessionTest {
         )
 
         // when - then
-        cases.forEach { (input, expected) -> assertEquals(expected, parser.parse(input.toArgsArray()), input) }
+        cases.forEach { (input, expected) -> assertEquals(expected, mapper.parse(input.toArgsArray()), input) }
     }
 
     @Test
     fun `when session or inflate flags are invalid - then rejected`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val notExpressible = listOf(
             "-session show", // per-session show has no startup target
         )
 
         // when - then
         notExpressible.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { parser.parse(input.toArgsArray()) }
+            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
         }
         // inflate without a session is a missing-required, not an invalid-value
-        assertFailsWith<CliArgsException.MissingRequiredArgument> { parser.parse("-inflate 5".toArgsArray()) }
+        assertFailsWith<CliArgsException.MissingRequiredArgument> { mapper.parse("-inflate 5".toArgsArray()) }
     }
     //endregion
 

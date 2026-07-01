@@ -18,17 +18,17 @@ class CliArgsToStartCommandMapperScheduleTest {
     @Test
     fun `when schedule flags are used - then they map to RunChat schedules`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
 
         // when
         val collect = assertIs<StartCommand.RunChat>(
-            parser.parse("-prompt hi -mcpServer \"lab\" -schedule collect tool weather args \"{}\" after 30".toArgsArray()),
+            mapper.parse("-prompt hi -mcpServer \"lab\" -schedule collect tool weather args \"{}\" after 30".toArgsArray()),
         )
         val agent = assertIs<StartCommand.RunChat>(
-            parser.parse("-prompt hi -schedule agent prompt \"do x\" every 60".toArgsArray()),
+            mapper.parse("-prompt hi -schedule agent prompt \"do x\" every 60".toArgsArray()),
         )
         val multiple = assertIs<StartCommand.RunChat>(
-            parser.parse("-prompt hi -schedule agent prompt \"a\" after 10 -schedule agent prompt \"b\" every 20".toArgsArray()),
+            mapper.parse("-prompt hi -schedule agent prompt \"a\" after 10 -schedule agent prompt \"b\" every 20".toArgsArray()),
         )
 
         // then — after = one-shot (periodic false), every = periodic true; repeated -schedule accumulates
@@ -40,7 +40,7 @@ class CliArgsToStartCommandMapperScheduleTest {
     @Test
     fun `when schedule flags are invalid - then rejected`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-prompt hi -mcpServer \"lab\" -schedule collect tool X after 10 every 20", // after + every
             "-prompt hi -schedule collect after 30",   // collect needs a tool
@@ -50,7 +50,7 @@ class CliArgsToStartCommandMapperScheduleTest {
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException>(input) { parser.parse(input.toArgsArray()) }
+            assertFailsWith<CliArgsException>(input) { mapper.parse(input.toArgsArray()) }
         }
     }
     //endregion

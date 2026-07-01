@@ -13,7 +13,7 @@ class CliArgsToStartCommandMapperTaskTest {
     @Test
     fun `when task flags are used - then they map to the matching MemoryOp`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-task auth" to MemoryAction.SetTask("auth"),
             "-task auth pause" to MemoryAction.PauseTask("auth"),
@@ -24,21 +24,21 @@ class CliArgsToStartCommandMapperTaskTest {
 
         // when - then
         cases.forEach { (input, action) ->
-            assertEquals(StartCommand.MemoryOp(action), parser.parse(input.toArgsArray()), input)
+            assertEquals(StartCommand.MemoryOp(action), mapper.parse(input.toArgsArray()), input)
         }
     }
 
     @Test
     fun `when task flags are invalid - then rejected`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-task auth note \"did x\"", // task note has no startup target — not expressible
         )
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { parser.parse(input.toArgsArray()) }
+            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
         }
     }
     //endregion

@@ -13,7 +13,7 @@ class CliArgsToStartCommandMapperRuleTest {
     @Test
     fun `when rule flags are used - then they map to the matching MemoryOp`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-rule \"always kotlin\"" to MemoryAction.AddRule("always kotlin"),
             "-rule clear 003" to MemoryAction.RemoveRule("003"),
@@ -22,21 +22,21 @@ class CliArgsToStartCommandMapperRuleTest {
 
         // when - then
         cases.forEach { (input, action) ->
-            assertEquals(StartCommand.MemoryOp(action), parser.parse(input.toArgsArray()), input)
+            assertEquals(StartCommand.MemoryOp(action), mapper.parse(input.toArgsArray()), input)
         }
     }
 
     @Test
     fun `when rule flags are invalid - then rejected`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-rule", // bare rule list has no startup target — not expressible
         )
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { parser.parse(input.toArgsArray()) }
+            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
         }
     }
     //endregion

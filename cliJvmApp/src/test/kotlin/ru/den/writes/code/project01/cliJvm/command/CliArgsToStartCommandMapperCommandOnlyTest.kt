@@ -17,7 +17,7 @@ class CliArgsToStartCommandMapperCommandOnlyTest {
     @Test
     fun `when a command-only control is used as a startup flag - then rejected`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-prompt hi -reuse",
             "-prompt hi -exit",
@@ -26,7 +26,7 @@ class CliArgsToStartCommandMapperCommandOnlyTest {
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { parser.parse(input.toArgsArray()) }
+            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
         }
     }
     //endregion

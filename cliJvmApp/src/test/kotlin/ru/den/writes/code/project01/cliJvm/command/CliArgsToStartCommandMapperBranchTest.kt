@@ -13,14 +13,14 @@ class CliArgsToStartCommandMapperBranchTest {
     @Test
     fun `when branch is used as a startup flag - then rejected (command-only)`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-prompt hi -branch exp", // branch is CMD-only — wrong surface as a flag
         )
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { parser.parse(input.toArgsArray()) }
+            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
         }
     }
     //endregion

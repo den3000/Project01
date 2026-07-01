@@ -20,10 +20,10 @@ class CliArgsToStartCommandMapperAgentTest {
     @Test
     fun `when no agent flag used - then it is parsed to defaults`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val actual = parser.parse("-prompt hi".toArgsArray())
+        val actual = mapper.parse("-prompt hi".toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -43,12 +43,12 @@ class CliArgsToStartCommandMapperAgentTest {
     @Test
     fun `when primary agent is configured with custom values - then they land on the command`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val input = "-prompt hi " +
             "-agent main provider openrouter model deepseek/deepseek-r1:free maxTokens 100 temperature 1.2 stopSequence \"stop1 stop2\" endSequence ### mode system profile coder"
 
         // when
-        val actual = parser.parse(input.toArgsArray())
+        val actual = mapper.parse(input.toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -82,7 +82,7 @@ class CliArgsToStartCommandMapperAgentTest {
     @Test
     fun `when agent has invalid params - then throws InvalidArgumentValue`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-prompt hi -agent main maxTokens -5",
             "-prompt hi -agent main maxTokens abc",
@@ -96,19 +96,19 @@ class CliArgsToStartCommandMapperAgentTest {
         // when - then
         cases.forEach { input ->
             assertFailsWith<CliArgsException.InvalidArgumentValue>(input) {
-                parser.parse(input.toArgsArray())
+                mapper.parse(input.toArgsArray())
             }
         }
 
         assertFailsWith<CliArgsException.TooManyValues> {
-            parser.parse("-prompt hi -agent main stopSequence \"a b c d e f\"".toArgsArray())
+            mapper.parse("-prompt hi -agent main stopSequence \"a b c d e f\"".toArgsArray())
         }
     }
 
     @Test
     fun `when stage and judge agents span the run - then primary mode plus two stage agents and a judge land`() {
         // given — the full multi-agent demo: stages/judge are -agent subs, memory mode is the primary's mode
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val input = "-prompt go -session demo -task auth " +
             "-agent provider gemini model gemini-2.5-flash mode system " +
             "-agent provider gemini model gemini-2.5-pro profile interviewer stages clarification..planning " +
@@ -116,7 +116,7 @@ class CliArgsToStartCommandMapperAgentTest {
             "-agent provider openrouter model deepseek/deepseek-r1:free judge stages clarification..done"
 
         // when
-        val actual = parser.parse(input.toArgsArray())
+        val actual = mapper.parse(input.toArgsArray())
 
         // then
         assertIs<StartCommand.RunChat>(actual)
@@ -142,7 +142,7 @@ class CliArgsToStartCommandMapperAgentTest {
     @Test
     fun `when stage or judge configuration violates constraints - then rejected`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-prompt hi -agent a -agent b",
             "-prompt hi -agent s stages execution..execution provider gemini model x",
@@ -154,7 +154,7 @@ class CliArgsToStartCommandMapperAgentTest {
         // when - then
         cases.forEach { input ->
             assertFailsWith<CliArgsException.InvalidArgumentValue>(input) {
-                parser.parse(input.toArgsArray())
+                mapper.parse(input.toArgsArray())
             }
         }
     }

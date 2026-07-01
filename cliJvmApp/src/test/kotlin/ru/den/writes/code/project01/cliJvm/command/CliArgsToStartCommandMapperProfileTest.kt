@@ -21,7 +21,7 @@ class CliArgsToStartCommandMapperProfileTest {
     @Test
     fun `when profile entity flags are used - then they map to the matching MemoryOp`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-profile" to MemoryAction.ListProfiles,
             "-profile kotlin-senior" to MemoryAction.TouchProfile("kotlin-senior"),
@@ -32,14 +32,14 @@ class CliArgsToStartCommandMapperProfileTest {
 
         // when - then
         cases.forEach { (input, action) ->
-            assertEquals(StartCommand.MemoryOp(action), parser.parse(input.toArgsArray()), input)
+            assertEquals(StartCommand.MemoryOp(action), mapper.parse(input.toArgsArray()), input)
         }
     }
 
     @Test
     fun `when profile section flags are used - then every section maps on named and unnamed`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
 
         // when - then — text present = append, absent = clear; with a name = named, without = unnamed
         sections.forEach { (kw, sec) ->
@@ -50,7 +50,7 @@ class CliArgsToStartCommandMapperProfileTest {
                 "-profile $kw" to MemoryAction.ClearProfileSection(sec),
             )
             cases.forEach { (input, action) ->
-                assertEquals(StartCommand.MemoryOp(action), parser.parse(input.toArgsArray()), input)
+                assertEquals(StartCommand.MemoryOp(action), mapper.parse(input.toArgsArray()), input)
             }
         }
     }
@@ -58,7 +58,7 @@ class CliArgsToStartCommandMapperProfileTest {
     @Test
     fun `when profile flags are invalid - then rejected`() {
         // given
-        val parser = createMapper()
+        val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
             "-profile kotlin-senior show", // wrong order — verb-then-name only
             "-profile show",               // show-all has no startup target
@@ -66,7 +66,7 @@ class CliArgsToStartCommandMapperProfileTest {
 
         // when - then
         cases.forEach { input ->
-            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { parser.parse(input.toArgsArray()) }
+            assertFailsWith<CliArgsException.InvalidArgumentValue>(input) { mapper.parse(input.toArgsArray()) }
         }
     }
     //endregion
