@@ -33,6 +33,7 @@ plugins {
 }
 
 include(":agenticHubClient:platform:logging")
+include(":agenticHubClient:platform:config")
 include(":agenticHubClient:features:llm")
 include(":agenticHubClient:features:agent")
 include(":androidApp")
