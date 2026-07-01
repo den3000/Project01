@@ -1,10 +1,5 @@
 package ru.den.writes.code.project01.cliJvm
 
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.java.Java
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -12,7 +7,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.MemoryAction
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
@@ -27,29 +21,17 @@ import ru.den.writes.code.project01.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.project01.cliJvm.tui.TuiRenderer
 import ru.den.writes.code.project01.scheduling.InMemoryScheduleStore
 import ru.den.writes.code.project01.scheduling.SchedulerEngine
-import ru.den.writes.code.project01.shared.agent.AgentConfig
-import ru.den.writes.code.project01.shared.agent.AgentResponder
-import ru.den.writes.code.project01.shared.context.HistoryCompressor
-import ru.den.writes.code.project01.shared.invariant.LlmInvariantJudge
 import ru.den.writes.code.project01.shared.llm.LlmApi
-import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.ToolDefinition
 import ru.den.writes.code.project01.shared.llm.ToolExecutor
 import ru.den.writes.code.project01.shared.llm.Usage
-import ru.den.writes.code.project01.shared.llm.gemini.GeminiApi
-import ru.den.writes.code.project01.shared.llm.huggingface.HuggingFaceApi
-import ru.den.writes.code.project01.shared.llm.openrouter.OpenRouterApi
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskNotes
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import ru.den.writes.code.project01.shared.pricing.PricingRegistry
 import java.io.File
-import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-
-/** Generous request timeout — LLM responses can take a while. */
-private const val REQUEST_TIMEOUT_MS = 300_000L
 
 /** Scheduler cadence: how often to check for due tasks, and how often to publish a report. */
 private const val SCHEDULER_TICK_MS = 1_000L
@@ -57,9 +39,10 @@ private const val SCHEDULER_REPORT_MS = 30_000L
 
 /**
  * Root of the on-disk memory layer. Profile, rules and task notes live under
- * this folder as markdown files — see [MemoryStore] for the layout.
+ * this folder as markdown files — see [MemoryStore] for the layout. Shared by the
+ * admin memory ops here and the session's [memoryProvider] accessor.
  */
-private val MEMORY_ROOT: File = File(
+internal val MEMORY_ROOT: File = File(
     System.getProperty("user.home"),
     ".project01-cli/memory",
 )
@@ -305,106 +288,23 @@ internal class StartExecutor(private val db: AppDatabase) {
 
     /**
      * Shared chat / one-shot path. Both need an HTTP client + an [LlmApi]; they
-     * differ only in whether they own a [HistoryStore]. The concrete [LlmApi] is
-     * picked by [StartCommand.SessionInitialState.modelProvider]. Chat may swap stdin for a
-     * file-feed source via [StartCommand.RunChat.feedFile]; the reader's lifecycle
-     * is bounded by `use { }` rather than leaked into the session.
+     * differ only in whether they own a [HistoryStore]. The runtime collaborators
+     * are built via the session accessors ([contextStrategy]/[memoryProvider]/
+     * [historyStore]) and builders ([buildLlmApi]/[buildRoutedAgents]/…); the
+     * client's lifecycle is bounded by `use { }` rather than leaked into the session.
      */
     private suspend fun runPromptCommand(parsed: StartCommand.SessionInitialState) {
-        val historyStore: HistoryStore? = when (parsed) {
-            is StartCommand.RunChat -> {
-                val sessionId = parsed.config.session ?: generateSessionId()
-                // "Resume" = a passed name AND existing history under it. Otherwise
-                // it's new — announce the id so the user can return via -session.
-                val isResume = parsed.config.session != null &&
-                    db.messageDao().all(sessionId).isNotEmpty()
-                if (!isResume) {
-                    System.err.println("[session] new session: $sessionId")
-                }
-                HistoryStore(db.messageDao(), sessionId)
-            }
-            is StartCommand.RunOneShot -> null
-        }
+        val historyStore: HistoryStore? = parsed.historyStore(db)
 
-        // One client for the whole session: avoids the cold-start race that
-        // killed requests when the client closed too early, and keeps connections
-        // warm. Engine Java (not CIO — CIO's chunked parser dies on long Gemini
-        // thinking responses).
-        HttpClient(Java) {
-            install(ContentNegotiation) {
-                json(Json {
-                    ignoreUnknownKeys = true
-                    explicitNulls = false
-                })
-            }
-            install(HttpTimeout) {
-                requestTimeoutMillis = REQUEST_TIMEOUT_MS
-            }
-        }.use { client ->
-            fun buildLlmApi(mp: ModelProvider): LlmApi = when (mp) {
-                is ModelProvider.Gemini -> GeminiApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
-                is ModelProvider.OpenRouter -> OpenRouterApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
-                is ModelProvider.HuggingFace -> HuggingFaceApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
-            }
-            val llmApi: LlmApi = buildLlmApi(parsed.modelProvider)
-            // Map the strategy kind to a concrete ContextStrategy, wiring runtime
-            // deps. RunOneShot has no history, so the `as?` guard yields FullHistory.
+        buildHttpClient().use { client ->
+            val llmApi: LlmApi = buildLlmApi(parsed.modelProvider, client)
             val chat = parsed as? StartCommand.RunChat
-            val strategy: ContextStrategy = if (chat == null) {
-                ContextStrategy.FullHistory
-            } else when (chat.config.strategy) {
-                ContextStrategyKind.FULL -> ContextStrategy.FullHistory
-                ContextStrategyKind.WINDOW -> ContextStrategy.SlidingWindow(chat.config.keepLast)
-                ContextStrategyKind.FACTS -> StickyFacts(chat.config.keepLast)
-                ContextStrategyKind.SUMMARY -> ContextStrategy.Summary(
-                    HistoryCompressor(keepLast = chat.config.keepLast, summarizeEvery = chat.config.summarizeEvery),
-                )
-            }
-            // Memory layer: wired only when memoryMode is set; otherwise the wire
-            // bytes are byte-identical to a no-memory run.
-            val memory: MemoryProvider? = chat?.config?.memoryMode?.let { mode ->
-                MEMORY_ROOT.mkdirs()
-                MemoryProvider(
-                    store = MemoryStore(MEMORY_ROOT),
-                    initialMode = mode,
-                    initialTaskId = chat.config.task,
-                    initialProfileName = chat.config.profile,
-                )
-            }
-            // Per-stage agents: one RoutedAgent per spec, each its own LlmApi +
-            // fixed profile. Empty for single-agent sessions.
-            val routedAgents: List<RoutedAgent> = chat?.config?.stageAgents.orEmpty().map { spec ->
-                RoutedAgent(
-                    binding = spec.binding,
-                    responder = AgentResponder(
-                        AgentConfig(buildLlmApi(spec.provider), parsed.toGenerationParams(), spec.profileName),
-                    ),
-                    profileName = spec.profileName,
-                    modelId = spec.provider.modelId,
-                )
-            }
-            // Per-stage invariant judges: one RoutedJudge per spec on its own model.
-            val routedJudges: List<RoutedJudge> = chat?.config?.judgeAgents.orEmpty().map { spec ->
-                RoutedJudge(
-                    binding = spec.binding,
-                    checker = LlmInvariantJudge(buildLlmApi(spec.provider)),
-                    modelId = spec.provider.modelId,
-                )
-            }
-            // MCP tool servers: spawn each, connect, list its tools once. A router fans the
-            // model's calls out to the server that owns each tool (names unique across servers).
-            val mcpClients: List<McpToolClient> = chat?.config?.mcpServers.orEmpty().map { cmd ->
-                McpToolClient(cmd.split(Regex("\\s+")).filter { it.isNotEmpty() }).also { it.connect() }
-            }
-            val router: McpToolRouter? = mcpClients
-                .zip(chat?.config?.mcpServers.orEmpty())
-                .map { (client, cmd) ->
-                    val defs = client.listToolDefinitions()
-                    System.err.println("[mcp] $cmd → tools: ${defs.joinToString { it.name }}")
-                    McpToolRouter.Route(client, defs)
-                }
-                .takeIf { it.isNotEmpty() }
-                ?.let(::McpToolRouter)
+            val strategy: ContextStrategy = parsed.contextStrategy()
+            val memory: MemoryProvider? = parsed.memoryProvider()
+            val routedAgents: List<RoutedAgent> = buildRoutedAgents(chat, client, parsed.toGenerationParams())
+            val routedJudges: List<RoutedJudge> = buildJudges(chat, client)
+            val mcpClients: List<McpToolClient> = buildMcpToolClients(chat).onEach { it.connect() }
+            val router: McpToolRouter? = buildToolRouter(mcpClients, chat)
             val toolDefs = router?.toolDefs.orEmpty()
 
             try {
@@ -610,9 +510,3 @@ internal enum class ViewKind { TUI, PLAIN }
  */
 internal fun pickView(tui: Boolean, hasConsole: Boolean): ViewKind =
     if (tui && hasConsole) ViewKind.TUI else ViewKind.PLAIN
-
-/**
- * Eight-char hex slice off a random UUID — readable, easy to retype, ~4 billion
- * values. Matches `^[a-zA-Z0-9_-]+$`, so it's a valid `-session` to resume.
- */
-private fun generateSessionId(): String = UUID.randomUUID().toString().take(8)
