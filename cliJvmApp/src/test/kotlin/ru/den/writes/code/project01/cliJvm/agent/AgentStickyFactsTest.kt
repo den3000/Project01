@@ -7,7 +7,7 @@ import ru.den.writes.code.project01.cliJvm.FactsExtractor
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.StickyFacts
 import ru.den.writes.code.project01.cliJvm.TestDb
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -24,7 +24,7 @@ class AgentStickyFactsTest {
                 queueText("""{"k":"v2"}""") // extraction for turn 2
                 queueText("r2")             // main reply turn 2
             }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "facts")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "facts")
             val chat = newChat(prompt = "p1", session = "facts")
 
             // when
@@ -74,7 +74,7 @@ class AgentStickyFactsTest {
                 queueText("no json here, sorry") // extraction turn 2 → degrade to prior
                 queueText("r2")                  // main turn 2
             }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "degrade")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "degrade")
             val chat = newChat(prompt = "p1", session = "degrade")
 
             // when

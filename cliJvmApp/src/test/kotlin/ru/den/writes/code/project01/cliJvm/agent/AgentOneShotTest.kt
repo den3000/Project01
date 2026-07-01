@@ -8,7 +8,7 @@ import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.TestDb
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -20,7 +20,7 @@ class AgentOneShotTest {
             // given
             val dao = harness.db.messageDao()
             // Pre-existing rows that OneShot must NOT load nor see.
-            val seeded = HistoryStore(dao, sessionId = "ignored")
+            val seeded = RoomHistoryStore(dao, sessionId = "ignored")
             seeded.append(Message(Role.USER, "old turn"))
             val priorCount = dao.count()
 

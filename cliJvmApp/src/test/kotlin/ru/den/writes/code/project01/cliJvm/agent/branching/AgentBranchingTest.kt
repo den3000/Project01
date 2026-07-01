@@ -10,7 +10,7 @@ import ru.den.writes.code.project01.cliJvm.StdinPromptSource
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.agent.newChat
 import ru.den.writes.code.project01.cliJvm.agent.createStdinPromptSource
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import java.io.BufferedReader
 import java.io.StringReader
 import kotlin.test.Test
@@ -29,7 +29,7 @@ class AgentBranchingTest {
                 queueText("r1") // opening turn on main
                 queueText("r2") // one turn after switching to alt
             }
-            val store = HistoryStore(dao, sessionId = "s")
+            val store = RoomHistoryStore(dao, sessionId = "s")
             val chat = newChat(prompt = "m1", session = "s")
 
             // when

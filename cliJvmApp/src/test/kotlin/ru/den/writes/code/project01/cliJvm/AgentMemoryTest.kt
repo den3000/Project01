@@ -10,11 +10,11 @@ import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.shared.memory.MemoryLayer
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.memory.ProfileData
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskNotes
@@ -32,14 +32,14 @@ class AgentMemoryTest {
     fun `PREAMBLE mode prepends a USER memory frame and ASSISTANT ack to the wire list`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveProfile("I write Kotlin")
                     addRule("No Spring")
                 }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
@@ -61,7 +61,7 @@ class AgentMemoryTest {
     fun `SYSTEM mode emits all Role-SYSTEM messages before any USER message`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveProfile("I write Kotlin")
                     addRule("No Spring")
                     saveTask(TaskNotes(taskId = "auth", goal = "JWT login"))
@@ -73,7 +73,7 @@ class AgentMemoryTest {
                 )
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
@@ -94,12 +94,12 @@ class AgentMemoryTest {
     fun `memory frames never land in the persisted history`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root).apply { saveProfile("anything") }
+                val memStore = FileMemoryStore(root).apply { saveProfile("anything") }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.SYSTEM)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
                 val dao = harness.db.messageDao()
-                val store = HistoryStore(dao, sessionId = "demo")
+                val store = RoomHistoryStore(dao, sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
@@ -115,11 +115,11 @@ class AgentMemoryTest {
     fun `memory layer is empty when nothing is saved so wire shape stays untouched`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root)  // empty profile / rules / tasks
+                val memStore = FileMemoryStore(root)  // empty profile / rules / tasks
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
@@ -134,14 +134,14 @@ class AgentMemoryTest {
     fun `slash agent mode flips the next turn's wire shape mid-session`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root).apply { saveProfile("Kotlin only") }
+                val memStore = FileMemoryStore(root).apply { saveProfile("Kotlin only") }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply {
                     queueText("first")
                     queueText("second")
                 }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(
@@ -165,11 +165,11 @@ class AgentMemoryTest {
     fun `slash rule adds a numbered rule file`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root)
+                val memStore = FileMemoryStore(root)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(
@@ -190,11 +190,11 @@ class AgentMemoryTest {
     fun `slash task sets active id and slash task-note appends to it`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root)
+                val memStore = FileMemoryStore(root)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(
@@ -215,11 +215,11 @@ class AgentMemoryTest {
     fun `slash task note without an active task does not crash and writes nothing`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root)
+                val memStore = FileMemoryStore(root)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(
@@ -237,11 +237,11 @@ class AgentMemoryTest {
     fun `slash profile bare lists profiles and leaves the store empty`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root)
+                val memStore = FileMemoryStore(root)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(
@@ -262,14 +262,14 @@ class AgentMemoryTest {
         // prompt — the agent sends a second turn and the mode stays put.
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root).apply { saveProfile("anything") }
+                val memStore = FileMemoryStore(root).apply { saveProfile("anything") }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
                 val fake = FakeLlmApi().apply {
                     queueText("first")
                     queueText("second")
                 }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(
@@ -290,7 +290,7 @@ class AgentMemoryTest {
         // explanatory line and become no-ops, not throw or persist anything.
         TestDb().use { harness ->
             val fake = FakeLlmApi().apply { queueText("ok") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
             val chat = newChat(prompt = "hi", session = "demo")
 
             runSessionForTest(
@@ -311,7 +311,7 @@ class AgentMemoryTest {
     fun `structured profile renders subsection labels into the wire`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveProfileData(
                         ProfileData(
                             style = listOf("кратко", "русский"),
@@ -323,7 +323,7 @@ class AgentMemoryTest {
                 }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
@@ -344,10 +344,10 @@ class AgentMemoryTest {
             var captured: String? = null
             TestDb().use { harness ->
                 withTempMemoryRoot { root ->
-                    val memStore = MemoryStore(root).apply { saveProfileData(profile) }
+                    val memStore = FileMemoryStore(root).apply { saveProfileData(profile) }
                     val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
                     val fake = FakeLlmApi().apply { queueText("ok") }
-                    val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                    val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                     val chat = newChat(prompt = "Как реализовать кэш?", session = "demo")
                     runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
                     captured = fake.calls.single().messages.first().text
@@ -382,10 +382,10 @@ class AgentMemoryTest {
     fun `slash profile section appends a bullet to the store`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root)
+                val memStore = FileMemoryStore(root)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(
@@ -406,13 +406,13 @@ class AgentMemoryTest {
     fun `slash profile clear drops every section including legacy free text`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveProfile("legacy free text")
                     addProfileItem(ProfileSection.STYLE, "кратко")
                 }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(
@@ -434,7 +434,7 @@ class AgentMemoryTest {
     fun `dash profile flag pre-selects the active named profile`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     addNamedProfileItem("kotlin-senior", ProfileSection.STYLE, "кратко")
                     addNamedProfileItem("kotlin-senior", ProfileSection.CONSTRAINTS, "Kotlin")
                 }
@@ -444,7 +444,7 @@ class AgentMemoryTest {
                     initialProfileName = "kotlin-senior",
                 )
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
@@ -460,7 +460,7 @@ class AgentMemoryTest {
     fun `slash profile name switches the active profile and the next turn picks the new wire`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     addNamedProfileItem("kotlin-senior", ProfileSection.STYLE, "кратко")
                     addNamedProfileItem("python-junior", ProfileSection.STYLE, "подробно")
                 }
@@ -473,7 +473,7 @@ class AgentMemoryTest {
                     queueText("ok-1")
                     queueText("ok-2")
                 }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "first", session = "demo")
 
                 runSessionForTest(
@@ -497,10 +497,10 @@ class AgentMemoryTest {
     fun `slash profile name section appends to the named profile even when it is not active`() = runTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
-                val memStore = MemoryStore(root)
+                val memStore = FileMemoryStore(root)
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(

@@ -3,8 +3,9 @@ package ru.den.writes.code.project01.cliJvm
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.context.HistoryCompressor
 
 /**
@@ -40,7 +41,7 @@ internal fun StartCommand.SessionInitialState.memoryProvider(): MemoryProvider? 
     is StartCommand.RunChat -> config.memoryMode?.let { mode ->
         MEMORY_ROOT.mkdirs()
         MemoryProvider(
-            store = MemoryStore(MEMORY_ROOT),
+            store = FileMemoryStore(MEMORY_ROOT),
             initialMode = mode,
             initialTaskId = config.task,
             initialProfileName = config.profile,
@@ -60,7 +61,7 @@ internal suspend fun StartCommand.SessionInitialState.historyStore(db: AppDataba
         if (!isResume) {
             System.err.println("[session] new session: $sessionId")
         }
-        HistoryStore(db.messageDao(), sessionId)
+        RoomHistoryStore(db.messageDao(), sessionId)
     }
     is StartCommand.RunOneShot -> null
 }

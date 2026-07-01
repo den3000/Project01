@@ -6,9 +6,9 @@ import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.invariant.InvariantChecker
 import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
 import ru.den.writes.code.project01.shared.invariant.InvariantViolation
@@ -37,13 +37,13 @@ class AgentJudgeTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given — task at clarification; the model would advance, but the judge objects
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                     addRule("Kotlin only, no Spring")
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
                 val fake = FakeLlmApi().apply { queueText("Use Spring Boot.\n[[stage:planning]]") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -66,13 +66,13 @@ class AgentJudgeTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                     addRule("Kotlin only, no Spring")
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
                 val fake = FakeLlmApi().apply { queueText("Confirmed, Kotlin it is.\n[[stage:planning]]") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -95,13 +95,13 @@ class AgentJudgeTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given — task at execution, but the judge only covers clarification..planning
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.EXECUTION))
                     addRule("Kotlin only, no Spring")
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
                 val fake = FakeLlmApi().apply { queueText("Working.\n[[stage:validation]]") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
                 var calls = 0
                 val narrowJudge = RoutedJudge(
                     TaskBinding(TaskStage.CLARIFICATION, TaskStage.PLANNING),

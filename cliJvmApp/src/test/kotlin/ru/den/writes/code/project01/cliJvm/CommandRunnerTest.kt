@@ -2,9 +2,9 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.scheduling.InMemoryScheduleStore
 import ru.den.writes.code.project01.scheduling.SchedulerEngine
 import ru.den.writes.code.project01.shared.llm.Message
@@ -105,7 +105,7 @@ class CommandRunnerTest {
     fun `when forking a new branch - then it reports the fork`() = runTest {
         TestDb().use { harness ->
             // given — two messages on the default branch
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             store.append(Message(Role.USER, "a"))
             store.append(Message(Role.ASSISTANT, "b"))
             val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
@@ -122,7 +122,7 @@ class CommandRunnerTest {
     fun `when clearing a branch by name - then it deletes that branch`() = runTest {
         TestDb().use { harness ->
             // given — fork 'exp' off 'main'; we stay on 'main'
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             store.append(Message(Role.USER, "a"))
             store.fork("exp")
             val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
@@ -137,7 +137,7 @@ class CommandRunnerTest {
     fun `when clearing the current branch - then it refuses`() = runTest {
         TestDb().use { harness ->
             // given — on 'main'
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             store.append(Message(Role.USER, "a"))
             val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
 
@@ -153,7 +153,7 @@ class CommandRunnerTest {
     fun `when clearing a branch that doesn't exist - then it says no such branch`() = runTest {
         TestDb().use { harness ->
             // given
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             store.append(Message(Role.USER, "a"))
             val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
 
@@ -169,7 +169,7 @@ class CommandRunnerTest {
     fun `when clearing all branches - then every branch but the current goes`() = runTest {
         TestDb().use { harness ->
             // given — two extra branches off 'main'
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             store.append(Message(Role.USER, "a"))
             store.fork("exp")
             store.fork("wip")
@@ -200,7 +200,7 @@ class CommandRunnerTest {
     fun `when setting the memory mode - then it reports the new mode`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val memory = MemoryProvider(MemoryStore(root), MemoryMode.PREAMBLE)
+            val memory = MemoryProvider(FileMemoryStore(root), MemoryMode.PREAMBLE)
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
 
             // when - then
@@ -215,7 +215,7 @@ class CommandRunnerTest {
     fun `when setting a new task - then it reports the active task and initial stage`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val memory = MemoryProvider(MemoryStore(root), MemoryMode.SYSTEM)
+            val memory = MemoryProvider(FileMemoryStore(root), MemoryMode.SYSTEM)
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
 
             // when - then
@@ -230,7 +230,7 @@ class CommandRunnerTest {
     fun `when listing named profiles - then the active one is marked`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = MemoryStore(root).apply {
+            val mstore = FileMemoryStore(root).apply {
                 touchNamedProfile("work")
                 touchNamedProfile("home")
             }
@@ -251,7 +251,7 @@ class CommandRunnerTest {
     fun `when removing a rule by id - then it reports the removal and then its absence`() = runTest {
         withTempMemoryRoot { root ->
             // given — one rule on disk
-            val mstore = MemoryStore(root)
+            val mstore = FileMemoryStore(root)
             val rule = mstore.addRule("always kotlin")
             val memory = MemoryProvider(mstore, MemoryMode.SYSTEM)
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
@@ -266,7 +266,7 @@ class CommandRunnerTest {
     fun `when clearing all rules - then it reports the count`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = MemoryStore(root).apply { addRule("a"); addRule("b") }
+            val mstore = FileMemoryStore(root).apply { addRule("a"); addRule("b") }
             val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
 
             // when - then
@@ -279,7 +279,7 @@ class CommandRunnerTest {
     fun `when deleting a task then clearing tasks - then each reports`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = MemoryStore(root).apply { saveTask(TaskNotes("auth")); saveTask(TaskNotes("ui")) }
+            val mstore = FileMemoryStore(root).apply { saveTask(TaskNotes("auth")); saveTask(TaskNotes("ui")) }
             val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
 
             // when - then — delete one by id, second call finds nothing, then clear the rest
@@ -294,7 +294,7 @@ class CommandRunnerTest {
     fun `when clearing all profiles - then named and unnamed are gone`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = MemoryStore(root).apply {
+            val mstore = FileMemoryStore(root).apply {
                 saveProfile("legacy")
                 addNamedProfileItem("work", ProfileSection.STYLE, "кратко")
             }

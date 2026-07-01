@@ -10,7 +10,7 @@ import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.TestDb
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import java.io.StringReader
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,7 +29,7 @@ class AgentCompressionTest {
                 queueText("ROLLING SUMMARY") // summarization call during send 3
                 queueText("r3")
             }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "comp")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "comp")
             val chat = newChat(prompt = "p1", session = "comp")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
 
@@ -79,7 +79,7 @@ class AgentCompressionTest {
                 queue(LlmResult(text = null, error = "summarizer boom")) // compaction fails
                 queueText("r3")
             }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "degrade")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "degrade")
             val chat = newChat(prompt = "p1", session = "degrade")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
 
@@ -114,7 +114,7 @@ class AgentCompressionTest {
             // given
             val dao = harness.db.messageDao()
             // Seed prior history + a persisted summary covering the first pair.
-            val seed = HistoryStore(dao, sessionId = "resume")
+            val seed = RoomHistoryStore(dao, sessionId = "resume")
             seed.append(Message(Role.USER, "p1"))
             seed.append(Message(Role.ASSISTANT, "r1"))
             seed.append(Message(Role.USER, "p2"))
@@ -127,7 +127,7 @@ class AgentCompressionTest {
             )
             // Fresh run: summarizeEvery high enough that no compaction fires.
             val fakeApi = FakeLlmApi().apply { queueText("r3") }
-            val store = HistoryStore(dao, sessionId = "resume")
+            val store = RoomHistoryStore(dao, sessionId = "resume")
             val chat = newChat(prompt = "p3", session = "resume")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 100)
 
@@ -167,7 +167,7 @@ class AgentCompressionTest {
                 queueText("SUMMARY")  // compaction before the chunk-2 turn
                 queueText("r-c2")     // chunk 2
             }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "feedcomp")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "feedcomp")
             val chat = newChat(prompt = "open", session = "feedcomp")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
             val feed = ChunkedFilePromptSource(

@@ -5,7 +5,7 @@ import ru.den.writes.code.project01.shared.llm.Role
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.TestDb
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -19,7 +19,7 @@ class AgentChatTest {
         TestDb().use { harness ->
             // given
             val fakeApi = FakeLlmApi().apply { queueText("model reply") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
             val chat = newChat(prompt = "hi", session = "alpha")
 
             // when
@@ -32,7 +32,7 @@ class AgentChatTest {
                 fakeApi.calls[0].messages,
             )
             // Fresh reader sees both rows in the DB.
-            val reader = HistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val reader = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
             reader.load()
             val expected = listOf(
                 Message(Role.USER, "hi"),
@@ -47,12 +47,12 @@ class AgentChatTest {
         TestDb().use { harness ->
             // given
             val dao = harness.db.messageDao()
-            val seeder = HistoryStore(dao, sessionId = "alpha")
+            val seeder = RoomHistoryStore(dao, sessionId = "alpha")
             seeder.append(Message(Role.USER, "earlier user"))
             seeder.append(Message(Role.ASSISTANT, "earlier assistant"))
 
             val fakeApi = FakeLlmApi().apply { queueText("ok") }
-            val store = HistoryStore(dao, sessionId = "alpha")
+            val store = RoomHistoryStore(dao, sessionId = "alpha")
             val chat = newChat(prompt = "next", session = "alpha")
 
             // when
@@ -73,7 +73,7 @@ class AgentChatTest {
         TestDb().use { harness ->
             // given
             val fakeApi = FakeLlmApi() // empty queue → returns error
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
             val chat = newChat(prompt = "hi", session = "alpha")
 
             // when
@@ -92,7 +92,7 @@ class AgentChatTest {
         TestDb().use { harness ->
             // given
             val fakeApi = FakeLlmApi().apply { queueText("ok") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "fresh")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "fresh")
             val chat = newChat(prompt = "hi", session = "fresh")
 
             // when
@@ -114,7 +114,7 @@ class AgentChatTest {
                 queueText("first reply")
                 queueText("second reply")
             }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
             val chat = newChat(prompt = "start", session = "alpha")
 
             // when
@@ -136,7 +136,7 @@ class AgentChatTest {
         TestDb().use { harness ->
             // given
             val fakeApi = FakeLlmApi() // empty queue → opening fails, no reply to reuse
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
             val chat = newChat(prompt = "start", session = "alpha")
 
             // when
@@ -157,7 +157,7 @@ class AgentChatTest {
         TestDb().use { harness ->
             // given
             val fakeApi = FakeLlmApi().apply { queueText("ok") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
             val chat = newChat(prompt = "hi", session = "alpha")
 
             // when

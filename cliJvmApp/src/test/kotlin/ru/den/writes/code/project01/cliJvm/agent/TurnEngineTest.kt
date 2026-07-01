@@ -7,9 +7,9 @@ import ru.den.writes.code.project01.cliJvm.StageAdvance
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.TurnEngine
 import ru.den.writes.code.project01.cliJvm.TurnResult
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.llm.GenerationParams
@@ -37,7 +37,7 @@ class TurnEngineTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi().apply { queueText("reply", promptTokens = 12, outputTokens = 3) }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val engine = TurnEngine(newChat("hi", "s"), fake, store)
 
             // when
@@ -49,7 +49,7 @@ class TurnEngineTest {
             assertEquals(12, result.usage?.promptTokens)
             assertEquals(StageAdvance.None, result.stageAdvance)
             assertEquals(1, result.session?.turns)
-            val reader = HistoryStore(harness.db.messageDao(), sessionId = "s").apply { load() }
+            val reader = RoomHistoryStore(harness.db.messageDao(), sessionId = "s").apply { load() }
             assertEquals(
                 listOf(Message(Role.USER, "hi"), Message(Role.ASSISTANT, "reply")),
                 reader.messages,
@@ -62,7 +62,7 @@ class TurnEngineTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi() // empty queue → synthetic error
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val engine = TurnEngine(newChat("hi", "s"), fake, store)
 
             // when
@@ -79,7 +79,7 @@ class TurnEngineTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi().apply { queue(LlmResult(text = null)) }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val engine = TurnEngine(newChat("hi", "s"), fake, store)
 
             // when
@@ -95,10 +95,10 @@ class TurnEngineTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fake = FakeLlmApi().apply { queueText("on it [[stage:execution]]") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
                 val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory)
 
                 // when
@@ -119,10 +119,10 @@ class TurnEngineTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given — DONE isn't reachable from PLANNING
-                val memStore = MemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fake = FakeLlmApi().apply { queueText("skip ahead [[stage:done]]") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
                 val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory)
 
                 // when
@@ -143,11 +143,11 @@ class TurnEngineTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fb") }
                 val planner = FakeLlmApi().apply { queueText("planned") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
                 val engine = TurnEngine(
                     newChat("hi", "s"), fallback, store, memory = memory,
                     routedAgents = listOf(routed(TaskStage.PLANNING, TaskStage.EXECUTION, planner, "planner")),

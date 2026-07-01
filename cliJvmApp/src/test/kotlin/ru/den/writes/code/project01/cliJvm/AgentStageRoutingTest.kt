@@ -6,9 +6,9 @@ import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.llm.GenerationParams
@@ -41,12 +41,12 @@ class AgentStageRoutingTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -67,13 +67,13 @@ class AgentStageRoutingTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fallback") }
                 val planner = FakeLlmApi().apply { queueText("planner") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -96,13 +96,13 @@ class AgentStageRoutingTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("t", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fallback") }
                 val later = FakeLlmApi().apply { queueText("later") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -125,14 +125,14 @@ class AgentStageRoutingTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     addNamedProfileItem("planner", ProfileSection.STYLE, "plan carefully")
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fallback") }
                 val planner = FakeLlmApi().apply { queueText("planner") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -157,7 +157,7 @@ class AgentStageRoutingTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
@@ -165,7 +165,7 @@ class AgentStageRoutingTest {
                 // planner answers turn 1 and signals the legal move to execution.
                 val planner = FakeLlmApi().apply { queueText("done planning [[stage:execution]]") }
                 val executor = FakeLlmApi().apply { queueText("executing") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when — two user turns: the opening prompt, then one more line.
                 runSessionForTest(
@@ -194,11 +194,11 @@ class AgentStageRoutingTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fb") }
                 val planner = FakeLlmApi().apply { queueText("the plan") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 val out = captureStdout {
@@ -230,10 +230,10 @@ class AgentStageRoutingTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fake = FakeLlmApi().apply { queueText("plain reply") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when — no routed agents
                 val out = captureStdout {

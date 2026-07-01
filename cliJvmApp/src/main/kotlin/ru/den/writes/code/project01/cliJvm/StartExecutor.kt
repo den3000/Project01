@@ -6,6 +6,7 @@ import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.DEFAULT_BRANCH
 import ru.den.writes.code.project01.cliJvm.db.MessageDao
 import ru.den.writes.code.project01.cliJvm.db.MessageEntity
+import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import ru.den.writes.code.project01.shared.llm.Usage
@@ -73,7 +74,7 @@ internal class StartExecutor(private val db: AppDatabase) {
      */
     private fun handleMemoryCommand(action: MemoryAction) {
         MEMORY_ROOT.mkdirs()
-        val store = MemoryStore(MEMORY_ROOT)
+        val store = FileMemoryStore(MEMORY_ROOT)
         when (action) {
             is MemoryAction.Show -> {
                 // Temporary provider in PREAMBLE mode for describe() — no task
@@ -117,7 +118,7 @@ internal class StartExecutor(private val db: AppDatabase) {
             }
             is MemoryAction.TouchProfile -> {
                 store.touchNamedProfile(action.name)
-                println("[memory] profile '${action.name}' ready under ${File(MEMORY_ROOT, MemoryStore.PROFILES_DIR).absolutePath}/${action.name}.md")
+                println("[memory] profile '${action.name}' ready under ${File(MEMORY_ROOT, FileMemoryStore.PROFILES_DIR).absolutePath}/${action.name}.md")
             }
             is MemoryAction.AddNamedProfileItem -> {
                 val updated = store.addNamedProfileItem(action.name, action.section, action.text)
@@ -156,7 +157,7 @@ internal class StartExecutor(private val db: AppDatabase) {
                 if (store.loadTask(action.taskId) == null) {
                     store.saveTask(TaskNotes(taskId = action.taskId, stage = TaskStage.INITIAL))
                 }
-                println("[memory] task '${action.taskId}' ready under ${File(MEMORY_ROOT, MemoryStore.TASKS_DIR).absolutePath}/${action.taskId}.md")
+                println("[memory] task '${action.taskId}' ready under ${File(MEMORY_ROOT, FileMemoryStore.TASKS_DIR).absolutePath}/${action.taskId}.md")
             }
             is MemoryAction.PauseTask -> setTaskPaused(store, action.taskId, paused = true)
             is MemoryAction.ResumeTask -> setTaskPaused(store, action.taskId, paused = false)

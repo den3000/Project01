@@ -16,7 +16,7 @@ class MemoryProviderProfileTest {
     fun `when memoryLayerFor null - then identical to memoryLayer for the active profile`() {
         withTempMemoryRoot { root ->
             // given
-            val store = MemoryStore(root).apply {
+            val store = FileMemoryStore(root).apply {
                 addNamedProfileItem("coder", ProfileSection.STYLE, "write code")
             }
             val provider = MemoryProvider(store, MemoryMode.PREAMBLE, initialProfileName = "coder")
@@ -36,7 +36,7 @@ class MemoryProviderProfileTest {
     fun `when memoryLayerFor a fixed profile - then uses it and ignores the active profile`() {
         withTempMemoryRoot { root ->
             // given
-            val store = MemoryStore(root).apply {
+            val store = FileMemoryStore(root).apply {
                 addNamedProfileItem("planner", ProfileSection.STYLE, "plan carefully")
                 addNamedProfileItem("coder", ProfileSection.STYLE, "write code")
             }
@@ -56,7 +56,7 @@ class MemoryProviderProfileTest {
     fun `when memoryLayerFor a fixed profile - then rules and task still come from the live store`() {
         withTempMemoryRoot { root ->
             // given
-            val store = MemoryStore(root).apply {
+            val store = FileMemoryStore(root).apply {
                 addNamedProfileItem("planner", ProfileSection.STYLE, "plan carefully")
                 addRule("no frameworks")
                 saveTask(TaskNotes("auth", goal = "ship login", stage = TaskStage.PLANNING))

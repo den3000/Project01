@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import kotlin.test.Test
@@ -20,18 +20,18 @@ class HistoryStoreBranchTest {
         TestDb().use { harness ->
             // given — two branches; the doomed one carries messages + summary + facts
             val dao = harness.db.messageDao()
-            val exp = HistoryStore(dao, sessionId = "s", initialBranch = "exp")
+            val exp = RoomHistoryStore(dao, sessionId = "s", initialBranch = "exp")
             exp.append(Message(Role.USER, "e1"))
             exp.append(Message(Role.ASSISTANT, "e2"))
             exp.saveSummary("rolling", coveredCount = 2, modelId = "m", usage = null)
             exp.saveFacts("""{"k":"v"}""", modelId = "m", usage = null)
-            HistoryStore(dao, sessionId = "s", initialBranch = "main").append(Message(Role.USER, "m1"))
+            RoomHistoryStore(dao, sessionId = "s", initialBranch = "main").append(Message(Role.USER, "m1"))
 
             // when
             exp.deleteBranch("exp")
 
             // then — 'exp' gone end-to-end, 'main' untouched
-            val freshExp = HistoryStore(dao, sessionId = "s", initialBranch = "exp")
+            val freshExp = RoomHistoryStore(dao, sessionId = "s", initialBranch = "exp")
             freshExp.load()
             assertTrue(freshExp.messages.isEmpty())
             assertNull(freshExp.loadSummary())
@@ -45,7 +45,7 @@ class HistoryStoreBranchTest {
         TestDb().use { harness ->
             // given
             val dao = harness.db.messageDao()
-            val main = HistoryStore(dao, sessionId = "s", initialBranch = "main")
+            val main = RoomHistoryStore(dao, sessionId = "s", initialBranch = "main")
             main.append(Message(Role.USER, "m1"))
 
             // when — delete a branch that was never forked

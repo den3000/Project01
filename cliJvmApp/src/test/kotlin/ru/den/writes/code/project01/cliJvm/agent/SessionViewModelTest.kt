@@ -22,8 +22,9 @@ import ru.den.writes.code.project01.cliJvm.UiEffect
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import ru.den.writes.code.project01.cliJvm.UiLine
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
@@ -49,7 +50,7 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
@@ -70,7 +71,7 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             // given
             val dao = harness.db.messageDao()
-            HistoryStore(dao, sessionId = "s").apply {
+            RoomHistoryStore(dao, sessionId = "s").apply {
                 append(Message(Role.USER, "old"))
                 append(
                     Message(Role.ASSISTANT, "older"),
@@ -79,7 +80,7 @@ class SessionViewModelTest {
                 )
             }
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val vm = newVm(newChat("hi", "s"), fake, HistoryStore(dao, sessionId = "s"))
+            val vm = newVm(newChat("hi", "s"), fake, RoomHistoryStore(dao, sessionId = "s"))
 
             // when
             vm.run(intents(UiIntent.Exit))
@@ -98,7 +99,7 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi() // empty queue → error
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
@@ -118,7 +119,7 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
@@ -136,7 +137,7 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when — both sources stop immediately
@@ -181,7 +182,7 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             // given — the opening turn populates 'main' with messages
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
@@ -200,7 +201,7 @@ class SessionViewModelTest {
     fun `when the picker cursor moves down - then the cursor advances`() = runTest {
         TestDb().use { harness ->
             // given — two profiles so the cursor has somewhere to go
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home", "work"))
 
@@ -216,7 +217,7 @@ class SessionViewModelTest {
     fun `when a profile is picked by number - then the active profile switches`() = runTest {
         TestDb().use { harness ->
             // given — listProfileNames is sorted, so row 2 is 'work'
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val memory = tempMemory("home", "work")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
@@ -238,7 +239,7 @@ class SessionViewModelTest {
     fun `when a profile picker opens without memory - then it explains and stays closed`() = runTest {
         TestDb().use { harness ->
             // given — no memory provider
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store)
 
@@ -259,7 +260,7 @@ class SessionViewModelTest {
     fun `when the picker is cancelled - then it closes and runs no command`() = runTest {
         TestDb().use { harness ->
             // given
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val memory = tempMemory("home")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
@@ -280,7 +281,7 @@ class SessionViewModelTest {
     fun `when the palette opens - then it lists the command catalog`() = runTest {
         TestDb().use { harness ->
             // given
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store)
 
@@ -297,7 +298,7 @@ class SessionViewModelTest {
     fun `when a no-argument command is chosen from the palette - then it runs`() = runTest {
         TestDb().use { harness ->
             // given
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store)
             val row = commandCatalog().indexOfFirst { it.name == "/branch show" } + 1
@@ -315,7 +316,7 @@ class SessionViewModelTest {
     fun `when a picker command is chosen from the palette - then that picker opens`() = runTest {
         TestDb().use { harness ->
             // given
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home"))
             val row = commandCatalog().indexOfFirst { it.name == "/profile" } + 1
@@ -333,7 +334,7 @@ class SessionViewModelTest {
     fun `when a free-text command is chosen from the palette - then a prefill effect is emitted`() = runTest {
         TestDb().use { harness ->
             // given
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store)
             val row = commandCatalog().indexOfFirst { it.name == "/rule" } + 1
@@ -354,7 +355,7 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             // given — scheduler on; the user source parks after the opening turn
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
             val atGate = CompletableDeferred<Unit>()
             val release = CompletableDeferred<Unit>()
@@ -380,7 +381,7 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             // given — opening reply + a scheduled reply queued on the fake
             val fake = FakeLlmApi().apply { queueText("opening"); queueText("scheduled") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
             val atGate = CompletableDeferred<Unit>()
             val release = CompletableDeferred<Unit>()
@@ -406,7 +407,7 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             // given — scheduler on, a channel (push) source like the TUI
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
             val source = ChannelIntentSource().apply { offer(UiIntent.Exit) }
 
@@ -440,7 +441,7 @@ class SessionViewModelTest {
     /** A memory provider over a throwaway temp dir, pre-seeded with named profiles. */
     private fun tempMemory(vararg profiles: String): MemoryProvider {
         val root = Files.createTempDirectory("project01-vm-picker-").toFile().apply { deleteOnExit() }
-        val store = MemoryStore(root).apply { profiles.forEach { touchNamedProfile(it) } }
+        val store = FileMemoryStore(root).apply { profiles.forEach { touchNamedProfile(it) } }
         return MemoryProvider(store, MemoryMode.PREAMBLE)
     }
 

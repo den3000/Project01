@@ -14,8 +14,9 @@ import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.TurnEngine
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.llm.GenerationParams
@@ -46,7 +47,7 @@ class PlainViewGoldenTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi().apply { queueText("model reply") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
 
             // when
             val out = runPlain(goldenChat("hi", "alpha"), fake, store, intents())
@@ -74,7 +75,7 @@ class PlainViewGoldenTest {
         TestDb().use { harness ->
             // given
             val dao = harness.db.messageDao()
-            HistoryStore(dao, sessionId = "alpha").apply {
+            RoomHistoryStore(dao, sessionId = "alpha").apply {
                 append(Message(Role.USER, "earlier user"))
                 append(
                     Message(Role.ASSISTANT, "earlier assistant"),
@@ -85,7 +86,7 @@ class PlainViewGoldenTest {
             val fake = FakeLlmApi().apply { queueText("model reply") }
 
             // when
-            val out = runPlain(goldenChat("hi", "alpha"), fake, HistoryStore(dao, sessionId = "alpha"), intents())
+            val out = runPlain(goldenChat("hi", "alpha"), fake, RoomHistoryStore(dao, sessionId = "alpha"), intents())
 
             // then
             val expectedStderr = buildString {
@@ -104,7 +105,7 @@ class PlainViewGoldenTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi() // empty queue → synthetic error result
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
 
             // when
             val out = runPlain(goldenChat("hi", "alpha"), fake, store, intents())
@@ -127,11 +128,11 @@ class PlainViewGoldenTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fb") }
                 val planner = FakeLlmApi().apply { queueText("the plan") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 val out = runPlain(
@@ -167,7 +168,7 @@ class PlainViewGoldenTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi().apply { queueText("model reply") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
 
             // when — opening turn (2 messages persisted), then a /branch command
             val out = runPlain(
@@ -192,7 +193,7 @@ class PlainViewGoldenTest {
         TestDb().use { harness ->
             // given
             val fake = FakeLlmApi().apply { queueText("model reply") }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
 
             // when
             val out = runPlain(goldenChat("hi", "alpha"), fake, store, primary = intents(), followUp = intents())

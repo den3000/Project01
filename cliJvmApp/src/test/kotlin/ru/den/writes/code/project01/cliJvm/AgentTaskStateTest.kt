@@ -6,9 +6,9 @@ import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.memory.MemoryMode
@@ -36,12 +36,12 @@ class AgentTaskStateTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
                 val fake = FakeLlmApi().apply { queueText("Requirements confirmed.\n[[stage:planning]]") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -63,12 +63,12 @@ class AgentTaskStateTest {
             withTempMemoryRoot { root ->
                 // given
                 // clarification → done is not in the table; the proposal is dropped.
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
                 val fake = FakeLlmApi().apply { queueText("Skipping ahead.\n[[stage:done]]") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -89,12 +89,12 @@ class AgentTaskStateTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
                 val fake = FakeLlmApi().apply { queueText("Still working on the plan.") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -115,12 +115,12 @@ class AgentTaskStateTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.PLANNING, paused = true))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
                 val fake = FakeLlmApi().apply { queueText("[[stage:execution]]") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -144,12 +144,12 @@ class AgentTaskStateTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root).apply {
+                val memStore = FileMemoryStore(root).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.EXECUTION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -170,10 +170,10 @@ class AgentTaskStateTest {
         TestDb().use { harness ->
             withTempMemoryRoot { root ->
                 // given
-                val memStore = MemoryStore(root)
+                val memStore = FileMemoryStore(root)
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM)
                 val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = HistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
 
                 // when
                 runSessionForTest(

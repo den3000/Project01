@@ -7,7 +7,7 @@ import ru.den.writes.code.project01.shared.llm.Usage
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.TestDb
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -30,7 +30,7 @@ class AgentTokenAccountingTest {
                     )
                 )
             }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "tally")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "tally")
             val chat = newChat(prompt = "hi", session = "tally")
 
             // when
@@ -49,7 +49,7 @@ class AgentTokenAccountingTest {
         TestDb().use { harness ->
             // given
             // Phase 1: persist a turn with token data.
-            val writer = HistoryStore(harness.db.messageDao(), sessionId = "rs")
+            val writer = RoomHistoryStore(harness.db.messageDao(), sessionId = "rs")
             writer.append(Message(Role.USER, "prev user"))
             writer.append(
                 Message(Role.ASSISTANT, "prev reply"),
@@ -57,7 +57,7 @@ class AgentTokenAccountingTest {
                 modelId = "gemini-2.5-flash-lite",
             )
             val fakeApi = FakeLlmApi().apply { queueText("next reply", promptTokens = 200, outputTokens = 20) }
-            val store = HistoryStore(harness.db.messageDao(), sessionId = "rs")
+            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "rs")
             val chat = newChat(prompt = "next", session = "rs")
 
             // when
