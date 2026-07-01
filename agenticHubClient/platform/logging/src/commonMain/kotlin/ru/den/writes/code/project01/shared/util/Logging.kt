@@ -10,4 +10,4 @@ package ru.den.writes.code.project01.shared.util
  * the JVM and Android actuals route here to `System.err`, while iOS falls
  * back to `println`.
  */
-internal expect fun logWarn(message: String)
+expect fun logWarn(message: String)
