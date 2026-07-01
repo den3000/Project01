@@ -84,3 +84,11 @@ sealed interface ParseError {
         override val message = "'${arg.title}' can't be combined with '${with.title}'"
     }
 }
+
+/**
+ * Small read helpers over the parsed cliargs controls, shared by the command
+ * mapper and the model-provider factory.
+ */
+internal fun ParsedArg.subValue(arg: CliArg): String? = sub(arg)?.value
+internal fun List<ParsedArg>.last(arg: CliArg): ParsedArg? = lastOrNull { it.arg == arg }
+internal fun List<ParsedArg>.has(arg: CliArg): Boolean = any { it.arg == arg }

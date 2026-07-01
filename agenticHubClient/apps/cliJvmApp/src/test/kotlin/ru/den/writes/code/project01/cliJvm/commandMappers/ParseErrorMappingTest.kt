@@ -1,9 +1,10 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg
 import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 import ru.den.writes.code.project01.cliJvm.cliargs.Surface
+import ru.den.writes.code.project01.cliJvm.cliargs.toCliArgsException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

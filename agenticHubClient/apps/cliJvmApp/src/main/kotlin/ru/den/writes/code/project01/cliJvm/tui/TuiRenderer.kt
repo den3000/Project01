@@ -25,7 +25,7 @@ import ru.den.writes.code.project01.cliJvm.SessionViewModel
 import ru.den.writes.code.project01.cliJvm.UiEffect
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import ru.den.writes.code.project01.cliJvm.UiLine
-import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
+import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommandMapper
 
 /**
  * Kotter + Mordant renderer over [SessionViewModel]. The transcript scrolls via

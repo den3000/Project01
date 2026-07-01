@@ -1,7 +1,8 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals

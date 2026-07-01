@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
@@ -15,14 +15,18 @@ class CliArgsToStartCommandMapperRuleTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-rule \"always kotlin\"" to MemoryAction.AddRule("always kotlin"),
-            "-rule clear 003" to MemoryAction.RemoveRule("003"),
-            "-rule clear" to MemoryAction.ClearRules,
+            "-rule \"always kotlin\"" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.AddRule("always kotlin"),
+            "-rule clear 003" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.RemoveRule("003"),
+            "-rule clear" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearRules,
         )
 
         // when - then
         cases.forEach { (input, action) ->
-            assertEquals(StartCommand.MemoryOp(action), mapper.parse(input.toArgsArray()), input)
+            _root_ide_package_.kotlin.test.assertEquals(
+                _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
+                    action
+                ), mapper.parse(input.toArgsArray()), input
+            )
         }
     }
 

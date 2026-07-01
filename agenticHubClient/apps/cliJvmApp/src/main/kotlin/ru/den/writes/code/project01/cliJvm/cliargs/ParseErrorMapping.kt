@@ -1,8 +1,6 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.project01.cliJvm.cliargs
 
 import ru.den.writes.code.project01.cliJvm.CliArgsException
-import ru.den.writes.code.project01.cliJvm.cliargs.CliArg
-import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 
 /**
  * Bridge a CliArgs [ParseError] onto the legacy [CliArgsException] hierarchy,

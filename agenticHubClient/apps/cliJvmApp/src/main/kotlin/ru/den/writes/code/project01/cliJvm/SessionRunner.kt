@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm
 
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.coroutineScope
-import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
+import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommandMapper
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore

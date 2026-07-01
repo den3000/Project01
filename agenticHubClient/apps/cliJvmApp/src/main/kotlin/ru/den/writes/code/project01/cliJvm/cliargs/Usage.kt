@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.project01.cliJvm.cliargs
 
 /**
  * One-line-ish usage hint printed alongside a startup error. Hand-written against

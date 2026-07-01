@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
@@ -18,11 +18,12 @@ class CliArgsToStartCommandMapperSessionTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-session" to StartCommand.ListSessions,
-            "-session clear" to StartCommand.CleanHistory,
-            "-session clear demo" to StartCommand.CleanSession("demo"),
-            "-inflate 5 -session demo" to StartCommand.InflateSession("demo", 5),
-            "-memory" to StartCommand.MemoryOp(MemoryAction.Show),
+            "-session" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.StartCommand.ListSessions,
+            "-session clear" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.StartCommand.CleanHistory,
+            "-session clear demo" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.StartCommand.CleanSession("demo"),
+            "-inflate 5 -session demo" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.StartCommand.InflateSession("demo", 5),
+            "-memory" to _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
+                _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.MemoryAction.Show),
         )
 
         // when - then

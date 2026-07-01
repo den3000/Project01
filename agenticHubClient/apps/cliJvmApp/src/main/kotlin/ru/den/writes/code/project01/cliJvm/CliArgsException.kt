@@ -5,7 +5,7 @@ package ru.den.writes.code.project01.cliJvm
  * maps its typed [ru.den.writes.code.project01.cliJvm.cliargs.ParseError]s onto
  * these (see `command/ParseErrorMapping`). Each subclass carries the data the
  * caller needs to render a meaningful message; `main` prints it (plus
- * [ru.den.writes.code.project01.cliJvm.command.USAGE] on a missing required arg).
+ * [ru.den.writes.code.project01.cliJvm.cliargs.USAGE] on a missing required arg).
  */
 internal sealed class CliArgsException(message: String) : RuntimeException(message) {
     /** Thrown when a required flag is missing or its value is blank. */

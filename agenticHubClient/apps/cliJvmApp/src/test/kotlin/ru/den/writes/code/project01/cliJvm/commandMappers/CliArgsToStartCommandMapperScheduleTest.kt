@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
@@ -21,20 +21,20 @@ class CliArgsToStartCommandMapperScheduleTest {
         val mapper = createCliArgsToStartCommandMapper()
 
         // when
-        val collect = assertIs<StartCommand.RunChat>(
+        val collect = assertIs<ru.den.writes.code.project01.cliJvm.command.StartCommand.RunChat>(
             mapper.parse("-prompt hi -mcpServer \"lab\" -schedule collect tool weather args \"{}\" after 30".toArgsArray()),
         )
-        val agent = assertIs<StartCommand.RunChat>(
+        val agent = assertIs<ru.den.writes.code.project01.cliJvm.command.StartCommand.RunChat>(
             mapper.parse("-prompt hi -schedule agent prompt \"do x\" every 60".toArgsArray()),
         )
-        val multiple = assertIs<StartCommand.RunChat>(
+        val multiple = assertIs<ru.den.writes.code.project01.cliJvm.command.StartCommand.RunChat>(
             mapper.parse("-prompt hi -schedule agent prompt \"a\" after 10 -schedule agent prompt \"b\" every 20".toArgsArray()),
         )
 
         // then — after = one-shot (periodic false), every = periodic true; repeated -schedule accumulates
-        assertEquals(listOf(ScheduleSpec.Collect("weather", "{}", 30, false)), collect.config.schedules)
-        assertEquals(listOf(ScheduleSpec.Agent("do x", 60, true)), agent.config.schedules)
-        assertEquals(listOf(ScheduleSpec.Agent("a", 10, false), ScheduleSpec.Agent("b", 20, true)), multiple.config.schedules)
+        assertEquals(listOf(_root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Collect("weather", "{}", 30, false)), collect.config.schedules)
+        assertEquals(listOf(_root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("do x", 60, true)), agent.config.schedules)
+        assertEquals(listOf(_root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("a", 10, false), _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("b", 20, true)), multiple.config.schedules)
     }
 
     @Test
@@ -64,8 +64,9 @@ class CliArgsToStartCommandMapperScheduleTest {
             "/schedule" to SessionCommand.ListSchedules,
             "/schedule clear" to SessionCommand.ClearSchedules,
             "/schedule clear 001" to SessionCommand.CancelSchedule("001"),
-            "/schedule collect tool weather args \"{}\" after 30" to SessionCommand.Schedule(ScheduleSpec.Collect("weather", "{}", 30, false)),
-            "/schedule agent prompt \"do x\" every 60" to SessionCommand.Schedule(ScheduleSpec.Agent("do x", 60, true)),
+            "/schedule collect tool weather args \"{}\" after 30" to SessionCommand.Schedule(
+                _root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Collect("weather", "{}", 30, false)),
+            "/schedule agent prompt \"do x\" every 60" to SessionCommand.Schedule(_root_ide_package_.ru.den.writes.code.project01.cliJvm.command.ScheduleSpec.Agent("do x", 60, true)),
         )
 
         // when - then

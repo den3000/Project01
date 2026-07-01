@@ -3,7 +3,7 @@ package ru.den.writes.code.project01.cliJvm.agent
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
-import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
+import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommandMapper
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.CommandRunner

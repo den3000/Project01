@@ -1,7 +1,8 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
+import ru.den.writes.code.project01.cliJvm.ModelProviderFactory
 import ru.den.writes.code.project01.shared.llm.MAX_STOP_SEQUENCES
 import ru.den.writes.code.project01.cliJvm.StageAgentSpec
 import ru.den.writes.code.project01.cliJvm.StageJudgeSpec
@@ -47,6 +48,14 @@ import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.STYLE
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TOOL
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.TUI
 import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
+import ru.den.writes.code.project01.cliJvm.cliargs.has
+import ru.den.writes.code.project01.cliJvm.cliargs.last
+import ru.den.writes.code.project01.cliJvm.cliargs.subValue
+import ru.den.writes.code.project01.cliJvm.cliargs.toCliArgsException
+import ru.den.writes.code.project01.cliJvm.command.MemoryAction
+import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
+import ru.den.writes.code.project01.cliJvm.command.SessionConfig
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskBinding
@@ -54,7 +63,7 @@ import ru.den.writes.code.project01.shared.memory.TaskStage
 
 /**
  * The runtime arg front: parse args with the cliargs grammar and map the top-level
- * [ParsedArg]s straight onto a domain [StartCommand]. The grammar bundles
+ * [ParsedArg]s straight onto a domain [ru.den.writes.code.project01.cliJvm.command.StartCommand]. The grammar bundles
  * provider/model/knobs/stages/judge under `agent`, so a single agent without
  * stages/judge is the "primary" (default agent); agents with `stages` become stage
  * agents, with `judge` become judges. Provider resolution (and the API keys) is
@@ -67,7 +76,7 @@ internal class CliArgsToStartCommandMapper(
 ) {
 
     /**
-     * Parse [args] with the cliargs grammar and map them onto a [StartCommand].
+     * Parse [args] with the cliargs grammar and map them onto a [ru.den.writes.code.project01.cliJvm.command.StartCommand].
      *
      * @throws CliArgsException on invalid input (the type `main` prints).
      */
@@ -130,7 +139,8 @@ internal class CliArgsToStartCommandMapper(
                 byLine = feed?.sub(BY_LINE) != null,
                 strategy = strategyKind(strategy?.value),
                 keepLast = strategy?.subValue(KEEP_LAST)?.toInt() ?: DEFAULT_KEEP_LAST,
-                summarizeEvery = strategy?.subValue(SUMMARIZE_EVERY)?.toInt() ?: DEFAULT_SUMMARIZE_EVERY,
+                summarizeEvery = strategy?.subValue(SUMMARIZE_EVERY)?.toInt()
+                    ?: DEFAULT_SUMMARIZE_EVERY,
                 task = controls.last(TASK)?.value,
                 profile = primary?.subValue(PROFILE),
                 memoryMode = memoryMode,

@@ -2,11 +2,9 @@ package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
-import ru.den.writes.code.project01.cliJvm.command.ApiKeys
-import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
-import ru.den.writes.code.project01.cliJvm.command.CliArgsToStartCommandMapper
-import ru.den.writes.code.project01.cliJvm.command.ModelProviderFactory
-import ru.den.writes.code.project01.cliJvm.command.USAGE
+import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommandMapper
+import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgsToStartCommandMapper
+import ru.den.writes.code.project01.cliJvm.cliargs.USAGE
 import ru.den.writes.code.project01.cliJvm.db.buildDatabase
 import kotlin.system.exitProcess
 

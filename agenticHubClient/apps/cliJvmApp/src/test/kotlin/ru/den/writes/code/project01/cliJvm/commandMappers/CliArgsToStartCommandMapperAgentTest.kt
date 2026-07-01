@@ -1,7 +1,9 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.SessionCommand
 import ru.den.writes.code.project01.cliJvm.CliArgsException
+import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
+import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.TaskBinding
@@ -70,7 +72,7 @@ class CliArgsToStartCommandMapperAgentTest {
         assertEquals(2500, actual.config.chunkChars)
         assertEquals("", actual.config.feedInstruction)
         assertEquals(false, actual.config.byLine)
-        assertEquals(ru.den.writes.code.project01.cliJvm.ContextStrategyKind.FULL, actual.config.strategy)
+        assertEquals(ContextStrategyKind.FULL, actual.config.strategy)
         assertEquals(6, actual.config.keepLast)
         assertEquals(10, actual.config.summarizeEvery)
         assertNull(actual.config.task)

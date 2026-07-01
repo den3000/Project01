@@ -1,9 +1,9 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.CliArgsException
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.MODEL
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.PROVIDER
 import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
+import ru.den.writes.code.project01.cliJvm.cliargs.subValue
 import ru.den.writes.code.project01.shared.llm.ModelProvider
 import ru.den.writes.code.project01.shared.llm.ModelProviderError
 import ru.den.writes.code.project01.shared.llm.PROVIDER_GEMINI

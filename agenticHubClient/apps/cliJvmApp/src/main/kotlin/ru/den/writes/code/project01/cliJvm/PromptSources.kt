@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
+import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommandMapper
 import java.io.BufferedReader
 import java.io.Reader
 
