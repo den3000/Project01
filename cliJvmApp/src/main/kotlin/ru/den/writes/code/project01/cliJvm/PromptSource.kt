@@ -80,7 +80,10 @@ private const val PROMPT_INDICATOR = "> "
  * Owns no IO lifecycle — the [reader] is the caller's to close. In the
  * production wiring it's `System.in`, which stays open process-wide.
  */
-internal class StdinPromptSource(private val reader: BufferedReader) : PromptSource {
+internal class StdinPromptSource(
+    private val reader: BufferedReader,
+    private val mapper: CliArgToSessionCommandMapper,
+) : PromptSource {
 
     override fun nextPrompt(): PromptResult {
         while (true) {
@@ -102,25 +105,11 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
                 || line.equals(EXIT_COMMAND, ignoreCase = true)
             ) return PromptResult.Stop
             if (line.equals(REUSE_COMMAND, ignoreCase = true)) return PromptResult.Reuse
-            parseSlashCommand(line)?.let { return PromptResult.Command(it) }
+            mapper.parse(line)?.let { return PromptResult.Command(it) }
             return PromptResult.Prompt(line)
         }
     }
 }
-
-/** Shared catalog-backed classifier for the `/`-command (CMD) front. */
-private val controlsToBranch = CliArgToSessionCommandMapper()
-
-/**
- * Classify a `/`-command typed at the REPL into a [SessionCommand], or null if
- * [line] isn't one (it falls through as a normal prompt). Top-level so both
- * [StdinPromptSource] and the TUI intent source share one classifier. Delegates
- * to the shared cliargs catalog ([CliArgToSessionCommandMapper]) on the command
- * front, so the `/`-grammar and the startup `-`-grammar stay one declarative
- * source. Multi-word values must be quoted (`/rule "no emojis"`), matching the
- * catalog tokenizer.
- */
-internal fun parseSlashCommand(line: String): SessionCommand? = controlsToBranch.parse(line)
 
 /**
  * Every `/`-command as a palette row — the single source the TUI command palette

@@ -164,7 +164,7 @@ class CliArgsToStartCommandMapperAgentTest {
     @Test
     fun `when agent command used - then it behaves accordingly`() {
         // given
-        val mapper = CliArgToSessionCommandMapper()
+        val mapper = createCliArgToSessionCommandMapper()
         val cases = listOf(
             "/agent mode system" to SessionCommand.SetMemoryMode(MemoryMode.SYSTEM),
             "/agent mode preamble" to SessionCommand.SetMemoryMode(MemoryMode.PREAMBLE),

@@ -25,7 +25,7 @@ import ru.den.writes.code.project01.cliJvm.SessionViewModel
 import ru.den.writes.code.project01.cliJvm.UiEffect
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import ru.den.writes.code.project01.cliJvm.UiLine
-import ru.den.writes.code.project01.cliJvm.parseSlashCommand
+import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
 
 /**
  * Kotter + Mordant renderer over [SessionViewModel]. The transcript scrolls via
@@ -38,7 +38,7 @@ import ru.den.writes.code.project01.cliJvm.parseSlashCommand
  * It owns no rendering itself: each transcript [UiLine] maps to a [TuiView]
  * variant via [toTuiView] and draws through `renderIn`.
  */
-internal class TuiRenderer {
+internal class TuiRenderer(private val mapper: CliArgToSessionCommandMapper) {
 
     fun run(vm: SessionViewModel, source: ChannelIntentSource) = session {
         // Mordant renders the panel to a plain box-drawing string (no ANSI of
@@ -106,7 +106,7 @@ internal class TuiRenderer {
                 // With an overlay open, even an empty Enter is a selection (the
                 // cursor row), so bypass toIntent's blank → null.
                 if (ui.overlay != null) source.offer(UiIntent.Submit(text))
-                else toIntent(text)?.let { source.offer(it) }
+                else toIntent(text, mapper)?.let { source.offer(it) }
             }
         }
         work.cancel()
@@ -133,11 +133,11 @@ private fun UiLine.toTuiView(): TuiView? = when (this) {
  * Classify a typed line into a [UiIntent]: `/exit`|`/quit` → Exit, `/reuse` →
  * Reuse, `/help`|`/?` → OpenPalette, a bare entity that has a picker (`/profile`,
  * `/task`, `/branch`, `/memory-mode`) → OpenPicker, any other recognised
- * `/`-command → SlashCommand, else → Submit. Blank → null (ignored). The bare
- * picker / palette forms are intercepted here, before [parseSlashCommand], so the
- * stdin REPL (which lists instead) is untouched.
+ * `/`-command → its SessionCommand, else → Submit. Blank → null (ignored). The
+ * bare picker / palette forms are intercepted here, before [mapper] classifies the
+ * rest, so the stdin REPL (which lists instead) is untouched.
  */
-internal fun toIntent(text: String): UiIntent? = when {
+internal fun toIntent(text: String, mapper: CliArgToSessionCommandMapper): UiIntent? = when {
     text.isEmpty() -> null
     text.equals("/exit", ignoreCase = true) || text.equals("/quit", ignoreCase = true) -> UiIntent.Exit
     text.equals("/reuse", ignoreCase = true) -> UiIntent.Reuse
@@ -146,5 +146,5 @@ internal fun toIntent(text: String): UiIntent? = when {
     text.equals("/task", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Task)
     text.equals("/branch", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.Branch)
     text.equals("/agent mode", ignoreCase = true) -> UiIntent.OpenPicker(PickerKind.MemoryMode)
-    else -> parseSlashCommand(text) ?: UiIntent.Submit(text)
+    else -> mapper.parse(text) ?: UiIntent.Submit(text)
 }

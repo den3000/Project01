@@ -1,5 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.cliJvm.agent.testSessionMapper
+
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
@@ -169,7 +171,7 @@ class AgentJudgeTest {
     )
 
     private fun stdinSource(script: String): StdinPromptSource =
-        StdinPromptSource(BufferedReader(StringReader(script)))
+        StdinPromptSource(BufferedReader(StringReader(script)), testSessionMapper)
 
     private inline fun withTempMemoryRoot(block: (java.io.File) -> Unit) {
         val dir = Files.createTempDirectory("project01-agent-judge-").toFile()

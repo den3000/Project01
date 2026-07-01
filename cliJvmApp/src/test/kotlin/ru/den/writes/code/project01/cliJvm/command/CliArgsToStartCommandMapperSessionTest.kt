@@ -50,7 +50,7 @@ class CliArgsToStartCommandMapperSessionTest {
     @Test
     fun `when a session or memory command is used - then it behaves accordingly`() {
         // given
-        val mapper = CliArgToSessionCommandMapper()
+        val mapper = createCliArgToSessionCommandMapper()
         val cases: List<Pair<String, SessionCommand?>> = listOf(
             "/memory" to SessionCommand.ShowMemory,
             "/session" to null, // session is not an in-session command → a normal prompt

@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 /**
  * The command palette catalog — the single list the TUI palette renders. Pins
  * that every row names a `/`-command and that each action maps to the right
- * kind, so the palette and [parseSlashCommand] stay in step.
+ * kind, so the palette and the `/`-command mapper stay in step.
  */
 class CommandPaletteTest {
 

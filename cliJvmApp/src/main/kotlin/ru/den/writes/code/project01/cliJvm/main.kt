@@ -6,6 +6,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import ru.den.writes.code.project01.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.project01.cliJvm.command.ApiKeys
+import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
 import ru.den.writes.code.project01.cliJvm.command.CliArgsToStartCommandMapper
 import ru.den.writes.code.project01.cliJvm.command.ModelProviderFactory
 import ru.den.writes.code.project01.cliJvm.command.USAGE
@@ -42,8 +43,15 @@ suspend fun main(args: Array<String>) {
         huggingFace = BuildKonfig.HUGGINGFACE_API_KEY,
     )
 
+    // One parser at startup feeds both mappers: the startup `-flag` front
+    // (args → StartCommand) and the in-session `/`-command front (line →
+    // SessionCommand), threaded down to the session so nothing reaches for a global.
+    val parser = CliArgsParser()
+    val startMapper = CliArgsToStartCommandMapper(parser, ModelProviderFactory(keys))
+    val sessionMapper = CliArgToSessionCommandMapper(parser)
+
     val command = try {
-        CliArgsToStartCommandMapper(CliArgsParser(), ModelProviderFactory(keys)).parse(args)
+        startMapper.parse(args)
     } catch (e: CliArgsException) {
         System.err.println(e.message)
         if (e is CliArgsException.MissingRequiredArgument) {
@@ -56,7 +64,7 @@ suspend fun main(args: Array<String>) {
     try {
         val initialState = StartExecutor(db).execute(command)
         if (initialState != null) {
-            buildHttpClient().use { client -> runSession(client, db, initialState) }
+            buildHttpClient().use { client -> runSession(client, db, initialState, sessionMapper) }
         }
     } finally {
         db.close()

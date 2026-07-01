@@ -1,5 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.agent.branching
 
+import ru.den.writes.code.project01.cliJvm.agent.testSessionMapper
+
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.project01.cliJvm.SessionCommand
@@ -57,7 +59,7 @@ class AgentBranchingTest {
         // given
         // Helper to classify a single line through a fresh source.
         fun classify(line: String): PromptResult =
-            StdinPromptSource(BufferedReader(StringReader("$line\n"))).nextPrompt()
+            StdinPromptSource(BufferedReader(StringReader("$line\n")), testSessionMapper).nextPrompt()
 
         // when - then
         // Branch family.

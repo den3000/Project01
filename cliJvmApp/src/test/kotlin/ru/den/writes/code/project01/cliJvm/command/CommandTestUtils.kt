@@ -16,6 +16,10 @@ internal fun createCliArgsToStartCommandMapper(): CliArgsToStartCommandMapper =
         ModelProviderFactory(ApiKeys(DUMMY_GEMINI_KEY, DUMMY_OPENROUTER_KEY, DUMMY_HUGGINGFACE_KEY)),
     )
 
+/** The in-session `/`-command mapper for the mapping tests. */
+internal fun createCliArgToSessionCommandMapper(): CliArgToSessionCommandMapper =
+    CliArgToSessionCommandMapper(CliArgsParser())
+
 /** Split a command line into argv, honouring double-quoted spans (delegates to the cliargs tokenizer). */
 internal fun String.toArgsArray(): Array<String> = toArgsList().toTypedArray()
 

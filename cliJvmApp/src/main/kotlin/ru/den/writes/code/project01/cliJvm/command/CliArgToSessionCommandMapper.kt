@@ -38,7 +38,7 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
  * [CliArgsToStartCommandMapper] (which feeds the startup `StartCommand`). One entity grammar
  * serves both fronts; only the target domain differs. A line that isn't a known
  * control (any parse error) returns null, so the caller sends it to the model as
- * an ordinary prompt — matching the old hand-rolled `parseSlashCommand`.
+ * an ordinary prompt.
  *
  * Verb-then-name is strict: the name for `show` / `clear` is the verb-sub's value
  * (`profile show coder`, `profile clear coder`). The reverse order
@@ -50,7 +50,7 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
  * pause/resume/note act on the **active** task; and the memory-injection mode is
  * flipped with `agent mode <preamble|system>` (the agent always exists).
  */
-internal class CliArgToSessionCommandMapper(private val parser: CliArgsParser = CliArgsParser()) {
+internal class CliArgToSessionCommandMapper(private val parser: CliArgsParser) {
 
     /** The branch/memory command for [line], or null if it isn't one (→ a normal prompt). */
     fun parse(line: String): SessionCommand? = when (val r = parser.parse(line, Surface.CMD)) {

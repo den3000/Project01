@@ -92,7 +92,7 @@ class AgentFeedModeTest {
                 chunkChars = 3,
                 instruction = "",
             )
-            val stdinAfter = StdinPromptSource(BufferedReader(StringReader("after-feed\n/exit\n")))
+            val stdinAfter = StdinPromptSource(BufferedReader(StringReader("after-feed\n/exit\n")), testSessionMapper)
 
             // when
             runSessionForTest(
@@ -127,7 +127,7 @@ class AgentFeedModeTest {
                 chunkChars = 3,
                 instruction = "",
             )
-            val stdinAfter = StdinPromptSource(BufferedReader(StringReader("manual probe\n/exit\n")))
+            val stdinAfter = StdinPromptSource(BufferedReader(StringReader("manual probe\n/exit\n")), testSessionMapper)
 
             // when
             runSessionForTest(

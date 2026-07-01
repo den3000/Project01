@@ -1,5 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.project01.cliJvm.agent.testSessionMapper
+
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.llm.Message
@@ -553,7 +555,7 @@ class AgentMemoryTest {
     )
 
     private fun stdinSource(script: String): StdinPromptSource =
-        StdinPromptSource(BufferedReader(StringReader(script)))
+        StdinPromptSource(BufferedReader(StringReader(script)), testSessionMapper)
 
     private inline fun withTempMemoryRoot(block: (java.io.File) -> Unit) {
         val dir = Files.createTempDirectory("project01-agent-memory-").toFile()

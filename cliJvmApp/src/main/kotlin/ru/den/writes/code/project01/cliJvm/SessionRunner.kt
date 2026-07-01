@@ -8,6 +8,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.db.AppDatabase
@@ -41,6 +42,7 @@ internal suspend fun runSession(
     client: HttpClient,
     db: AppDatabase,
     initialState: StartCommand.SessionInitialState,
+    sessionMapper: CliArgToSessionCommandMapper,
 ) {
     val historyStore: HistoryStore? = initialState.historyStore(db)
     val llmApi: LlmApi = buildLlmApi(initialState.modelProvider, client)
@@ -70,7 +72,8 @@ internal suspend fun runSession(
                     )
                 }
                 val stdinAfter = StdinPromptSource(
-                    java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
+                    java.io.BufferedReader(java.io.InputStreamReader(System.`in`)),
+                    sessionMapper,
                 )
                 runSessionInternal(
                     cliArgs = initialState,
@@ -84,6 +87,7 @@ internal suspend fun runSession(
                     replAfterFeed = stdinAfter,
                     toolDefs = toolDefs,
                     toolExecutor = router,
+                    sessionMapper = sessionMapper,
                 )
             }
         } else {
@@ -98,11 +102,13 @@ internal suspend fun runSession(
                 routedAgents = routedAgents,
                 routedJudges = routedJudges,
                 primary = StdinPromptSource(
-                    java.io.BufferedReader(java.io.InputStreamReader(System.`in`))
+                    java.io.BufferedReader(java.io.InputStreamReader(System.`in`)),
+                    sessionMapper,
                 ),
                 view = pickView(tuiRequested, System.console() != null),
                 toolDefs = toolDefs,
                 toolExecutor = router,
+                sessionMapper = sessionMapper,
             )
         }
     } finally {
@@ -128,6 +134,7 @@ internal suspend fun runSessionInternal(
     view: ViewKind = ViewKind.PLAIN,
     toolDefs: List<ToolDefinition> = emptyList(),
     toolExecutor: ToolExecutor? = null,
+    sessionMapper: CliArgToSessionCommandMapper,
 ) {
     val multiAgent = routedAgents.isNotEmpty()
     val schedules = (cliArgs as? StartCommand.RunChat)?.config?.schedules.orEmpty()
@@ -161,7 +168,7 @@ internal suspend fun runSessionInternal(
             else emptyList()
         try {
             when (view) {
-                ViewKind.TUI -> TuiRenderer().run(viewModel, ChannelIntentSource())
+                ViewKind.TUI -> TuiRenderer(sessionMapper).run(viewModel, ChannelIntentSource())
                 ViewKind.PLAIN -> {
                     val feedThrottle = if (replAfterFeed != null) 16.seconds else Duration.ZERO
                     PlainRenderer().run(

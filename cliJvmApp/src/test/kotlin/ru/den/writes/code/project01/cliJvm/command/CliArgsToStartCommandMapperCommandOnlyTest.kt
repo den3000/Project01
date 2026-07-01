@@ -35,7 +35,7 @@ class CliArgsToStartCommandMapperCommandOnlyTest {
     @Test
     fun `when a command-only control is typed - then the mapper leaves it to the REPL`() {
         // given
-        val mapper = CliArgToSessionCommandMapper()
+        val mapper = createCliArgToSessionCommandMapper()
         val cases: List<Pair<String, SessionCommand?>> = listOf(
             "/reuse" to null,
             "/exit" to null,

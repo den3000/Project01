@@ -2,6 +2,8 @@ package ru.den.writes.code.project01.cliJvm.agent
 
 import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.llm.ModelProvider
+import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.CommandRunner
@@ -68,9 +70,12 @@ internal fun dummyGeminiProvider(
     model: GeminiModel = GeminiModel.Default,
 ): ModelProvider.Gemini = ModelProvider.Gemini(model = model, apiKey = "test-key")
 
+/** The in-session `/`-command mapper the test prompt sources classify slash lines with. */
+internal val testSessionMapper = CliArgToSessionCommandMapper(CliArgsParser())
+
 /** Pre-loaded stdin source that hands the REPL the given script line by line. */
 internal fun stdinSource(script: String): StdinPromptSource =
-    StdinPromptSource(BufferedReader(StringReader(script)))
+    StdinPromptSource(BufferedReader(StringReader(script)), testSessionMapper)
 
 /**
  * Run a session through the production MVI stack (TurnEngine + SessionViewModel
@@ -81,7 +86,7 @@ internal suspend fun runSessionForTest(
     cliArgs: StartCommand.SessionInitialState,
     llmApi: LlmApi,
     historyStore: HistoryStore?,
-    promptSource: PromptSource = StdinPromptSource(BufferedReader(InputStreamReader(System.`in`))),
+    promptSource: PromptSource = StdinPromptSource(BufferedReader(InputStreamReader(System.`in`)), testSessionMapper),
     replAfterFeed: PromptSource? = null,
     strategy: ContextStrategy = ContextStrategy.FullHistory,
     memory: MemoryProvider? = null,
