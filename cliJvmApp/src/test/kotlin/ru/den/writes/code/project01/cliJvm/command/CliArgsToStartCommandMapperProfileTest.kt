@@ -75,7 +75,7 @@ class CliArgsToStartCommandMapperProfileTest {
     @Test
     fun `when a profile entity command is used - then it behaves accordingly`() {
         // given
-        val mapper = ControlsToIntent()
+        val mapper = CliArgToSessionCommandMapper()
         val cases: List<Pair<String, SessionCommand?>> = listOf(
             "/profile" to SessionCommand.ListProfiles,
             "/profile work" to SessionCommand.SwitchProfile("work"),
@@ -93,7 +93,7 @@ class CliArgsToStartCommandMapperProfileTest {
     @Test
     fun `when a profile section command is used - then every section maps on named and unnamed`() {
         // given
-        val mapper = ControlsToIntent()
+        val mapper = CliArgToSessionCommandMapper()
 
         // when - then
         sections.forEach { (kw, sec) ->

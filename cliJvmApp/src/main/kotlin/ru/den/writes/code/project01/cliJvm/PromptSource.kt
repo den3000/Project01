@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.command.ControlsToIntent
+import ru.den.writes.code.project01.cliJvm.command.CliArgToSessionCommandMapper
 import java.io.BufferedReader
 import java.io.Reader
 
@@ -109,13 +109,13 @@ internal class StdinPromptSource(private val reader: BufferedReader) : PromptSou
 }
 
 /** Shared catalog-backed classifier for the `/`-command (CMD) front. */
-private val controlsToBranch = ControlsToIntent()
+private val controlsToBranch = CliArgToSessionCommandMapper()
 
 /**
  * Classify a `/`-command typed at the REPL into a [SessionCommand], or null if
  * [line] isn't one (it falls through as a normal prompt). Top-level so both
  * [StdinPromptSource] and the TUI intent source share one classifier. Delegates
- * to the shared cliargs catalog ([ControlsToIntent]) on the command
+ * to the shared cliargs catalog ([CliArgToSessionCommandMapper]) on the command
  * front, so the `/`-grammar and the startup `-`-grammar stay one declarative
  * source. Multi-word values must be quoted (`/rule "no emojis"`), matching the
  * catalog tokenizer.

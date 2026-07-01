@@ -29,7 +29,7 @@ class CliArgsToStartCommandMapperBranchTest {
     @Test
     fun `when a branch command is used - then it behaves accordingly`() {
         // given
-        val mapper = ControlsToIntent()
+        val mapper = CliArgToSessionCommandMapper()
         val cases: List<Pair<String, SessionCommand?>> = listOf(
             "/branch" to SessionCommand.ListBranches,
             "/branch exp" to SessionCommand.Branch("exp"),

@@ -50,7 +50,7 @@ import ru.den.writes.code.project01.shared.memory.ProfileSection
  * pause/resume/note act on the **active** task; and the memory-injection mode is
  * flipped with `agent mode <preamble|system>` (the agent always exists).
  */
-internal class ControlsToIntent(private val parser: CliArgsParser = CliArgsParser()) {
+internal class CliArgToSessionCommandMapper(private val parser: CliArgsParser = CliArgsParser()) {
 
     /** The branch/memory command for [line], or null if it isn't one (→ a normal prompt). */
     fun parse(line: String): SessionCommand? = when (val r = parser.parse(line, Surface.CMD)) {

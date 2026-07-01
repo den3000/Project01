@@ -59,7 +59,7 @@ class CliArgsToStartCommandMapperScheduleTest {
     @Test
     fun `when a schedule command is used - then it behaves accordingly`() {
         // given
-        val mapper = ControlsToIntent()
+        val mapper = CliArgToSessionCommandMapper()
         val cases = listOf(
             "/schedule" to SessionCommand.ListSchedules,
             "/schedule clear" to SessionCommand.ClearSchedules,
@@ -75,7 +75,7 @@ class CliArgsToStartCommandMapperScheduleTest {
     @Test
     fun `when a schedule command is invalid - then it falls through to a prompt`() {
         // given
-        val mapper = ControlsToIntent()
+        val mapper = CliArgToSessionCommandMapper()
         val cases: List<Pair<String, SessionCommand?>> = listOf(
             "/schedule collect after 30" to null,                  // no tool
             "/schedule agent prompt \"x\"" to null,                // no timing

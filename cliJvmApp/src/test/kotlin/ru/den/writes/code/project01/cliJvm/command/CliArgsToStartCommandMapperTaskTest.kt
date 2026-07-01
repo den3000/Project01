@@ -47,7 +47,7 @@ class CliArgsToStartCommandMapperTaskTest {
     @Test
     fun `when a task command is used - then it behaves accordingly`() {
         // given
-        val mapper = ControlsToIntent()
+        val mapper = CliArgToSessionCommandMapper()
         val cases = listOf(
             "/task auth" to SessionCommand.SetTask("auth"),
             "/task note \"did x\"" to SessionCommand.AppendTaskNote("did x"),

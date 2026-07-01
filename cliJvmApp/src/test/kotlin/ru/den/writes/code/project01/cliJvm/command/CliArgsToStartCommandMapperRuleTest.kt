@@ -45,7 +45,7 @@ class CliArgsToStartCommandMapperRuleTest {
     @Test
     fun `when a rule command is used - then it behaves accordingly`() {
         // given
-        val mapper = ControlsToIntent()
+        val mapper = CliArgToSessionCommandMapper()
         val cases = listOf(
             "/rule \"always kotlin\"" to SessionCommand.AddRule("always kotlin"),
             "/rule clear 003" to SessionCommand.RemoveRule("003"),
