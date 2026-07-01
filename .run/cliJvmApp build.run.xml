@@ -2,7 +2,7 @@
   <configuration default="false" name="cliJvmApp build" type="GradleRunConfiguration" factoryName="Gradle">
     <ExternalSystemSettings>
       <option name="executionName" />
-      <option name="externalProjectPath" value="$PROJECT_DIR$/cliJvmApp" />
+      <option name="externalProjectPath" value="$PROJECT_DIR$/agenticHubClient/apps/cliJvmApp" />
       <option name="externalSystemIdString" value="GRADLE" />
       <option name="scriptParameters" value="" />
       <option name="taskDescriptions">
@@ -10,7 +10,7 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value=":cliJvmApp:installDist" />
+          <option value=":agenticHubClient:apps:cliJvmApp:installDist" />
         </list>
       </option>
       <option name="vmOptions" />
