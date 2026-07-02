@@ -1,6 +1,7 @@
 package ru.den.writes.code.agenticHub.android
 
 import ru.den.writes.code.project01.App
+import ru.den.writes.code.project01.Greeting
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,7 +16,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            App()
+            App(Greeting())
         }
     }
 }
@@ -23,5 +24,5 @@ class MainActivity : ComponentActivity() {
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    App()
+    App(Greeting())
 }

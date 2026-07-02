@@ -20,8 +20,7 @@ import project01.shared.generated.resources.Res
 import project01.shared.generated.resources.compose_multiplatform
 
 @Composable
-@Preview
-fun App() {
+fun App(greeting: Greeting) {
     MaterialTheme {
         var showContent by remember { mutableStateOf(false) }
         Column(
@@ -35,15 +34,19 @@ fun App() {
                 Text("Click me!")
             }
             AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
+                val greetingText = remember { greeting.greet() }
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+                    Text("Compose: $greetingText")
                 }
             }
         }
     }
 }
+
+@Composable
+@Preview
+fun AppPreview() = App(Greeting())
