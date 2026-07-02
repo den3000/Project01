@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.viewmodel
+package ru.den.writes.code.agenticHub.features.lifecycle.session
 
 /**
  * The outcome of [PromptSource.nextPrompt]: a user prompt to send, a REPL

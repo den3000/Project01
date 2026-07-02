@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.features.viewmodel.UiState
-import ru.den.writes.code.agenticHub.features.viewmodel.UiLine
+import ru.den.writes.code.agenticHub.features.lifecycle.session.UiState
+import ru.den.writes.code.agenticHub.features.lifecycle.session.UiLine
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

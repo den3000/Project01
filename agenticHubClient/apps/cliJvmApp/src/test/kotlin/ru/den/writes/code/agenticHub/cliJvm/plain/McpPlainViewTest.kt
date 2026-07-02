@@ -2,7 +2,7 @@ package ru.den.writes.code.agenticHub.cliJvm.plain
 
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import ru.den.writes.code.agenticHub.features.viewmodel.mcpToolLines
+import ru.den.writes.code.agenticHub.features.lifecycle.session.mcpToolLines
 import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 import ru.den.writes.code.agenticHub.features.llm.ToolCall
 import kotlin.test.Test

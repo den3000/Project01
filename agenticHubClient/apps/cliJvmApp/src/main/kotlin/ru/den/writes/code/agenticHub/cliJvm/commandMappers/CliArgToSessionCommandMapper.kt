@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm.commandMappers
 
-import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.AFTER
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.AGENT

@@ -1,9 +1,9 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.features.viewmodel.commandCatalog
-import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
-import ru.den.writes.code.agenticHub.features.viewmodel.PickerKind
-import ru.den.writes.code.agenticHub.features.viewmodel.PaletteAction
+import ru.den.writes.code.agenticHub.features.lifecycle.session.commandCatalog
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
+import ru.den.writes.code.agenticHub.features.lifecycle.session.PaletteAction
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

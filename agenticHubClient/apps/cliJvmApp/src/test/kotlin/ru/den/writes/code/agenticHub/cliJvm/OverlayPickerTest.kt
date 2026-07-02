@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.features.viewmodel.PickerKind
-import ru.den.writes.code.agenticHub.features.viewmodel.Overlay
+import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
+import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

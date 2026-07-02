@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm.plain
 
-import ru.den.writes.code.agenticHub.features.viewmodel.AgentRef
+import ru.den.writes.code.agenticHub.features.lifecycle.session.AgentRef
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

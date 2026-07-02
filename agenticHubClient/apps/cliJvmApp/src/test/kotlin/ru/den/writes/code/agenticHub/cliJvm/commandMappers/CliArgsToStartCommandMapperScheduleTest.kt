@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm.commandMappers
 
-import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

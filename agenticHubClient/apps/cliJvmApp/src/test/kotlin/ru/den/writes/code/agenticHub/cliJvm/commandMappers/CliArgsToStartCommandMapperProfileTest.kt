@@ -2,7 +2,7 @@ package ru.den.writes.code.agenticHub.cliJvm.commandMappers
 
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.ParseError
 
-import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
 import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 import kotlin.test.Test
 import kotlin.test.assertEquals

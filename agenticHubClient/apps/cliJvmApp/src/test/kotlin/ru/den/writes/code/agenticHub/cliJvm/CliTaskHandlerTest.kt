@@ -3,8 +3,8 @@ package ru.den.writes.code.agenticHub.cliJvm
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import ru.den.writes.code.agenticHub.features.viewmodel.ScheduleAction
-import ru.den.writes.code.agenticHub.features.viewmodel.CliTaskHandler
+import ru.den.writes.code.agenticHub.features.lifecycle.session.ScheduleAction
+import ru.den.writes.code.agenticHub.features.lifecycle.session.CliTaskHandler
 import ru.den.writes.code.agenticHub.scheduling.Schedule
 import ru.den.writes.code.agenticHub.scheduling.ScheduledTask
 import ru.den.writes.code.agenticHub.features.llm.ToolCall

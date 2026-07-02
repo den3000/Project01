@@ -5,7 +5,7 @@ import com.varabyte.kotter.foundation.text.green
 import com.varabyte.kotter.foundation.text.magenta
 import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.runtime.render.RenderScope
-import ru.den.writes.code.agenticHub.features.viewmodel.AgentRef
+import ru.den.writes.code.agenticHub.features.lifecycle.session.AgentRef
 
 /**
  * The model's reply as an `"assistant │ …"` column. In a multi-agent session

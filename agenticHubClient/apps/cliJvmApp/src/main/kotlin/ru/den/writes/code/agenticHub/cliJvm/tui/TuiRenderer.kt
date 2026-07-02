@@ -18,13 +18,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import ru.den.writes.code.agenticHub.features.viewmodel.ChannelIntentSource
-import ru.den.writes.code.agenticHub.features.viewmodel.Overlay
-import ru.den.writes.code.agenticHub.features.viewmodel.PickerKind
-import ru.den.writes.code.agenticHub.features.viewmodel.SessionViewModel
-import ru.den.writes.code.agenticHub.features.viewmodel.UiEffect
-import ru.den.writes.code.agenticHub.features.viewmodel.UiIntent
-import ru.den.writes.code.agenticHub.features.viewmodel.UiLine
+import ru.den.writes.code.agenticHub.features.lifecycle.session.ChannelIntentSource
+import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay
+import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
+import ru.den.writes.code.agenticHub.features.lifecycle.session.UiEffect
+import ru.den.writes.code.agenticHub.features.lifecycle.session.UiIntent
+import ru.den.writes.code.agenticHub.features.lifecycle.session.UiLine
 import ru.den.writes.code.agenticHub.cliJvm.commandMappers.CliArgToSessionCommandMapper
 
 /**

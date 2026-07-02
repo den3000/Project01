@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm.plain
 
-import ru.den.writes.code.agenticHub.features.viewmodel.StageAdvance
+import ru.den.writes.code.agenticHub.features.lifecycle.session.StageAdvance
 import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
 import kotlin.test.Test
 import kotlin.test.assertEquals

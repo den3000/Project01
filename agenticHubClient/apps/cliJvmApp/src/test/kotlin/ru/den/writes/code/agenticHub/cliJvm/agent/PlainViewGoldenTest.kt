@@ -1,18 +1,18 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
-import ru.den.writes.code.agenticHub.features.viewmodel.CommandRunner
+import ru.den.writes.code.agenticHub.features.lifecycle.session.CommandRunner
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
-import ru.den.writes.code.agenticHub.features.viewmodel.IntentSource
+import ru.den.writes.code.agenticHub.features.lifecycle.session.IntentSource
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
-import ru.den.writes.code.agenticHub.features.viewmodel.SessionViewModel
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
 import ru.den.writes.code.agenticHub.cliJvm.TestDb
-import ru.den.writes.code.agenticHub.features.viewmodel.TurnEngine
-import ru.den.writes.code.agenticHub.features.viewmodel.UiIntent
+import ru.den.writes.code.agenticHub.features.lifecycle.session.TurnEngine
+import ru.den.writes.code.agenticHub.features.lifecycle.session.UiIntent
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider

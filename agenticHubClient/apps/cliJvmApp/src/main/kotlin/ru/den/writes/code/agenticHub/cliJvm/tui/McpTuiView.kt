@@ -4,7 +4,7 @@ import com.github.ajalt.mordant.terminal.Terminal
 import com.varabyte.kotter.foundation.text.blue
 import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.runtime.render.RenderScope
-import ru.den.writes.code.agenticHub.features.viewmodel.mcpToolLines
+import ru.den.writes.code.agenticHub.features.lifecycle.session.mcpToolLines
 import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 
 /**

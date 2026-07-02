@@ -5,7 +5,7 @@ import com.github.ajalt.mordant.widgets.Panel
 import com.varabyte.kotter.foundation.text.magenta
 import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.runtime.render.RenderScope
-import ru.den.writes.code.agenticHub.features.viewmodel.Overlay
+import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay
 
 /**
  * The command palette pinned in the bottom block: each `/`-command as a numbered

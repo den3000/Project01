@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.viewmodel
+package ru.den.writes.code.agenticHub.features.lifecycle.session
 
 import io.ktor.client.HttpClient
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent

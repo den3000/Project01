@@ -3,10 +3,10 @@ package ru.den.writes.code.agenticHub.cliJvm.agent
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
-import ru.den.writes.code.agenticHub.features.viewmodel.StageAdvance
+import ru.den.writes.code.agenticHub.features.lifecycle.session.StageAdvance
 import ru.den.writes.code.agenticHub.cliJvm.TestDb
-import ru.den.writes.code.agenticHub.features.viewmodel.TurnEngine
-import ru.den.writes.code.agenticHub.features.viewmodel.TurnResult
+import ru.den.writes.code.agenticHub.features.lifecycle.session.TurnEngine
+import ru.den.writes.code.agenticHub.features.lifecycle.session.TurnResult
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore

@@ -1,8 +1,8 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.features.viewmodel.UiIntent
-import ru.den.writes.code.agenticHub.features.viewmodel.MergedIntentSource
-import ru.den.writes.code.agenticHub.features.viewmodel.IntentSource
+import ru.den.writes.code.agenticHub.features.lifecycle.session.UiIntent
+import ru.den.writes.code.agenticHub.features.lifecycle.session.MergedIntentSource
+import ru.den.writes.code.agenticHub.features.lifecycle.session.IntentSource
 
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel

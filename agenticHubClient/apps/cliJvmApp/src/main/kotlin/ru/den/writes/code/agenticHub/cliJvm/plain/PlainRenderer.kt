@@ -3,10 +3,10 @@ package ru.den.writes.code.agenticHub.cliJvm.plain
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import ru.den.writes.code.agenticHub.features.viewmodel.IntentSource
-import ru.den.writes.code.agenticHub.features.viewmodel.SessionViewModel
-import ru.den.writes.code.agenticHub.features.viewmodel.UiLine
-import ru.den.writes.code.agenticHub.features.viewmodel.UiState
+import ru.den.writes.code.agenticHub.features.lifecycle.session.IntentSource
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
+import ru.den.writes.code.agenticHub.features.lifecycle.session.UiLine
+import ru.den.writes.code.agenticHub.features.lifecycle.session.UiState
 
 /**
  * Plain renderer of [UiState]: reproduces the previous output byte-for-byte —

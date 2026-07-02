@@ -2,13 +2,13 @@ package ru.den.writes.code.agenticHub.cliJvm.tui
 
 import ru.den.writes.code.agenticHub.cliJvm.agent.testSessionMapper
 
-import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
-import ru.den.writes.code.agenticHub.features.viewmodel.CommandEntry
-import ru.den.writes.code.agenticHub.features.viewmodel.Overlay
-import ru.den.writes.code.agenticHub.features.viewmodel.PaletteAction
-import ru.den.writes.code.agenticHub.features.viewmodel.PickerKind
-import ru.den.writes.code.agenticHub.features.viewmodel.SessionStatsSnapshot
-import ru.den.writes.code.agenticHub.features.viewmodel.UiIntent
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.session.CommandEntry
+import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay
+import ru.den.writes.code.agenticHub.features.lifecycle.session.PaletteAction
+import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionStatsSnapshot
+import ru.den.writes.code.agenticHub.features.lifecycle.session.UiIntent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
