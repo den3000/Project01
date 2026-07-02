@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.cliJvm
+package ru.den.writes.code.agenticHub.features.lifecycle.session
 
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
 import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay

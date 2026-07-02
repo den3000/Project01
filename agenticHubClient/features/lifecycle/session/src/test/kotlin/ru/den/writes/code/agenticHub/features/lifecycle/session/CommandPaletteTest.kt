@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.cliJvm
+package ru.den.writes.code.agenticHub.features.lifecycle.session
 
 import ru.den.writes.code.agenticHub.features.lifecycle.session.commandCatalog
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand

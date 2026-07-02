@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.cliJvm
+package ru.den.writes.code.agenticHub.features.lifecycle.session
 
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject

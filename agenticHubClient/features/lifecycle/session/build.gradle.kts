@@ -16,6 +16,11 @@ dependencies {
     implementation(projects.scheduling)
     implementation(libs.kotlinx.coroutinesCore)
     implementation(libs.kotlinx.serializationJson)
+
+    testImplementation(projects.agenticHubClient.testing)
+    testImplementation(libs.kotlin.testJunit)
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutinesTest)
 }
 
 val compileKotlin: KotlinCompile by tasks
