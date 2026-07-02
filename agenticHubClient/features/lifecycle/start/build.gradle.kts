@@ -10,4 +10,9 @@ dependencies {
     api(projects.agenticHubClient.platform.database)
     implementation(projects.agenticHubClient.features.memory)
     implementation(libs.kotlinx.coroutinesCore)
+
+    testImplementation(projects.agenticHubClient.testing)
+    testImplementation(libs.kotlin.testJunit)
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutinesTest)
 }

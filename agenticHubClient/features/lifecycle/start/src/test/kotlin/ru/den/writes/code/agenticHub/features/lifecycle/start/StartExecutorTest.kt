@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.cliJvm
+package ru.den.writes.code.agenticHub.features.lifecycle.start
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.testing.TestDb

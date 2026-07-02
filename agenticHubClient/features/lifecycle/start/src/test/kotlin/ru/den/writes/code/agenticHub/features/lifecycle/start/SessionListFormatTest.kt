@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.cliJvm
+package ru.den.writes.code.agenticHub.features.lifecycle.start
 
 import ru.den.writes.code.agenticHub.features.lifecycle.start.formatSessionLine
 
