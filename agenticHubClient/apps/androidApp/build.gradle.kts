@@ -13,6 +13,7 @@ kotlin {
 }
 dependencies {
     implementation(projects.shared)
+    implementation(projects.agenticHubClient.platform.greeting)
 
     implementation(libs.androidx.activity.compose)
 

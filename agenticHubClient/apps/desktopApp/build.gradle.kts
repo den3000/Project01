@@ -8,6 +8,7 @@ plugins {
 
 dependencies {
     implementation(projects.shared)
+    implementation(projects.agenticHubClient.platform.greeting)
 
     implementation(compose.desktop.currentOs)
     implementation(libs.kotlinx.coroutinesSwing)

@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.android
 
 import ru.den.writes.code.project01.App
-import ru.den.writes.code.project01.Greeting
+import ru.den.writes.code.agenticHub.platform.greeting.Greeting
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
