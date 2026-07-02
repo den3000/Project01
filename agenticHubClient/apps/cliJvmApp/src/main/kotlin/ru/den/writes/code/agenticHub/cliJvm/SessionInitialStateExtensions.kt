@@ -1,10 +1,10 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.features.lifecycle.session.generateSessionId
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
+import java.util.UUID
 
 /**
  * App-side hydration of a parsed [StartCommand.SessionInitialState]. The portable
@@ -29,3 +29,9 @@ internal suspend fun StartCommand.SessionInitialState.historyStore(db: AppDataba
     }
     is StartCommand.RunOneShot -> null
 }
+
+/**
+ * Eight-char hex slice off a random UUID — readable, easy to retype, ~4 billion
+ * values. Matches `^[a-zA-Z0-9_-]+$`, so it's a valid `-session` to resume.
+ */
+internal fun generateSessionId(): String = UUID.randomUUID().toString().take(8)

@@ -10,8 +10,7 @@ glue планировщика. Собирается фабрикой `buildSessi
 - `TurnEngine` — чистый движок хода (`turn(): TurnResult`, persist + FSM-переход; делегирует в
   `AgentResponder`); `CommandRunner` — `/`-команды → нотисы.
 - `SessionAssembly` (`buildSessionViewModel()` + `startSchedulerLoops()`), `SessionHydration`
-  (`contextStrategy()`/`memoryProvider()`), `AgentBuilders` (`buildRoutedAgents`/`buildJudges`/
-  `generateSessionId`).
+  (`contextStrategy()`/`memoryProvider()`).
 - `UiState`/`UiIntent`/`UiEffect`/`UiLine`(+`mcpToolLines`)/`AgentRef`/`Overlay`/`PickerKind`/
   `SessionCommand`; `TurnResult`(+`SessionStatsSnapshot`/`StageAdvance`); `IntentSource`
   (`PromptSourceIntents`/`ChannelIntentSource`/`MergedIntentSource`); `PromptSource`

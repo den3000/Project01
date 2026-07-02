@@ -8,7 +8,9 @@ judge-слой (инварианты-как-код) и per-stage маршрут�
 - `AgentConfig` (`LlmApi` + `GenerationParams` + опц. `profileName` + `toolExecutor`) +
   `AgentResponder.respond` (один ход: wire-list `memoryLayer+baseContext+userTurn` → `LlmApi`, парс
   stage-сигнала; tool-loop ≤`MAX_TOOL_ROUNDS`) + `TurnOutcome`/`ExecutedToolCall`.
-- Per-stage: `RoutedAgent`/`RoutedJudge` + parsed `StageAgentSpec`/`StageJudgeSpec` (+`TaskBinding`).
+- Per-stage: `RoutedAgent`/`RoutedJudge` + parsed `StageAgentSpec`/`StageJudgeSpec` (+`TaskBinding`)
+  + билдеры `buildRoutedAgents(stageAgents, client, params)`/`buildJudges(judgeAgents, client)`
+  (`RoutedAgentBuilders.kt`).
 - `context/` — `HistoryCompressor` (rolling-summary, чистый) + `evenDown`.
 - `invariant/` — `InvariantChecker` + `LlmInvariantJudge` (независимый LLM-вызов, fail-open) +
   `InvariantJudgePrompt` + `InvariantVerdict`/`InvariantViolation`.

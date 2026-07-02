@@ -8,8 +8,8 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.startSchedulerLo
 import ru.den.writes.code.agenticHub.features.lifecycle.session.memoryProvider
 import ru.den.writes.code.agenticHub.features.lifecycle.session.contextStrategy
 import ru.den.writes.code.agenticHub.features.lifecycle.session.buildSessionViewModel
-import ru.den.writes.code.agenticHub.features.lifecycle.session.buildRoutedAgents
-import ru.den.writes.code.agenticHub.features.lifecycle.session.buildJudges
+import ru.den.writes.code.agenticHub.features.agent.buildRoutedAgents
+import ru.den.writes.code.agenticHub.features.agent.buildJudges
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PromptSourceIntents
@@ -53,8 +53,8 @@ internal suspend fun runSession(
     val chat = initialState as? StartCommand.RunChat
     val strategy: ContextStrategy = initialState.contextStrategy()
     val memory: MemoryProvider? = initialState.memoryProvider(MEMORY_ROOT.absolutePath)
-    val routedAgents: List<RoutedAgent> = buildRoutedAgents(chat, client, initialState.toGenerationParams())
-    val routedJudges: List<RoutedJudge> = buildJudges(chat, client)
+    val routedAgents: List<RoutedAgent> = buildRoutedAgents(chat?.config?.stageAgents.orEmpty(), client, initialState.toGenerationParams())
+    val routedJudges: List<RoutedJudge> = buildJudges(chat?.config?.judgeAgents.orEmpty(), client)
     val mcpClients: List<McpToolClient> = buildMcpToolClients(chat).onEach { it.connect() }
     val router: McpToolRouter? = buildToolRouter(mcpClients, chat)
     val toolDefs = router?.toolDefs.orEmpty()
