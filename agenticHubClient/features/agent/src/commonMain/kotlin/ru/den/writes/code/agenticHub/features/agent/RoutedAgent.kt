@@ -1,6 +1,5 @@
-package ru.den.writes.code.agenticHub.features.viewmodel
+package ru.den.writes.code.agenticHub.features.agent
 
-import ru.den.writes.code.agenticHub.features.agent.AgentResponder
 import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
 
 /**

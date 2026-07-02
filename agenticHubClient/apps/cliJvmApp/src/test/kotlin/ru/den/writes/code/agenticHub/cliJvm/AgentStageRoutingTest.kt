@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.features.viewmodel.RoutedAgent
+import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.agent.createStdinPromptSource
 

@@ -9,8 +9,8 @@ import ru.den.writes.code.agenticHub.features.viewmodel.contextStrategy
 import ru.den.writes.code.agenticHub.features.viewmodel.buildSessionViewModel
 import ru.den.writes.code.agenticHub.features.viewmodel.buildRoutedAgents
 import ru.den.writes.code.agenticHub.features.viewmodel.buildJudges
-import ru.den.writes.code.agenticHub.features.viewmodel.RoutedJudge
-import ru.den.writes.code.agenticHub.features.viewmodel.RoutedAgent
+import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
+import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.viewmodel.PromptSourceIntents
 import ru.den.writes.code.agenticHub.features.viewmodel.PromptSource
 import ru.den.writes.code.agenticHub.features.llm.McpToolRouter

@@ -3,8 +3,8 @@ package ru.den.writes.code.agenticHub.cliJvm.commandMappers
 import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.ModelProviderFactory
 import ru.den.writes.code.agenticHub.features.llm.MAX_STOP_SEQUENCES
-import ru.den.writes.code.agenticHub.features.viewmodel.StageAgentSpec
-import ru.den.writes.code.agenticHub.features.viewmodel.StageJudgeSpec
+import ru.den.writes.code.agenticHub.features.agent.StageAgentSpec
+import ru.den.writes.code.agenticHub.features.agent.StageJudgeSpec
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.AFTER

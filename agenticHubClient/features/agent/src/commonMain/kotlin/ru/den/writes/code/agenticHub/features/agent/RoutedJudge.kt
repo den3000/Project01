@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.viewmodel
+package ru.den.writes.code.agenticHub.features.agent
 
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantChecker
 import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding

@@ -8,7 +8,7 @@ import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategy
 import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.viewmodel.IntentSource
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
-import ru.den.writes.code.agenticHub.features.viewmodel.RoutedAgent
+import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.viewmodel.SessionViewModel
 import ru.den.writes.code.agenticHub.cliJvm.TestDb
 import ru.den.writes.code.agenticHub.features.viewmodel.TurnEngine

@@ -2,7 +2,7 @@ package ru.den.writes.code.agenticHub.cliJvm.agent
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
-import ru.den.writes.code.agenticHub.features.viewmodel.RoutedAgent
+import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.viewmodel.StageAdvance
 import ru.den.writes.code.agenticHub.cliJvm.TestDb
 import ru.den.writes.code.agenticHub.features.viewmodel.TurnEngine

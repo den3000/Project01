@@ -12,8 +12,8 @@ import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.agenticHub.features.viewmodel.PromptSource
 import ru.den.writes.code.agenticHub.features.viewmodel.PromptSourceIntents
-import ru.den.writes.code.agenticHub.features.viewmodel.RoutedAgent
-import ru.den.writes.code.agenticHub.features.viewmodel.RoutedJudge
+import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
+import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.viewmodel.SessionViewModel
 import ru.den.writes.code.agenticHub.cliJvm.StdinPromptSource
 import ru.den.writes.code.agenticHub.features.viewmodel.TurnEngine
