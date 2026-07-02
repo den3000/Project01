@@ -14,8 +14,8 @@ JVM-приложение, которое шлёт промпт в chat-style LLM
 
 ```bash
 # собрать запускаемый дистрибутив
-./gradlew :cliJvmApp:installDist
-BIN=./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp
+./gradlew :agenticHubClient:apps:cliJvmApp:installDist
+BIN=./agenticHubClient/apps/cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp
 
 # один вопрос → ответ → выход
 $BIN -prompt "Объясни в двух предложениях, что такое корутина." -oneshot
@@ -24,7 +24,7 @@ $BIN -prompt "Объясни в двух предложениях, что так
 $BIN -prompt "Привет!" -session demo
 ```
 
-Можно и без `installDist`: `./gradlew :cliJvmApp:run --args="-prompt <текст> [...флаги]"`.
+Можно и без `installDist`: `./gradlew :agenticHubClient:apps:cliJvmApp:run --args="-prompt <текст> [...флаги]"`.
 
 > ⚠️ **После правки CLI-флагов обязательно пересобирать `installDist`** — иначе старый бинарь
 > не знает новых флагов (типовой симптом: новый флаг «прилипает» к значению предыдущего).
@@ -237,7 +237,7 @@ stateless), так что multi-turn контекст сохраняется; о
 ### MCP-инструменты — `-mcpServer`
 
 `-mcpServer "<команда>"` (Chat-only) поднимает MCP-сервер подпроцессом (напр.
-[`openmeteo-mcp`](../mcps/openmeteo-mcp/README.md)) и отдаёт его инструменты модели. На старте — один
+[`openmeteo-mcp`](../../../playground/openmeteo-mcp/README.md)) и отдаёт его инструменты модели. На старте — один
 `tools/list`, схема каждого инструмента → Gemini `functionDeclarations`. Когда модель отвечает
 `functionCall` вместо текста, CLI выполняет его через `tools/call`, скармливает результат обратно
 `functionResponse` и переспрашивает — до нескольких раундов — пока модель не выдаст финальный текст.
@@ -251,8 +251,8 @@ Tool-обмен эфемерный (в историю едет только фи
 
 ```bash
 # кросс-серверная цепочка: погода [openmeteo-mcp] → документ [localfs-mcp] → файл [localfs-mcp]
-OM=$(pwd)/../mcps/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp
-FS=$(pwd)/../mcps/localfs-mcp/build/install/localfs-mcp/bin/localfs-mcp
+OM=$(pwd)/../../../playground/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp
+FS=$(pwd)/../../../playground/localfs-mcp/build/install/localfs-mcp/bin/localfs-mcp
 cliJvmApp -prompt "Узнай погоду в Москве, добавь её в документ и сохрани в файл moscow.md" \
   -mcpServer "$OM" -mcpServer "$FS"
 # → ~/.project01-localfs/documents/moscow.md
@@ -276,7 +276,7 @@ cliJvmApp -prompt "Узнай погоду в Москве, добавь её в
 
 ```bash
 # периодический сбор погоды через openmeteo-mcp-инструмент (collect — без токенов на сбор)
-cliJvmApp -prompt "ok" -mcpServer "$(pwd)/../mcps/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp" \
+cliJvmApp -prompt "ok" -mcpServer "$(pwd)/../../../playground/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp" \
   -schedule collect tool current_weather args '{"city":"Moscow"}' every 30 -session collect-demo
 
 # периодический агентный ход (тратит токены каждые 60 c)
@@ -321,7 +321,7 @@ CLI везёт типизированный enum id-шек; любой неиз�
 
 ## Demo-recipes
 
-После `./gradlew :cliJvmApp:installDist` (`BIN` — путь к бинарю из «Быстрого старта»):
+После `./gradlew :agenticHubClient:apps:cliJvmApp:installDist` (`BIN` — путь к бинарю из «Быстрого старта»):
 
 ```bash
 # Дешёвый реальный прогон на Gemini Flash-Lite. Каждый feed-ход добавляется к итогам
@@ -478,10 +478,13 @@ Downstream-мапперы живут в `commandMappers/`: `CliArgsToStartComman
 ## Тесты
 
 ```bash
-./gradlew :cliJvmApp:test
+./gradlew :agenticHubClient:apps:cliJvmApp:test
 ```
 
 Offline и быстро — все провайдеры застаблены через `FakeLlmApi`, сети нет. Парсинг покрыт
 `cliargs/*Test` (grammar/crossvalidation) + `commandMappers/CliArgsToStartCommandMapper*Test` (оба маппера);
 MVI-стек диалога — через хелпер `runSessionForTest`, байт-в-байт вывод пинит `PlainViewGoldenTest`.
-Ядро LLM/pricing/context/memory живёт в `:shared` — `./gradlew :shared:jvmTest`.
+Доменное ядро вынесено в отдельные модули (`features:llm` — LLM/pricing, `features:agent` —
+context/memory-слой/judge, `features:memory` — persistence/стратегии): `./gradlew
+:agenticHubClient:features:llm:jvmTest :agenticHubClient:features:agent:jvmTest
+:agenticHubClient:features:memory:jvmTest`.
