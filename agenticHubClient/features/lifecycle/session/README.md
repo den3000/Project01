@@ -9,8 +9,9 @@ glue планировщика. Собирается фабрикой `buildSessi
   гидрация/resume, оркестрация ходов, feed→repl, summary.
 - `TurnEngine` — чистый движок хода (`turn(): TurnResult`, persist + FSM-переход; делегирует в
   `AgentResponder`); `CommandRunner` — `/`-команды → нотисы.
-- `SessionAssembly` (`buildSessionViewModel()` + `startSchedulerLoops()`), `SessionHydration`
-  (`contextStrategy()`/`memoryProvider()`).
+- `SessionAssembly` (`buildSessionViewModel()` + `startSchedulerLoops()`). Гидрация
+  `SessionInitialState` (`contextStrategy`/`memoryProvider`/`historyStore`) — в composition-root
+  (cliJvmApp `commandMappers`), не здесь.
 - `UiState`/`UiIntent`/`UiEffect`/`UiLine`(+`mcpToolLines`)/`AgentRef`/`Overlay`/`PickerKind`/
   `SessionCommand`; `TurnResult`(+`SessionStatsSnapshot`/`StageAdvance`); `IntentSource`
   (`PromptSourceIntents`/`ChannelIntentSource`/`MergedIntentSource`); `PromptSource`

@@ -5,8 +5,9 @@ import kotlinx.coroutines.coroutineScope
 import ru.den.writes.code.agenticHub.features.lifecycle.start.MEMORY_ROOT
 import ru.den.writes.code.agenticHub.features.lifecycle.session.toGenerationParams
 import ru.den.writes.code.agenticHub.features.lifecycle.session.startSchedulerLoops
-import ru.den.writes.code.agenticHub.features.lifecycle.session.memoryProvider
-import ru.den.writes.code.agenticHub.features.lifecycle.session.contextStrategy
+import ru.den.writes.code.agenticHub.cliJvm.commandMappers.memoryProvider
+import ru.den.writes.code.agenticHub.cliJvm.commandMappers.contextStrategy
+import ru.den.writes.code.agenticHub.cliJvm.commandMappers.historyStore
 import ru.den.writes.code.agenticHub.features.lifecycle.session.buildSessionViewModel
 import ru.den.writes.code.agenticHub.features.agent.buildRoutedAgents
 import ru.den.writes.code.agenticHub.features.agent.buildJudges
