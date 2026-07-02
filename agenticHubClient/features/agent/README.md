@@ -1,8 +1,9 @@
 # :agenticHubClient:features:agent — портируемое ядро агента
 
-KMP-модуль: один ход агента без сессионного состояния + memory-слой (профиль/правила/task-FSM),
-judge-слой (инварианты-как-код) и per-stage маршрутизация. Гоняется раннером из
-`lifecycle:session`; персистом/оркестрацией не занимается.
+KMP-модуль: один ход агента без сессионного состояния, judge-слой (инварианты-как-код) и per-stage
+маршрутизация. Гоняется раннером из `lifecycle:session`; персистом/оркестрацией не занимается.
+Memory-домен (профиль/правила/task-FSM/`MemoryLayer`) и компакция (`HistoryCompressor`) живут ниже, в
+`features:memory` (`agent → memory`).
 
 ## Публичный API
 - `AgentConfig` (`LlmApi` + `GenerationParams` + опц. `profileName` + `toolExecutor`) +
@@ -11,16 +12,14 @@ judge-слой (инварианты-как-код) и per-stage маршрут�
 - Per-stage: `RoutedAgent`/`RoutedJudge` + parsed `StageAgentSpec`/`StageJudgeSpec` (+`TaskBinding`)
   + билдеры `buildRoutedAgents(stageAgents, client, params)`/`buildJudges(judgeAgents, client)`
   (`RoutedAgentBuilders.kt`).
-- `context/` — `HistoryCompressor` (rolling-summary, чистый) + `evenDown`.
 - `invariant/` — `InvariantChecker` + `LlmInvariantJudge` (независимый LLM-вызов, fail-open) +
   `InvariantJudgePrompt` + `InvariantVerdict`/`InvariantViolation`.
-- `memory/` — `Profile` (`ProfileSection`/`ProfileData`/парс-рендер), `MemoryLayer`
-  (`composePreamble`/`composeSystem`), `MemoryMode`, `MemoryModels` (`RuleEntry`/`TaskNotes`),
-  `TaskState` (`TaskStage` clarification→planning→execution→validation→done + `TaskStateMachine`).
+- Memory-типы, которыми оперирует ход (`MemoryLayer`/`Profile`/`TaskStage`/`TaskBinding`/`RuleEntry`),
+  берутся из `features:memory`.
 
 ## Зависимости
-- `api(features:llm)` (публичный API протекает LLM-типами), `implementation(platform:logging)`.
-  Потребители — `features:memory`, `features:lifecycle:*`.
+- `api(features:llm)` + `api(features:memory)` (публичный API протекает LLM- и memory-домен-типами),
+  `implementation(platform:logging)`. Потребители — `features:lifecycle:*`.
 
 ## Тесты
 `./gradlew :agenticHubClient:features:agent:jvmTest` — `AgentResponderTest`, `HistoryCompressorTest`,

@@ -11,10 +11,10 @@ KMP-проект на Compose Multiplatform (Android, iOS, Desktop/JVM) плюс
 **`agenticHubClient/features/`** — доменное ядро:
 - [features:llm](./agenticHubClient/features/llm) — provider-нейтральное LLM-ядро (Gemini/OpenRouter/
   Hugging Face), tool-типы, ценовой реестр, `McpToolRouter`.
-- [features:agent](./agenticHubClient/features/agent) — одноходовый responder, memory-слой
-  (профиль/правила/task-FSM), judge инвариантов, per-stage маршрутизация.
-- [features:memory](./agenticHubClient/features/memory) — persistence (история поверх Room, файловая
-  память) + context-стратегии.
+- [features:memory](./agenticHubClient/features/memory) — фундамент памяти: домен (профиль/правила/
+  task-FSM/memory-layer), rolling-summary компакция, context-стратегии, persistence (Room + файловая).
+- [features:agent](./agenticHubClient/features/agent) — одноходовый responder, judge инвариантов,
+  per-stage маршрутизация (зависит на `memory`).
 - [features:composeApp](./agenticHubClient/features/composeApp) — Compose-MP демо-UI + iOS-фреймворк
   `ComposeApp`.
 - [features:mcpClient](./agenticHubClient/features/mcpClient) — `McpToolClient` (MCP-сервер как `ToolExecutor`).
