@@ -1,8 +1,5 @@
-package ru.den.writes.code.agenticHub.features.viewmodel
+package ru.den.writes.code.agenticHub.features.llm
 
-import ru.den.writes.code.agenticHub.features.llm.ToolCall
-import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
-import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
 
 /**
  * Fans the model's tool calls out across several MCP servers. Each [Route] pairs one

@@ -3,7 +3,7 @@ package ru.den.writes.code.agenticHub.cliJvm
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
-import ru.den.writes.code.agenticHub.features.viewmodel.McpToolRouter
+import ru.den.writes.code.agenticHub.features.llm.McpToolRouter
 import ru.den.writes.code.agenticHub.features.llm.ToolCall
 import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
 import ru.den.writes.code.agenticHub.features.llm.ToolExecutor

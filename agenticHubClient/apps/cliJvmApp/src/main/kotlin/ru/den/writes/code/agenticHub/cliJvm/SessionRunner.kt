@@ -13,7 +13,7 @@ import ru.den.writes.code.agenticHub.features.viewmodel.RoutedJudge
 import ru.den.writes.code.agenticHub.features.viewmodel.RoutedAgent
 import ru.den.writes.code.agenticHub.features.viewmodel.PromptSourceIntents
 import ru.den.writes.code.agenticHub.features.viewmodel.PromptSource
-import ru.den.writes.code.agenticHub.features.viewmodel.McpToolRouter
+import ru.den.writes.code.agenticHub.features.llm.McpToolRouter
 import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategy
 import ru.den.writes.code.agenticHub.features.viewmodel.ChannelIntentSource
 import ru.den.writes.code.agenticHub.platform.mcpclient.McpToolClient
