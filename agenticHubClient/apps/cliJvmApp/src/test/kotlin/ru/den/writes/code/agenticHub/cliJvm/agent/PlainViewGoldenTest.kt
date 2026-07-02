@@ -11,7 +11,7 @@ import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
 import ru.den.writes.code.agenticHub.cliJvm.TestDb
-import ru.den.writes.code.agenticHub.features.lifecycle.session.TurnEngine
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.UiIntent
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore

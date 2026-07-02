@@ -1,5 +1,7 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.session
 
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.StageAdvance
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.SessionStatsSnapshot
 import ru.den.writes.code.agenticHub.features.lifecycle.command.ScheduleSpec
 import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation

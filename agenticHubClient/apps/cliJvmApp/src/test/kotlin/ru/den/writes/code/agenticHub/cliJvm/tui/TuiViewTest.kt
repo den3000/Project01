@@ -7,7 +7,7 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.CommandEntry
 import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PaletteAction
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
-import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionStatsSnapshot
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.SessionStatsSnapshot
 import ru.den.writes.code.agenticHub.features.lifecycle.session.UiIntent
 import kotlin.test.Test
 import kotlin.test.assertEquals

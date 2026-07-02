@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm.plain
 
-import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionStatsSnapshot
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.SessionStatsSnapshot
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 

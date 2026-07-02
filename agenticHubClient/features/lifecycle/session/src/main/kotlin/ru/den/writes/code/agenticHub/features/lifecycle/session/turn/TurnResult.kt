@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.lifecycle.session
+package ru.den.writes.code.agenticHub.features.lifecycle.session.turn
 
 import ru.den.writes.code.agenticHub.features.memory.SessionStats
 import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall

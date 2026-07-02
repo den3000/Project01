@@ -17,7 +17,7 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
 import ru.den.writes.code.agenticHub.cliJvm.TestDb
-import ru.den.writes.code.agenticHub.features.lifecycle.session.TurnEngine
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.UiEffect
 import ru.den.writes.code.agenticHub.features.lifecycle.session.UiIntent
 import ru.den.writes.code.agenticHub.features.lifecycle.session.UiLine
