@@ -7,9 +7,9 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.agenticHubClient.features.viewModel)
     implementation(projects.agenticHubClient.features.lifecycle.session)
     implementation(projects.agenticHubClient.features.lifecycle.start)
+    implementation(projects.agenticHubClient.features.lifecycle.command)
     implementation(projects.agenticHubClient.features.memory)
     implementation(projects.agenticHubClient.platform.config)
     implementation(projects.agenticHubClient.platform.database)
