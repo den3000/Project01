@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.plain
 
-import ru.den.writes.code.project01.cliJvm.SessionStatsSnapshot
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionStatsSnapshot
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import kotlin.test.Test
 import kotlin.test.assertEquals

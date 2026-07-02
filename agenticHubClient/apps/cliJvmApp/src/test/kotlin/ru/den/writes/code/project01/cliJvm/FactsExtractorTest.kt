@@ -1,5 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.agenticHub.features.viewmodel.FactsExtractor
+
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

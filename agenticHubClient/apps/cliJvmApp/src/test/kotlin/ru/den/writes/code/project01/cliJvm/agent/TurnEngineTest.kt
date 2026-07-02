@@ -2,11 +2,11 @@ package ru.den.writes.code.project01.cliJvm.agent
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
-import ru.den.writes.code.project01.cliJvm.RoutedAgent
-import ru.den.writes.code.project01.cliJvm.StageAdvance
+import ru.den.writes.code.agenticHub.features.viewmodel.RoutedAgent
+import ru.den.writes.code.agenticHub.features.viewmodel.StageAdvance
 import ru.den.writes.code.project01.cliJvm.TestDb
-import ru.den.writes.code.project01.cliJvm.TurnEngine
-import ru.den.writes.code.project01.cliJvm.TurnResult
+import ru.den.writes.code.agenticHub.features.viewmodel.TurnEngine
+import ru.den.writes.code.agenticHub.features.viewmodel.TurnResult
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore

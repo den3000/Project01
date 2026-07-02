@@ -3,7 +3,7 @@ package ru.den.writes.code.project01.cliJvm.tui
 import com.github.ajalt.mordant.terminal.Terminal
 import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.runtime.render.RenderScope
-import ru.den.writes.code.project01.cliJvm.SessionStatsSnapshot
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionStatsSnapshot
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 

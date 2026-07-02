@@ -1,5 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.agenticHub.features.viewmodel.PickerKind
+import ru.den.writes.code.agenticHub.features.viewmodel.Overlay
+
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

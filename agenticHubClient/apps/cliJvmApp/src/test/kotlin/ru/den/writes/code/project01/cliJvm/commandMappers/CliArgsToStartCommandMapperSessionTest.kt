@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 
-import ru.den.writes.code.project01.cliJvm.SessionCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -19,12 +19,12 @@ class CliArgsToStartCommandMapperSessionTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-session" to ru.den.writes.code.project01.cliJvm.command.StartCommand.ListSessions,
-            "-session clear" to ru.den.writes.code.project01.cliJvm.command.StartCommand.CleanHistory,
-            "-session clear demo" to ru.den.writes.code.project01.cliJvm.command.StartCommand.CleanSession("demo"),
-            "-inflate 5 -session demo" to ru.den.writes.code.project01.cliJvm.command.StartCommand.InflateSession("demo", 5),
-            "-memory" to ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
-                ru.den.writes.code.project01.cliJvm.command.MemoryAction.Show),
+            "-session" to ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.ListSessions,
+            "-session clear" to ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.CleanHistory,
+            "-session clear demo" to ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.CleanSession("demo"),
+            "-inflate 5 -session demo" to ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.InflateSession("demo", 5),
+            "-memory" to ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.MemoryOp(
+                ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.Show),
         )
 
         // when - then

@@ -1,8 +1,8 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.agenticHub.features.viewmodel.command
 
-import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
-import ru.den.writes.code.project01.cliJvm.StageAgentSpec
-import ru.den.writes.code.project01.cliJvm.StageJudgeSpec
+import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
+import ru.den.writes.code.agenticHub.features.viewmodel.StageAgentSpec
+import ru.den.writes.code.agenticHub.features.viewmodel.StageJudgeSpec
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
 
 /**

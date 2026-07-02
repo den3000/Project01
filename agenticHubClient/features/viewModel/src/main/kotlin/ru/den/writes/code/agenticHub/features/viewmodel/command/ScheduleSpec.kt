@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.agenticHub.features.viewmodel.command
 
 /**
  * A scheduled task parsed from `-schedule` / `/schedule`: what to run and how often. The

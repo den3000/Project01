@@ -1,5 +1,10 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.agenticHub.features.viewmodel.commandCatalog
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.PickerKind
+import ru.den.writes.code.agenticHub.features.viewmodel.PaletteAction
+
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

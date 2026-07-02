@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.commandMappers
 
-import ru.den.writes.code.project01.cliJvm.SessionCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AFTER
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AGENT
@@ -29,7 +29,7 @@ import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.project01.cliJvm.cliargs.ParseResult
 import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
 import ru.den.writes.code.project01.cliJvm.cliargs.Surface
-import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
+import ru.den.writes.code.agenticHub.features.viewmodel.command.ScheduleSpec
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 

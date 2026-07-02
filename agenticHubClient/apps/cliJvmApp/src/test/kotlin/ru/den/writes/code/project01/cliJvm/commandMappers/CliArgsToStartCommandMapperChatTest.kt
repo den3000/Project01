@@ -2,8 +2,8 @@ package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 
-import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
-import ru.den.writes.code.project01.cliJvm.command.StartCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
+import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals

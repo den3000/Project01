@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.plain
 
-import ru.den.writes.code.project01.cliJvm.AgentRef
+import ru.den.writes.code.agenticHub.features.viewmodel.AgentRef
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

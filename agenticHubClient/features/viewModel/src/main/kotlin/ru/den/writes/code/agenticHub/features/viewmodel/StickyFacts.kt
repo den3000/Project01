@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.agenticHub.features.viewmodel
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject

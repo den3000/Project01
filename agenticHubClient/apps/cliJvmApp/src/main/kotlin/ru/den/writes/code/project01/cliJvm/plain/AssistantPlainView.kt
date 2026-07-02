@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.plain
 
-import ru.den.writes.code.project01.cliJvm.AgentRef
+import ru.den.writes.code.agenticHub.features.viewmodel.AgentRef
 
 /**
  * The model's reply on stdout, prefixed by the `[[AGENT:]]` tag in a multi-agent

@@ -1,7 +1,7 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.agenticHub.features.viewmodel
 
 import io.ktor.client.HttpClient
-import ru.den.writes.code.project01.cliJvm.command.StartCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
 import ru.den.writes.code.agenticHub.features.agent.AgentConfig
 import ru.den.writes.code.agenticHub.features.agent.AgentResponder
 import ru.den.writes.code.agenticHub.features.agent.invariant.LlmInvariantJudge

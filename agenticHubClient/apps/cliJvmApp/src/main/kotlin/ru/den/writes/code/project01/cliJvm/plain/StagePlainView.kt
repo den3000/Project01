@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.plain
 
-import ru.den.writes.code.project01.cliJvm.StageAdvance
+import ru.den.writes.code.agenticHub.features.viewmodel.StageAdvance
 
 /** A task-stage FSM move on stderr (the `[task] …` line). */
 internal data class StagePlainView(val advance: StageAdvance) : PlainView {

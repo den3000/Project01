@@ -2,9 +2,23 @@ package ru.den.writes.code.project01.cliJvm
 
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.coroutineScope
+import ru.den.writes.code.agenticHub.features.viewmodel.toGenerationParams
+import ru.den.writes.code.agenticHub.features.viewmodel.startSchedulerLoops
+import ru.den.writes.code.agenticHub.features.viewmodel.memoryProvider
+import ru.den.writes.code.agenticHub.features.viewmodel.contextStrategy
+import ru.den.writes.code.agenticHub.features.viewmodel.buildSessionViewModel
+import ru.den.writes.code.agenticHub.features.viewmodel.buildRoutedAgents
+import ru.den.writes.code.agenticHub.features.viewmodel.buildJudges
+import ru.den.writes.code.agenticHub.features.viewmodel.RoutedJudge
+import ru.den.writes.code.agenticHub.features.viewmodel.RoutedAgent
+import ru.den.writes.code.agenticHub.features.viewmodel.PromptSourceIntents
+import ru.den.writes.code.agenticHub.features.viewmodel.PromptSource
+import ru.den.writes.code.agenticHub.features.viewmodel.McpToolRouter
+import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategy
+import ru.den.writes.code.agenticHub.features.viewmodel.ChannelIntentSource
 import ru.den.writes.code.agenticHub.platform.mcpclient.McpToolClient
 import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommandMapper
-import ru.den.writes.code.project01.cliJvm.command.StartCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider

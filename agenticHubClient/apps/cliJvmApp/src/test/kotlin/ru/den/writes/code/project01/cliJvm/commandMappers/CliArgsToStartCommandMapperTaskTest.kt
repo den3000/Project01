@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 
-import ru.den.writes.code.project01.cliJvm.SessionCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -16,17 +16,17 @@ class CliArgsToStartCommandMapperTaskTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-task auth" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.SetTask("auth"),
-            "-task auth pause" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.PauseTask("auth"),
-            "-task auth resume" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ResumeTask("auth"),
-            "-task clear auth" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.DeleteTask("auth"),
-            "-task clear" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearTasks,
+            "-task auth" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.SetTask("auth"),
+            "-task auth pause" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.PauseTask("auth"),
+            "-task auth resume" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ResumeTask("auth"),
+            "-task clear auth" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.DeleteTask("auth"),
+            "-task clear" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ClearTasks,
         )
 
         // when - then
         cases.forEach { (input, action) ->
             kotlin.test.assertEquals(
-                ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
+                ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.MemoryOp(
                     action
                 ), mapper.parseOk(input.toArgsArray()), input
             )

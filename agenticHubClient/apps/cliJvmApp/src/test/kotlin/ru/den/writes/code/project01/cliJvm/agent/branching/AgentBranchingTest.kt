@@ -3,9 +3,9 @@ package ru.den.writes.code.project01.cliJvm.agent.branching
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
-import ru.den.writes.code.project01.cliJvm.SessionCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
-import ru.den.writes.code.project01.cliJvm.PromptResult
+import ru.den.writes.code.agenticHub.features.viewmodel.PromptResult
 import ru.den.writes.code.project01.cliJvm.StdinPromptSource
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.agent.newChat

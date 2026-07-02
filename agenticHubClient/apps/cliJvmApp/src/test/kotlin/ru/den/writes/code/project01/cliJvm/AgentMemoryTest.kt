@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.agent.createStdinPromptSource
 
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
@@ -8,8 +9,8 @@ import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.command.StartCommand
-import ru.den.writes.code.project01.cliJvm.command.SessionConfig
+import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.command.SessionConfig
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryLayer
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode

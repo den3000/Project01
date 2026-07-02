@@ -1,5 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.agenticHub.features.viewmodel.UiState
+import ru.den.writes.code.agenticHub.features.viewmodel.UiLine
+
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

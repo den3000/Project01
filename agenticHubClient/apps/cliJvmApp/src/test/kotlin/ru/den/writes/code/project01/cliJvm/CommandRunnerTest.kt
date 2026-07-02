@@ -1,7 +1,13 @@
 package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.SchedulerControl
+import ru.den.writes.code.agenticHub.features.viewmodel.ScheduleAction
+import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategy
+import ru.den.writes.code.agenticHub.features.viewmodel.CommandRunner
+import ru.den.writes.code.agenticHub.features.viewmodel.CliTaskHandler
+import ru.den.writes.code.agenticHub.features.viewmodel.command.ScheduleSpec
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore

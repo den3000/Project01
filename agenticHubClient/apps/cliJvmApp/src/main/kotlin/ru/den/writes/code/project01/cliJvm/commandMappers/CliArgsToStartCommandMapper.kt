@@ -1,10 +1,10 @@
 package ru.den.writes.code.project01.cliJvm.commandMappers
 
-import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
+import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.ModelProviderFactory
 import ru.den.writes.code.agenticHub.features.llm.MAX_STOP_SEQUENCES
-import ru.den.writes.code.project01.cliJvm.StageAgentSpec
-import ru.den.writes.code.project01.cliJvm.StageJudgeSpec
+import ru.den.writes.code.agenticHub.features.viewmodel.StageAgentSpec
+import ru.den.writes.code.agenticHub.features.viewmodel.StageJudgeSpec
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArg.AFTER
@@ -51,10 +51,10 @@ import ru.den.writes.code.project01.cliJvm.cliargs.has
 import ru.den.writes.code.project01.cliJvm.cliargs.last
 import ru.den.writes.code.project01.cliJvm.cliargs.subValue
 import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
-import ru.den.writes.code.project01.cliJvm.command.MemoryAction
-import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
-import ru.den.writes.code.project01.cliJvm.command.SessionConfig
-import ru.den.writes.code.project01.cliJvm.command.StartCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction
+import ru.den.writes.code.agenticHub.features.viewmodel.command.ScheduleSpec
+import ru.den.writes.code.agenticHub.features.viewmodel.command.SessionConfig
+import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
@@ -87,7 +87,7 @@ internal fun bailTooMany(argName: String, count: Int, maxAllowed: Int): Nothing 
 
 /**
  * The runtime arg front: parse args with the cliargs grammar and map the top-level
- * [ParsedArg]s straight onto a domain [ru.den.writes.code.project01.cliJvm.command.StartCommand]. The grammar bundles
+ * [ParsedArg]s straight onto a domain [ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand]. The grammar bundles
  * provider/model/knobs/stages/judge under `agent`, so a single agent without
  * stages/judge is the "primary" (default agent); agents with `stages` become stage
  * agents, with `judge` become judges. Provider resolution (and the API keys) is

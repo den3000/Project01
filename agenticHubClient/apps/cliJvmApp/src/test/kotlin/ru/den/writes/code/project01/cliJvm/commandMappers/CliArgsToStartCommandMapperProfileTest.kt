@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 
-import ru.den.writes.code.project01.cliJvm.SessionCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
 import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -24,17 +24,17 @@ class CliArgsToStartCommandMapperProfileTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-profile" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ListProfiles,
-            "-profile kotlin-senior" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.TouchProfile("kotlin-senior"),
-            "-profile show kotlin-senior" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ShowProfile("kotlin-senior"),
-            "-profile clear work" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearNamedProfile("work"),
-            "-profile clear" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearAllProfiles,
+            "-profile" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ListProfiles,
+            "-profile kotlin-senior" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.TouchProfile("kotlin-senior"),
+            "-profile show kotlin-senior" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ShowProfile("kotlin-senior"),
+            "-profile clear work" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ClearNamedProfile("work"),
+            "-profile clear" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ClearAllProfiles,
         )
 
         // when - then
         cases.forEach { (input, action) ->
             kotlin.test.assertEquals(
-                ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
+                ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.MemoryOp(
                     action
                 ), mapper.parseOk(input.toArgsArray()), input
             )
@@ -49,14 +49,14 @@ class CliArgsToStartCommandMapperProfileTest {
         // when - then — text present = append, absent = clear; with a name = named, without = unnamed
         sections.forEach { (kw, sec) ->
             val cases = listOf(
-                "-profile work $kw \"some text\"" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.AddNamedProfileItem("work", sec, "some text"),
-                "-profile work $kw" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearNamedProfileSection("work", sec),
-                "-profile $kw \"some text\"" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.AddProfileItem(sec, "some text"),
-                "-profile $kw" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearProfileSection(sec),
+                "-profile work $kw \"some text\"" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.AddNamedProfileItem("work", sec, "some text"),
+                "-profile work $kw" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ClearNamedProfileSection("work", sec),
+                "-profile $kw \"some text\"" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.AddProfileItem(sec, "some text"),
+                "-profile $kw" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ClearProfileSection(sec),
             )
             cases.forEach { (input, action) ->
                 kotlin.test.assertEquals(
-                    ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
+                    ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.MemoryOp(
                         action
                     ), mapper.parseOk(input.toArgsArray()), input
                 )

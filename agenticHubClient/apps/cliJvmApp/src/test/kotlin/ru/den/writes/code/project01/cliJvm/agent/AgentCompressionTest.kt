@@ -7,7 +7,7 @@ import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
-import ru.den.writes.code.project01.cliJvm.ContextStrategy
+import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore

@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.commandMappers
 
 import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 
-import ru.den.writes.code.project01.cliJvm.SessionCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -16,15 +16,15 @@ class CliArgsToStartCommandMapperRuleTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-rule \"always kotlin\"" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.AddRule("always kotlin"),
-            "-rule clear 003" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.RemoveRule("003"),
-            "-rule clear" to ru.den.writes.code.project01.cliJvm.command.MemoryAction.ClearRules,
+            "-rule \"always kotlin\"" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.AddRule("always kotlin"),
+            "-rule clear 003" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.RemoveRule("003"),
+            "-rule clear" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ClearRules,
         )
 
         // when - then
         cases.forEach { (input, action) ->
             kotlin.test.assertEquals(
-                ru.den.writes.code.project01.cliJvm.command.StartCommand.MemoryOp(
+                ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.MemoryOp(
                     action
                 ), mapper.parseOk(input.toArgsArray()), input
             )

@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.agenticHub.features.viewmodel
 
 /**
  * The outcome of [PromptSource.nextPrompt]: a user prompt to send, a REPL

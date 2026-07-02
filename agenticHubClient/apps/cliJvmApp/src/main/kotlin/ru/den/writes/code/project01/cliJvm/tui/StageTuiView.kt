@@ -4,7 +4,7 @@ import com.github.ajalt.mordant.terminal.Terminal
 import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.foundation.text.yellow
 import com.varabyte.kotter.runtime.render.RenderScope
-import ru.den.writes.code.project01.cliJvm.StageAdvance
+import ru.den.writes.code.agenticHub.features.viewmodel.StageAdvance
 
 /**
  * A task-stage FSM move as a `"task │ …"` column (yellow). Renders nothing for

@@ -1,8 +1,8 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.agenticHub.features.viewmodel
 
 import ru.den.writes.code.agenticHub.features.memory.SessionStats
-import ru.den.writes.code.project01.cliJvm.command.MemoryAction
-import ru.den.writes.code.project01.cliJvm.command.StartCommand
+import ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction
+import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.platform.database.DEFAULT_BRANCH
 import ru.den.writes.code.agenticHub.platform.database.MessageEntity

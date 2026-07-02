@@ -1,6 +1,6 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.agenticHub.features.viewmodel
 
-import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
+import ru.den.writes.code.agenticHub.features.viewmodel.command.ScheduleSpec
 import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
 import ru.den.writes.code.agenticHub.features.llm.Usage

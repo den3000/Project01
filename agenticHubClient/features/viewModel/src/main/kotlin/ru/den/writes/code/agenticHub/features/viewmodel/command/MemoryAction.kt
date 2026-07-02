@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.command
+package ru.den.writes.code.agenticHub.features.viewmodel.command
 
 import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 

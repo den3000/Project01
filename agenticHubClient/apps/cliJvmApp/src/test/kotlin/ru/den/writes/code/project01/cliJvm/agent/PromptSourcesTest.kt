@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm.agent
 
 import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.project01.cliJvm.LineFilePromptSource
-import ru.den.writes.code.project01.cliJvm.PromptResult
+import ru.den.writes.code.agenticHub.features.viewmodel.PromptResult
 import java.io.BufferedReader
 import java.io.StringReader
 import kotlin.test.Test
