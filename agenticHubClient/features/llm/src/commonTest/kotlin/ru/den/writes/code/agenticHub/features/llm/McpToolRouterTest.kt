@@ -1,6 +1,6 @@
-package ru.den.writes.code.agenticHub.cliJvm
+package ru.den.writes.code.agenticHub.features.llm
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import ru.den.writes.code.agenticHub.features.llm.McpToolRouter
@@ -31,7 +31,7 @@ class McpToolRouterTest {
     }
 
     @Test
-    fun `when a call names a tool - then it routes to the owning server`() = runBlocking {
+    fun `when a call names a tool - then it routes to the owning server`() = runTest {
         // given
         val weather = RecordingExecutor("18C")
         val files = RecordingExecutor("saved")
@@ -66,13 +66,13 @@ class McpToolRouterTest {
     }
 
     @Test
-    fun `when a call names an unknown tool - then execute fails`() {
+    fun `when a call names an unknown tool - then execute fails`() = runTest {
         // given
         val router = McpToolRouter(listOf(route("a", def("current_weather"))))
 
         // when - then
         assertFailsWith<IllegalStateException> {
-            runBlocking { router.execute(ToolCall("nope", buildJsonObject {})) }
+            router.execute(ToolCall("nope", buildJsonObject {}))
         }
     }
 
