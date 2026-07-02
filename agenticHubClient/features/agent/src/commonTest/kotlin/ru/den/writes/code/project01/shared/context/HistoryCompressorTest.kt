@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.shared.context
 
 import ru.den.writes.code.project01.shared.llm.FakeLlmApi
-import ru.den.writes.code.project01.shared.llm.LlmResult
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.LlmResult
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

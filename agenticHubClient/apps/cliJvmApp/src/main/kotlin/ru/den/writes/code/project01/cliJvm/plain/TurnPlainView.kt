@@ -1,8 +1,8 @@
 package ru.den.writes.code.project01.cliJvm.plain
 
 import ru.den.writes.code.project01.cliJvm.SessionStatsSnapshot
-import ru.den.writes.code.project01.shared.llm.Usage
-import ru.den.writes.code.project01.shared.pricing.PricingRegistry
+import ru.den.writes.code.agenticHub.features.llm.Usage
+import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 
 /** The 72-char `<<<…` footer rule. */
 private const val FOOTER_RULE_WIDTH = 72

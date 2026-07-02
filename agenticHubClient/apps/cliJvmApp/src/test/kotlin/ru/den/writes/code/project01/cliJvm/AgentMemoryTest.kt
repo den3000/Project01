@@ -3,10 +3,10 @@ package ru.den.writes.code.project01.cliJvm
 import ru.den.writes.code.project01.cliJvm.agent.createStdinPromptSource
 
 import ru.den.writes.code.project01.cliJvm.agent.runSessionForTest
-import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig

@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.shared.agent
 
-import ru.den.writes.code.project01.shared.llm.LlmResult
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.Role
-import ru.den.writes.code.project01.shared.llm.ToolCall
+import ru.den.writes.code.agenticHub.features.llm.LlmResult
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.ToolCall
 import ru.den.writes.code.project01.shared.memory.TaskStage
 import ru.den.writes.code.project01.shared.memory.TaskStateMachine
 

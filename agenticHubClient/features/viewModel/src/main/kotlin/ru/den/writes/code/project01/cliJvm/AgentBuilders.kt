@@ -5,8 +5,8 @@ import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
 import ru.den.writes.code.project01.shared.invariant.LlmInvariantJudge
-import ru.den.writes.code.project01.shared.llm.GenerationParams
-import ru.den.writes.code.project01.shared.llm.buildLlmApi
+import ru.den.writes.code.agenticHub.features.llm.GenerationParams
+import ru.den.writes.code.agenticHub.features.llm.buildLlmApi
 import java.util.UUID
 
 /**

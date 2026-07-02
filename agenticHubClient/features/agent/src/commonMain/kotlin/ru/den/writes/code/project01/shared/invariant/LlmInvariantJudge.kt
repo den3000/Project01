@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.shared.invariant
 
-import ru.den.writes.code.project01.shared.llm.GenerationParams
-import ru.den.writes.code.project01.shared.llm.LlmApi
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.GenerationParams
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.project01.shared.memory.RuleEntry
 import ru.den.writes.code.agenticHub.platform.logging.logWarn
 

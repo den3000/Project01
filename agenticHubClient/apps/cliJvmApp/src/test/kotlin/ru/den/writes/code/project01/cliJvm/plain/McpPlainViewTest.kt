@@ -4,7 +4,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import ru.den.writes.code.project01.cliJvm.mcpToolLines
 import ru.den.writes.code.project01.shared.agent.ExecutedToolCall
-import ru.den.writes.code.project01.shared.llm.ToolCall
+import ru.den.writes.code.agenticHub.features.llm.ToolCall
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

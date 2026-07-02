@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.agent
 
-import ru.den.writes.code.project01.shared.llm.LlmResult
+import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi

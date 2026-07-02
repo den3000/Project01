@@ -20,9 +20,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
-import ru.den.writes.code.project01.shared.llm.ToolCall
-import ru.den.writes.code.project01.shared.llm.ToolDefinition
-import ru.den.writes.code.project01.shared.llm.ToolExecutor
+import ru.den.writes.code.agenticHub.features.llm.ToolCall
+import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
+import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
 
 /**
  * Bridges the agent to an MCP server spawned as a subprocess over stdio:

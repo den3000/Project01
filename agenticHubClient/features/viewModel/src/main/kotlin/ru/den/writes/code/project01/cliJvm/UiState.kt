@@ -3,7 +3,7 @@ package ru.den.writes.code.project01.cliJvm
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.shared.agent.ExecutedToolCall
 import ru.den.writes.code.project01.shared.invariant.InvariantViolation
-import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 

@@ -9,8 +9,8 @@ import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
-import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
+import ru.den.writes.code.agenticHub.features.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.TaskNotes
 import ru.den.writes.code.project01.shared.memory.TaskStage

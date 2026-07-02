@@ -11,9 +11,9 @@ import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
-import ru.den.writes.code.project01.shared.llm.GenerationParams
-import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
+import ru.den.writes.code.agenticHub.features.llm.GenerationParams
+import ru.den.writes.code.agenticHub.features.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.TaskBinding

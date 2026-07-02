@@ -6,12 +6,12 @@ import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
 import ru.den.writes.code.project01.cliJvm.cliargs.subValue
 import ru.den.writes.code.project01.cliJvm.commandMappers.bailInvalid
 import ru.den.writes.code.project01.cliJvm.commandMappers.bailMissing
-import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.shared.llm.ModelProviderError
-import ru.den.writes.code.project01.shared.llm.PROVIDER_GEMINI
-import ru.den.writes.code.project01.shared.llm.PROVIDER_HUGGINGFACE
-import ru.den.writes.code.project01.shared.llm.PROVIDER_OPENROUTER
-import ru.den.writes.code.project01.shared.llm.buildModelProvider
+import ru.den.writes.code.agenticHub.features.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.ModelProviderError
+import ru.den.writes.code.agenticHub.features.llm.PROVIDER_GEMINI
+import ru.den.writes.code.agenticHub.features.llm.PROVIDER_HUGGINGFACE
+import ru.den.writes.code.agenticHub.features.llm.PROVIDER_OPENROUTER
+import ru.den.writes.code.agenticHub.features.llm.buildModelProvider
 
 /** Provider API keys, injected into a [ModelProviderFactory] at construction. */
 internal data class ApiKeys(

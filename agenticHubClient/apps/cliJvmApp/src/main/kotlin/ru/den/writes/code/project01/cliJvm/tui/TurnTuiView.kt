@@ -4,8 +4,8 @@ import com.github.ajalt.mordant.terminal.Terminal
 import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.runtime.render.RenderScope
 import ru.den.writes.code.project01.cliJvm.SessionStatsSnapshot
-import ru.den.writes.code.project01.shared.llm.Usage
-import ru.den.writes.code.project01.shared.pricing.PricingRegistry
+import ru.den.writes.code.agenticHub.features.llm.Usage
+import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 
 /** Per-turn footer in the transcript: `turn N │ prompt=… output=… total=… cost=…`. */
 internal data class TurnTuiView(

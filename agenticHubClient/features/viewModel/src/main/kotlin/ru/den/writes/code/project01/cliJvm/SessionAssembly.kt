@@ -12,9 +12,9 @@ import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.scheduling.InMemoryScheduleStore
 import ru.den.writes.code.agenticHub.scheduling.SchedulerEngine
-import ru.den.writes.code.project01.shared.llm.LlmApi
-import ru.den.writes.code.project01.shared.llm.ToolDefinition
-import ru.den.writes.code.project01.shared.llm.ToolExecutor
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
+import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
 
 /** Scheduler cadence: how often to check for due tasks, and how often to publish a report. */
 private const val SCHEDULER_TICK_MS = 1_000L

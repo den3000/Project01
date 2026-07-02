@@ -12,10 +12,10 @@ import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.agent.AgentConfig
 import ru.den.writes.code.project01.shared.agent.AgentResponder
-import ru.den.writes.code.project01.shared.llm.GenerationParams
-import ru.den.writes.code.project01.shared.llm.LlmResult
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.GenerationParams
+import ru.den.writes.code.agenticHub.features.llm.LlmResult
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskNotes

@@ -1,8 +1,8 @@
 package ru.den.writes.code.project01.shared.agent
 
-import ru.den.writes.code.project01.shared.llm.GenerationParams
-import ru.den.writes.code.project01.shared.llm.LlmApi
-import ru.den.writes.code.project01.shared.llm.ToolExecutor
+import ru.den.writes.code.agenticHub.features.llm.GenerationParams
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
 
 /**
  * Static description of a single agent: the model surface it talks to

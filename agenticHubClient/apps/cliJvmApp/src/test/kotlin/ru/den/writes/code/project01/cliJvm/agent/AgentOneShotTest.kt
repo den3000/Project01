@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.agent
 
-import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
-import ru.den.writes.code.project01.shared.llm.GenerationParams
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
+import ru.den.writes.code.agenticHub.features.llm.GenerationParams
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi

@@ -13,7 +13,7 @@ kotlin {
     jvm()
 
     androidLibrary {
-        namespace = "ru.den.writes.code.project01.features.llm"
+        namespace = "ru.den.writes.code.agenticHub.features.llm"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 

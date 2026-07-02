@@ -1,8 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.shared.llm.ToolCall
-import ru.den.writes.code.project01.shared.llm.ToolDefinition
-import ru.den.writes.code.project01.shared.llm.ToolExecutor
+import ru.den.writes.code.agenticHub.features.llm.ToolCall
+import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
+import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
 
 /**
  * Fans the model's tool calls out across several MCP servers. Each [Route] pairs one

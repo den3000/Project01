@@ -6,10 +6,10 @@ import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.MessageEntity
 import ru.den.writes.code.agenticHub.platform.database.SummaryEntity
 import ru.den.writes.code.project01.cliJvm.SessionStats
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.Role
-import ru.den.writes.code.project01.shared.llm.Usage
-import ru.den.writes.code.project01.shared.pricing.PricingRegistry
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.Usage
+import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 
 /**
  * Room-backed [HistoryStore] for one session, with an in-memory cache so

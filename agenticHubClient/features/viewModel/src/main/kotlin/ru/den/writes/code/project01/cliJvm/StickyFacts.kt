@@ -4,9 +4,9 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.shared.context.evenDown
-import ru.den.writes.code.project01.shared.llm.GenerationParams
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.GenerationParams
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Role
 
 /**
  * Sticky-facts strategy: keeps a compact key-value memory of the

@@ -10,7 +10,7 @@ import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.shared.memory.MemoryMode
-import ru.den.writes.code.project01.shared.pricing.PricingRegistry
+import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 
 /**
  * Holds the conversation loop as MVI. A single `StateFlow<UiState>` is written

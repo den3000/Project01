@@ -2,8 +2,8 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

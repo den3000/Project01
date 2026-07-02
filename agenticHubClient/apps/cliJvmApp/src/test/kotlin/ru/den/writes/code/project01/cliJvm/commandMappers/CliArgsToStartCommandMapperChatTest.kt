@@ -4,7 +4,7 @@ import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
-import ru.den.writes.code.project01.shared.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

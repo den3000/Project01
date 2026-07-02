@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.agenticHub.features.llm.Usage
 
 /**
  * In-memory running totals for one session.

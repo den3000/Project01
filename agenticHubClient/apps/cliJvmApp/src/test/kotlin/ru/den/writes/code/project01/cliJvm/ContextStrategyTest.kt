@@ -1,8 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.shared.context.HistoryCompressor
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

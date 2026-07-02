@@ -10,10 +10,10 @@ import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.project01.cliJvm.tui.TuiRenderer
-import ru.den.writes.code.project01.shared.llm.LlmApi
-import ru.den.writes.code.project01.shared.llm.buildLlmApi
-import ru.den.writes.code.project01.shared.llm.ToolDefinition
-import ru.den.writes.code.project01.shared.llm.ToolExecutor
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.buildLlmApi
+import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
+import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
 import java.io.File
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds

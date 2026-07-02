@@ -1,5 +1,11 @@
 package ru.den.writes.code.project01.shared.llm
 
+import ru.den.writes.code.agenticHub.features.llm.GenerationParams
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.LlmResult
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Usage
+
 /**
  * Deterministic [LlmApi] stub for tests.
  *

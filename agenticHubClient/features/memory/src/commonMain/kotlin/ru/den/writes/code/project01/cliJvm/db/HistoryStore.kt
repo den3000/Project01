@@ -1,8 +1,8 @@
 package ru.den.writes.code.project01.cliJvm.db
 
 import ru.den.writes.code.project01.cliJvm.SessionStats
-import ru.den.writes.code.project01.shared.llm.Message
-import ru.den.writes.code.project01.shared.llm.Usage
+import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.Usage
 
 /**
  * Conversation-history persistence port for one session, with an in-memory

@@ -3,8 +3,8 @@ package ru.den.writes.code.project01.cliJvm
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.shared.context.HistoryCompressor
 import ru.den.writes.code.project01.shared.context.evenDown
-import ru.den.writes.code.project01.shared.llm.LlmApi
-import ru.den.writes.code.project01.shared.llm.Message
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.Message
 
 /**
  * How a session's stored history is shaped into the message list sent to

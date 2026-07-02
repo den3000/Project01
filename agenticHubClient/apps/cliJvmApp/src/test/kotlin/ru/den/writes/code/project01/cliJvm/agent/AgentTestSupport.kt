@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.agent
 
-import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
-import ru.den.writes.code.project01.shared.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
+import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommandMapper
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
@@ -19,7 +19,7 @@ import ru.den.writes.code.project01.cliJvm.StdinPromptSource
 import ru.den.writes.code.project01.cliJvm.TurnEngine
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.shared.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import java.io.InputStreamReader

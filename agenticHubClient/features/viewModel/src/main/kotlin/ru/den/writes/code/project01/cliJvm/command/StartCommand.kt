@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.shared.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 
 /**
  * The domain layer — WHAT the CLI was asked to do, decoupled from HOW the args

@@ -2,8 +2,8 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
-import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
+import ru.den.writes.code.agenticHub.features.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import kotlin.test.Test
 import kotlin.test.assertNull
 import kotlin.test.assertSame

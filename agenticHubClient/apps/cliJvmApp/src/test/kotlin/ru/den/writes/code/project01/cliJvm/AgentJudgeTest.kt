@@ -12,8 +12,8 @@ import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.shared.invariant.InvariantChecker
 import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
 import ru.den.writes.code.project01.shared.invariant.InvariantViolation
-import ru.den.writes.code.project01.shared.llm.ModelProvider
-import ru.den.writes.code.project01.shared.llm.gemini.GeminiModel
+import ru.den.writes.code.agenticHub.features.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.project01.shared.memory.MemoryMode
 import ru.den.writes.code.project01.shared.memory.TaskBinding
 import ru.den.writes.code.project01.shared.memory.TaskNotes

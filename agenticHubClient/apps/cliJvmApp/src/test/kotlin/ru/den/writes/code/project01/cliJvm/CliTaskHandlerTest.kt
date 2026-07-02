@@ -5,8 +5,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import ru.den.writes.code.agenticHub.scheduling.Schedule
 import ru.den.writes.code.agenticHub.scheduling.ScheduledTask
-import ru.den.writes.code.project01.shared.llm.ToolCall
-import ru.den.writes.code.project01.shared.llm.ToolExecutor
+import ru.den.writes.code.agenticHub.features.llm.ToolCall
+import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

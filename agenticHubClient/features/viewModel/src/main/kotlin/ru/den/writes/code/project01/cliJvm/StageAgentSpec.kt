@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.shared.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.project01.shared.memory.TaskBinding
 
 /**
