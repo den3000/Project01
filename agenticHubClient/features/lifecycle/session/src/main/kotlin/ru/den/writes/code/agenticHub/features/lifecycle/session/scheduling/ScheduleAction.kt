@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.lifecycle.session
+package ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling
 
 import kotlinx.serialization.json.JsonObject
 

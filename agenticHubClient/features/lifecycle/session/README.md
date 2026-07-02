@@ -16,7 +16,12 @@ glue планировщика. Собирается фабрикой `buildSessi
   `SessionCommand`; `TurnResult`(+`SessionStatsSnapshot`/`StageAdvance`); `IntentSource`
   (`PromptSourceIntents`/`ChannelIntentSource`/`MergedIntentSource`); `PromptSource`
   (+`PromptResult`/`commandCatalog`).
-- Scheduler-glue: `SchedulerControl`/`CliTaskHandler`/`ScheduleAction` (поверх `:scheduling`).
+- Scheduler-glue: `SchedulerControl`/`TaskHandlerImpl`/`ScheduleAction` (поверх `:scheduling`).
+
+Раскладка по подпакетам: base `…session` (SessionViewModel/CommandRunner/SessionAssembly/UiState/
+PromptSource), `…session.turn` (TurnEngine/TurnResult), `…session.intents` (IntentSource +
+PromptSourceIntents/ChannelIntentSource/MergedIntentSource), `…session.scheduling` (SchedulerControl/
+ScheduleAction/TaskHandlerImpl).
 
 ## Зависимости
 - `api(lifecycle:command)` + `api(features:memory)` + `api(features:agent)`,

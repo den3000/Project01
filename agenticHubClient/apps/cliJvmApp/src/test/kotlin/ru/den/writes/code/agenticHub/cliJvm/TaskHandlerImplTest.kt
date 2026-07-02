@@ -3,8 +3,8 @@ package ru.den.writes.code.agenticHub.cliJvm
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import ru.den.writes.code.agenticHub.features.lifecycle.session.ScheduleAction
-import ru.den.writes.code.agenticHub.features.lifecycle.session.CliTaskHandler
+import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.ScheduleAction
+import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.TaskHandlerImpl
 import ru.den.writes.code.agenticHub.scheduling.Schedule
 import ru.den.writes.code.agenticHub.scheduling.ScheduledTask
 import ru.den.writes.code.agenticHub.features.llm.ToolCall
@@ -13,8 +13,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Offline tests for [CliTaskHandler] — routes a fired task by id to a tool call or a turn. */
-class CliTaskHandlerTest {
+/** Offline tests for [TaskHandlerImpl] — routes a fired task by id to a tool call or a turn. */
+class TaskHandlerImplTest {
 
     @Test
     fun `when a collect task fires - then it calls the tool and returns its text`() = runTest {
@@ -22,7 +22,7 @@ class CliTaskHandlerTest {
         var seen: ToolCall? = null
         val executor = ToolExecutor { call -> seen = call; "Paris: rain" }
         val args = JsonObject(mapOf("city" to JsonPrimitive("Paris")))
-        val handler = CliTaskHandler(mapOf("t1" to ScheduleAction.Collect("current_weather", args)), executor)
+        val handler = TaskHandlerImpl(mapOf("t1" to ScheduleAction.Collect("current_weather", args)), executor)
 
         // when
         val result = handler.handle(task("t1"))
@@ -36,7 +36,7 @@ class CliTaskHandlerTest {
     fun `when an agent task fires - then it injects the prompt as a turn and returns null`() = runTest {
         // given
         var submitted: String? = null
-        val handler = CliTaskHandler(mapOf("t2" to ScheduleAction.Agent("daily digest")), toolExecutor = null)
+        val handler = TaskHandlerImpl(mapOf("t2" to ScheduleAction.Agent("daily digest")), toolExecutor = null)
             .apply { submitTurn = { submitted = it } }
 
         // when
@@ -50,7 +50,7 @@ class CliTaskHandlerTest {
     @Test
     fun `when the task id is unknown - then null`() = runTest {
         // given
-        val handler = CliTaskHandler(emptyMap(), toolExecutor = null)
+        val handler = TaskHandlerImpl(emptyMap(), toolExecutor = null)
 
         // when - then
         assertNull(handler.handle(task("nope")))

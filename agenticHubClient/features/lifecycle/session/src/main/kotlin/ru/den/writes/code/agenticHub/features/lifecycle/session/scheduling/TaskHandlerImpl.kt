@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.lifecycle.session
+package ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling
 
 import kotlinx.serialization.json.JsonObject
 import ru.den.writes.code.agenticHub.scheduling.ScheduledTask
@@ -13,7 +13,7 @@ import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
  * (into the serialized MVI loop) and returns null. [actions] is filled after the tasks are
  * added, so it is read at tick time.
  */
-public class CliTaskHandler(
+public class TaskHandlerImpl(
     private val actions: Map<String, ScheduleAction>,
     private val toolExecutor: ToolExecutor?,
 ) : TaskHandler {

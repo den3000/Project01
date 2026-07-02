@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.lifecycle.session
+package ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -11,7 +11,7 @@ import ru.den.writes.code.agenticHub.scheduling.TaskStatus
 
 /**
  * Live control surface over a running [SchedulerEngine] for the REPL: add a task, filling the
- * id→[ScheduleAction] map the [CliTaskHandler] reads. Shared by startup `-schedule` (added
+ * id→[ScheduleAction] map the [TaskHandlerImpl] reads. Shared by startup `-schedule` (added
  * before the loop) and in-session `/schedule` (added while the loop runs — the engine's Mutex
  * serializes both). The map is the same instance the handler holds, so a REPL-added task is
  * routable as soon as it fires.
@@ -48,7 +48,7 @@ public fun ScheduleSpec.label(): String = when (this) {
     is ScheduleSpec.Agent -> "agent: ${prompt.take(40)}"
 }
 
-/** The per-tick action a spec maps to — what [CliTaskHandler] runs when the task fires. */
+/** The per-tick action a spec maps to — what [TaskHandlerImpl] runs when the task fires. */
 public fun ScheduleSpec.toAction(): ScheduleAction = when (this) {
     is ScheduleSpec.Collect -> ScheduleAction.Collect(tool, parseToolArgs(args))
     is ScheduleSpec.Agent -> ScheduleAction.Agent(prompt)

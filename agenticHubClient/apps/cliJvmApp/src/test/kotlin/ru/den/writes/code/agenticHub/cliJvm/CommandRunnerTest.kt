@@ -2,11 +2,11 @@ package ru.den.writes.code.agenticHub.cliJvm
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
-import ru.den.writes.code.agenticHub.features.lifecycle.session.SchedulerControl
-import ru.den.writes.code.agenticHub.features.lifecycle.session.ScheduleAction
+import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.SchedulerControl
+import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.ScheduleAction
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.lifecycle.session.CommandRunner
-import ru.den.writes.code.agenticHub.features.lifecycle.session.CliTaskHandler
+import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.TaskHandlerImpl
 import ru.den.writes.code.agenticHub.features.lifecycle.command.ScheduleSpec
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
@@ -60,7 +60,7 @@ class CommandRunnerTest {
     fun `when a scheduler is wired - then schedule adds the task and reports it`() = runTest {
         // given — a live engine + control
         val actions = mutableMapOf<String, ScheduleAction>()
-        val engine = SchedulerEngine(InMemoryScheduleStore(), CliTaskHandler(actions, toolExecutor = null), now = { 0L })
+        val engine = SchedulerEngine(InMemoryScheduleStore(), TaskHandlerImpl(actions, toolExecutor = null), now = { 0L })
         val control = SchedulerControl(engine, actions)
         val runner =
             CommandRunner(historyStore = null, memory = null, strategy = ContextStrategy.FullHistory, scheduler = control)
@@ -78,7 +78,7 @@ class CommandRunnerTest {
     fun `when scheduler tasks are listed then cleared - then schedule reports each step`() = runTest {
         // given — a live engine + control with one task added
         val actions = mutableMapOf<String, ScheduleAction>()
-        val engine = SchedulerEngine(InMemoryScheduleStore(), CliTaskHandler(actions, toolExecutor = null), now = { 0L })
+        val engine = SchedulerEngine(InMemoryScheduleStore(), TaskHandlerImpl(actions, toolExecutor = null), now = { 0L })
         val control = SchedulerControl(engine, actions)
         val runner =
             CommandRunner(historyStore = null, memory = null, strategy = ContextStrategy.FullHistory, scheduler = control)
@@ -97,7 +97,7 @@ class CommandRunnerTest {
     fun `when cancelling an unknown schedule id - then it reports none`() = runTest {
         // given
         val actions = mutableMapOf<String, ScheduleAction>()
-        val engine = SchedulerEngine(InMemoryScheduleStore(), CliTaskHandler(actions, toolExecutor = null), now = { 0L })
+        val engine = SchedulerEngine(InMemoryScheduleStore(), TaskHandlerImpl(actions, toolExecutor = null), now = { 0L })
         val runner = CommandRunner(
             historyStore = null, memory = null, strategy = ContextStrategy.FullHistory,
             scheduler = SchedulerControl(engine, actions),

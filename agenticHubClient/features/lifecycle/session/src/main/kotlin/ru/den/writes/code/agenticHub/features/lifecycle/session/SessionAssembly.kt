@@ -6,6 +6,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.TaskHandlerImpl
+import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.ScheduleAction
+import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.SchedulerControl
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
@@ -62,7 +65,7 @@ public fun buildSessionViewModel(
     )
 
     val actions = mutableMapOf<String, ScheduleAction>()
-    val handler = CliTaskHandler(actions, toolExecutor)
+    val handler = TaskHandlerImpl(actions, toolExecutor)
     val scheduler = if (schedulerEnabled) {
         SchedulerEngine(InMemoryScheduleStore(), handler, now = { System.currentTimeMillis() })
     } else {
