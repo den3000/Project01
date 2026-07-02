@@ -4,8 +4,8 @@ import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.ToolCall
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStateMachine
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.TaskStateMachine
 
 /**
  * Outcome of one agent turn: the raw [result] from the model plus the

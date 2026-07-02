@@ -1,9 +1,5 @@
 package ru.den.writes.code.agenticHub.features.memory
 
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileData
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
-import ru.den.writes.code.agenticHub.features.agent.memory.RuleEntry
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
 
 /**
  * Persistence port for the long-term (profile + rules) and working

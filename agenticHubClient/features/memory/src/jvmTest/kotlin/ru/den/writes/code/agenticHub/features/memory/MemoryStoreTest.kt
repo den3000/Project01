@@ -1,9 +1,9 @@
 package ru.den.writes.code.agenticHub.features.memory
 
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileData
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.ProfileData
+import ru.den.writes.code.agenticHub.features.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test

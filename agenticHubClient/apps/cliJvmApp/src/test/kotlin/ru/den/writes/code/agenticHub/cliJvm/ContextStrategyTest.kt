@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
-import ru.den.writes.code.agenticHub.features.agent.context.HistoryCompressor
+import ru.den.writes.code.agenticHub.features.memory.HistoryCompressor
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlin.test.Test

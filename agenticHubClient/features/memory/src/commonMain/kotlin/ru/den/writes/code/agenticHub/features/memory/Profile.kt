@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.agent.memory
+package ru.den.writes.code.agenticHub.features.memory
 
 /**
  * One named slice of the user profile. The four sections cover the

@@ -3,7 +3,7 @@ package ru.den.writes.code.agenticHub.features.lifecycle.command
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.features.agent.StageAgentSpec
 import ru.den.writes.code.agenticHub.features.agent.StageJudgeSpec
-import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.memory.MemoryMode
 
 /**
  * The session-lifetime configuration a chat starts with — everything the runtime

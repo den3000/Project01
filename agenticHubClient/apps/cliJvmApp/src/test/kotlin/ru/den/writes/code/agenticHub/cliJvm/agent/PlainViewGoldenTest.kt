@@ -26,10 +26,10 @@ import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
-import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.memory.TaskBinding
+import ru.den.writes.code.agenticHub.features.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals

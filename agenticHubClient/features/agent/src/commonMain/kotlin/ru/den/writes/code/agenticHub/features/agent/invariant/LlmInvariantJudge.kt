@@ -4,7 +4,7 @@ import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
-import ru.den.writes.code.agenticHub.features.agent.memory.RuleEntry
+import ru.den.writes.code.agenticHub.features.memory.RuleEntry
 import ru.den.writes.code.agenticHub.platform.logging.logWarn
 
 /**

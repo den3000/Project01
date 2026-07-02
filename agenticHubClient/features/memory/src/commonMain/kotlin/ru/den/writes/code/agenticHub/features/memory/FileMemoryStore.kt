@@ -2,13 +2,6 @@ package ru.den.writes.code.agenticHub.features.memory
 
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.localFileSystem
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileData
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
-import ru.den.writes.code.agenticHub.features.agent.memory.RuleEntry
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
-import ru.den.writes.code.agenticHub.features.agent.memory.parseProfileData
-import ru.den.writes.code.agenticHub.features.agent.memory.renderProfileData
 
 /**
  * File-backed [MemoryStore]: reads and writes the long-term (profile +

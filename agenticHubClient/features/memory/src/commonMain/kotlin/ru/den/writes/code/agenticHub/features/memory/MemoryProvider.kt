@@ -1,10 +1,6 @@
 package ru.den.writes.code.agenticHub.features.memory
 
 import ru.den.writes.code.agenticHub.features.llm.Message
-import ru.den.writes.code.agenticHub.features.agent.memory.MemoryLayer
-import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileData
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 
 /**
  * Façade the agent uses for memory: holds the mutable mode + active

@@ -11,9 +11,9 @@ import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.MemoryStore
 import ru.den.writes.code.agenticHub.features.llm.Usage
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 
 /** Which stream an [AdminNotice] belongs on when the composition root prints it. */

@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.agent.context
+package ru.den.writes.code.agenticHub.features.memory
 
 /**
  * Snap a count down to the nearest even number, floored at 0.

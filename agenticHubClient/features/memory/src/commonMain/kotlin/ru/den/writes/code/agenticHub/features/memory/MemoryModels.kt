@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.agent.memory
+package ru.den.writes.code.agenticHub.features.memory
 
 /**
  * One short-text entry from the long-term `rules/` layer.

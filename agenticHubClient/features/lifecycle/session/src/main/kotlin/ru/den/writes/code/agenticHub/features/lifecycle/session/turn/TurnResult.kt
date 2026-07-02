@@ -4,7 +4,7 @@ import ru.den.writes.code.agenticHub.features.memory.SessionStats
 import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.llm.Usage
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
 
 /**
  * The outcome of one turn, as computed by `TurnEngine` WITHOUT any direct I/O.

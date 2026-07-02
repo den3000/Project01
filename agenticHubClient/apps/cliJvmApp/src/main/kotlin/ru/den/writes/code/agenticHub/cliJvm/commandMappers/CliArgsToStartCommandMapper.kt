@@ -55,10 +55,10 @@ import ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction
 import ru.den.writes.code.agenticHub.features.lifecycle.command.ScheduleSpec
 import ru.den.writes.code.agenticHub.features.lifecycle.command.SessionConfig
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
-import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.memory.TaskBinding
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
 
 /**
  * The outcome of [CliArgsToStartCommandMapper.parse]: a mapped [StartCommand], or a

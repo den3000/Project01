@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.agent.memory
+package ru.den.writes.code.agenticHub.features.memory
 
 /**
  * One stage in a task's finite-state machine. A task moves

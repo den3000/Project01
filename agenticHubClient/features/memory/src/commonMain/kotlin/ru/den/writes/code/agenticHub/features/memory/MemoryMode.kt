@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.agent.memory
+package ru.den.writes.code.agenticHub.features.memory
 
 /**
  * How the memory layer (profile + rules + active task) is woven into the

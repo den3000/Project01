@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.features.agent.invariant
 
-import ru.den.writes.code.agenticHub.features.agent.memory.RuleEntry
+import ru.den.writes.code.agenticHub.features.memory.RuleEntry
 
 /**
  * Independent check of one assistant reply against the active invariants.

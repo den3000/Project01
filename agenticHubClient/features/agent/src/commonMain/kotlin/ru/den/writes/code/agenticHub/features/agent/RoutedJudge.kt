@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.features.agent
 
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantChecker
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
+import ru.den.writes.code.agenticHub.features.memory.TaskBinding
 
 /**
  * One per-stage invariant judge: a [checker] bound to a [binding] span of FSM

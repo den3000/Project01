@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
-import ru.den.writes.code.agenticHub.features.agent.context.HistoryCompressor
+import ru.den.writes.code.agenticHub.features.memory.HistoryCompressor
 import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role

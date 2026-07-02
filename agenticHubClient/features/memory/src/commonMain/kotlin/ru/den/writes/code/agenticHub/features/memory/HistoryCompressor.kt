@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.agent.context
+package ru.den.writes.code.agenticHub.features.memory
 
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.LlmApi

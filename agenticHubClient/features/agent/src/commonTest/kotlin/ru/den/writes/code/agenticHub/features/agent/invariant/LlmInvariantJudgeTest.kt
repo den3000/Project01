@@ -4,7 +4,7 @@ import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.agent.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Role
-import ru.den.writes.code.agenticHub.features.agent.memory.RuleEntry
+import ru.den.writes.code.agenticHub.features.memory.RuleEntry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

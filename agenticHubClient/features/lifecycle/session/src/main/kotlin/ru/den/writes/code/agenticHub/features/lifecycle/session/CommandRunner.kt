@@ -4,10 +4,10 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.Sched
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
-import ru.den.writes.code.agenticHub.features.agent.memory.isValidProfileName
+import ru.den.writes.code.agenticHub.features.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.isValidProfileName
 
 /** Valid branch names: alphanumerics, '_' or '-' — same shape as session names. */
 private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")

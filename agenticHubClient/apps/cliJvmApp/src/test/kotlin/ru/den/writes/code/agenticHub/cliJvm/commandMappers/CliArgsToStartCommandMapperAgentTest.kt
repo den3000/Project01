@@ -6,9 +6,9 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
-import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.memory.TaskBinding
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

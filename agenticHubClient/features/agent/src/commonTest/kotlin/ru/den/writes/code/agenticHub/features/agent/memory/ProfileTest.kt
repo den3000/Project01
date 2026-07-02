@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.agent.memory
+package ru.den.writes.code.agenticHub.features.memory
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

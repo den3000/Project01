@@ -24,9 +24,11 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Public API leaks LLM types (AgentConfig exposes LlmApi,
-            // LlmInvariantJudge takes an LlmApi) → re-export via api().
+            // Public API leaks LLM types (AgentConfig exposes LlmApi) and memory
+            // domain (MemoryLayer/TaskStage/TaskBinding/RuleEntry via AgentResponder/
+            // Routed*/StageSpec) → re-export via api().
             api(projects.agenticHubClient.features.llm)
+            api(projects.agenticHubClient.features.memory)
             implementation(projects.agenticHubClient.platform.logging)
             implementation(libs.kotlinx.coroutinesCore)
             implementation(libs.kotlinx.serializationJson)

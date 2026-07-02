@@ -16,10 +16,10 @@ import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
-import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.memory.TaskBinding
+import ru.den.writes.code.agenticHub.features.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import java.io.BufferedReader
 import java.io.StringReader
 import java.nio.file.Files

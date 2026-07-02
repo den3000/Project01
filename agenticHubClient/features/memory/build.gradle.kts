@@ -23,10 +23,11 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Domain types (ProfileData/RuleEntry/TaskNotes, Message/Usage,
-            // PricingRegistry) surface through the ports → api. The Room DB
+            // Memory domain (MemoryLayer/Profile/TaskState) + compaction
+            // (HistoryCompressor) + LLM types (Message/Usage/PricingRegistry,
+            // surfaced through the ports) → api on llm. The Room DB
             // (AppDatabase/DAO/entities) backs RoomHistoryStore → api too.
-            api(projects.agenticHubClient.features.agent)
+            api(projects.agenticHubClient.features.llm)
             api(projects.agenticHubClient.platform.database)
             implementation(projects.agenticHubClient.platform.fileSystem)
             implementation(projects.agenticHubClient.platform.logging)

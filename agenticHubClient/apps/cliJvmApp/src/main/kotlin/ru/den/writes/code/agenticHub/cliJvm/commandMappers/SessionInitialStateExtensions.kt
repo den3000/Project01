@@ -9,7 +9,7 @@ import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.features.memory.StickyFacts
 import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
-import ru.den.writes.code.agenticHub.features.agent.context.HistoryCompressor
+import ru.den.writes.code.agenticHub.features.memory.HistoryCompressor
 import java.util.UUID
 
 /**

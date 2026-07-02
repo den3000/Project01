@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.features.agent.invariant
 
-import ru.den.writes.code.agenticHub.features.agent.memory.RuleEntry
+import ru.den.writes.code.agenticHub.features.memory.RuleEntry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.command
 
-import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 
 /**
  * What a memory invocation does — the domain command behind `-memory …` (legacy)

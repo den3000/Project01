@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.features.agent
 
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
+import ru.den.writes.code.agenticHub.features.memory.TaskBinding
 
 /**
  * One agent wired into [TurnEngine], bound to a span of FSM stages. The engine

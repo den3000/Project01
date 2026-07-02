@@ -10,7 +10,7 @@ import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.ToolCall
 import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
-import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
