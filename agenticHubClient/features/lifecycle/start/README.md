@@ -10,7 +10,7 @@ JVM-модуль: диспетчер `StartCommand` — исполняет admin
 - `AdminOps` (+ `AdminNotice`/`OutputStream`/`formatSessionLine`) — логика admin-операций против БД,
   возвращает `AdminNotice` (не печатает сам) (`AdminOps.kt`).
 - public `MEMORY_ROOT` — корень файловой памяти (`~/.project01-cli/memory`), используется и
-  `SessionRunner` в апп-модуле.
+  `CliRepl` в апп-модуле.
 
 ## Зависимости
 - `api(lifecycle:command)` + `api(platform:database)`, `implementation(features:memory)`.
