@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.platform.mcpclient
+package ru.den.writes.code.agenticHub.features.mcpclient
 
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.StdioClientTransport

@@ -1,4 +1,4 @@
-# :agenticHubClient:platform:mcpClient — MCP-клиент как ToolExecutor
+# :agenticHubClient:features:mcpClient — MCP-клиент как ToolExecutor
 
 JVM-модуль: реализация `ToolExecutor` (из `features:llm`) через MCP-сервер-подпроцесс. На старте
 `listTools`, дальше роутит tool-вызовы модели в сервер по stdio.
@@ -13,7 +13,7 @@ JVM-модуль: реализация `ToolExecutor` (из `features:llm`) че
 Потребитель — `apps:cliJvmApp` (`SessionBuilders`).
 
 ## Тесты
-`./gradlew :agenticHubClient:platform:mcpClient:test` — `McpSchemaTest` (маппинг схемы инструмента).
+`./gradlew :agenticHubClient:features:mcpClient:test` — `McpSchemaTest` (маппинг схемы инструмента).
 
 ## Грабли
 - **Connect/listTools/callTool на `Dispatchers.IO`** — фоновый ридер stdio иначе на главной

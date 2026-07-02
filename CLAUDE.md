@@ -22,14 +22,14 @@ iOS-bundle-id остались на `project01` (это идентификато
 - **features**: [llm](agenticHubClient/features/llm/README.md) ·
   [agent](agenticHubClient/features/agent/README.md) ·
   [memory](agenticHubClient/features/memory/README.md) ·
-  [composeApp](agenticHubClient/features/composeApp/README.md) · lifecycle
+  [composeApp](agenticHubClient/features/composeApp/README.md) ·
+  [mcpClient](agenticHubClient/features/mcpClient/README.md) · lifecycle
   [command](agenticHubClient/features/lifecycle/command/README.md)/[session](agenticHubClient/features/lifecycle/session/README.md)/[start](agenticHubClient/features/lifecycle/start/README.md)
 - **platform**: [logging](agenticHubClient/platform/logging/README.md) ·
   [config](agenticHubClient/platform/config/README.md) ·
   [database](agenticHubClient/platform/database/README.md) ·
   [fileSystem](agenticHubClient/platform/fileSystem/README.md) ·
-  [greeting](agenticHubClient/platform/greeting/README.md) ·
-  [mcpClient](agenticHubClient/platform/mcpClient/README.md)
+  [greeting](agenticHubClient/platform/greeting/README.md)
 - **apps**: [cliJvmApp](agenticHubClient/apps/cliJvmApp/README.md) ·
   [androidApp](agenticHubClient/apps/androidApp/README.md) ·
   [desktopApp](agenticHubClient/apps/desktopApp/README.md) · iosApp (Xcode-проект)

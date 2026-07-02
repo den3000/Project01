@@ -7,7 +7,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import ru.den.writes.code.agenticHub.features.llm.McpToolRouter
-import ru.den.writes.code.agenticHub.platform.mcpclient.McpToolClient
+import ru.den.writes.code.agenticHub.features.mcpclient.McpToolClient
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 
 /**

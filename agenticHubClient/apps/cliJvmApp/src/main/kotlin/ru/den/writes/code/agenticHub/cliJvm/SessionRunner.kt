@@ -17,7 +17,7 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.PromptSource
 import ru.den.writes.code.agenticHub.features.llm.McpToolRouter
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.lifecycle.session.ChannelIntentSource
-import ru.den.writes.code.agenticHub.platform.mcpclient.McpToolClient
+import ru.den.writes.code.agenticHub.features.mcpclient.McpToolClient
 import ru.den.writes.code.agenticHub.cliJvm.commandMappers.CliArgToSessionCommandMapper
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase

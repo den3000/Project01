@@ -17,6 +17,7 @@ KMP-проект на Compose Multiplatform (Android, iOS, Desktop/JVM) плюс
   память) + context-стратегии.
 - [features:composeApp](./agenticHubClient/features/composeApp) — Compose-MP демо-UI + iOS-фреймворк
   `ComposeApp`.
+- [features:mcpClient](./agenticHubClient/features/mcpClient) — `McpToolClient` (MCP-сервер как `ToolExecutor`).
 - lifecycle: [command](./agenticHubClient/features/lifecycle/command) (словарь запуска/конфига) ·
   [session](./agenticHubClient/features/lifecycle/session) (MVI-runtime) ·
   [start](./agenticHubClient/features/lifecycle/start) (первоначальный запуск).
@@ -25,7 +26,7 @@ KMP-проект на Compose Multiplatform (Android, iOS, Desktop/JVM) плюс
 - [logging](./agenticHubClient/platform/logging) · [config](./agenticHubClient/platform/config)
   (API-ключи через BuildKonfig) · [database](./agenticHubClient/platform/database) (Room-KMP) ·
   [fileSystem](./agenticHubClient/platform/fileSystem) · [greeting](./agenticHubClient/platform/greeting)
-  (демо-домен) · [mcpClient](./agenticHubClient/platform/mcpClient) (`McpToolClient`).
+  (демо-домен).
 
 **`agenticHubClient/apps/`** — приложения:
 - [cliJvmApp](./agenticHubClient/apps/cliJvmApp/README.md) — JVM-консольный LLM-клиент (полная дока).

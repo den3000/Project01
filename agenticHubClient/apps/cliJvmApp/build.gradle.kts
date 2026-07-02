@@ -13,7 +13,7 @@ dependencies {
     implementation(projects.agenticHubClient.features.memory)
     implementation(projects.agenticHubClient.platform.config)
     implementation(projects.agenticHubClient.platform.database)
-    implementation(projects.agenticHubClient.platform.mcpClient)
+    implementation(projects.agenticHubClient.features.mcpClient)
     implementation(projects.scheduling)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.java)
