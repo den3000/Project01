@@ -5,7 +5,7 @@ import ru.den.writes.code.agenticHub.features.llm.Usage
 /**
  * In-memory running totals for one session.
  *
- * Owned by [ru.den.writes.code.project01.cliJvm.db.HistoryStore] — it
+ * Owned by [ru.den.writes.code.agenticHub.features.memory.db.HistoryStore] — it
  * seeds the counters from persisted rows on `load()` (see the
  * `SessionStats.seedFrom` extension in the `db` layer) and increments
  * them on every successful `append(... usage)`. Agent never mutates a

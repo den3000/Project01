@@ -18,7 +18,7 @@ public const val DEFAULT_BRANCH: String = "main"
  *   parallel runs with different `-session` flags stay isolated in the
  *   same physical DB file.
  * - [role] — `"USER"` or `"ASSISTANT"`, stored as a String. The
- *   mapping to/from the neutral [ru.den.writes.code.project01.cliJvm.Role]
+ *   mapping to/from the neutral [ru.den.writes.code.agenticHub.features.llm.Role]
  *   enum lives in [HistoryStore]; Room-side it's just a string column
  *   so the schema stays stable even if we add new role values later.
  * - [text] — the message body.
@@ -30,7 +30,7 @@ public const val DEFAULT_BRANCH: String = "main"
  *   reply so `-sessions` and the lifetime-totals seed for [HistoryStore]
  *   can be computed without re-asking the provider. Cost is **not**
  *   stored — it's recomputed from these counts + [modelId] via
- *   [ru.den.writes.code.project01.cliJvm.PricingRegistry], so when rates
+ *   [ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry], so when rates
  *   change we re-price old sessions for free.
  *
  * Index on `(session_id, branch_id)` keeps lookups O(log n) once the table
