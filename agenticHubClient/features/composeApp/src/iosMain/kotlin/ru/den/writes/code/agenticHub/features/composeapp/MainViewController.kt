@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01
+package ru.den.writes.code.agenticHub.features.composeapp
 
 import ru.den.writes.code.agenticHub.platform.greeting.Greeting
 

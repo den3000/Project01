@@ -7,7 +7,6 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.shared)
     implementation(projects.agenticHubClient.features.viewModel)
     implementation(projects.agenticHubClient.features.memory)
     implementation(projects.agenticHubClient.platform.config)

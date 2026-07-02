@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01
+package ru.den.writes.code.agenticHub.features.composeapp
 
 import ru.den.writes.code.agenticHub.platform.greeting.Greeting
 
@@ -18,8 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import org.jetbrains.compose.resources.painterResource
 
-import project01.shared.generated.resources.Res
-import project01.shared.generated.resources.compose_multiplatform
+import ru.den.writes.code.agenticHub.features.composeapp.generated.resources.Res
+import ru.den.writes.code.agenticHub.features.composeapp.generated.resources.compose_multiplatform
 
 @Composable
 fun App(greeting: Greeting) {
