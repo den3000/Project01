@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.cliJvm
+package ru.den.writes.code.agenticHub.testing
 
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
@@ -16,7 +16,7 @@ import java.io.File
  * `File.createTempFile`. The temp file lives for one test, so any
  * "real disk I/O" overhead is irrelevant in practice.
  */
-internal class TestDb : AutoCloseable {
+public class TestDb : AutoCloseable {
     private val dbFile: File = File.createTempFile("project01-test-", ".db")
 
     val db: AppDatabase = Room.databaseBuilder<AppDatabase>(name = dbFile.absolutePath)

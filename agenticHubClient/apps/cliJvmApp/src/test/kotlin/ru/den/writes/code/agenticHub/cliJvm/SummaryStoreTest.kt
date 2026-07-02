@@ -1,6 +1,7 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
 import kotlinx.coroutines.test.runTest
+import ru.den.writes.code.agenticHub.testing.TestDb
 import ru.den.writes.code.agenticHub.platform.database.MessageEntity
 import ru.den.writes.code.agenticHub.platform.database.SummaryEntity
 import kotlin.test.Test

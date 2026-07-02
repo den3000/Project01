@@ -5,12 +5,12 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.session.CommandRunner
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
-import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
+import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.IntentSource
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
-import ru.den.writes.code.agenticHub.cliJvm.TestDb
+import ru.den.writes.code.agenticHub.testing.TestDb
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.UiIntent
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore

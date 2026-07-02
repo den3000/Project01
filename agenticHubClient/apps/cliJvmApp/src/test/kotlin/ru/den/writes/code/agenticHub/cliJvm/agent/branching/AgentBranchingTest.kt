@@ -4,10 +4,10 @@ package ru.den.writes.code.agenticHub.cliJvm.agent.branching
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
-import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
+import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PromptResult
 import ru.den.writes.code.agenticHub.cliJvm.StdinPromptSource
-import ru.den.writes.code.agenticHub.cliJvm.TestDb
+import ru.den.writes.code.agenticHub.testing.TestDb
 import ru.den.writes.code.agenticHub.cliJvm.agent.newChat
 import ru.den.writes.code.agenticHub.cliJvm.agent.createStdinPromptSource
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore

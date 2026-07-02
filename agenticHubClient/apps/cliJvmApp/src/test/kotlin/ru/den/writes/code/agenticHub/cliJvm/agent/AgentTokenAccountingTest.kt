@@ -5,8 +5,8 @@ import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
-import ru.den.writes.code.agenticHub.cliJvm.TestDb
+import ru.den.writes.code.agenticHub.testing.FakeLlmApi
+import ru.den.writes.code.agenticHub.testing.TestDb
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import kotlin.test.Test
 import kotlin.test.assertEquals

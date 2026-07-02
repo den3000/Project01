@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.features.agent.invariant
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.features.agent.FakeLlmApi
+import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.memory.RuleEntry

@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.agent
+package ru.den.writes.code.agenticHub.testing
 
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
@@ -18,7 +18,7 @@ import ru.den.writes.code.agenticHub.features.llm.Usage
  * copy of the messages so later mutations to the agent's history don't
  * retroactively change what tests see.
  */
-internal class FakeLlmApi : LlmApi {
+public class FakeLlmApi : LlmApi {
 
     private val responses = ArrayDeque<LlmResult>()
 
