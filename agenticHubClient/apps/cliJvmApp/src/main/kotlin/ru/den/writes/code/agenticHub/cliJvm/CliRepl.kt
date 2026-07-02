@@ -1,16 +1,16 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import io.ktor.client.HttpClient
 import kotlinx.coroutines.coroutineScope
+import org.koin.core.Koin
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.features.lifecycle.start.MEMORY_ROOT
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.toGenerationParams
 import ru.den.writes.code.agenticHub.features.lifecycle.session.startSchedulerLoops
-import ru.den.writes.code.agenticHub.cliJvm.commandMappers.memoryProvider
+import ru.den.writes.code.agenticHub.cliJvm.commandMappers.resolveMemoryProvider
 import ru.den.writes.code.agenticHub.cliJvm.commandMappers.contextStrategy
-import ru.den.writes.code.agenticHub.cliJvm.commandMappers.historyStore
-import ru.den.writes.code.agenticHub.features.lifecycle.session.buildSessionViewModel
-import ru.den.writes.code.agenticHub.features.agent.buildRoutedAgents
-import ru.den.writes.code.agenticHub.features.agent.buildJudges
+import ru.den.writes.code.agenticHub.cliJvm.commandMappers.resolveHistoryStore
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionAssembly
+import ru.den.writes.code.agenticHub.features.lifecycle.session.di.SessionAssemblyArgs
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.PromptSourceIntents
@@ -21,13 +21,11 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.ChannelI
 import ru.den.writes.code.agenticHub.features.mcpclient.McpToolClient
 import ru.den.writes.code.agenticHub.cliJvm.commandMappers.CliArgToSessionCommandMapper
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
-import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.agenticHub.cliJvm.tui.TuiRenderer
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
-import ru.den.writes.code.agenticHub.features.llm.buildLlmApi
 import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
 import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
 import java.io.File
@@ -44,19 +42,20 @@ import kotlin.time.Duration.Companion.seconds
  * lifecycle is bounded by `use { }`.
  */
 internal suspend fun runSession(
-    client: HttpClient,
-    db: AppDatabase,
+    koin: Koin,
     initialState: StartCommand.SessionInitialState,
     sessionMapper: CliArgToSessionCommandMapper,
 ) {
-    val historyStore: HistoryStore? = initialState.historyStore(db)
-    val llmApi: LlmApi = buildLlmApi(initialState.modelProvider, client)
     val chat = initialState as? StartCommand.RunChat
+    val historyStore: HistoryStore? = initialState.resolveHistoryStore(koin)
+    val llmApi: LlmApi = koin.get { parametersOf(initialState.modelProvider) }
     val strategy: ContextStrategy = initialState.contextStrategy()
-    val memory: MemoryProvider? = initialState.memoryProvider(MEMORY_ROOT.absolutePath)
-    val routedAgents: List<RoutedAgent> = buildRoutedAgents(chat?.config?.stageAgents.orEmpty(), client, initialState.toGenerationParams())
-    val routedJudges: List<RoutedJudge> = buildJudges(chat?.config?.judgeAgents.orEmpty(), client)
-    val mcpClients: List<McpToolClient> = buildMcpToolClients(chat).onEach { it.connect() }
+    val memory: MemoryProvider? = initialState.resolveMemoryProvider(koin, MEMORY_ROOT.absolutePath)
+    val routedAgents: List<RoutedAgent> =
+        koin.get { parametersOf(chat?.config?.stageAgents.orEmpty(), initialState.toGenerationParams()) }
+    val routedJudges: List<RoutedJudge> =
+        koin.get { parametersOf(chat?.config?.judgeAgents.orEmpty()) }
+    val mcpClients: List<McpToolClient> = buildMcpToolClients(koin, chat).onEach { it.connect() }
     val router: McpToolRouter? = buildToolRouter(mcpClients, chat)
     val toolDefs = router?.toolDefs.orEmpty()
 
@@ -81,6 +80,7 @@ internal suspend fun runSession(
                     sessionMapper,
                 )
                 runSessionInternal(
+                    koin = koin,
                     cliArgs = initialState,
                     llmApi = llmApi,
                     historyStore = historyStore,
@@ -99,6 +99,7 @@ internal suspend fun runSession(
             // Stdin REPL — TUI when -tui and a real TTY, else plain.
             val tuiRequested = (initialState as? StartCommand.RunChat)?.config?.tui ?: false
             runSessionInternal(
+                koin = koin,
                 cliArgs = initialState,
                 llmApi = llmApi,
                 historyStore = historyStore,
@@ -128,6 +129,7 @@ internal suspend fun runSession(
  * function in the app; the portable assembly lives in features:viewModel.
  */
 internal suspend fun runSessionInternal(
+    koin: Koin,
     cliArgs: StartCommand.SessionInitialState,
     llmApi: LlmApi,
     historyStore: HistoryStore?,
@@ -142,9 +144,14 @@ internal suspend fun runSessionInternal(
     toolExecutor: ToolExecutor? = null,
     sessionMapper: CliArgToSessionCommandMapper,
 ) {
-    val assembly = buildSessionViewModel(
-        cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor,
-    )
+    val assembly = koin.get<SessionAssembly> {
+        parametersOf(
+            SessionAssemblyArgs(
+                cliArgs, llmApi, historyStore, strategy, memory,
+                routedAgents, routedJudges, toolDefs, toolExecutor,
+            ),
+        )
+    }
     val viewModel = assembly.viewModel
 
     val scheduler = assembly.scheduler

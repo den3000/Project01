@@ -1,6 +1,5 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import io.ktor.client.HttpClient
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import ru.den.writes.code.agenticHub.features.lifecycle.start.StartExecutor
@@ -17,7 +16,6 @@ import ru.den.writes.code.agenticHub.features.lifecycle.start.di.startModule
 import ru.den.writes.code.agenticHub.features.llm.di.llmModule
 import ru.den.writes.code.agenticHub.features.mcpclient.di.mcpClientModule
 import ru.den.writes.code.agenticHub.features.memory.di.memoryModule
-import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.platform.database.di.databaseModule
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import kotlin.system.exitProcess
@@ -66,8 +64,7 @@ suspend fun main(args: Array<String>) {
 
         val initialState = koin.get<StartExecutor>().execute(command)
         if (initialState != null) {
-            val client = koin.get<HttpClient>()
-            runSession(client, koin.get<AppDatabase>(), initialState, sessionMapper)
+            runSession(koin, initialState, sessionMapper)
         }
     } finally {
         stopKoin()
