@@ -33,6 +33,11 @@ kotlin {
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.kotlinx.coroutinesCore)
         }
+        jvmTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(projects.agenticHubClient.testing)
+            implementation(libs.kotlinx.coroutinesTest)
+        }
     }
 }
 
