@@ -1,5 +1,7 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.session
 
+import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
+
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.testing.TestDb
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
@@ -207,7 +209,7 @@ class CommandRunnerTest {
     fun `when setting the memory mode - then it reports the new mode`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val memory = MemoryProvider(FileMemoryStore(root.absolutePath), MemoryMode.PREAMBLE)
+            val memory = MemoryProvider(FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()), MemoryMode.PREAMBLE)
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
 
             // when - then
@@ -222,7 +224,7 @@ class CommandRunnerTest {
     fun `when setting a new task - then it reports the active task and initial stage`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val memory = MemoryProvider(FileMemoryStore(root.absolutePath), MemoryMode.SYSTEM)
+            val memory = MemoryProvider(FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()), MemoryMode.SYSTEM)
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
 
             // when - then
@@ -237,7 +239,7 @@ class CommandRunnerTest {
     fun `when listing named profiles - then the active one is marked`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = FileMemoryStore(root.absolutePath).apply {
+            val mstore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
                 touchNamedProfile("work")
                 touchNamedProfile("home")
             }
@@ -258,7 +260,7 @@ class CommandRunnerTest {
     fun `when removing a rule by id - then it reports the removal and then its absence`() = runTest {
         withTempMemoryRoot { root ->
             // given — one rule on disk
-            val mstore = FileMemoryStore(root.absolutePath)
+            val mstore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
             val rule = mstore.addRule("always kotlin")
             val memory = MemoryProvider(mstore, MemoryMode.SYSTEM)
             val runner = CommandRunner(historyStore = null, memory = memory, strategy = ContextStrategy.FullHistory)
@@ -273,7 +275,7 @@ class CommandRunnerTest {
     fun `when clearing all rules - then it reports the count`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = FileMemoryStore(root.absolutePath).apply { addRule("a"); addRule("b") }
+            val mstore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { addRule("a"); addRule("b") }
             val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
 
             // when - then
@@ -286,7 +288,7 @@ class CommandRunnerTest {
     fun `when deleting a task then clearing tasks - then each reports`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = FileMemoryStore(root.absolutePath).apply { saveTask(TaskNotes("auth")); saveTask(TaskNotes("ui")) }
+            val mstore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { saveTask(TaskNotes("auth")); saveTask(TaskNotes("ui")) }
             val runner = CommandRunner(historyStore = null, memory = MemoryProvider(mstore, MemoryMode.SYSTEM), strategy = ContextStrategy.FullHistory)
 
             // when - then — delete one by id, second call finds nothing, then clear the rest
@@ -301,7 +303,7 @@ class CommandRunnerTest {
     fun `when clearing all profiles - then named and unnamed are gone`() = runTest {
         withTempMemoryRoot { root ->
             // given
-            val mstore = FileMemoryStore(root.absolutePath).apply {
+            val mstore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
                 saveProfile("legacy")
                 addNamedProfileItem("work", ProfileSection.STYLE, "кратко")
             }

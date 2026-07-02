@@ -1,5 +1,7 @@
 package ru.den.writes.code.agenticHub.features.memory
 
+import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
+
 import ru.den.writes.code.agenticHub.features.memory.ProfileData
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
@@ -17,20 +19,20 @@ class MemoryStoreTest {
 
     @Test
     fun `loadProfile returns null when no profile file exists`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         assertNull(store.loadProfile())
     }
 
     @Test
     fun `saveProfile and loadProfile round-trip`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.saveProfile("Я пишу только на Kotlin")
         assertEquals("Я пишу только на Kotlin", store.loadProfile())
     }
 
     @Test
     fun `saveProfile with blank deletes the file`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.saveProfile("first")
         store.saveProfile("   ")
         assertNull(store.loadProfile())
@@ -39,7 +41,7 @@ class MemoryStoreTest {
 
     @Test
     fun `loadProfileData on a legacy free-text profile returns it as freeText`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.saveProfile("Я пишу только на Kotlin")
         val data = assertNotNull(store.loadProfileData())
         assertEquals("Я пишу только на Kotlin", data.freeText)
@@ -48,7 +50,7 @@ class MemoryStoreTest {
 
     @Test
     fun `loadProfileData parses structured sections`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.saveProfile(
             """
             ## Style
@@ -66,7 +68,7 @@ class MemoryStoreTest {
 
     @Test
     fun `saveProfileData with empty ProfileData deletes the file`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.saveProfile("anything")
         store.saveProfileData(ProfileData())
         assertNull(store.loadProfileData())
@@ -75,7 +77,7 @@ class MemoryStoreTest {
 
     @Test
     fun `addProfileItem appends two bullets and persists them`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addProfileItem(ProfileSection.STYLE, "кратко")
         val after = store.addProfileItem(ProfileSection.STYLE, "русский")
         assertEquals(listOf("кратко", "русский"), after.style)
@@ -86,7 +88,7 @@ class MemoryStoreTest {
 
     @Test
     fun `clearProfileSection drops only the chosen section`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addProfileItem(ProfileSection.STYLE, "a")
         store.addProfileItem(ProfileSection.FORMAT, "b")
         store.addProfileItem(ProfileSection.CONSTRAINTS, "c")
@@ -101,7 +103,7 @@ class MemoryStoreTest {
 
     @Test
     fun `clearProfile deletes the entire profile file`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addProfileItem(ProfileSection.STYLE, "a")
         store.clearProfile()
         assertNull(store.loadProfileData())
@@ -112,13 +114,13 @@ class MemoryStoreTest {
 
     @Test
     fun `listProfileNames is empty when the profiles dir is fresh`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         assertEquals(emptyList(), store.listProfileNames())
     }
 
     @Test
     fun `addNamedProfileItem creates the file and persists between reads`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addNamedProfileItem("kotlin-senior", ProfileSection.STYLE, "кратко")
         store.addNamedProfileItem("kotlin-senior", ProfileSection.CONSTRAINTS, "Kotlin")
         val reread = assertNotNull(store.loadNamedProfile("kotlin-senior"))
@@ -128,13 +130,13 @@ class MemoryStoreTest {
 
     @Test
     fun `loadNamedProfile returns null for an unknown name`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         assertNull(store.loadNamedProfile("missing"))
     }
 
     @Test
     fun `listProfileNames sorts and skips non-md files`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.touchNamedProfile("zeta")
         store.touchNamedProfile("alpha")
         store.touchNamedProfile("middle")
@@ -144,7 +146,7 @@ class MemoryStoreTest {
 
     @Test
     fun `clearNamedProfileSection wipes one section and keeps the rest`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addNamedProfileItem("a", ProfileSection.STYLE, "s")
         store.addNamedProfileItem("a", ProfileSection.CONSTRAINTS, "c")
         store.clearNamedProfileSection("a", ProfileSection.STYLE)
@@ -155,7 +157,7 @@ class MemoryStoreTest {
 
     @Test
     fun `clearNamedProfile removes the file and reports success`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addNamedProfileItem("a", ProfileSection.STYLE, "s")
         assertTrue(store.clearNamedProfile("a"))
         assertNull(store.loadNamedProfile("a"))
@@ -164,7 +166,7 @@ class MemoryStoreTest {
 
     @Test
     fun `clearAllProfiles removes every named profile and the unnamed default`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.saveProfile("legacy free text")
         store.addNamedProfileItem("work", ProfileSection.STYLE, "кратко")
         store.addNamedProfileItem("home", ProfileSection.STYLE, "подробно")
@@ -175,7 +177,7 @@ class MemoryStoreTest {
 
     @Test
     fun `touchNamedProfile creates an empty file when none exists`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.touchNamedProfile("fresh")
         assertTrue(File(root, FileMemoryStore.PROFILES_DIR).resolve("fresh.md").exists())
         // Empty file → loadNamedProfile still returns null (no content to parse).
@@ -185,7 +187,7 @@ class MemoryStoreTest {
 
     @Test
     fun `touchNamedProfile does not overwrite an existing file`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addNamedProfileItem("a", ProfileSection.STYLE, "keep me")
         store.touchNamedProfile("a")
         assertEquals(listOf("keep me"), assertNotNull(store.loadNamedProfile("a")).style)
@@ -193,7 +195,7 @@ class MemoryStoreTest {
 
     @Test
     fun `addRule numbers entries starting from 001`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         val a = store.addRule("Only Kotlin")
         val b = store.addRule("No Spring")
         assertEquals("001", a.id)
@@ -202,7 +204,7 @@ class MemoryStoreTest {
 
     @Test
     fun `listRules returns entries in id order`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addRule("First")
         store.addRule("Second")
         store.addRule("Third")
@@ -212,7 +214,7 @@ class MemoryStoreTest {
 
     @Test
     fun `removeRule deletes the file and does not reuse the id`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addRule("first")
         store.addRule("second")
         assertTrue(store.removeRule("001"))
@@ -224,14 +226,14 @@ class MemoryStoreTest {
 
     @Test
     fun `removeRule on a missing id returns false`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addRule("only one")
         assertFalse(store.removeRule("999"))
     }
 
     @Test
     fun `clearRules deletes every rule file`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addRule("a")
         store.addRule("b")
         assertEquals(2, store.clearRules())
@@ -240,7 +242,7 @@ class MemoryStoreTest {
 
     @Test
     fun `listRules ignores files not matching the NNN-slug shape`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addRule("valid")
         File(root, FileMemoryStore.RULES_DIR).resolve("notes.md").writeText("stray")
         File(root, FileMemoryStore.RULES_DIR).resolve("README").writeText("ignore me")
@@ -256,7 +258,7 @@ class MemoryStoreTest {
 
     @Test
     fun `addRule with pure cyrillic text falls back to rule slug`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.addRule("Запрещено всё")
         val files = File(root, FileMemoryStore.RULES_DIR).listFiles()!!.map { it.name }
         assertEquals(listOf("001-rule.md"), files)
@@ -264,7 +266,7 @@ class MemoryStoreTest {
 
     @Test
     fun `saveTask and loadTask round-trip with all sections`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         val notes = TaskNotes(
             taskId = "auth-service",
             goal = "Сервис авторизации поверх Ktor + JWT",
@@ -293,7 +295,7 @@ class MemoryStoreTest {
 
     @Test
     fun `loadTask returns null when no file exists`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         assertNull(store.loadTask("missing"))
     }
 
@@ -325,7 +327,7 @@ class MemoryStoreTest {
 
     @Test
     fun `appendTaskNote creates the file when missing`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.appendTaskNote("fresh", "first note")
         val loaded = assertNotNull(store.loadTask("fresh"))
         assertEquals(listOf("first note"), loaded.notes)
@@ -333,7 +335,7 @@ class MemoryStoreTest {
 
     @Test
     fun `appendTaskNote keeps prior notes and appends a new one`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.saveTask(TaskNotes("auth", goal = "ship it", notes = listOf("n1")))
         store.appendTaskNote("auth", "n2")
         val loaded = assertNotNull(store.loadTask("auth"))
@@ -351,7 +353,7 @@ class MemoryStoreTest {
 
     @Test
     fun `listTaskIds is sorted alphabetically and ignores non-md files`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.saveTask(TaskNotes("zeta"))
         store.saveTask(TaskNotes("alpha"))
         store.saveTask(TaskNotes("middle"))
@@ -361,7 +363,7 @@ class MemoryStoreTest {
 
     @Test
     fun `deleteTask removes one file and clearTasks removes the rest`() = withTempDir { root ->
-        val store = FileMemoryStore(root.absolutePath)
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
         store.saveTask(TaskNotes("auth"))
         store.saveTask(TaskNotes("ui"))
         assertTrue(store.deleteTask("auth"))

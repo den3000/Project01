@@ -1,5 +1,7 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
+
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -441,7 +443,7 @@ class SessionViewModelTest {
     /** A memory provider over a throwaway temp dir, pre-seeded with named profiles. */
     private fun tempMemory(vararg profiles: String): MemoryProvider {
         val root = Files.createTempDirectory("project01-vm-picker-").toFile().apply { deleteOnExit() }
-        val store = FileMemoryStore(root.absolutePath).apply { profiles.forEach { touchNamedProfile(it) } }
+        val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { profiles.forEach { touchNamedProfile(it) } }
         return MemoryProvider(store, MemoryMode.PREAMBLE)
     }
 

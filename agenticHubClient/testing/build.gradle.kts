@@ -28,6 +28,10 @@ kotlin {
         commonMain.dependencies {
             // FakeLlmApi implements LlmApi.
             api(projects.agenticHubClient.features.llm)
+            // testLocalFileSystem() hands consumers a LocalFileSystem resolved from
+            // fileSystemModule (api: the type appears in helper return signatures).
+            api(projects.agenticHubClient.platform.fileSystem)
+            implementation(libs.koin.core)
         }
         jvmMain.dependencies {
             // TestDb builds a real AppDatabase over the bundled SQLite driver.

@@ -1,5 +1,7 @@
 package ru.den.writes.code.agenticHub.features.memory
 
+import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
+
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
@@ -16,7 +18,7 @@ class MemoryProviderProfileTest {
     fun `when memoryLayerFor null - then identical to memoryLayer for the active profile`() {
         withTempMemoryRoot { root ->
             // given
-            val store = FileMemoryStore(root.absolutePath).apply {
+            val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
                 addNamedProfileItem("coder", ProfileSection.STYLE, "write code")
             }
             val provider = MemoryProvider(store, MemoryMode.PREAMBLE, initialProfileName = "coder")
@@ -36,7 +38,7 @@ class MemoryProviderProfileTest {
     fun `when memoryLayerFor a fixed profile - then uses it and ignores the active profile`() {
         withTempMemoryRoot { root ->
             // given
-            val store = FileMemoryStore(root.absolutePath).apply {
+            val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
                 addNamedProfileItem("planner", ProfileSection.STYLE, "plan carefully")
                 addNamedProfileItem("coder", ProfileSection.STYLE, "write code")
             }
@@ -56,7 +58,7 @@ class MemoryProviderProfileTest {
     fun `when memoryLayerFor a fixed profile - then rules and task still come from the live store`() {
         withTempMemoryRoot { root ->
             // given
-            val store = FileMemoryStore(root.absolutePath).apply {
+            val store = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
                 addNamedProfileItem("planner", ProfileSection.STYLE, "plan carefully")
                 addRule("no frameworks")
                 saveTask(TaskNotes("auth", goal = "ship login", stage = TaskStage.PLANNING))
