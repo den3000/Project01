@@ -7,7 +7,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
 import ru.den.writes.code.agenticHub.features.viewmodel.ChannelIntentSource
-import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.viewmodel.CommandRunner
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.viewmodel.commandCatalog

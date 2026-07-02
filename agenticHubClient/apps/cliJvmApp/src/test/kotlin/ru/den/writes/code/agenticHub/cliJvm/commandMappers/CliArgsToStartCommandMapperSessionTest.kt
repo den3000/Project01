@@ -19,12 +19,12 @@ class CliArgsToStartCommandMapperSessionTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-session" to ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.ListSessions,
-            "-session clear" to ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.CleanHistory,
-            "-session clear demo" to ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.CleanSession("demo"),
-            "-inflate 5 -session demo" to ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.InflateSession("demo", 5),
-            "-memory" to ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.MemoryOp(
-                ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.Show),
+            "-session" to ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand.ListSessions,
+            "-session clear" to ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand.CleanHistory,
+            "-session clear demo" to ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand.CleanSession("demo"),
+            "-inflate 5 -session demo" to ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand.InflateSession("demo", 5),
+            "-memory" to ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand.MemoryOp(
+                ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction.Show),
         )
 
         // when - then

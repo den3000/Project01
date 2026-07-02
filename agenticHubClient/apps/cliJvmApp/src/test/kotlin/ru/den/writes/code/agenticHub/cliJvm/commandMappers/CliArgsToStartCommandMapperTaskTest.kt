@@ -16,17 +16,17 @@ class CliArgsToStartCommandMapperTaskTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-task auth" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.SetTask("auth"),
-            "-task auth pause" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.PauseTask("auth"),
-            "-task auth resume" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ResumeTask("auth"),
-            "-task clear auth" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.DeleteTask("auth"),
-            "-task clear" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ClearTasks,
+            "-task auth" to ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction.SetTask("auth"),
+            "-task auth pause" to ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction.PauseTask("auth"),
+            "-task auth resume" to ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction.ResumeTask("auth"),
+            "-task clear auth" to ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction.DeleteTask("auth"),
+            "-task clear" to ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction.ClearTasks,
         )
 
         // when - then
         cases.forEach { (input, action) ->
             kotlin.test.assertEquals(
-                ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.MemoryOp(
+                ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand.MemoryOp(
                     action
                 ), mapper.parseOk(input.toArgsArray()), input
             )

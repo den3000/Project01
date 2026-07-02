@@ -51,10 +51,10 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.has
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.last
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.subValue
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.ParseError
-import ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction
-import ru.den.writes.code.agenticHub.features.viewmodel.command.ScheduleSpec
-import ru.den.writes.code.agenticHub.features.viewmodel.command.SessionConfig
-import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction
+import ru.den.writes.code.agenticHub.features.lifecycle.command.ScheduleSpec
+import ru.den.writes.code.agenticHub.features.lifecycle.command.SessionConfig
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
@@ -87,7 +87,7 @@ internal fun bailTooMany(argName: String, count: Int, maxAllowed: Int): Nothing 
 
 /**
  * The runtime arg front: parse args with the cliargs grammar and map the top-level
- * [ParsedArg]s straight onto a domain [ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand]. The grammar bundles
+ * [ParsedArg]s straight onto a domain [ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand]. The grammar bundles
  * provider/model/knobs/stages/judge under `agent`, so a single agent without
  * stages/judge is the "primary" (default agent); agents with `stages` become stage
  * agents, with `judge` become judges. Provider resolution (and the API keys) is

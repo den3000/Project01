@@ -16,15 +16,15 @@ class CliArgsToStartCommandMapperRuleTest {
         // given
         val mapper = createCliArgsToStartCommandMapper()
         val cases = listOf(
-            "-rule \"always kotlin\"" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.AddRule("always kotlin"),
-            "-rule clear 003" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.RemoveRule("003"),
-            "-rule clear" to ru.den.writes.code.agenticHub.features.viewmodel.command.MemoryAction.ClearRules,
+            "-rule \"always kotlin\"" to ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction.AddRule("always kotlin"),
+            "-rule clear 003" to ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction.RemoveRule("003"),
+            "-rule clear" to ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction.ClearRules,
         )
 
         // when - then
         cases.forEach { (input, action) ->
             kotlin.test.assertEquals(
-                ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand.MemoryOp(
+                ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand.MemoryOp(
                     action
                 ), mapper.parseOk(input.toArgsArray()), input
             )

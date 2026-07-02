@@ -4,7 +4,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.ParseError
 
 import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
-import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding

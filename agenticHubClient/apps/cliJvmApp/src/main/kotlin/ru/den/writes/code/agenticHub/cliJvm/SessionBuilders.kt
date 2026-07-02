@@ -8,7 +8,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import ru.den.writes.code.agenticHub.features.llm.McpToolRouter
 import ru.den.writes.code.agenticHub.platform.mcpclient.McpToolClient
-import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 
 /**
  * App-side wiring for a session: the concrete HTTP client and the MCP-client

@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.viewmodel.command
+package ru.den.writes.code.agenticHub.features.lifecycle.command
 
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.features.agent.StageAgentSpec

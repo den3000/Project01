@@ -5,7 +5,7 @@ import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
 import ru.den.writes.code.agenticHub.cliJvm.TestDb
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore

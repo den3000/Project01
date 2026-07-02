@@ -3,7 +3,7 @@ package ru.den.writes.code.agenticHub.features.viewmodel
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
-import ru.den.writes.code.agenticHub.features.viewmodel.command.ScheduleSpec
+import ru.den.writes.code.agenticHub.features.lifecycle.command.ScheduleSpec
 import ru.den.writes.code.agenticHub.scheduling.Schedule
 import ru.den.writes.code.agenticHub.scheduling.ScheduledTask
 import ru.den.writes.code.agenticHub.scheduling.SchedulerEngine

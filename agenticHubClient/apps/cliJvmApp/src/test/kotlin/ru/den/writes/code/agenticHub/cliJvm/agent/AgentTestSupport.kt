@@ -4,8 +4,8 @@ import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.agenticHub.cliJvm.commandMappers.CliArgToSessionCommandMapper
-import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
-import ru.den.writes.code.agenticHub.features.viewmodel.command.SessionConfig
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.command.SessionConfig
 import ru.den.writes.code.agenticHub.features.viewmodel.CommandRunner
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind

@@ -6,8 +6,8 @@ import ru.den.writes.code.agenticHub.cliJvm.agent.createStdinPromptSource
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.agent.runSessionForTest
-import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
-import ru.den.writes.code.agenticHub.features.viewmodel.command.SessionConfig
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.command.SessionConfig
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore

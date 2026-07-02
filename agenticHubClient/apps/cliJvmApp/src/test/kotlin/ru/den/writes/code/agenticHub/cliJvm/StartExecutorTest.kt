@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import kotlin.test.Test

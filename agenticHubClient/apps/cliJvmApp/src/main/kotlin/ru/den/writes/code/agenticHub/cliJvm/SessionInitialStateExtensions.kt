@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
 import ru.den.writes.code.agenticHub.features.viewmodel.generateSessionId
-import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore

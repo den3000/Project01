@@ -7,7 +7,7 @@ import ru.den.writes.code.agenticHub.features.viewmodel.ScheduleAction
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.viewmodel.CommandRunner
 import ru.den.writes.code.agenticHub.features.viewmodel.CliTaskHandler
-import ru.den.writes.code.agenticHub.features.viewmodel.command.ScheduleSpec
+import ru.den.writes.code.agenticHub.features.lifecycle.command.ScheduleSpec
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore

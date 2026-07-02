@@ -9,8 +9,8 @@ import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
-import ru.den.writes.code.agenticHub.features.viewmodel.command.SessionConfig
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.command.SessionConfig
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryLayer
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
