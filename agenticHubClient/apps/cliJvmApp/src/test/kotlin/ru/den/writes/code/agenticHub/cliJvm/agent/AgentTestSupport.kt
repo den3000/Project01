@@ -11,7 +11,7 @@ import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PromptSource
-import ru.den.writes.code.agenticHub.features.lifecycle.session.PromptSourceIntents
+import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.PromptSourceIntents
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel

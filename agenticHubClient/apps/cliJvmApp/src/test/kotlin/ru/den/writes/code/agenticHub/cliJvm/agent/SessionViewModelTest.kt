@@ -6,13 +6,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
-import ru.den.writes.code.agenticHub.features.lifecycle.session.ChannelIntentSource
+import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.ChannelIntentSource
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.session.CommandRunner
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.lifecycle.session.commandCatalog
 import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
-import ru.den.writes.code.agenticHub.features.lifecycle.session.IntentSource
+import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.IntentSource
 import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel

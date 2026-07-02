@@ -13,11 +13,11 @@ import ru.den.writes.code.agenticHub.features.agent.buildRoutedAgents
 import ru.den.writes.code.agenticHub.features.agent.buildJudges
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
-import ru.den.writes.code.agenticHub.features.lifecycle.session.PromptSourceIntents
+import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.PromptSourceIntents
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PromptSource
 import ru.den.writes.code.agenticHub.features.llm.McpToolRouter
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
-import ru.den.writes.code.agenticHub.features.lifecycle.session.ChannelIntentSource
+import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.ChannelIntentSource
 import ru.den.writes.code.agenticHub.features.mcpclient.McpToolClient
 import ru.den.writes.code.agenticHub.cliJvm.commandMappers.CliArgToSessionCommandMapper
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand

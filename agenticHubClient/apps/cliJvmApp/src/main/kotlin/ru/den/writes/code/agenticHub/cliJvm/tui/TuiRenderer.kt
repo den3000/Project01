@@ -18,7 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import ru.den.writes.code.agenticHub.features.lifecycle.session.ChannelIntentSource
+import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.ChannelIntentSource
 import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
