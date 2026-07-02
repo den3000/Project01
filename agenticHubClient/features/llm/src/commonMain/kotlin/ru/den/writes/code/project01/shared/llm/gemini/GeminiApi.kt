@@ -21,7 +21,7 @@ import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.llm.ToolCall
 import ru.den.writes.code.project01.shared.llm.ToolDefinition
 import ru.den.writes.code.project01.shared.llm.Usage
-import ru.den.writes.code.project01.shared.util.logWarn
+import ru.den.writes.code.agenticHub.platform.logging.logWarn
 
 private const val API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 private fun endpointFor(model: GeminiModel): String = "$API_BASE/${model.id}:generateContent"

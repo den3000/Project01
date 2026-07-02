@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.shared.util
+package ru.den.writes.code.agenticHub.platform.logging
 
 /**
  * Platform-neutral hook for transient-warning output — e.g. the

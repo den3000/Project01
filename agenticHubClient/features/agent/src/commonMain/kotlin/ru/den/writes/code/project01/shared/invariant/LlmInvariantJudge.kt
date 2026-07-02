@@ -5,7 +5,7 @@ import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.memory.RuleEntry
-import ru.den.writes.code.project01.shared.util.logWarn
+import ru.den.writes.code.agenticHub.platform.logging.logWarn
 
 /**
  * Default [InvariantChecker]: judges a reply with a SEPARATE LLM call.
