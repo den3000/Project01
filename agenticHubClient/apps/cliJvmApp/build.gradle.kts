@@ -33,7 +33,7 @@ dependencies {
 }
 
 application {
-    mainClass = "ru.den.writes.code.project01.cliJvm.MainKt"
+    mainClass = "ru.den.writes.code.agenticHub.cliJvm.MainKt"
 }
 
 // Hook the user's terminal into the `run` task so the REPL can actually

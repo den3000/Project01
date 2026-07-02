@@ -1,0 +1,75 @@
+package ru.den.writes.code.agenticHub.cliJvm.agent.branching
+
+
+import kotlinx.coroutines.test.runTest
+import ru.den.writes.code.agenticHub.cliJvm.agent.runSessionForTest
+import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
+import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
+import ru.den.writes.code.agenticHub.features.viewmodel.PromptResult
+import ru.den.writes.code.agenticHub.cliJvm.StdinPromptSource
+import ru.den.writes.code.agenticHub.cliJvm.TestDb
+import ru.den.writes.code.agenticHub.cliJvm.agent.newChat
+import ru.den.writes.code.agenticHub.cliJvm.agent.createStdinPromptSource
+import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
+import java.io.BufferedReader
+import java.io.StringReader
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class AgentBranchingTest {
+
+    //region branch and switch
+
+    @Test
+    fun `when slash-branch then slash-switch issued - then history forks and continues on the new branch`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val dao = harness.db.messageDao()
+            val fakeApi = FakeLlmApi().apply {
+                queueText("r1") // opening turn on main
+                queueText("r2") // one turn after switching to alt
+            }
+            val store = RoomHistoryStore(dao, sessionId = "s")
+            val chat = newChat(prompt = "m1", session = "s")
+
+            // when
+            runSessionForTest(
+                cliArgs = chat,
+                llmApi = fakeApi,
+                historyStore = store,
+                promptSource = createStdinPromptSource("/branch alt\n/branch switch alt\na1\n/exit\n"),
+            )
+
+            // then
+            // Branch commands make no LLM calls — only the two real turns do.
+            assertEquals(2, fakeApi.calls.size)
+            // main keeps just its opening exchange; alt has the copied prefix + its own turn.
+            assertEquals(listOf("m1", "r1"), dao.all("s", "main").map { it.text })
+            assertEquals(listOf("m1", "r1", "a1", "r2"), dao.all("s", "alt").map { it.text })
+            assertEquals(setOf("main", "alt"), dao.branchesOf("s").toSet())
+        }
+    }
+    //endregion
+
+    //region slash-command classification
+
+    @Test
+    fun `when StdinPromptSource reads slash-commands - then each classified to the right PromptResult`() {
+        // given
+        // Helper to classify a single line through a fresh source.
+        fun classify(line: String): PromptResult =
+            createStdinPromptSource("$line\n").nextPrompt()
+
+        // when - then
+        // Branch family.
+        assertEquals(PromptResult.Command(SessionCommand.Branch("alt")), classify("/branch alt"))
+        assertEquals(PromptResult.Command(SessionCommand.Switch("alt")), classify("/branch switch alt"))
+        assertEquals(PromptResult.Command(SessionCommand.ListBranches), classify("/branch"))
+        assertEquals(PromptResult.Command(SessionCommand.Checkpoint), classify("/branch show"))
+        // Non-branch terminators.
+        assertEquals(PromptResult.Stop, classify("/exit"))
+        // Plain text falls through unchanged.
+        assertEquals(PromptResult.Prompt("just a prompt"), classify("just a prompt"))
+    }
+    //endregion
+}
