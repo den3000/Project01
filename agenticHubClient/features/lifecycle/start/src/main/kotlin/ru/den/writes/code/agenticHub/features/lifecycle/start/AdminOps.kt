@@ -11,7 +11,6 @@ import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.MemoryStore
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
-import ru.den.writes.code.agenticHub.platform.filesystem.localFileSystem
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
@@ -35,7 +34,7 @@ private fun err(text: String) = AdminNotice(OutputStream.STDERR, text)
  */
 public class AdminOps(
     private val db: AppDatabase,
-    private val fs: LocalFileSystem = localFileSystem(),
+    private val fs: LocalFileSystem,
 ) {
 
     /** Wipe every messages / summaries / facts row. */

@@ -2,6 +2,7 @@ package ru.den.writes.code.agenticHub.features.lifecycle.start
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.testing.TestDb
+import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
 import ru.den.writes.code.agenticHub.features.lifecycle.start.StartExecutor
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
@@ -31,7 +32,7 @@ class StartExecutorTest {
             )
 
             // when
-            val result = StartExecutor(harness.db).execute(oneShot)
+            val result = StartExecutor(harness.db, testLocalFileSystem()).execute(oneShot)
 
             // then — same object back, nothing launched
             assertSame(oneShot, result)
@@ -42,7 +43,7 @@ class StartExecutorTest {
     fun `when an admin command - then it runs and returns null`() = runTest {
         TestDb().use { harness ->
             // when — list runs against the (empty) test db
-            val result = StartExecutor(harness.db).execute(StartCommand.ListSessions)
+            val result = StartExecutor(harness.db, testLocalFileSystem()).execute(StartCommand.ListSessions)
 
             // then
             assertNull(result)

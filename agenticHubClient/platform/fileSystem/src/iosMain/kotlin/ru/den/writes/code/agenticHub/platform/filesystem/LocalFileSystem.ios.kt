@@ -1,6 +1,0 @@
-package ru.den.writes.code.agenticHub.platform.filesystem
-
-public actual fun localFileSystem(): LocalFileSystem =
-    // iOS would back this with NSFileManager under NSDocumentDirectory.
-    // Wire when the iOS app grows a real local memory store.
-    TODO("iOS LocalFileSystem not implemented yet")

@@ -20,7 +20,7 @@ internal expect fun databaseBuilder(): RoomDatabase.Builder<AppDatabase>
  * touch disjoint rows. The migrations (`MIGRATION_1_2`/`_2_3`/`_3_4`) upgrade
  * older DB files in place — without them, opening a pre-v4 DB throws.
  */
-public fun buildDatabase(): AppDatabase =
+internal fun buildDatabase(): AppDatabase =
     databaseBuilder()
         .setDriver(BundledSQLiteDriver())
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
