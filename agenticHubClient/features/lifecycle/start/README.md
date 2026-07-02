@@ -17,4 +17,5 @@ JVM-модуль: диспетчер `StartCommand` — исполняет admin
   Потребитель — `apps:cliJvmApp` (`main.kt`).
 
 ## Тесты
-`apps:cliJvmApp:test` — `StartExecutorTest` (admin → null; session → возвращается), `SessionListFormatTest`.
+`./gradlew :agenticHubClient:features:lifecycle:start:test` — `StartExecutorTest` (admin → null;
+session → возвращается), `SessionListFormatTest` (`:testing` для TestDb).

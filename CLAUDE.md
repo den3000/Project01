@@ -36,6 +36,7 @@ iOS-bundle-id остались на `project01` (это идентификато
 - **playground**: [cliTui](playground/cliTui/README.md) ·
   [openmeteo-mcp](playground/openmeteo-mcp/README.md) · [localfs-mcp](playground/localfs-mcp/README.md)
 - **[scheduling](scheduling/README.md)** — ядро планировщика.
+- **[testing](agenticHubClient/testing/README.md)** — shared тест-хелперы (FakeLlmApi/TestDb; только `testImplementation`).
 
 ## Команды (offline; сеть/токены/TTY — спрашивать перед запуском)
 

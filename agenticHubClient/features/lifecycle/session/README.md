@@ -29,8 +29,10 @@ ScheduleAction/TaskHandlerImpl).
   KMP-изация отложена). Потребитель — `apps:cliJvmApp`.
 
 ## Тесты
-MVI-стек гоняют app-тесты в `apps:cliJvmApp:test` (`runSessionForTest` = `TurnEngine`+
-`SessionViewModel`+`PlainRenderer`, golden `PlainViewGoldenTest`).
+`./gradlew :agenticHubClient:features:lifecycle:session:test` — unit-тесты MVI/turn/intents/scheduling
+(TurnResult/UiState/Overlay/CommandPalette/MergedIntentSource/TaskHandlerImpl/CommandRunner; `:testing`).
+Интеграция (`runSessionForTest` = `TurnEngine`+`SessionViewModel`+`PlainRenderer`, golden
+`PlainViewGoldenTest`) остаётся в `apps:cliJvmApp:test` (нужен `PlainRenderer`).
 
 ## Грабли
 - **Троттл feed (16 s)** живёт на `PromptSourceIntents` (feed-источник), не в `TurnEngine`; stdin/TUI → 0.

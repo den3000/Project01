@@ -15,7 +15,8 @@ KMP-модуль (jvm/android/ios) с чистым Room-слоем: схема �
 - `api(room-runtime)`; per-target KSP. Потребитель — `features:memory` (`api`).
 
 ## Тесты
-Тесты хранилища — в потребителе (`features:memory:jvmTest`, `apps:cliJvmApp:test`: миграции/DAO).
+`./gradlew :agenticHubClient:platform:database:jvmTest` — DAO/entities/миграции (`FactsStoreTest`/
+`SummaryStoreTest`/`MigrationTest`; `:testing` для TestDb). RoomHistoryStore/persistence — в `features:memory:jvmTest`.
 
 ## Грабли
 - android/ios `databaseBuilder()` — сейчас `TODO()` (нужны Context / NSDocumentDirectory).

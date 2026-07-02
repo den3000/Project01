@@ -41,6 +41,9 @@ KMP-проект на Compose Multiplatform (Android, iOS, Desktop/JVM) плюс
 **[scheduling](./scheduling)** — переиспользуемое ядро планировщика (без зависимостей), используется
 openmeteo-mcp и cliJvmApp.
 
+**[testing](./agenticHubClient/testing)** — shared тест-хелперы (`FakeLlmApi`/`TestDb`), только для
+`testImplementation`.
+
 ## Запуск
 
 - Desktop: `./gradlew :agenticHubClient:apps:desktopApp:run`

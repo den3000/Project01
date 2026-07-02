@@ -22,9 +22,9 @@ Memory-домен (профиль/правила/task-FSM/`MemoryLayer`) и ко
   `implementation(platform:logging)`. Потребители — `features:lifecycle:*`.
 
 ## Тесты
-`./gradlew :agenticHubClient:features:agent:jvmTest` — `AgentResponderTest`, `HistoryCompressorTest`,
-`InvariantJudgePromptTest`/`LlmInvariantJudgeTest`, `ProfileTest`/`MemoryLayerTest`/`TaskStateTest`
-(+ `FakeLlmApi`). Backtick-имена тестов **без** `()`/`,` — иначе iOS commonTest не компилится.
+`./gradlew :agenticHubClient:features:agent:jvmTest` — `AgentResponderTest`, `InvariantJudgePromptTest`,
+`LlmInvariantJudgeTest` (`FakeLlmApi` — из `:testing`). Memory-домен-тесты уехали в `features:memory`.
+Backtick-имена в commonTest **без** `()`/`,` — иначе iOS commonTest не компилится.
 
 ## Грабли
 - **Stage-маркер `[[stage:...]]` не вырезается из ответа** (БАГ): `AgentResponder.respond` парсит
