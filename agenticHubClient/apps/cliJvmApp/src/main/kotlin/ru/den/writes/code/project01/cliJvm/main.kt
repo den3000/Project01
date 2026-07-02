@@ -7,7 +7,7 @@ import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommand
 import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgsToStartCommandMapper
 import ru.den.writes.code.project01.cliJvm.commandMappers.ParsedStartCommand
 import ru.den.writes.code.project01.cliJvm.cliargs.USAGE
-import ru.den.writes.code.project01.cliJvm.db.buildDatabase
+import ru.den.writes.code.agenticHub.platform.database.buildDatabase
 import kotlin.system.exitProcess
 
 /**

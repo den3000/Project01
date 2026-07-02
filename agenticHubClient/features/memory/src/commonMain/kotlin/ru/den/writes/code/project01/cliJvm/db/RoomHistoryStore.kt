@@ -1,5 +1,10 @@
 package ru.den.writes.code.project01.cliJvm.db
 
+import ru.den.writes.code.agenticHub.platform.database.DEFAULT_BRANCH
+import ru.den.writes.code.agenticHub.platform.database.FactsEntity
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.MessageEntity
+import ru.den.writes.code.agenticHub.platform.database.SummaryEntity
 import ru.den.writes.code.project01.cliJvm.SessionStats
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role

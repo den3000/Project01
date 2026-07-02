@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
-import ru.den.writes.code.project01.cliJvm.db.AppDatabase
+import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import java.io.File
 
 /**

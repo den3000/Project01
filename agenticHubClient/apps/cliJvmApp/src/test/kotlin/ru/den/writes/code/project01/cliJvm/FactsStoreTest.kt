@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.db.FactsEntity
+import ru.den.writes.code.agenticHub.platform.database.FactsEntity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.db
+package ru.den.writes.code.agenticHub.platform.database
 
 import androidx.room.RoomDatabase
 

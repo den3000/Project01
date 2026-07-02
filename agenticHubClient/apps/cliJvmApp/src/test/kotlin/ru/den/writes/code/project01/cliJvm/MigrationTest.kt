@@ -4,10 +4,10 @@ import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.db.AppDatabase
-import ru.den.writes.code.project01.cliJvm.db.MIGRATION_1_2
-import ru.den.writes.code.project01.cliJvm.db.MIGRATION_2_3
-import ru.den.writes.code.project01.cliJvm.db.MIGRATION_3_4
+import ru.den.writes.code.agenticHub.platform.database.AppDatabase
+import ru.den.writes.code.agenticHub.platform.database.MIGRATION_1_2
+import ru.den.writes.code.agenticHub.platform.database.MIGRATION_2_3
+import ru.den.writes.code.agenticHub.platform.database.MIGRATION_3_4
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
