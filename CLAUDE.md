@@ -1,165 +1,97 @@
 # Project01 — проектная память
 
-KMP-проект. Корень пакета — `ru.den.writes.code.agenticHub.*` во ВСЕХ модулях
-(легаси-корень `project01` полностью снесён вместе с `:shared`). Каждый модуль под
-своим уникальным сегментом (`features.<name>` / `platform.<name>` / `cliJvm` /
-`mcps.<name>` / `cliTui` / `scheduling`) — split-пакетов между gradle-модулями нет.
-Storage-пути (`~/.project01-cli/…`) и `applicationId`/iOS-bundle-id остались на
-`project01` (это идентификаторы, не пакеты).
-Рабочая лошадка — **`cliJvmApp`**: JVM-консольный клиент к LLM (Gemini + OpenRouter).
+KMP-проект. Корень пакета — `ru.den.writes.code.agenticHub.*` во ВСЕХ модулях (у каждого свой
+уникальный сегмент; split-пакетов нет). Storage-пути (`~/.project01-cli/…`) и `applicationId`/
+iOS-bundle-id остались на `project01` (это идентификаторы, не пакеты). Рабочая лошадка —
+**cliJvmApp**: JVM-консольный клиент к LLM (Gemini + OpenRouter + Hugging Face).
 **Отвечать по-русски.**
 
 > **Этот файл — постоянная память проекта. Правится из любого worktree.**
-> Чтобы параллельные worktree почти не давали merge-конфликтов (а редкие —
-> были локальными и тривиальными):
+> Чтобы параллельные worktree почти не давали merge-конфликтов (а редкие — были локальными):
 > - Один факт = один короткий **независимый** пункт-строка, не сплошной текст.
-> - Новое — **добавлять** отдельным пунктом; не переписывать и не
->   реформатировать соседние строки (именно это плодит конфликты).
-> - `.gitattributes` помечает файл `merge=union` — git склеивает параллельные
->   добавления из разных веток автоматически, без конфликт-маркеров.
-> - **Не дублировать то, что уже есть в коде** (цены, сигнатуры, версии) —
->   указатель на файл-источник.
+> - Новое — **добавлять** отдельным пунктом; не переписывать/реформатировать соседние строки.
+> - `.gitattributes` помечает файл `merge=union` — git склеивает параллельные добавления сам.
+> - **Не дублировать то, что уже есть в коде** (цены, сигнатуры, версии) — указатель на файл.
 
-## Структура модулей (agenticHub) — новая раскладка Фазы 1
-- Крупная реорганизация из плоского дерева в `agenticHubClient/{apps,features,platform}` + `playground/`. Пакеты Kotlin **переименованы** под уникальный корень модуля: `shared.llm`→`agenticHub.features.llm`(+pricing), `shared.{agent,memory,invariant,context}`→`agenticHub.features.agent.*`, `shared.util`→`agenticHub.platform.logging`, `cliJvm.db`→`agenticHub.platform.database`, `cliJvm`(McpToolClient)→`agenticHub.platform.mcpclient`, `platform.filesystem`→`agenticHub.platform.filesystem`, `cliJvm.{memory,db}`+`SessionStats`(features:memory)→`agenticHub.features.memory{,.db}`, `cliJvm`(viewModel)→`agenticHub.features.viewmodel{,.command}`, `cliJvm`(cliJvmApp)→`agenticHub.cliJvm.*`. Split-пакетов между gradle-модулями больше нет. Карта модулей ниже описывает КОД по подпакетам; физическое размещение — здесь.
-- **`agenticHubClient/features/`** (доменное ядро): `llm` (было `shared/llm`+`pricing`, KMP), `agent` (было `shared/agent`+`invariant`+`memory`+`context`, KMP), `memory` (**KMP**, весь persistence-концерн: порты `HistoryStore`(+снимки `SummarySnapshot`/`FactsSnapshot`)/`MemoryStore` + фасад `MemoryProvider` + `SessionStats`/`seedFrom` + импл `RoomHistoryStore` (поверх `platform:database`) + импл `FileMemoryStore` (поверх `platform:fileSystem`); зависит на `platform:database`/`platform:fileSystem`/`features:agent`), `lifecycle/command`/`lifecycle/session`/`lifecycle/start` (JVM; см. ниже). **Модуль `viewModel` расформирован и удалён**, его содержимое разошлось: `ContextStrategy`/`TurnContext`/`ContextStrategyKind`+`StickyFacts`/`FactsExtractor`→`features:memory`; `McpToolRouter`→`features:llm`; `RoutedAgent`/`RoutedJudge`/`StageAgentSpec`/`StageJudgeSpec`→`features:agent`; command-домен+MVI+start — в lifecycle-модули.
-  - **`lifecycle/command`** (JVM): нейтральный словарь запуска/конфига `StartCommand`/`SessionConfig`/`ScheduleSpec`/`MemoryAction`; api-экспорт memory/agent/llm; общий для session и start.
-  - **`lifecycle/session`** (JVM; `-Xexplicit-backing-fields`): MVI-runtime — `SessionViewModel`/`TurnEngine`/`CommandRunner`/`SessionAssembly`(+startSchedulerLoops)/`SessionHydration`(contextStrategy()/memoryProvider())/`AgentBuilders`(buildRoutedAgents/buildJudges/generateSessionId)/`UiState`(+UiIntent/UiEffect/UiLine/mcpToolLines/AgentRef/Overlay/PickerKind/SessionCommand)/`TurnResult`(+SessionStatsSnapshot/StageAdvance)/`IntentSource`/`PromptSource`(+commandCatalog) + scheduler-glue `SchedulerControl`/`CliTaskHandler`/`ScheduleAction`; зависит на lifecycle:command+memory+agent+`:scheduling`.
-  - **`lifecycle/start`** (JVM): `StartExecutor` (диспетчер `StartCommand`: admin→`AdminOps`(list/clean/inflate/memory→`AdminNotice` stream-тег)→null, session→`SessionInitialState`) + `formatSessionLine` + public `MEMORY_ROOT`; зависит на lifecycle:command+`platform:database`+memory. llm-фабрики `buildLlmApi`/`buildModelProvider`(+`ModelProviderError`) живут в `features:llm` (файл `LlmFactories`).
-- **`agenticHubClient/platform/`**: `logging` (было `shared/util/Logging`, KMP expect/actual, `logWarn` теперь public), `config` (buildkonfig — API-ключи, `BuildKonfig`), `database` (**KMP** jvm/android/ios; Room-KMP: `AppDatabase`(+`@ConstructedBy`)/DAO/entities/миграции + общий `buildDatabase()` в commonMain, `expect fun databaseBuilder()` — actual JVM реальный (`user.home/.project01-cli/history.db`), android/ios = `TODO()`; per-target ksp; теперь чистый Room-лист — `RoomHistoryStore`/`SessionStatsSeeding` уехали в `features:memory`, зависимостей на features нет), `fileSystem` (**KMP** порт `LocalFileSystem` (путь-строковые exists/readText/writeText/delete/mkdirs/listFileNames) + `expect localFileSystem()`; actual JVM реальный (java.io), android/ios = `TODO()`; `FileMemoryStore` из memory ходит в файлы через него), `mcpClient` (JVM; `McpToolClient` — реализация `ToolExecutor` через MCP-сервер-подпроцесс: stdio + mcp-sdk + kotlinx-io + `Dispatchers.IO`; зависит на `features:llm`; вынесен из cliJvmApp вместе с `McpSchemaTest`).
-- **`agenticHubClient/apps/`**: `cliJvmApp` (тонкая CLI-обвязка + композиционный корень: `main`, `cliargs/` (парсинг-фронт + единый `ParseError`-словарь + `Usage`), `commandMappers/` (мапперы `ParsedArg`→`ParsedStartCommand`(Ok/Err ParseError)/`SessionCommand`), `ModelProviders.kt` (корень: `ApiKeys` + `ModelProviderFactory`-адаптер `ParsedArg`→`features:llm.buildModelProvider`, транслирует `ModelProviderError`→`ParseError` через bail), `plain/`, `tui/`, `PromptSources.kt` = JVM-реализации PromptSource, `SessionBuilders` (`buildHttpClient`+`buildMcpToolClients`/`buildToolRouter` — знают про конкретный `McpToolClient`), `SessionRunner` (`runSession`/`runSessionInternal` = рендерер-инъекция+pickView+feed, зовёт `buildSessionViewModel`), `SessionInitialStateExtensions` (`historyStore()` = Room+stderr-анонс), `StartExecutor` (диспетчер `StartCommand` + печать `AdminNotice` по stream-тегу); зависит на features/platform-модули), `androidApp`, `desktopApp` (зависят на `features:composeApp` + `platform:greeting`; `App(Greeting())` в composition-root), `iosApp` (Xcode-проект, не gradle-модуль; build-фаза `cd "$SRCROOT/../../.."` → корень → `./gradlew :agenticHubClient:features:composeApp:embedAndSignAppleFrameworkForXcode`; линкует фреймворк `ComposeApp` (`import ComposeApp` в ContentView.swift) — нужна проверка сборкой в Xcode).
-- **`playground/`**: `cliTui`, `openmeteo-mcp`, `localfs-mcp` (перенесены как есть из `mcps/`+корня).
-- `:shared` РАСПИЛЕН и удалён: Compose-демо `App` (+ ресурсы) → `agenticHubClient/features/composeApp` (пакет `…features.composeapp`, iOS-фреймворк `ComposeApp`, `App(greeting: Greeting)` — DI); `Greeting`/`GreetingUtil`/`Platform`(+actuals) → `agenticHubClient/platform/greeting` (пакет `…platform.greeting`). Осталось в КОРНЕ: `scheduling` (общий для lifecycle:session и playground, кандидат в agenticHubShared позже). `agenticHubServer`/`agenticHubShared` — отложены (без пустых заглушек).
-- **Обновлённые команды** (старые пути протухли): тесты ядра — `:agenticHubClient:features:llm:jvmTest` / `:features:agent:jvmTest`; runtime+app-тесты (вкл. golden) — `:agenticHubClient:apps:cliJvmApp:test`; бинарь — `:agenticHubClient:apps:cliJvmApp:installDist` → `./agenticHubClient/apps/cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp …`; MCP-серверы — `:playground:openmeteo-mcp:installDist` / `:playground:localfs-mcp:installDist`.
-- **Незакрытый follow-up:** проверка iOS-сборки в Xcode после распила `:shared` (iosApp теперь `import ComposeApp` + линкует фреймворк `ComposeApp` из `features:composeApp`; собрать без Xcode нельзя); release-линковка iOS-фреймворка Compose падает по памяти (OOM) на полном `./gradlew build` — env-ограничение, debug-фреймворк (его и использует iosApp) линкуется; KMP-изация lifecycle-модулей (session/start/command сейчас JVM); доделать android/ios actual-реализации: `platform:database` `databaseBuilder()` (Context/NSDocumentDirectory) и `platform:fileSystem` `localFileSystem()` (Context.filesDir / NSFileManager) — сейчас `TODO()`; `.run/androidApp.run.xml` держит старое имя модуля (`Project01.androidApp`) — AS переразрешит на sync.
+## Модули (деталь — в README каждого модуля)
 
-## Карта модулей
-**Портируемое доменное ядро** (commonMain, jvm/android/ios) — БЫЛО в плоском `shared`-модуле под `…project01.shared.*`; теперь разнесено по `agenticHubClient/features/*` + `platform/logging` под `agenticHub.*` (соответствие пакетов — в разделе agenticHub выше). Подпакеты-концерны ниже:
-- `llm/` — `LlmApi` (нейтральный интерфейс + `Message`/`Role`/`GenerationParams`/`Usage`/`LlmResult`), `ModelProvider` (sealed-дискриминатор провайдера).
-- `llm/gemini|openrouter|huggingface/` — по провайдеру: `*Api` (реализация `LlmApi`) + `*Dto` + `*Model` (typed каталог + `Custom`). `HttpClient` инжектится снаружи; ktor-движок (`Java`) — в cliJvmApp, не в shared.
-- `context/` — `HistoryCompressor` (rolling-summary алгоритм, чистый, без `HistoryStore`) + `evenDown` (`EvenDown.kt`).
-- `pricing/` — `ModelPricing`/`PricingRegistry`: цены/окна. **Single source of truth по ценам.**
-- `memory/` — `Profile.kt` (`ProfileSection` style/format/constraints/context + `ProfileData` + `parseProfileData`/`renderProfileData`/`parseProfileCommand`/`isValidProfileName`), `MemoryLayer` (`composePreamble`/`composeSystem`), `MemoryMode` (PREAMBLE/SYSTEM), `MemoryModels.kt` (`RuleEntry`/`TaskNotes`), `TaskState.kt` (`TaskStage` clarification→planning→execution→validation→done + `TaskStateMachine`: `allowedNext`/`canTransition`/`parseStageSignal`).
-- `agent/` — `AgentConfig` (`LlmApi` + `GenerationParams` + опц. `profileName`) + `AgentResponder.respond` (один ход без сессионного состояния: wire-list `memoryLayer+baseContext+userTurn` → `LlmApi`, парс stage-сигнала через `TaskStateMachine`) + `TurnOutcome`. Портируемое ядро, которое гоняет раннер.
-- `invariant/` — `InvariantChecker` (fun interface `check(reply, rules, constraints)`) + `LlmInvariantJudge` (дефолт-реализация: независимый LLM-вызов, чистый контекст, fail-open) + `InvariantJudgePrompt` (чистый prompt-builder + tolerant JSON-parser вердикта) + `InvariantVerdict`/`InvariantViolation`. Портируемое ядро judge-слоя (инварианты-как-код).
-- `util/Logging.kt` — `expect/actual logWarn` для retry-логов `*Api` (jvm/android → `System.err`, ios → `println`).
-- BuildKonfig (ключи API) — тоже в `shared`, см. «Версии и ключи».
+Обзор проекта — [README.md](README.md). Каждый gradle-модуль несёт свой README (роль, публичный API,
+зависимости, тесты). **Модуль-специфичные грабли живут в разделе «Грабли» README своего модуля** —
+здесь не дублируются.
 
-**`cliJvmApp` (пакет `ru.den.writes.code.agenticHub.cliJvm.*`, зависит от `:shared`)** — JVM-консольный клиент:
-- `main.kt` — тонкий bootstrap: keys → один `CliArgsParser()` → оба маппера (`CliArgsToStartCommandMapper` + `CliArgToSessionCommandMapper`) → `startMapper.parse(args)` → `StartExecutor(db).execute(command): StartCommand.SessionInitialState?` (admin исполняет→null; session-команду возвращает) → при non-null `main` поднимает сессию `runSession(client, db, state, sessionMapper)` (Room init + миграции v1→v4, `db.close()` вокруг execute+сессии). Логика «что делает CLI» — в `command/` + `StartExecutor` + `SessionRunner`.
-- Ошибки разбора — **единый `ParseError`** (`cliargs/ParsedArg.kt`): богатые парсер-варианты + generic `MissingRequired`/`Invalid`/`TooManyValues` + sealed-маркер `MissingArg`. Startup-маппер возвращает `ParsedStartCommand` (`Ok(StartCommand)`/`Err(ParseError)`); глубокие пост-парсинг-проверки bail'ят приватный `MapBail(ParseError.*)` (хелперы `bailMissing`/`bailInvalid`/`bailTooMany`), `parse()` ловит на границе. `main` рендерит `error.message` + `USAGE` на `is ParseError.MissingArg`. In-session-маппер на ошибке возвращает `null`. (`CliArgsException`/`ParseErrorMapping` удалены — лоссовый мост 11→3 снят.)
-- **`command/` — доменный слой + единый фронт парсинга**: sealed `StartCommand` (admin `ListSessions`/`CleanHistory`/`CleanSession`/`InflateSession`/`MemoryOp` + под-интерфейс `SessionInitialState`→`RunChat`/`RunOneShot`; session-поля `RunChat` вынесены в `SessionConfig` = `RunChat.config`) + `MemoryAction`. **Startup-фронт** `CliArgsToStartCommandMapper(parser, modelProviderFactory).parse(args)` (parseArgv → map → `StartCommand`; слил бывшие `CliArgsCommandParser`+`ControlsToCommand`). **In-session фронт** `CliArgToSessionCommandMapper(parser).parse(line)` (CMD-строка → `SessionCommand`). Ключи изолированы: `ModelProviders.kt` (корень `cliJvm`) держит `ApiKeys` + `ModelProviderFactory` (`buildProvider(agent)`, ЕДИНСТВЕННЫЙ держатель ключей; адаптер к `features:llm.buildModelProvider`); ParsedArg-хелперы (`subValue`/`last`/`has`) — в `cliargs/ParsedArg.kt` (файл `ParsedArgAccess.kt` слит сюда). `cliargs/Usage` (`USAGE`); ошибки разбора — единый `ParseError` (маппер отдаёт `ParsedStartCommand.Ok/Err`, см. отдельный пункт). Сами мапперы — в пакете `commandMappers/`. `StartExecutor.kt` (пакет `cliJvm`) исполняет admin (list/clean/inflate/memory→null) и возвращает `SessionInitialState`; подъём чата/oneshot (HttpClient + сборка графа + MVI-стек) — в `SessionRunner.kt` (`runSession` prep → `runSessionInternal` loop), геттеры-аксессоры в `SessionInitialStateExtensions.kt`, билдеры в `SessionBuilders.kt`.
-- **MVI-стек диалога**: `SessionViewModel.kt` держит цикл — `state: StateFlow<UiState>` (единственный писатель), `run(IntentSource)`, гидрация/resume, оркестрация ходов, feed→repl, summary; `TurnEngine.kt` — чистый движок хода (`turn(): TurnResult`, persist + FSM-переход, без I/O; делегирует в `shared.agent.AgentResponder`); `CommandRunner.kt` — `/`-команды → строки-нотисы; `IntentSource.kt` (`PromptSourceIntents` над stdin/feed + `ChannelIntentSource` для TUI; троттл feed живёт здесь); `UiState.kt` (`UiState`/`UiIntent`/`UiEffect`/`AgentRef` + `UiLine` — расщеплён на User/Assistant/Turn/Judge/Stage/Error/Notice, каждый несёт свои данные рендера).
-- **Виды — два параллельных sealed-интерфейса**, по data-class-варианту на `UiLine`, каждый рендерит себя (форматирование инлайн, без общих хелперов): `plain/` — `PlainView` + `{User,Assistant,Turn,Judge,Stage,Error,Notice}PlainView` с чистыми `stdout()`/`stderr()`, драйвер `PlainRenderer` (байт-в-байт reply+footer→stdout; `[session]`/`[task]`/`[warning]`/`[error]`/`[branch]`/`[memory]`→stderr); `tui/` — `TuiView` (default-метод `wrapWords`) + те же варианты + `SessionPanelTuiView`, драйвер `TuiRenderer` (Kotter+Mordant, лента через `aside`, живая `section` = busy + панель + ввод, `toIntent`). Драйвер маппит `UiLine`→вид (`toPlainView`/`toTuiView`) и зовёт `render`. `/`-команды stdin-REPL и TUI классифицирует `CliArgToSessionCommandMapper` (`commandMappers/`, единый каталог cliargs), инжектится через конструктор в `StdinPromptSource(reader, mapper)` и `TuiRenderer(mapper)` (в TUI — `toIntent(text, mapper)`); глобала `parseSlashCommand` больше нет.
-- `ContextStrategy.kt` (full/window/summary, завязан на `HistoryStore`) + `StickyFacts.kt` (`FactsExtractor` + sticky-facts стратегия). `Summary` оборачивает shared-`HistoryCompressor`.
-- **Планировщик (поверх `:scheduling`)**: `-schedule collect tool <name> [args …] | agent prompt "<text>" (after|every) <sec>` (повторяемый control в cliargs, оба фронта; collect требует `-mcpServer`) → `RunChat.config.schedules: List<ScheduleSpec>`; `/schedule …` → `SessionCommand.Schedule`. `SessionRunner.runSessionInternal` строит `SchedulerEngine` (`InMemoryScheduleStore`, на сессию) + `CliTaskHandler` (`collect`→`toolExecutor.execute` без LLM; `agent`→`vm.submitFromScheduler`) + `SchedulerControl` (REPL-add), гоняет `runLoop`+reporter на `Dispatchers.IO`; reporter раз в 30s шлёт `engine.summary()` feed-строкой (`UiLine.Notice`). `SchedulerControl.kt` несёт `scheduleOf`/`label`/`toAction`.
-- `SessionStats.kt` (счётчики сессии, завязан на Room `MessageEntity`), `PromptSource.kt` (stdin/файловый ввод).
-- `db/` — Room: `AppDatabase` (version=4), `MessageDao`, `HistoryStore`, entity'и (messages/summaries/facts).
-- `memory/` — `MemoryStore` (markdown-файлы под `~/.project01-cli/memory/`: `profile.md`, `profiles/<name>.md`, `rules/NNN-*.md`, `tasks/<id>.md`), `MemoryProvider` (фасад: режим + taskId + activeProfileName).
+- **features**: [llm](agenticHubClient/features/llm/README.md) ·
+  [agent](agenticHubClient/features/agent/README.md) ·
+  [memory](agenticHubClient/features/memory/README.md) ·
+  [composeApp](agenticHubClient/features/composeApp/README.md) · lifecycle
+  [command](agenticHubClient/features/lifecycle/command/README.md)/[session](agenticHubClient/features/lifecycle/session/README.md)/[start](agenticHubClient/features/lifecycle/start/README.md)
+- **platform**: [logging](agenticHubClient/platform/logging/README.md) ·
+  [config](agenticHubClient/platform/config/README.md) ·
+  [database](agenticHubClient/platform/database/README.md) ·
+  [fileSystem](agenticHubClient/platform/fileSystem/README.md) ·
+  [greeting](agenticHubClient/platform/greeting/README.md) ·
+  [mcpClient](agenticHubClient/platform/mcpClient/README.md)
+- **apps**: [cliJvmApp](agenticHubClient/apps/cliJvmApp/README.md) ·
+  [androidApp](agenticHubClient/apps/androidApp/README.md) ·
+  [desktopApp](agenticHubClient/apps/desktopApp/README.md) · iosApp (Xcode-проект)
+- **playground**: [cliTui](playground/cliTui/README.md) ·
+  [openmeteo-mcp](playground/openmeteo-mcp/README.md) · [localfs-mcp](playground/localfs-mcp/README.md)
+- **[scheduling](scheduling/README.md)** — ядро планировщика.
 
-**`mcps/` — каталог standalone MCP-серверов** (Kotlin MCP SDK `io.modelcontextprotocol:kotlin-sdk`, без `:shared`). Каждый сервер — отдельный gradle-модуль, спавнится клиентом как подпроцесс по stdio; `main()` — serve-only (без флагов/режимов, аргументы игнорятся). Клиент-пробы (учебный режим «спавни любой сервер и распечатай tools») больше нет — снесена.
-**`mcps/openmeteo-mcp` (`:mcps:openmeteo-mcp`, пакет `ru.den.writes.code.agenticHub.mcps.openmeteo`)** — погодный сервер: инструмент `current_weather(city)` поверх Open-Meteo (`OpenMeteoClient.kt`, геокодинг+прогноз, без ключа) + планировщик (поверх `:scheduling`): tools `schedule_task`/`list_tasks`/`cancel_task`/`report` (`SchedulingTools.kt`: чистые `scheduleFromArgs`/`renderTask`/`renderTasks` + фабрика `buildWeatherScheduler`; `WeatherTaskHandler` = погода по `task.label`). `runLoop`+периодическая авто-сводка на `Dispatchers.IO` в `runWeatherServer`, отмена на `session.onClose`; `JsonFileScheduleStore` → `~/.project01-mcplab/schedule.json` (переживает рестарт). `report` = `engine.summary()` БЕЗ вызова LLM. Дока — `mcps/openmeteo-mcp/README.md`.
-**`mcps/localfs-mcp` (`:mcps:localfs-mcp`, пакет `ru.den.writes.code.agenticHub.mcps.localfs`)** — локальная ФС: tools `append_to_document(text)` (накопить строку в буфер) + `save_document(filename?)` (записать в `~/.project01-localfs/documents/<имя>`, дефолт `document.md`). `DocumentStore` — in-memory аккумулятор под `Mutex` (на сессию), чистые `renderDocument` (склейка строк через `\n`)/`documentFileFor` (срезает путь → no traversal)/`saveDocument` (`Document.kt`). Generic (не погодный): обобщён из прежнего report-пайплайна. Только `mcp-sdk`+`serialization-json`+`coroutines` (ktor НЕ нужен — stdio без движка). task/judge тут НЕ нужны.
-- **Кросс-серверный флоу (День 20):** LLM сам строит цепочку через ДВА сервера — `current_weather` [openmeteo-mcp] → `append_to_document` [localfs-mcp] → `save_document` [localfs-mcp] — через tool-loop `AgentResponder` + клиентский `McpToolRouter` (передача данных МЕЖДУ серверами: погода-строка → аргумент `text`).
+## Команды (offline; сеть/токены/TTY — спрашивать перед запуском)
 
-**`scheduling` (пакет `ru.den.writes.code.agenticHub.scheduling`, JVM-only, без `:shared`)** — переиспользуемое ядро планировщика: `Schedule` (After/Every + `nextRunAt`/`isDue`/`advance`), `ScheduledTask`/`TaskResult`/`TaskStatus`, `TaskHandler` (`suspend handle→String?`: non-null хранится как результат, null = асинхронный/мимо движка), `ScheduleStore` (`InMemoryScheduleStore` + `JsonFileScheduleStore` атомарная запись temp→rename, битый/отсутствующий файл = пусто), `SchedulerEngine` (`add`/`cancel`/`list`/`tick`/`runLoop`/`summary` под `Mutex`; clock инжектится `now: ()->Long`; НЕ создаёт scope/Dispatcher — `runLoop(tickMs)` крутит интегратор), `summarize(results)`. **Один `TaskHandler` на движок** — задачи различаются по `label`/`id` (convention). Гонять `./gradlew :scheduling:test`.
-
-## Тесты (offline, без сети)
-- `shared/src/commonTest/…shared/` — тесты переехавшего ядра: `*ApiTest` (gemini/openrouter/huggingface), `HistoryCompressorTest`, `PricingRegistryTest`, `ProfileTest`, `MemoryLayerTest` + `FakeLlmApi`. Гонять `./gradlew :shared:jvmTest`.
-- `cliJvmApp/src/test/…cliJvm/` — `TestDb` + своя копия `FakeLlmApi` + `*Test` для остающегося кода (db/`HistoryStore`/`MemoryStore`/`SessionStats`/`ContextStrategy`/`FactsExtractor`/…; парсинг — `cliargs/*Test` (grammar/crossvalidation) + `commandMappers/CliArgsToStartCommandMapper*Test` (оба маппера: startup + in-session)). MVI-стек гоняют через хелпер `runSessionForTest` (`agent/AgentTestSupport.kt`) = `TurnEngine`+`SessionViewModel`+`PlainRenderer`; байт-в-байт вывод пинит `agent/PlainViewGoldenTest`, формат per-line — `plain/*PlainViewTest`.
-
-## Команды и verification loop
-- **`./gradlew :cliJvmApp:test`** (cliJvmApp) + **`:shared:jvmTest`** (ядро) — быстрые offline-тесты.
-  **Гонять после каждой правки**: `SessionViewModel`/`TurnEngine`/`PlainView`/`cliargs`/`command`/`HistoryStore`/`MemoryStore`/`ContextStrategy` → `:cliJvmApp:test`;
-  `*Api`/`HistoryCompressor`/`PricingRegistry`/`Profile`/`MemoryLayer` → `:shared:jvmTest`.
-- `./gradlew :cliJvmApp:installDist` → `./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp …`.
-  **ОБЯЗАТЕЛЬНО пересобирать после правки CLI-флагов** — иначе старый бинарь не знает новых
-  флагов (симптом: новый флаг «прилипает» к значению предыдущего).
-- TUI-прогон: `… -prompt "…" -tui -session NAME` в **настоящем терминале** (Kotter raw-ввод не поднимается из IDE/`gradlew run`; жжёт токены — спрашивать перед запуском).
+- Быстрые тесты: `./gradlew :agenticHubClient:apps:cliJvmApp:test` (runtime + golden) +
+  `:agenticHubClient:features:llm:jvmTest :agenticHubClient:features:agent:jvmTest :agenticHubClient:features:memory:jvmTest` (ядро).
+- Бинарь: `:agenticHubClient:apps:cliJvmApp:installDist` →
+  `./agenticHubClient/apps/cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp …`.
+  **ОБЯЗАТЕЛЬНО пересобирать после правки CLI-флагов** (иначе новый флаг «прилипает» к предыдущему).
+- Полный build (обход pre-existing iOS-грабель — см. follow-up): `./gradlew build
+  -x compileTestKotlinIosArm64 -x compileTestKotlinIosSimulatorArm64
+  -x linkReleaseFrameworkIosArm64 -x linkReleaseFrameworkIosSimulatorArm64`.
 - Инспекция БД: `sqlite3 ~/.project01-cli/history.db ".schema"`.
-- Real-network smoke жжёт токены — **спрашивать пользователя перед запуском**.
-- MCP single-server demo: `:mcps:openmeteo-mcp:installDist` + `:cliJvmApp:installDist`, затем `cliJvmApp -prompt "Погода в Москве?" -mcpServer "$(pwd)/mcps/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp"`. Дёргает Gemini — спрашивать перед прогоном.
-- MCP кросс-серверный demo (День 20): собрать `:mcps:openmeteo-mcp:installDist` + `:mcps:localfs-mcp:installDist` + `:cliJvmApp:installDist`, затем два флага `-mcpServer "<openmeteo-mcp>" -mcpServer "<localfs-mcp>"` + промпт «узнай погоду → добавь в документ → сохрани в файл». Файл → `~/.project01-localfs/documents/<имя>`. Жжёт токены — спрашивать.
-- `:mcps:openmeteo-mcp:test` + `:mcps:localfs-mcp:test` — offline-тесты серверов (формат погоды, scheduling, document render/path); живой MCP сервер — прогоном бинаря (self-boot печатает ready-строку с каталогом в stderr).
-- **TUI из Bash проверяемо через pty** — `python pty.fork` поднимает псевдотерминал (`System.console()≠null` → TUI активен под Bash): снять вывод N секунд, kill. Контроль: обычный ход без `-mcpServer` под тем же стендом завершается.
+- MCP-демо / TUI-прогон / real-network smoke — жгут токены или нужен настоящий TTY: **спрашивать**
+  (детали — [cliJvmApp README](agenticHubClient/apps/cliJvmApp/README.md)).
 
-## Грабли (не повторять)
-- **Ktor engine — `Java`, не CIO** (CIO рвёт длинные thinking-ответы Gemini).
-- Gemini **stateless** — историю шлём целиком каждый ход (растёт линейно).
-- **Thinking-токены биллятся как output** — основная статья расхода у сильных моделей.
-- **Gemini `Content.parts` — required → краш на пустом кандидате** (БАГ, чинить): при MAX_TOKENS-обрыве (особенно thinking-модель + малый `-maxTokens`, напр. `gemini-2.5-flash -maxTokens 20`) Gemini шлёт `candidates[0].content` без `parts` → `MissingFieldException` (`shared/…/gemini/GeminiDto.kt:50` `Content(val parts: List<Part>)`), валит весь ход. Фикс: `parts: List<Part> = emptyList()` + `GeminiApi.send` мягко обрабатывает пустой контент (пустой текст/«обрезано», не падать).
-- **Stage-маркер `[[stage:...]]` не вырезается из ответа** (БАГ, чинить): `AgentResponder.respond` (`:shared`) парсит сигнал (`parseStageSignal`), но возвращает сырой `result.text` — маркер протекает и в показанный ответ, и в persist истории. Gemini stateless → история с маркером ре-шлётся каждый ход → модель видит свой же маркер и плодит новые (особенно если в правилах есть живой пример `[[stage:...]]` — он тоже инжектится в промпт). Невалидный keyword (`clarifying_requirements`) FSM игнорит (`byKeyword`→null, перехода нет) — это ок, но маркер всё равно виден из-за этого же. Фикс: срезать распознанный `[[stage:...]]` из reply перед persist/показом (в `TurnEngine`/`AgentResponder`).
-- Имена Gemini: `gemini-3-flash-preview` = 3.1 Flash (без `.1`); `gemini-3.5-pro` и `-3.5-flash-lite` не существуют.
-- **OpenRouter free-roster протухает быстро** — `:free` id мрут (404). Сверять с
-  `https://openrouter.ai/api/v1/models` (`jq`, ключ не нужен). Каталог — `OpenRouterModel.kt`,
-  цены — `ModelPricing.kt`. Дефолт `openrouter/auto` — роутер, НЕ `:free` → может быть платным.
-- **HF Router маршрутизирует между провайдерами** (Cerebras/Together/Fireworks/…), реальный
-  тариф per-provider — цены в `ModelPricing.kt` для HF-моделей это *приближения*. Free tier
-  HF — $0.10/мес кредитов поверх. 503 при cold start серверлес-модели → одна retry с
-  `Retry-After` (`HuggingFaceApi`). Живой каталог: `https://router.huggingface.co/v1/models`.
-- zsh-глоббинг (`?` `*` `[` `!`) в `-prompt` ломается без кавычек — оборачивать.
+## Кросс-каттинг
+
 - **Не печатать секреты** (значения ключей из `local.properties`/`BuildKonfig`) в транскрипт.
-- `readlnOrNull()` глобально кэширует `System.in` — ввод идёт через инжектируемый `PromptSource` (stdin/feed), а VM — через `IntentSource`-адаптер над ним.
-- flash-lite TPM 4M — главный боттлнек нагрузочных прогонов (упираешься в rate-limit раньше, чем в переполнение контекста).
-- **`Role.SYSTEM` НЕ персистится в `HistoryStore`** — memory-слой инжектится только в wire-list `TurnEngine.turn()` поверх `baseContext`. В `messages`-таблице всегда лежат только `USER`/`ASSISTANT`. Каждый провайдер сам собирает все `Role.SYSTEM` входа в нативный system-блок (Gemini → `SystemInstruction`, OpenAI-shape → один `role="system"` в начале списка); `endSequence` приклеивается к этому же блоку.
-- **Единый каталог cliargs питает оба фронта** (`-flag` startup и `/cmd` in-session) через `CliArgs.all`. Удаление везде единым `clear`: `<entity> clear <name>` = один, bare = все (rule/task/profile/session). **Verb-then-name строго**: `<entity> <name> show|clear` — НЕ команда. Многословные значения — в кавычках.
-- **Режим памяти — `-agent <name> mode <none|system|preamble>`** (agent-саб, не top-level флаг): без него (или `none`) memory-провайдер не создаётся и wire-list байт-в-байт как без памяти. In-session флип — `/agent mode <preamble|system>` (`none`/off-state live пока не поддержан). Legacy `-memory-mode` удалён.
-- **Структурированный профиль** — `-profile <section> "<text>"` / `/profile <section> "<text>"` (section ∈ style|format|constraints|context) добавляет bullet; `-profile <section>` / `/profile <section>` без текста — чистит секцию. Free-text путь (`profile <multiword>`→blob в `profile.md`) **дропнут** (структурированные секции его замещают); `ProfileData.freeText` ещё парсится/рендерится из руками-правленого файла, но командой не создаётся.
-- **Именованные профили** — `profiles/<name>.md` рядом с unnamed `profile.md`. Старт-актив — саб `-agent <name> profile <prof>`. CLI-админ: `-profile <name>` touch-создаёт; `-profile <name> <section> "<text>"` / `-profile <name> <section>` (clear секции) / `-profile clear <name>` (удалить) редактируют именованный; `-profile` (bare) — список, `-profile show <name>` — просмотр. REPL: `/profile <name>` переключает активный (select=activate), `/profile` (список), `/profile show <name>`, `/profile <name> <section> "<text>"` / `/profile clear <name>`. Активный профиль выбирается **поверх** unnamed (fallback на `profile.md` если активного нет) — пользователи с unnamed профилем не сломаны.
-- **Task state machine** — `TaskNotes.stage: TaskStage?` — автомат `clarification→planning→execution→validation→done` (`shared.memory.TaskState`: `TaskStateMachine.allowedNext`/`canTransition`, forward + один шаг назад, `done` терминальна). Переход **авто**: модель ставит в ответе маркер `[[stage:<next>]]`, `AgentResponder` (shared) парсит (`parseStageSignal`), а `TurnEngine.turn` валидирует по таблице и применяет (исход → `StageAdvance`, который рендерит `PlainView`/`TuiView`) — нелегальный/отсутствующий игнорится (+`[task]`-строка в stderr). Пауза — ортогональный флаг `TaskNotes.paused` (REPL `/task pause`/`/task resume`, CLI `-task <id> pause|resume`); на паузе авто-переход подавлён. Новая задача (`/task <id>`, `-task <id>`) стартует на `clarification`. FSM-грани рендерятся в блок `[Current Task]` (`Stage`/`Status`/`Expected action`/`Allowed next` + протокол маркера) — `Allowed next`+протокол только когда не на паузе и не терминал.
-- **Per-stage агенты** — повторяемый `-agent <name> provider <p> model <m> profile <prof> stages <from..to>` (саб `stages`, требует agent `mode`): на разные стадии FSM-задачи свои модель+профиль; ход уходит агенту, чей диапазон покрывает текущую стадию (иначе fallback — primary-агент: `-agent` без stages/judge). Профиль — саб `profile <prof>`, создаётся заранее (`-profile <prof> <section> "<text>"`). Judge — `-agent <name> … judge stages <from..to>` (без profile). `StageAgentSpec`/`RoutedAgent`, маршрут — `TurnEngine.agentFor(stage)`. В мульти-агентном режиме (`routedAgents` непуст) `PlainView`/`TuiView` печатает перед ответом тег `[[AGENT: <profile>:<model>]]` (stdout/лента, не персистится; `default` если профиль не задан); в одно-агентном — нет (паритет вывода).
-- **`-tui` — opt-in TUI, gated на TTY** (`RunChat.config.tui`, дефолт false, reject с `-oneshot`). Вид выбирает чистая `pickView(chat.config.tui, System.console() != null)` в `SessionRunner`: TUI только при флаге **и** настоящем TTY; feed/oneshot/non-TTY (пайп, IDE, CI) → всегда `PlainView`. Живой TUI требует настоящий терминал (из IDE/`gradlew run` raw-ввод не поднимается).
-- **Kotter+Mordant склейка** — Mordant рендерит панель в строку с `AnsiLevel.NONE` (чистый box-drawing, без своих escape), цвет накладывает Kotter снаружи; Kotter — единственный владелец экрана. Авторитет ширины — `MainRenderScope.width` (Mordant `Terminal().size` врёт в raw). Лента — через Kotter `aside` (печатается раз, не мерцает); живая `section` держит только нижний блок (busy + stats-панель + ввод).
-- **TUI input — два коллектора**: `onKeyPressed`/`onInputEntered` срабатывают конкурентно на одну клавишу; единственный писатель состояния (VM, через `ChannelIntentSource.offer`) делает это безопасным. Enter — только через `onInputEntered`.
-- **TUI рендерит ленту колонками** (`you`/`assistant`/`turn N │ …`): user-ввод эхо-ится отдельной `UiLine.User` — в raw-режиме терминал ввод сам НЕ эхо-ит, а `PlainView` эту строку **пропускает** (там терминал уже показал набранное; повтор был бы дублем → golden остаётся байт-в-байт). `wrapWords` уважает `\n` в ответе (markdown-списки) и переносит по словам под фикс-ширину (cap 120); продолжения повторяют `│` под префиксом.
-- **Рендер расщеплён по строкам и видам** — `SessionViewModel` раскладывает `TurnResult.Ok` на семантические `UiLine` (Assistant/Turn/Judge/Stage); `TuiView`/`PlainView` — sealed-интерфейсы, вид-на-вариант, форматируют сами (общий `Footer` удалён — дублирование Tui↔Plain намеренное). Драйверы `TuiRenderer`/`PlainRenderer` тонкие (маппинг строка→вид). `wrapWords` — default-метод `TuiView` (юнит-тест через инстанс варианта). Stage-строка (`[task]`) теперь рисуется и в TUI-ленте (раньше опускалась).
-- **Троттл feed (16 s)** живёт на `PromptSourceIntents` (feed-источник интентов), не в `TurnEngine`; stdin/TUI → 0.
-- **Per-stage judge (инварианты)** — `-agent <name> provider <p> model <m> judge stages <from..to>` (повторяемый `-agent` с сабом `judge`, БЕЗ profile-саба — судье персона не нужна; требует ≥1 stage-агента): независимый кодовый enforcement rules-инвариантов поверх их инжекта в промпт. После ответа judge, чей диапазон покрывает текущую стадию задачи, отдельным LLM-вызовом (чистый контекст, без истории) судит ответ против `rules` + `constraints` профиля ОТВЕТИВШЕГО агента и ловит конфликт constraints↔rules (тоже как нарушение). При нарушении: ответ показывается, но ход НЕ сохраняется в историю и стадия держится (`TurnEngine` передаёт null в FSM); вердикт едет снимком в `TurnResult`, баннер `[invariant] …` рендерят виды (`PlainView` → stderr, `TuiView` → красным в ленте). Чистый вердикт / стадия вне покрытия judge / judge выключен → паритет. `StageJudgeSpec`/`RoutedJudge`, маршрут — `TurnEngine.judgeFor(stage)`+`maybeJudge`. Fail-open: ошибка judge-вызова → CLEAN (не блокирует ход). Параметры judge фиксированы (temperature 0, малый maxTokens), не наследуют пользовательские knobs.
-  - **LLM-judge на thinking-модели режет вердикт** — у Gemini thinking-токены берутся из того же `maxTokens`; при нахождении нарушения судья думает больше → JSON-вердикт обрывается на полуслове → не парсится → fail-open молча пропускает (нарушения теряются ровно тогда, когда они есть). Лечится: judge гоняется с `thinkingBudget=0` (knob `GenerationParams.thinkingBudget`, Gemini-only → `generationConfig.thinkingConfig`; другие провайдеры игнорят) + `JUDGE_MAX_TOKENS=1024` — весь бюджет уходит в JSON. Судье thinking не нужен (структурная проверка) и вреден. Диагностика: `LlmInvariantJudge` логирует raw-вердикт в stderr + warn `verdict was not JSON → fail-open` (вскрывает маскировку).
-- **MCP function-calling (боевой агент)** — `-mcpServer "<команда>"` (Chat-only) поднимает MCP-сервер подпроцессом (`cliJvmApp/McpToolClient.kt`, реализует `shared.llm.ToolExecutor`): на старте `listTools`→`ToolDefinition` (схема инструмента → JSON-Schema в `Tool.toToolDefinition`/`ToolSchema.toJsonSchema`), уезжает в `GenerationParams.tools` + executor в `AgentConfig.toolExecutor`. Нейтральные tool-типы — `shared/llm/Tool.kt` (`ToolDefinition`/`ToolCall`/`fun interface ToolExecutor`). Луп в `shared.agent.AgentResponder.respond` (≤`MAX_TOOL_ROUNDS`=6, запас на 3-инструментную цепочку): ответ с `toolCalls` → `executor.execute` → дописать в wire `Message(ASSISTANT,"",toolCalls=…)` + `Message(USER, out, toolResultFor=name)` → послать снова → финальный текст. `GeminiApi`: `params.tools`→`functionDeclarations`; ответ→`extractToolCalls`; спец-ходы→`functionCall`/`functionResponse` (`toContentOrNull`, `response={result:…}`). Tool-обмен эфемерный — в историю только USER+финальный ASSISTANT (как `Role.SYSTEM`). FC только Gemini. Без флага wire байт-в-байт прежний (golden цел).
-- **MCP-клиент на `Dispatchers.IO`** (`McpToolClient` connect/listTools/callTool) — фоновый ридер stdio-транспорта иначе на главной корутине, которую Kotter (TUI) блокирует циклом отрисовки → `callTool` не получает ответ → ход виснет на «… thinking», `/exit` не доходит (цикл интентов застрял в зависшем ходе). На IO ридер на своём потоке. plain работал и без этого (главный поток не блокирован).
-- **Мультисервер MCP — `-mcpServer` ПОВТОРЯЕМЫЙ** (`RunChat.config.mcpServers: List<String>`; `top`-control повторяется как `-schedule`, грамматику менять не надо — `CliArgsToStartCommandMapper` берёт `controls.filter { it.arg == MCP_SERVER }`). На каждый сервер свой `McpToolClient`; поверх — `cliJvmApp/McpToolRouter.kt` (`: ToolExecutor`, generic над `ToolExecutor` → тестируется фейками): `List<Route>` (executor + его `toolDefs`), отдаёт объединённый `toolDefs` и роутит `execute(call)` по `name`→executor. **Коллизия имён инструментов между серверами — fail-fast `require` на старте** (модель не должна видеть неоднозначный каталог). `SessionRunner.runSession` поднимает всех (`buildMcpToolClients`/`buildToolRouter`), печатает per-server `[mcp] <cmd> → tools: …`, закрывает всех в `finally`. Один сервер / пустой список — поведение прежнее (golden цел).
-- **plain-рендер: коллектор ленты на `Dispatchers.Unconfined`** (`PlainRenderer`) — фоновый коллектор иначе обгонял синхронную печать `>`/баннера из `StdinPromptSource`, и вывод хода печатался ПОСЛЕ промпта (гонка межпоточная, `yield()` не лечит). Unconfined → `flush` синхронно внутри `state.update` на потоке VM, до промпта. `TuiRenderer` не задет.
-- **MCP server (`mcps/openmeteo-mcp/…/WeatherServer.kt`, `mcps/localfs-mcp/…/FileSystemServer.kt`)** — `Server.createSession(transport)` + `session.onClose{ done.complete() }` + `done.join()` держит сервер живым до отключения клиента; `addTool`-handler это extension-лямбда `ClientConnection.(CallToolRequest)` — ОДИН параметр + receiver, не два; 2-арг `StdioServerTransport(in,out)` deprecated → форма с trailing-лямбдой. stderr сервера — диагностика (`redirectError(INHERIT)` в `McpToolClient`), stdout — JSON-RPC.
-- **`*Api` не печатают `>>>>`-debug в stdout** (убрано из Gemini/OpenRouter/HuggingFace) — прямой `println` из shared рушил Kotter в TUI (владелец stdout) и порядок в plain. Tool-обмен хода рендерится через `UiLine.MCPLine`: `executedToolCalls` едет `TurnOutcome`→`TurnResult.Ok`→`SessionViewModel.toLines()`; `McpTuiView` (колонка `mcp │`) / `McpPlainView` (строки `[tool]/→/model/prompt`), текст — `mcpToolLines` в `UiState.kt`. Без инструментов не эмитится → golden цел.
-- **Scheduler-инъекция в MVI (`MergedIntentSource`)** — фоновый планировщик инжектит ходы (`UiIntent.Submit`) и feed-строки (`UiIntent.Feed`→`appendNotice`) в сериализованный `SessionViewModel.drive` через опц. `schedulerInbox`-канал (создаётся только при `schedulerEnabled`). `drive` НЕ меняется: при `inbox==null` идёт старым путём `source.next()` (golden байт-в-байт), иначе источник подменяется на `MergedIntentSource(primary, inbox, scope)` — pull-`next()` нельзя вложить в `select`, поэтому primary пампится через `produce` (RENDEZVOUS), `select { pumped; inbox }` с primary-первым (user > фон). Цикл vm↔scheduler рвётся `CliTaskHandler.submitTurn`-property (set после vm).
-- **cliargs `excludes` — глобальный** (через `crossValidate` по всем present-arg всех групп) — для ПОВТОРЯЕМОГО control (`-schedule` с after/every) он ложно конфликтует МЕЖДУ задачами (один `every`, другой `after` → ложный Conflicts). «Ровно один из X/Y» в повторяемом проверять В МАППИНГЕ по задаче (`CliArgsToStartCommandMapper.scheduleSpec`), не через `excludes`. Персист планировщика: cliJvmApp `InMemoryScheduleStore` (на сессию), openmeteo-mcp `JsonFileScheduleStore` (переживает рестарт).
-- **`MergedIntentSource` pump ОБЯЗАН break на `Exit`** (грабля поверх инъекции, всплыла только в живом TUI) — push-источник (`ChannelIntentSource`) отдаёт `UiIntent.Exit` (не null), поэтому pump после передачи Exit делал следующий `primary.next()` и висел на `receive`, держа `coroutineScope` `viewModel.run` открытым → `run()` не возвращался → `/exit` в TUI не выходил. Pump break-ает сразу после `send(Exit)`. В plain не воспроизводилось (`/exit`→`Stop`→null→`break`). Тест: Exit через `ChannelIntentSource` при `schedulerEnabled` завершает `run` (иначе `runTest` повис бы на timeout).
-- **TUI session-панель — ФИКСИРОВАННАЯ ширина (`expand=true`)** — Mordant `Panel` без `expand` рендерится auto-width по контенту; с ростом чисел (`total`/`cost`) рамка расширялась, и при смене ширины живой `section` Kotter не затирал старую верхнюю границу → она уезжала в скроллбэк (пустые `╭─ session ─╮`). Рендерить в `Terminal(width=width)` + `Panel(content, expand = true)` → ширина стабильна, перерисовка на месте. Чистый `SessionPanelTuiView.panelLines(width)` + тест (ширина одинакова для крошечного/огромного snapshot).
-- **Scheduler reporter постит сводку только при ИЗМЕНЕНИИ** (`SessionRunner.startSchedulerLoops`) — baseline = текущая (пустая) `engine.summary()`, дальше постит лишь когда строка сменилась: `agent`-only расписание (результатов нет) молчит совсем, `collect` показывает прогресс, после отмены затихает. Иначе пустая «No results yet.» лезла feed-строкой каждые 30s. Остановка расписания in-session: `/schedule` (список активных), `/schedule clear <id>` (одну), `/schedule clear` (все, стоп) — по образцу branch/task (`clear [<id>]`, bare=list); `SchedulerControl.listActive/cancel/cancelAll`, на startup `-schedule` без kind игнорится (add-only).
+
+## Незакрытый follow-up (кросс-модульный)
+
+- iOS: проверка сборки в Xcode (iosApp `import ComposeApp` + фреймворк `ComposeApp`); release-линковка
+  iOS-фреймворка Compose падает по памяти на полном `./gradlew build` (env-OOM; обход — флаги `-x` выше;
+  детали — composeApp README).
+- **iOS commonTest `features:agent` не компилится** на backtick-именах тестов с `()`/`,` (ограничение
+  Kotlin/Native) — pre-existing; обход теми же `-x compileTestKotlinIos*`.
+- KMP-изация lifecycle-модулей (сейчас JVM); android/ios actual-реализации `TODO()` в
+  `platform:database`/`platform:fileSystem` (см. их README).
+- `.run/androidApp.run.xml` держит старое имя модуля (`Project01.androidApp`) — AS переразрешит на sync.
 
 ## Стиль работы пользователя
-- По-русски. **Делать только то, что попросили** — без попутных «улучшений»
-  (особенно BuildKonfig в `:shared`, который он настроил сам).
-- **НИКОГДА не ссылаться на «день N», «Day-N», «pre-Day-N», «учебный» и название
-  челленджа** в коде, комментариях, docstring'ах, именах тестов, README, CLAUDE.md
-  и любых других файлах проекта. Описывать фичу через её роль (`structured
-  profile`, `named profiles`, `sliding window strategy`), а не через этап, на
-  котором она добавлена. При правке кода — попутно убирать такие метки, если
-  они встречаются рядом.
+- По-русски. **Делать только то, что попросили** — без попутных «улучшений» (особенно BuildKonfig в
+  `platform:config`, который он настроил сам).
+- **НИКОГДА не ссылаться на «день N», «Day-N», «учебный» и название челленджа** в коде, комментариях,
+  docstring'ах, именах тестов, README, CLAUDE.md. Описывать фичу через её роль (`structured profile`,
+  `sliding window strategy`), а не через этап. При правке — попутно убирать такие метки рядом.
 - Любит sealed interfaces, DI через конструктор, чистые тестируемые функции, точные комментарии/доки.
 - Не любит speculative refactors / premature abstractions; за хорошо мотивированный рефакторинг — да.
 - Plan-mode для крупных задач: план → разногласия → правки → одобрение → реализация. Диффы читает внимательно.
-- **План — по атомарным коммитам**: каждый коммит независимо собирается и проходит тесты (green-to-green), тесты в том же коммите, что и код; порядок аддитивное → переключение → удаление. Методичка и формат — skill `atomic-plan`, применять при любом планировании (в т.ч. native plan mode).
-- **Правит файлы и коммитит между ходами** — ВСЕГДА перечитывать файл перед `Edit`,
-  проверять `git log`/`git status` (бывает чистое дерево там, где ждёшь правки).
+- **План — по атомарным коммитам**: каждый коммит независимо собирается и проходит тесты
+  (green-to-green), тесты в том же коммите; порядок аддитивное → переключение → удаление. Skill `atomic-plan`.
+- **Правит файлы и коммитит между ходами** — ВСЕГДА перечитывать файл перед `Edit`, проверять
+  `git log`/`git status`.
 - «Выведи текстом» → не создавать файлы. «Код не трогай» → менять только комментарии/доки.
 - Бережёт API-токены.
 
 ## Версии и ключи
 - Точные версии — `gradle/libs.versions.toml` (Kotlin 2.4.0, Ktor 3.0.3 engine Java, Room, KSP, buildkonfig…).
-- Ключи: `BuildKonfig.GEMINI_API_KEY` / `OPENROUTER_API_KEY` (плагин `buildkonfig`, lowercase k, в `:shared`).
-  Источник — `local.properties` (gitignored), при отсутствии ключа fallback на env-переменную того же имени
-  (`shared/build.gradle.kts` → `getStringPropertyOrEnvVar`).
-- Третий ключ — `BuildKonfig.HUGGINGFACE_API_KEY` (источник `HUGGINGFACE_API_KEY` в `local.properties`/env), для `-provider huggingface`.
+- Ключи: `BuildKonfig.GEMINI_API_KEY` / `OPENROUTER_API_KEY` / `HUGGINGFACE_API_KEY` (плагин
+  `buildkonfig`, в `platform:config`). Источник — `local.properties` (gitignored), при отсутствии —
+  env-переменная того же имени. Дока — [platform:config README](agenticHubClient/platform/config/README.md).
 
 ## Worktree (Android Studio)
-- Работаю в том worktree, что открыт в AS, и запускаюсь **из него**. Не из
-  вложенного `.claude/worktrees/` — он ломает индекс AS.
-- Память (этот файл + авто-память Claude) шарится между всеми worktree по git-репо —
-  контекст не теряется при переезде.
-- Run-конфиги AS — в `.run/` (Store as project file): в git, поэтому шарятся между
-  worktree как и этот файл.
-- Обустройство окружения (worktree-соседи, симлинк `local.properties`, скрипт
-  `new-worktree.sh`, каталог `fixtures/` для больших тестовых файлов) — в
-  `~/Documents/AiAdvenChallenge/README.md`.
+- Работаю в том worktree, что открыт в AS, и запускаюсь **из него**. Не из вложенного
+  `.claude/worktrees/` — он ломает индекс AS.
+- Память (этот файл + авто-память Claude) шарится между всеми worktree по git-репо.
+- Run-конфиги AS — в `.run/` (Store as project file): в git, шарятся между worktree.
+- Обустройство окружения (worktree-соседи, симлинк `local.properties`, `new-worktree.sh`, `fixtures/`) —
+  в `~/Documents/AiAdvenChallenge/README.md`.

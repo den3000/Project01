@@ -488,3 +488,29 @@ MVI-стек диалога — через хелпер `runSessionForTest`, б�
 context/memory-слой/judge, `features:memory` — persistence/стратегии): `./gradlew
 :agenticHubClient:features:llm:jvmTest :agenticHubClient:features:agent:jvmTest
 :agenticHubClient:features:memory:jvmTest`.
+
+## Грабли (реализация)
+
+- **zsh-глоббинг** (`?` `*` `[` `!`) в `-prompt` ломается без кавычек — оборачивать.
+- **cliargs — единый каталог питает оба фронта** (`-flag` startup и `/cmd` in-session). `excludes`
+  **глобальный** (crossValidate по всем группам) → для ПОВТОРЯЕМОГО control (`-schedule` after/every,
+  `-mcpServer`) ложно конфликтует между задачами; «ровно один из X/Y» проверять В МАППИНГЕ по задаче
+  (`CliArgsToStartCommandMapper.scheduleSpec`), не через `excludes`.
+- **`-tui` gated на TTY** — `pickView(chat.config.tui, System.console()!=null)`: TUI только при флаге
+  **и** настоящем TTY; feed/oneshot/non-TTY (пайп/IDE/CI) → всегда `PlainView`. Живой TUI требует
+  настоящий терминал (из IDE/`gradlew run` raw-ввод не поднимается).
+- **Kotter+Mordant склейка** — Mordant рендерит панель с `AnsiLevel.NONE` (чистый box-drawing), цвет
+  накладывает Kotter (единственный владелец экрана). Авторитет ширины — `MainRenderScope.width`
+  (Mordant `Terminal().size` врёт в raw). Лента — Kotter `aside`; живая `section` = нижний блок.
+- **TUI input — два коллектора** (`onKeyPressed`/`onInputEntered` конкурентно на клавишу); единый
+  писатель — VM через `ChannelIntentSource.offer`. Enter — только `onInputEntered`.
+- **TUI лента колонками** — user-ввод эхо-ится отдельной `UiLine.User` (raw-терминал сам не эхо-ит),
+  а `PlainView` эту строку **пропускает** (иначе дубль → golden ломается). `wrapWords` уважает `\n`,
+  cap 120, продолжения повторяют `│`.
+- **TUI session-панель — фикс ширина (`expand=true`)** — иначе рамка «плывёт» с ростом чисел и старая
+  граница уезжает в скроллбэк. Рендер в `Terminal(width=width)` + `Panel(expand=true)`.
+- **plain-рендер: коллектор ленты на `Dispatchers.Unconfined`** (`PlainRenderer`) — иначе фон обгонял
+  синхронную печать промпта и вывод хода печатался ПОСЛЕ `>`. Unconfined → `flush` синхронно до промпта.
+- **`-mcpServer` ПОВТОРЯЕМЫЙ** — на каждый сервер свой `McpToolClient` (`platform:mcpClient`), поверх
+  `McpToolRouter` (`features:llm`); коллизия имён инструментов между серверами — fail-fast на старте.
+- Флаг-грамматика (memory-mode/профили/задачи/per-stage/judge/schedule) — см. разделы «Флаги» выше.
