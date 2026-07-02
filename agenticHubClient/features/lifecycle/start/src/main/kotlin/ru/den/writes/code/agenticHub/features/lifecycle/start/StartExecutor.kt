@@ -2,6 +2,8 @@ package ru.den.writes.code.agenticHub.features.lifecycle.start
 
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
+import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.localFileSystem
 import java.io.File
 
 /**
@@ -21,8 +23,11 @@ val MEMORY_ROOT: File = File(
  * a [StartCommand.SessionInitialState] is returned unrun for `main` to launch.
  * Owns only the [db].
  */
-public class StartExecutor(private val db: AppDatabase) {
-    private val ops = AdminOps(db)
+public class StartExecutor(
+    private val db: AppDatabase,
+    private val fs: LocalFileSystem = localFileSystem(),
+) {
+    private val ops = AdminOps(db, fs)
 
     public suspend fun execute(command: StartCommand): StartCommand.SessionInitialState? = when (command) {
         is StartCommand.ListSessions -> { ops.listSessions().print(); null }

@@ -10,6 +10,8 @@ import ru.den.writes.code.agenticHub.features.memory.db.seedFrom
 import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.MemoryStore
+import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.localFileSystem
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
@@ -31,7 +33,10 @@ private fun err(text: String) = AdminNotice(OutputStream.STDERR, text)
  * so the composition root owns the actual output (and the ops stay testable). No
  * LLM, no session runtime; owns only the [db].
  */
-public class AdminOps(private val db: AppDatabase) {
+public class AdminOps(
+    private val db: AppDatabase,
+    private val fs: LocalFileSystem = localFileSystem(),
+) {
 
     /** Wipe every messages / summaries / facts row. */
     public suspend fun cleanHistory(): List<AdminNotice> {
@@ -134,7 +139,7 @@ public class AdminOps(private val db: AppDatabase) {
      * stderr). [FileMemoryStore] creates [memoryRoot] on construction.
      */
     public fun handleMemoryCommand(action: MemoryAction, memoryRoot: String): List<AdminNotice> {
-        val store = FileMemoryStore(memoryRoot)
+        val store = FileMemoryStore(memoryRoot, fs)
         return when (action) {
             is MemoryAction.Show ->
                 // Temporary provider in PREAMBLE mode for describe() — no task is active
