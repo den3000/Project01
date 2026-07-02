@@ -1,0 +1,77 @@
+# cliTui — песочница сравнения TUI-библиотек
+
+Изолированная песочница для terminal UI на Kotlin/JVM — пробовать и сравнивать подходы
+**отдельно** от боевого `:agenticHubClient:apps:cliJvmApp` (самостоятельный модуль, чистый JVM без Compose).
+**Интеграция завершена:** combo (Kotter-каркас + Mordant-виджеты), к которому пришла
+песочница, уже стоит в `cliJvmApp` (вид `-tui`); модуль остаётся для дальнейших проб.
+
+Отдельные экспонаты (`KotterChat`/`MordantChat`/`ComboChat` + заглушка `DemoResponder`) сведены
+в один **MVI-стек** (см. git history). Текущая раскладка:
+
+| Файл | Роль |
+|------|------|
+| [`ChatViewModel.kt`](src/main/kotlin/ru/den/writes/code/agenticHub/cliTui/ChatViewModel.kt) | UI-agnostic ядро (состояние + интенты + эффекты) |
+| [`TuiChat.kt`](src/main/kotlin/ru/den/writes/code/agenticHub/cliTui/TuiChat.kt) | TUI-вид: Kotter + Mordant |
+| [`KotterView.kt`](src/main/kotlin/ru/den/writes/code/agenticHub/cliTui/KotterView.kt) | словарь рендера TUI |
+| [`PlainChat.kt`](src/main/kotlin/ru/den/writes/code/agenticHub/cliTui/PlainChat.kt) | plain-вид (тот же VM, без либ) |
+
+Сравнение, которое к этому привело, — ниже (историческое, по факту прогона).
+
+### Mosaic выброшен
+
+Прототип Mosaic (Compose-TUI) собирался и совместим с Kotlin 2.4 / compose-runtime
+1.11, но на macOS-терминале его нативный raw-ввод (`mosaic-tty`) не переводил
+терминал в raw-режим — клавиши шли в обычное терминальное эхо, а `onKeyEvent`
+ничего не получал, UI оставался пустым. Возиться с raw-вводом 0.x-библиотеки —
+не стоит; выброшен вместе со всем Compose-стеком. История — в git.
+
+## Запуск
+
+⚠️ В настоящем терминале (не из IDE/`./gradlew run`).
+
+```bash
+./gradlew :playground:cliTui:installDist
+./playground/cliTui/build/install/cliTui/bin/cliTui          # TUI-вид (Kotter+Mordant)
+./playground/cliTui/build/install/cliTui/bin/cliTui plain    # plain-вид
+```
+
+Печатай текст → Enter отправляет → ответ «стримится» по словам → footer со
+статистикой. Выход — `/exit`.
+
+## Сравнение (по факту прогона)
+
+| | **Kotter** 1.3.0 | **Mordant** 3.0.2 | **Combo** |
+|---|---|---|---|
+| Модель | declarative event-loop | императивный вывод | Kotter каркас + Mordant виджеты |
+| Ввод | `input()` (правка строки, история) | `readLineOrNull` (вся строка) | `input()` от Kotter |
+| Виджеты | минимум | `Panel`/`Table`/`Markdown`/цвета | `Panel`/`Table` от Mordant |
+| Перерисовка | `liveVarOf` → авто-rerender | нет (печатаем заново) | `liveVarOf` от Kotter |
+| Полноэкранный | да | нет (инлайн) | да |
+| Зрелость | 1.x стабильный | 3.x стабильный | обе стабильны |
+
+### Как склеены Kotter и Mordant (combo)
+
+Конфликт двух ANSI-рендереров снят так: Mordant рендерит виджет в **строку** с
+`AnsiLevel.NONE` (`terminal.render(panel)` — только текст и box-drawing, без
+своих escape-кодов), а цвет накладывает уже Kotter (`yellow { … }`). Kotter
+остаётся единственным, кто управляет экраном и перерисовкой; Mordant работает
+как библиотека верстки виджетов. Тот же приём масштабируется на `Table`,
+`Markdown`, прогресс-бары.
+
+### Вывод
+
+**Combo — рекомендуемый путь.** Берём интерактивный, REPL-дружелюбный каркас
+Kotter (готовый `input()` с редактированием строки, реактивный `liveVarOf`) и
+богатые виджеты Mordant (рамки/таблицы/Markdown для footer и, при желании,
+истории). Чистый JVM, обе библиотеки стабильны, Compose-зависимости нет.
+
+Интерактивные команды `cliJvmApp` ложатся естественно: `/profiles` открывает
+Mordant-таблицу выбора **на месте** `stats` (стрелки/цифры + Enter, Esc —
+отмена), применённый выбор уходит в ленту отдельной строкой, а отправка обычного
+сообщения просто закрывает таблицу. То есть combo тянет реальный UX, а не только
+статичный вывод. Триггер `multiline` показывает многострочный ответ с
+выравниванием продолжений.
+
+Поверх combo-рендера затем встал **MVI-каркас** (UI-agnostic `ChatViewModel` +
+plain-фолбэк над тем же VM). Этот каркас уже перенесён в боевой `cliJvmApp` (по MVI, без
+подъёма `LlmApi` наружу) — см. [`cliJvmApp/README.md`](../../agenticHubClient/apps/cliJvmApp/README.md).

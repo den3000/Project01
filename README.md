@@ -1,73 +1,79 @@
-KMP-проект на Compose Multiplatform под Android, iOS и Desktop (JVM), плюс JVM-консольный
-**LLM-клиент** поверх общего provider-нейтрального доменного ядра.
+KMP-проект на Compose Multiplatform (Android, iOS, Desktop/JVM) плюс JVM-консольный **LLM-клиент**
+поверх общего provider-нейтрального доменного ядра. Корень пакета — `ru.den.writes.code.agenticHub.*`
+(у каждого модуля свой уникальный сегмент). Рабочая лошадка —
+[**cliJvmApp**](./agenticHubClient/apps/cliJvmApp/README.md).
 
 ## Модули
 
-- **[/shared](./shared/src)** — код, общий для всех таргетов (Android, iOS, Desktop/JVM): и
-  Compose Multiplatform UI, и provider-нейтральное **LLM-ядро**, на котором построен CLI —
-  `llm/` (контракт `LlmApi`, каталоги провайдеров, клиенты Gemini/OpenRouter/Hugging Face),
-  `context/` (rolling-summary компакция), `pricing/`, `memory/` (профиль + правила + task-FSM),
-  `agent/` (одноходовый responder), `invariant/` (LLM-judge).
-  - [commonMain](./shared/src/commonMain/kotlin) — общий для всех таргетов; платформенные папки
-    (напр. [iosMain](./shared/src/iosMain/kotlin), [jvmMain](./shared/src/jvmMain/kotlin)) держат
-    код, компилируемый только под названный папкой таргет.
-- **[/cliJvmApp](./cliJvmApp)** — рабочая лошадка: JVM-консольный клиент, который шлёт промпт в
-  chat-style LLM (Gemini / OpenRouter / Hugging Face), печатает ответ с footer'ом токенов/стоимости
-  и персистит multi-turn REPL в локальный SQLite. Добавляет слой памяти (профиль / правила /
-  task-FSM), агентов по стадиям, judge инвариантов, контекст-стратегии и MCP function calling.
-  Полная дока: **[cliJvmApp/README.md](./cliJvmApp/README.md)**.
-- **[/mcps](./mcps)** — каталог standalone MCP-серверов (Model Context Protocol) на официальном
-  Kotlin MCP SDK, которые CLI дёргает через `-mcpServer` (повторяемый — несколько серверов сразу):
-  - **[/mcps/openmeteo-mcp](./mcps/openmeteo-mcp)** — Open-Meteo weather-сервер + планировщик сбора
-    погоды. Дока: [README](./mcps/openmeteo-mcp/README.md).
-  - **[/mcps/localfs-mcp](./mcps/localfs-mcp)** — локальная ФС: накопить документ в буфере и записать
-    на диск (`append_to_document` / `save_document`). Дока: [README](./mcps/localfs-mcp/README.md).
-- **[/scheduling](./scheduling)** — переиспользуемое ядро планировщика без зависимостей
-  (отложенные + периодические задачи), используется openmeteo-mcp и cliJvmApp.
-  Дока: [scheduling/README.md](./scheduling/README.md).
-- **[/cliTui](./cliTui)** — изолированная песочница для сравнения terminal-UI библиотек на JVM.
-  Combo Kotter + Mordant, к которому она пришла, уже интегрирован в cliJvmApp (вид `-tui`). Дока:
-  [cliTui/README.md](./cliTui/README.md).
-- **[/iosApp](./iosApp/iosApp)** — точка входа iOS-приложения (SwiftUI-хост для общего Compose UI;
-  SwiftUI-код добавлять сюда).
-- **[/androidApp](./androidApp)**, **[/desktopApp](./desktopApp)** — таргеты Android- и
-  Desktop-(JVM) приложений на Compose Multiplatform.
+Всё под `agenticHubClient/{features,platform,apps}` + `playground/` + корневой `scheduling`.
+У каждого модуля — свой README (деталь рядом с кодом).
 
-## Запуск приложений
+**`agenticHubClient/features/`** — доменное ядро:
+- [features:llm](./agenticHubClient/features/llm) — provider-нейтральное LLM-ядро (Gemini/OpenRouter/
+  Hugging Face), tool-типы, ценовой реестр, `McpToolRouter`.
+- [features:memory](./agenticHubClient/features/memory) — фундамент памяти: домен (профиль/правила/
+  task-FSM/memory-layer), rolling-summary компакция, context-стратегии, persistence (Room + файловая).
+- [features:agent](./agenticHubClient/features/agent) — одноходовый responder, judge инвариантов,
+  per-stage маршрутизация (зависит на `memory`).
+- [features:composeApp](./agenticHubClient/features/composeApp) — Compose-MP демо-UI + iOS-фреймворк
+  `ComposeApp`.
+- [features:mcpClient](./agenticHubClient/features/mcpClient) — `McpToolClient` (MCP-сервер как `ToolExecutor`).
+- lifecycle: [command](./agenticHubClient/features/lifecycle/command) (словарь запуска/конфига) ·
+  [session](./agenticHubClient/features/lifecycle/session) (MVI-runtime) ·
+  [start](./agenticHubClient/features/lifecycle/start) (первоначальный запуск).
 
-Через run-конфигурации в run-виджете IDE или этими Gradle-командами:
+**`agenticHubClient/platform/`** — платформенные порты:
+- [logging](./agenticHubClient/platform/logging) · [config](./agenticHubClient/platform/config)
+  (API-ключи через BuildKonfig) · [database](./agenticHubClient/platform/database) (Room-KMP) ·
+  [fileSystem](./agenticHubClient/platform/fileSystem) · [greeting](./agenticHubClient/platform/greeting)
+  (демо-домен).
 
-- Android-приложение: `./gradlew :androidApp:assembleDebug`
-- Desktop-приложение: `./gradlew :desktopApp:run` (hot reload: `./gradlew :desktopApp:hotRun --auto`)
-- iOS-приложение: открыть каталог [/iosApp](./iosApp) в Xcode и запустить оттуда.
-- CLI JVM-приложение: `./gradlew :cliJvmApp:installDist`, затем
-  `./cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -prompt "<текст>" [...флаги]` — флаги,
-  каталоги моделей и recipes см. в **[cliJvmApp/README.md](./cliJvmApp/README.md)**.
-- MCP-серверы: `./gradlew :mcps:openmeteo-mcp:installDist :mcps:localfs-mcp:installDist` — бинари
-  под `mcps/<имя>/build/install/<имя>/bin/<имя>` (спавнятся клиентом, см. ниже).
-- MCP-оркестрация (два сервера, кросс-серверная цепочка) — собрать оба сервера + cliJvmApp, затем:
+**`agenticHubClient/apps/`** — приложения:
+- [cliJvmApp](./agenticHubClient/apps/cliJvmApp/README.md) — JVM-консольный LLM-клиент (полная дока).
+- [androidApp](./agenticHubClient/apps/androidApp) · [desktopApp](./agenticHubClient/apps/desktopApp)
+  — Compose-MP таргеты; **iosApp** (`apps/iosApp`) — Xcode-проект (SwiftUI-хост для `ComposeApp`).
+
+**`playground/`** — песочницы и standalone MCP-серверы:
+- [cliTui](./playground/cliTui) — сравнение TUI-библиотек · [openmeteo-mcp](./playground/openmeteo-mcp)
+  (погода) · [localfs-mcp](./playground/localfs-mcp) (локальная ФС). MCP-серверы CLI дёргает через
+  `-mcpServer` (повторяемый).
+
+**[scheduling](./scheduling)** — переиспользуемое ядро планировщика (без зависимостей), используется
+openmeteo-mcp и cliJvmApp.
+
+**[testing](./agenticHubClient/testing)** — shared тест-хелперы (`FakeLlmApi`/`TestDb`), только для
+`testImplementation`.
+
+## Запуск
+
+- Desktop: `./gradlew :agenticHubClient:apps:desktopApp:run`
+  (hot: `:agenticHubClient:apps:desktopApp:hotRun --auto`)
+- Android: `./gradlew :agenticHubClient:apps:androidApp:assembleDebug`
+- iOS: открыть `agenticHubClient/apps/iosApp` в Xcode.
+- CLI: `./gradlew :agenticHubClient:apps:cliJvmApp:installDist`, затем
+  `./agenticHubClient/apps/cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp -prompt "<текст>" [...флаги]`
+  — флаги/каталоги моделей см. [cliJvmApp/README.md](./agenticHubClient/apps/cliJvmApp/README.md).
+- MCP-серверы: `./gradlew :playground:openmeteo-mcp:installDist :playground:localfs-mcp:installDist`.
+- MCP-оркестрация (два сервера, кросс-серверная цепочка):
   ```
-  OM=$(pwd)/mcps/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp
-  FS=$(pwd)/mcps/localfs-mcp/build/install/localfs-mcp/bin/localfs-mcp
-  cliJvmApp -prompt "Узнай погоду в Москве, добавь её в документ и сохрани в файл moscow.md" \
+  OM=$(pwd)/playground/openmeteo-mcp/build/install/openmeteo-mcp/bin/openmeteo-mcp
+  FS=$(pwd)/playground/localfs-mcp/build/install/localfs-mcp/bin/localfs-mcp
+  cliJvmApp -prompt "Узнай погоду в Москве, добавь её в документ и сохрани в moscow.md" \
             -mcpServer "$OM" -mcpServer "$FS"
   ```
   LLM сам строит цепочку `current_weather` [OM] → `append_to_document` [FS] → `save_document` [FS];
   файл → `~/.project01-localfs/documents/moscow.md`.
 
-## Запуск тестов
+## Тесты
 
-Через кнопку в gutter'е редактора IDE или Gradle-таски:
-
-- Android-тесты: `./gradlew :shared:testAndroidHostTest`
-- Desktop + тесты доменного ядра (LLM API, pricing, context, memory): `./gradlew :shared:jvmTest`
-- iOS-тесты: `./gradlew :shared:iosSimulatorArm64Test`
-- Тесты CLI JVM-приложения (быстрые, без сети — провайдеры застаблены `FakeLlmApi`):
-  `./gradlew :cliJvmApp:test`
-- Тесты MCP-серверов (offline): `./gradlew :mcps:openmeteo-mcp:test :mcps:localfs-mcp:test`
+- Доменное ядро: `./gradlew :agenticHubClient:features:llm:jvmTest
+  :agenticHubClient:features:agent:jvmTest :agenticHubClient:features:memory:jvmTest`
+- CLI-приложение (offline, провайдеры застаблены): `./gradlew :agenticHubClient:apps:cliJvmApp:test`
+- MCP-серверы: `./gradlew :playground:openmeteo-mcp:test :playground:localfs-mcp:test`
+- Планировщик: `./gradlew :scheduling:test`
+- iOS/Android доменных таргетов: `compileKotlinIosArm64` соответствующих KMP-модулей (features/platform).
 
 ---
 
-Подробнее о [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+Подробнее о [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)
+и [Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform).
