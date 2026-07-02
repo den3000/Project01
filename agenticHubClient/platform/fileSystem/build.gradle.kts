@@ -20,4 +20,11 @@ kotlin {
             jvmTarget = JvmTarget.JVM_11
         }
     }
+
+    sourceSets {
+        commonMain.dependencies {
+            // fileSystemModule (di) declares the LocalFileSystem binding.
+            implementation(libs.koin.core)
+        }
+    }
 }

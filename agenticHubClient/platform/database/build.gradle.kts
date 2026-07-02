@@ -32,6 +32,7 @@ kotlin {
             api(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.kotlinx.coroutinesCore)
+            implementation(libs.koin.core)
         }
         jvmTest.dependencies {
             implementation(libs.kotlin.test)

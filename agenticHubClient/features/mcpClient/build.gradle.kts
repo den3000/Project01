@@ -10,6 +10,7 @@ dependencies {
     implementation(libs.mcp.kotlin.sdk)
     implementation(libs.kotlinx.coroutinesCore)
     implementation(libs.kotlinx.serializationJson)
+    implementation(libs.koin.core)
 
     testImplementation(libs.kotlin.testJunit)
     testImplementation(libs.junit)

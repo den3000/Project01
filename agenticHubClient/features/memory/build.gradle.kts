@@ -33,6 +33,7 @@ kotlin {
             implementation(projects.agenticHubClient.platform.logging)
             implementation(libs.kotlinx.coroutinesCore)
             implementation(libs.kotlinx.serializationJson)
+            implementation(libs.koin.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

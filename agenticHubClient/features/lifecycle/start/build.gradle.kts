@@ -9,7 +9,11 @@ dependencies {
     api(projects.agenticHubClient.features.lifecycle.command)
     api(projects.agenticHubClient.platform.database)
     implementation(projects.agenticHubClient.features.memory)
+    // Direct dep: startModule injects LocalFileSystem into StartExecutor/AdminOps
+    // (was transitive through memory).
+    implementation(projects.agenticHubClient.platform.fileSystem)
     implementation(libs.kotlinx.coroutinesCore)
+    implementation(libs.koin.core)
 
     testImplementation(projects.agenticHubClient.testing)
     testImplementation(libs.kotlin.testJunit)

@@ -12,6 +12,10 @@ dependencies {
     implementation(projects.agenticHubClient.features.lifecycle.start)
     implementation(projects.agenticHubClient.features.lifecycle.command)
     implementation(projects.agenticHubClient.features.memory)
+    // Types resolved via parametersOf at the composition root (LlmApi/ModelProvider,
+    // Routed* agents) — partly transitive through :session api, made explicit here.
+    implementation(projects.agenticHubClient.features.llm)
+    implementation(projects.agenticHubClient.features.agent)
     implementation(projects.agenticHubClient.platform.config)
     implementation(projects.agenticHubClient.platform.database)
     implementation(projects.agenticHubClient.features.mcpClient)
@@ -28,6 +32,7 @@ dependencies {
     implementation(libs.mordant)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.sqlite.bundled)
+    implementation(libs.koin.core)
 
     testImplementation(libs.kotlin.testJunit)
     testImplementation(libs.junit)

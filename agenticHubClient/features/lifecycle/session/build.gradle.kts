@@ -16,6 +16,7 @@ dependencies {
     implementation(projects.scheduling)
     implementation(libs.kotlinx.coroutinesCore)
     implementation(libs.kotlinx.serializationJson)
+    implementation(libs.koin.core)
 
     testImplementation(projects.agenticHubClient.testing)
     testImplementation(libs.kotlin.testJunit)
