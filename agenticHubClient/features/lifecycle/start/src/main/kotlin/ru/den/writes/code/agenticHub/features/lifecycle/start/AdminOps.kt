@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.viewmodel
+package ru.den.writes.code.agenticHub.features.lifecycle.start
 
 import ru.den.writes.code.agenticHub.features.memory.SessionStats
 import ru.den.writes.code.agenticHub.features.lifecycle.command.MemoryAction

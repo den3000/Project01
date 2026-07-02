@@ -2,6 +2,7 @@ package ru.den.writes.code.agenticHub.cliJvm
 
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.coroutineScope
+import ru.den.writes.code.agenticHub.features.lifecycle.start.MEMORY_ROOT
 import ru.den.writes.code.agenticHub.features.lifecycle.session.toGenerationParams
 import ru.den.writes.code.agenticHub.features.lifecycle.session.startSchedulerLoops
 import ru.den.writes.code.agenticHub.features.lifecycle.session.memoryProvider

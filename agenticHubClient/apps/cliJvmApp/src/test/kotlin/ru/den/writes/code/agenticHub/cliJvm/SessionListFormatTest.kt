@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.features.viewmodel.formatSessionLine
+import ru.den.writes.code.agenticHub.features.lifecycle.start.formatSessionLine
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,8 +1,5 @@
-package ru.den.writes.code.agenticHub.cliJvm
+package ru.den.writes.code.agenticHub.features.lifecycle.start
 
-import ru.den.writes.code.agenticHub.features.viewmodel.OutputStream
-import ru.den.writes.code.agenticHub.features.viewmodel.AdminOps
-import ru.den.writes.code.agenticHub.features.viewmodel.AdminNotice
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import java.io.File
@@ -12,7 +9,7 @@ import java.io.File
  * this folder as markdown files. Shared by the admin memory ops (via [AdminOps])
  * and the session's `memoryProvider` accessor.
  */
-internal val MEMORY_ROOT: File = File(
+val MEMORY_ROOT: File = File(
     System.getProperty("user.home"),
     ".project01-cli/memory",
 )
@@ -24,10 +21,10 @@ internal val MEMORY_ROOT: File = File(
  * a [StartCommand.SessionInitialState] is returned unrun for `main` to launch.
  * Owns only the [db].
  */
-internal class StartExecutor(private val db: AppDatabase) {
+public class StartExecutor(private val db: AppDatabase) {
     private val ops = AdminOps(db)
 
-    suspend fun execute(command: StartCommand): StartCommand.SessionInitialState? = when (command) {
+    public suspend fun execute(command: StartCommand): StartCommand.SessionInitialState? = when (command) {
         is StartCommand.ListSessions -> { ops.listSessions().print(); null }
         is StartCommand.CleanHistory -> { ops.cleanHistory().print(); null }
         is StartCommand.CleanSession -> { ops.cleanSession(command.sessionId).print(); null }
