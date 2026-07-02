@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.platform.filesystem
+package ru.den.writes.code.agenticHub.platform.filesystem
 
 public actual fun localFileSystem(): LocalFileSystem =
     // Android would back this with app-internal storage (Context.filesDir).

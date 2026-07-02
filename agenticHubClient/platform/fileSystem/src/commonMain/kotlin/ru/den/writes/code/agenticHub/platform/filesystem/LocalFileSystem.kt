@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.platform.filesystem
+package ru.den.writes.code.agenticHub.platform.filesystem
 
 /**
  * Minimal local-filesystem port — enough for the markdown-backed memory store

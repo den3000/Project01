@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.memory
 
-import ru.den.writes.code.project01.platform.filesystem.LocalFileSystem
-import ru.den.writes.code.project01.platform.filesystem.localFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.localFileSystem
 import ru.den.writes.code.project01.shared.memory.ProfileData
 import ru.den.writes.code.project01.shared.memory.ProfileSection
 import ru.den.writes.code.project01.shared.memory.RuleEntry
