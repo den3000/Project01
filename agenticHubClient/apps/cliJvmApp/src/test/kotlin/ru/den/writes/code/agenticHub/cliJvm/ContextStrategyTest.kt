@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategy
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.agent.context.HistoryCompressor
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role

@@ -9,7 +9,7 @@ import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
 import ru.den.writes.code.agenticHub.features.viewmodel.ChannelIntentSource
 import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
 import ru.den.writes.code.agenticHub.features.viewmodel.CommandRunner
-import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategy
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.viewmodel.commandCatalog
 import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.viewmodel.IntentSource

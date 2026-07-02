@@ -14,7 +14,7 @@ import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.viewmodel.PromptSourceIntents
 import ru.den.writes.code.agenticHub.features.viewmodel.PromptSource
 import ru.den.writes.code.agenticHub.features.llm.McpToolRouter
-import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategy
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.viewmodel.ChannelIntentSource
 import ru.den.writes.code.agenticHub.platform.mcpclient.McpToolClient
 import ru.den.writes.code.agenticHub.cliJvm.commandMappers.CliArgToSessionCommandMapper

@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.features.viewmodel
 
+import ru.den.writes.code.agenticHub.features.memory.StickyFacts
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
 import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider

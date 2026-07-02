@@ -7,8 +7,8 @@ import ru.den.writes.code.agenticHub.cliJvm.commandMappers.CliArgToSessionComman
 import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
 import ru.den.writes.code.agenticHub.features.viewmodel.command.SessionConfig
 import ru.den.writes.code.agenticHub.features.viewmodel.CommandRunner
-import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategy
-import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.agenticHub.features.viewmodel.PromptSource
 import ru.den.writes.code.agenticHub.features.viewmodel.PromptSourceIntents

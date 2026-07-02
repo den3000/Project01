@@ -1,10 +1,11 @@
-package ru.den.writes.code.agenticHub.features.viewmodel
+package ru.den.writes.code.agenticHub.features.memory
 
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.agent.context.HistoryCompressor
 import ru.den.writes.code.agenticHub.features.agent.context.evenDown
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.Message
+import ru.den.writes.code.agenticHub.platform.logging.logWarn
 
 /**
  * How a session's stored history is shaped into the message list sent to
@@ -69,7 +70,7 @@ public sealed interface ContextStrategy {
                 modelId = ctx.modelId,
                 usage = outcome.usage,
             )
-            System.err.println(
+            logWarn(
                 "[compaction] folded messages ${outcome.foldedFrom}..${outcome.foldedTo} " +
                     "into summary; covered=${outcome.newCoveredCount}, " +
                     "kept tail=${ctx.store.messages.size - outcome.newCoveredCount}"

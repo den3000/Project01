@@ -1,5 +1,7 @@
 package ru.den.writes.code.agenticHub.features.viewmodel
 
+import ru.den.writes.code.agenticHub.features.memory.TurnContext
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand

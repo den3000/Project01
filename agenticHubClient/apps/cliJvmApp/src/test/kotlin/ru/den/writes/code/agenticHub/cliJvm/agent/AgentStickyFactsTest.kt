@@ -3,9 +3,9 @@ package ru.den.writes.code.agenticHub.cliJvm.agent
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.features.viewmodel.FactsExtractor
+import ru.den.writes.code.agenticHub.features.memory.FactsExtractor
 import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
-import ru.den.writes.code.agenticHub.features.viewmodel.StickyFacts
+import ru.den.writes.code.agenticHub.features.memory.StickyFacts
 import ru.den.writes.code.agenticHub.cliJvm.TestDb
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import kotlin.test.Test

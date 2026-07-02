@@ -29,7 +29,9 @@ kotlin {
             api(projects.agenticHubClient.features.agent)
             api(projects.agenticHubClient.platform.database)
             implementation(projects.agenticHubClient.platform.fileSystem)
+            implementation(projects.agenticHubClient.platform.logging)
             implementation(libs.kotlinx.coroutinesCore)
+            implementation(libs.kotlinx.serializationJson)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.features.viewmodel.FactsExtractor
+import ru.den.writes.code.agenticHub.features.memory.FactsExtractor
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm.commandMappers
 
-import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.ModelProviderFactory
 import ru.den.writes.code.agenticHub.features.llm.MAX_STOP_SEQUENCES
 import ru.den.writes.code.agenticHub.features.agent.StageAgentSpec

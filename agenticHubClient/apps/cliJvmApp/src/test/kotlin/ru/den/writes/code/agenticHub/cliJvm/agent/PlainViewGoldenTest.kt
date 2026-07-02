@@ -4,7 +4,7 @@ import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.viewmodel.SessionCommand
 import ru.den.writes.code.agenticHub.features.viewmodel.command.StartCommand
 import ru.den.writes.code.agenticHub.features.viewmodel.CommandRunner
-import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategy
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.cliJvm.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.viewmodel.IntentSource
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer

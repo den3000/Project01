@@ -1,6 +1,6 @@
 package ru.den.writes.code.agenticHub.features.viewmodel.command
 
-import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.features.agent.StageAgentSpec
 import ru.den.writes.code.agenticHub.features.agent.StageJudgeSpec
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode

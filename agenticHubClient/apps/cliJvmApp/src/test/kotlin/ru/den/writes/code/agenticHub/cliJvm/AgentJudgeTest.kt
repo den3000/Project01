@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
-import ru.den.writes.code.agenticHub.features.viewmodel.ContextStrategyKind
+import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.agent.createStdinPromptSource
 
 import kotlinx.coroutines.test.runTest
