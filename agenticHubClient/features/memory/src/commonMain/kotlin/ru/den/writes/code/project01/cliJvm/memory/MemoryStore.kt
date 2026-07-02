@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.memory
 
-import ru.den.writes.code.project01.shared.memory.ProfileData
-import ru.den.writes.code.project01.shared.memory.ProfileSection
-import ru.den.writes.code.project01.shared.memory.RuleEntry
-import ru.den.writes.code.project01.shared.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileData
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.agent.memory.RuleEntry
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
 
 /**
  * Persistence port for the long-term (profile + rules) and working

@@ -3,7 +3,7 @@ package ru.den.writes.code.project01.cliJvm.command
 import ru.den.writes.code.project01.cliJvm.ContextStrategyKind
 import ru.den.writes.code.project01.cliJvm.StageAgentSpec
 import ru.den.writes.code.project01.cliJvm.StageJudgeSpec
-import ru.den.writes.code.project01.shared.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
 
 /**
  * The session-lifetime configuration a chat starts with — everything the runtime

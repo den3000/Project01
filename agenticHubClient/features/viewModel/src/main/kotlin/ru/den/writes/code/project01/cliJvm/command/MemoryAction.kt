@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.command
 
-import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 
 /**
  * What a memory invocation does — the domain command behind `-memory …` (legacy)

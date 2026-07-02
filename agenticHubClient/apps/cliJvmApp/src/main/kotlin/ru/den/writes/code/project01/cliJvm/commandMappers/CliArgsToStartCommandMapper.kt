@@ -55,10 +55,10 @@ import ru.den.writes.code.project01.cliJvm.command.MemoryAction
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
-import ru.den.writes.code.project01.shared.memory.MemoryMode
-import ru.den.writes.code.project01.shared.memory.ProfileSection
-import ru.den.writes.code.project01.shared.memory.TaskBinding
-import ru.den.writes.code.project01.shared.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
 
 /**
  * The outcome of [CliArgsToStartCommandMapper.parse]: a mapped [StartCommand], or a

@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.plain
 
 import ru.den.writes.code.project01.cliJvm.StageAdvance
-import ru.den.writes.code.project01.shared.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

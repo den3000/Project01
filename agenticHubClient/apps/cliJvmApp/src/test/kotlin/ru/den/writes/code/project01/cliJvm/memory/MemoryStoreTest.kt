@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.cliJvm.memory
 
-import ru.den.writes.code.project01.shared.memory.ProfileData
-import ru.den.writes.code.project01.shared.memory.ProfileSection
-import ru.den.writes.code.project01.shared.memory.TaskNotes
-import ru.den.writes.code.project01.shared.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileData
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test

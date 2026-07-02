@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.update
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.shared.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 
 /**

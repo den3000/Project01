@@ -3,19 +3,19 @@ package ru.den.writes.code.project01.cliJvm
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.shared.agent.AgentConfig
-import ru.den.writes.code.project01.shared.agent.AgentResponder
-import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
+import ru.den.writes.code.agenticHub.features.agent.AgentConfig
+import ru.den.writes.code.agenticHub.features.agent.AgentResponder
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
 import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
-import ru.den.writes.code.project01.shared.memory.TaskBinding
-import ru.den.writes.code.project01.shared.memory.TaskNotes
-import ru.den.writes.code.project01.shared.memory.TaskStage
-import ru.den.writes.code.project01.shared.memory.TaskStateMachine
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskStateMachine
 import kotlin.time.measureTimedValue
 
 /**

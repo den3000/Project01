@@ -2,10 +2,10 @@ package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.shared.memory.ProfileSection
-import ru.den.writes.code.project01.shared.memory.TaskNotes
-import ru.den.writes.code.project01.shared.memory.TaskStage
-import ru.den.writes.code.project01.shared.memory.isValidProfileName
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.agent.memory.isValidProfileName
 
 /** Valid branch names: alphanumerics, '_' or '-' — same shape as session names. */
 private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")

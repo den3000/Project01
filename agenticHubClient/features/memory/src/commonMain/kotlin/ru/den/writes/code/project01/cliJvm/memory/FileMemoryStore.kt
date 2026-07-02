@@ -2,13 +2,13 @@ package ru.den.writes.code.project01.cliJvm.memory
 
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.localFileSystem
-import ru.den.writes.code.project01.shared.memory.ProfileData
-import ru.den.writes.code.project01.shared.memory.ProfileSection
-import ru.den.writes.code.project01.shared.memory.RuleEntry
-import ru.den.writes.code.project01.shared.memory.TaskNotes
-import ru.den.writes.code.project01.shared.memory.TaskStage
-import ru.den.writes.code.project01.shared.memory.parseProfileData
-import ru.den.writes.code.project01.shared.memory.renderProfileData
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileData
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.agent.memory.RuleEntry
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.agent.memory.parseProfileData
+import ru.den.writes.code.agenticHub.features.agent.memory.renderProfileData
 
 /**
  * File-backed [MemoryStore]: reads and writes the long-term (profile +

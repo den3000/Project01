@@ -10,9 +10,9 @@ import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
 import ru.den.writes.code.agenticHub.features.llm.Usage
-import ru.den.writes.code.project01.shared.memory.ProfileSection
-import ru.den.writes.code.project01.shared.memory.TaskNotes
-import ru.den.writes.code.project01.shared.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 
 /** Which stream an [AdminNotice] belongs on when the composition root prints it. */

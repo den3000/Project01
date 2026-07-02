@@ -29,7 +29,7 @@ import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.Usage
-import ru.den.writes.code.project01.shared.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals

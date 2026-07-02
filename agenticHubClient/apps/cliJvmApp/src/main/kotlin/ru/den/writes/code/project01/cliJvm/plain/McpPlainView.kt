@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm.plain
 
 import ru.den.writes.code.project01.cliJvm.mcpToolLines
-import ru.den.writes.code.project01.shared.agent.ExecutedToolCall
+import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 
 /**
  * The MCP tool round-trip as plain stdout lines: each `[tool]` call + result,

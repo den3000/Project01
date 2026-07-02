@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.shared.agent.ExecutedToolCall
-import ru.den.writes.code.project01.shared.invariant.InvariantVerdict
+import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.llm.Usage
-import ru.den.writes.code.project01.shared.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage
 
 /**
  * The outcome of one turn, as computed by `TurnEngine` WITHOUT any direct I/O.

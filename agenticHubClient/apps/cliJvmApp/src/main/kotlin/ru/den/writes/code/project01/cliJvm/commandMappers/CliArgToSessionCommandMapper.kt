@@ -30,8 +30,8 @@ import ru.den.writes.code.project01.cliJvm.cliargs.ParseResult
 import ru.den.writes.code.project01.cliJvm.cliargs.ParsedArg
 import ru.den.writes.code.project01.cliJvm.cliargs.Surface
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
-import ru.den.writes.code.project01.shared.memory.MemoryMode
-import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 
 /**
  * Maps a typed REPL line onto an in-session [SessionCommand] by parsing it against

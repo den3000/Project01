@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.shared.agent.AgentResponder
-import ru.den.writes.code.project01.shared.memory.TaskBinding
+import ru.den.writes.code.agenticHub.features.agent.AgentResponder
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
 
 /**
  * One agent wired into [TurnEngine], bound to a span of FSM stages. The engine

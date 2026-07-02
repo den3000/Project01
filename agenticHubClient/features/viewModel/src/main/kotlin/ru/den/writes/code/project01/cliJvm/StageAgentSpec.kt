@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
-import ru.den.writes.code.project01.shared.memory.TaskBinding
+import ru.den.writes.code.agenticHub.features.agent.memory.TaskBinding
 
 /**
  * One parsed `-stageAgent <from..to>=<provider>:<model>[@<profile>]` entry: the

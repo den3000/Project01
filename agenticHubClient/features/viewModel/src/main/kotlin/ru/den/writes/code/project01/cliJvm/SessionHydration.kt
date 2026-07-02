@@ -3,7 +3,7 @@ package ru.den.writes.code.project01.cliJvm
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.shared.context.HistoryCompressor
+import ru.den.writes.code.agenticHub.features.agent.context.HistoryCompressor
 
 /**
  * Runtime views derived from a parsed [StartCommand.SessionInitialState]. Each

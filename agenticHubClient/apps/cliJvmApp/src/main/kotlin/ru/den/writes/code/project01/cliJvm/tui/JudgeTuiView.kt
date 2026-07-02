@@ -5,7 +5,7 @@ import com.varabyte.kotter.foundation.text.magenta
 import com.varabyte.kotter.foundation.text.red
 import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.runtime.render.RenderScope
-import ru.den.writes.code.project01.shared.invariant.InvariantViolation
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
 
 /**
  * An invariant-judge breach as a `"judge │ …"` column: the judge's `[[AGENT:]]`

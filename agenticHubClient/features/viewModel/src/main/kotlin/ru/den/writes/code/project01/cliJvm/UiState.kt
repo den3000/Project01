@@ -1,11 +1,11 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
-import ru.den.writes.code.project01.shared.agent.ExecutedToolCall
-import ru.den.writes.code.project01.shared.invariant.InvariantViolation
+import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
 import ru.den.writes.code.agenticHub.features.llm.Usage
-import ru.den.writes.code.project01.shared.memory.MemoryMode
-import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 
 /**
  * Immutable UI state for one running session. Observed by a renderer (PlainView /

@@ -1,8 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
-import ru.den.writes.code.project01.shared.context.HistoryCompressor
-import ru.den.writes.code.project01.shared.context.evenDown
+import ru.den.writes.code.agenticHub.features.agent.context.HistoryCompressor
+import ru.den.writes.code.agenticHub.features.agent.context.evenDown
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.Message
 

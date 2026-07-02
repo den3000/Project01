@@ -5,7 +5,7 @@ import com.varabyte.kotter.foundation.text.blue
 import com.varabyte.kotter.foundation.text.textLine
 import com.varabyte.kotter.runtime.render.RenderScope
 import ru.den.writes.code.project01.cliJvm.mcpToolLines
-import ru.den.writes.code.project01.shared.agent.ExecutedToolCall
+import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 
 /**
  * The MCP tool round-trip as an `"mcp │ …"` column (blue): each `[tool]` call +

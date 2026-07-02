@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm.plain
 
-import ru.den.writes.code.project01.shared.invariant.InvariantViolation
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

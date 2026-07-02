@@ -3,7 +3,7 @@ package ru.den.writes.code.project01.cliJvm.commandMappers
 import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 
 import ru.den.writes.code.project01.cliJvm.SessionCommand
-import ru.den.writes.code.project01.shared.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
