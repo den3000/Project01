@@ -1,6 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.BuildKonfig
+import ru.den.writes.code.agenticHub.BuildKonfig
 import ru.den.writes.code.project01.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.project01.cliJvm.cliargs.ParseError
 import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommandMapper

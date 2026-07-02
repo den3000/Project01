@@ -35,7 +35,7 @@ fun getStringPropertyOrEnvVar(name: String): String {
 }
 
 buildkonfig {
-    packageName = "ru.den.writes.code.project01"
+    packageName = "ru.den.writes.code.agenticHub"
     objectName = "BuildKonfig"
     exposeObjectWithName = "BuildKonfig"
 
