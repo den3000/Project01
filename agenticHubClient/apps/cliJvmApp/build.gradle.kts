@@ -18,6 +18,8 @@ dependencies {
     implementation(projects.agenticHubClient.features.agent)
     implementation(projects.agenticHubClient.platform.config)
     implementation(projects.agenticHubClient.platform.database)
+    // fileSystemModule for the composition root's startKoin(...) list.
+    implementation(projects.agenticHubClient.platform.fileSystem)
     implementation(projects.agenticHubClient.features.mcpClient)
     implementation(projects.scheduling)
     implementation(libs.ktor.client.core)
