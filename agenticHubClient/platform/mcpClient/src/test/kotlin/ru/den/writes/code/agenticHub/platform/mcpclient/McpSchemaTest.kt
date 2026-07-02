@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm
+package ru.den.writes.code.agenticHub.platform.mcpclient
 
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import kotlinx.serialization.json.JsonPrimitive
