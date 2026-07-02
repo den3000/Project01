@@ -21,7 +21,7 @@ dependencies {
 }
 
 android {
-    namespace = "ru.den.writes.code.project01"
+    namespace = "ru.den.writes.code.agenticHub.android"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
