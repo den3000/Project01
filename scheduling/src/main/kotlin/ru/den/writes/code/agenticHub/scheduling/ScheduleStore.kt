@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.scheduling
+package ru.den.writes.code.agenticHub.scheduling
 
 /**
  * Persistence seam for the scheduler's state: the task list plus the results collected

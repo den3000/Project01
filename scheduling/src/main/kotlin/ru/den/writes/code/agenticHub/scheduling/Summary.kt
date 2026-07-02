@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.scheduling
+package ru.den.writes.code.agenticHub.scheduling
 
 /**
  * A human-readable roll-up of the results collected so far: how many, the time span

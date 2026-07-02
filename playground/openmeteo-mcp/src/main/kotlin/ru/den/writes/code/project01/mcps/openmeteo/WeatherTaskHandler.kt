@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.mcps.openmeteo
 
-import ru.den.writes.code.project01.scheduling.ScheduledTask
-import ru.den.writes.code.project01.scheduling.TaskHandler
+import ru.den.writes.code.agenticHub.scheduling.ScheduledTask
+import ru.den.writes.code.agenticHub.scheduling.TaskHandler
 
 /**
  * The per-tick payload for the weather scheduler: looks up the weather for the task's

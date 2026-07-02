@@ -10,8 +10,8 @@ import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.db.HistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.scheduling.InMemoryScheduleStore
-import ru.den.writes.code.project01.scheduling.SchedulerEngine
+import ru.den.writes.code.agenticHub.scheduling.InMemoryScheduleStore
+import ru.den.writes.code.agenticHub.scheduling.SchedulerEngine
 import ru.den.writes.code.project01.shared.llm.LlmApi
 import ru.den.writes.code.project01.shared.llm.ToolDefinition
 import ru.den.writes.code.project01.shared.llm.ToolExecutor

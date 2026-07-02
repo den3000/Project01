@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.scheduling
+package ru.den.writes.code.agenticHub.scheduling
 
 /** Test [TaskHandler]: returns a fixed [reply] (or null), optionally throws, records calls. */
 internal class FakeTaskHandler(

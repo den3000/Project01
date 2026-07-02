@@ -4,10 +4,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
-import ru.den.writes.code.project01.scheduling.Schedule
-import ru.den.writes.code.project01.scheduling.ScheduledTask
-import ru.den.writes.code.project01.scheduling.SchedulerEngine
-import ru.den.writes.code.project01.scheduling.TaskStatus
+import ru.den.writes.code.agenticHub.scheduling.Schedule
+import ru.den.writes.code.agenticHub.scheduling.ScheduledTask
+import ru.den.writes.code.agenticHub.scheduling.SchedulerEngine
+import ru.den.writes.code.agenticHub.scheduling.TaskStatus
 
 /**
  * Live control surface over a running [SchedulerEngine] for the REPL: add a task, filling the

@@ -1,8 +1,8 @@
 package ru.den.writes.code.project01.mcps.openmeteo
 
-import ru.den.writes.code.project01.scheduling.Schedule
-import ru.den.writes.code.project01.scheduling.ScheduledTask
-import ru.den.writes.code.project01.scheduling.TaskStatus
+import ru.den.writes.code.agenticHub.scheduling.Schedule
+import ru.den.writes.code.agenticHub.scheduling.ScheduledTask
+import ru.den.writes.code.agenticHub.scheduling.TaskStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

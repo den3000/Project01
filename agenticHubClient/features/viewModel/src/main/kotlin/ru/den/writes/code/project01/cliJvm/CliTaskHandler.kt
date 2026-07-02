@@ -1,8 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.serialization.json.JsonObject
-import ru.den.writes.code.project01.scheduling.ScheduledTask
-import ru.den.writes.code.project01.scheduling.TaskHandler
+import ru.den.writes.code.agenticHub.scheduling.ScheduledTask
+import ru.den.writes.code.agenticHub.scheduling.TaskHandler
 import ru.den.writes.code.project01.shared.llm.ToolCall
 import ru.den.writes.code.project01.shared.llm.ToolExecutor
 

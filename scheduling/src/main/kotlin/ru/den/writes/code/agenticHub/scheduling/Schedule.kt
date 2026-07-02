@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.scheduling
+package ru.den.writes.code.agenticHub.scheduling
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

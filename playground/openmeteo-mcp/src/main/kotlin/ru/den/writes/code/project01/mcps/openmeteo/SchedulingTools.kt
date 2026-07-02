@@ -1,9 +1,9 @@
 package ru.den.writes.code.project01.mcps.openmeteo
 
-import ru.den.writes.code.project01.scheduling.JsonFileScheduleStore
-import ru.den.writes.code.project01.scheduling.Schedule
-import ru.den.writes.code.project01.scheduling.ScheduledTask
-import ru.den.writes.code.project01.scheduling.SchedulerEngine
+import ru.den.writes.code.agenticHub.scheduling.JsonFileScheduleStore
+import ru.den.writes.code.agenticHub.scheduling.Schedule
+import ru.den.writes.code.agenticHub.scheduling.ScheduledTask
+import ru.den.writes.code.agenticHub.scheduling.SchedulerEngine
 import java.io.File
 
 /** Default on-disk location for the server's schedule (tasks + collected results). */

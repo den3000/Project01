@@ -5,8 +5,8 @@ import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
 import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
-import ru.den.writes.code.project01.scheduling.InMemoryScheduleStore
-import ru.den.writes.code.project01.scheduling.SchedulerEngine
+import ru.den.writes.code.agenticHub.scheduling.InMemoryScheduleStore
+import ru.den.writes.code.agenticHub.scheduling.SchedulerEngine
 import ru.den.writes.code.project01.shared.llm.Message
 import ru.den.writes.code.project01.shared.llm.Role
 import ru.den.writes.code.project01.shared.memory.MemoryMode
