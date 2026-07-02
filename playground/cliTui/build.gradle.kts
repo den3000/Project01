@@ -15,7 +15,7 @@ dependencies {
 }
 
 application {
-    mainClass = "ru.den.writes.code.project01.cliTui.MainKt"
+    mainClass = "ru.den.writes.code.agenticHub.cliTui.MainKt"
 }
 
 // Прокинуть терминал в `run`, чтобы прототипы читали stdin.

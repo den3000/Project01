@@ -21,7 +21,7 @@ dependencies {
 }
 
 application {
-    mainClass = "ru.den.writes.code.project01.mcps.openmeteo.MainKt"
+    mainClass = "ru.den.writes.code.agenticHub.mcps.openmeteo.MainKt"
 }
 
 tasks.withType<AbstractCopyTask>().configureEach {

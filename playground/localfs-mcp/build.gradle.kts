@@ -16,7 +16,7 @@ dependencies {
 }
 
 application {
-    mainClass = "ru.den.writes.code.project01.mcps.localfs.MainKt"
+    mainClass = "ru.den.writes.code.agenticHub.mcps.localfs.MainKt"
 }
 
 tasks.withType<AbstractCopyTask>().configureEach {
