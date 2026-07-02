@@ -5,11 +5,14 @@ KMP-модуль (jvm/android/ios): узкий путь-строковый по�
 
 ## Публичный API
 - `LocalFileSystem` — интерфейс: `exists`/`readText`/`writeText`/`delete`/`mkdirs`/`listFileNames`
-  (все по строковому пути) + `expect fun localFileSystem()` (`LocalFileSystem.kt`).
-- actual JVM реальный (`java.io`), android/ios = `TODO()` (`LocalFileSystem.{jvm,android,ios}.kt`).
+  (все по строковому пути) (`LocalFileSystem.kt`). `JvmLocalFileSystem` (`java.io`) — `internal`.
+- `di/`: `fileSystemModule` — Koin-модуль, биндит `LocalFileSystem` (`internal expect` + `public val`;
+  jvm actual `single { JvmLocalFileSystem() }`, android/ios `TODO`). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
-Нет модульных (лист). Потребитель — `features:memory` (`FileMemoryStore` ходит в файлы через него).
+- `implementation(koin.core)` (для di). Модульных — нет (лист). Потребитель — `features:memory`
+  (`FileMemoryStore` получает `LocalFileSystem` из графа).
 
 ## Грабли
-- android/ios `localFileSystem()` — сейчас `TODO()` (нужны Context.filesDir / NSFileManager).
+- android/ios `fileSystemModule` actual — сейчас `TODO()` (нужны Context.filesDir / NSFileManager);
+  eager `public val` упадёт при инициализации, если тот таргет его дёрнет (см. [DI.md](../../DI.md)).

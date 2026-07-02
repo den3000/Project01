@@ -7,10 +7,12 @@ JVM-модуль: реализация `ToolExecutor` (из `features:llm`) че
 - `McpToolClient(command)` — `: ToolExecutor`; `connect`/`listTools`/`callTool`. Реализация на
   mcp-sdk + kotlinx-io + `Dispatchers.IO` (`McpToolClient.kt`). Спавнится клиентом
   (`apps:cliJvmApp`) как подпроцесс; несколько серверов объединяет `McpToolRouter` (в `features:llm`).
+- `di/`: `mcpClientModule` — `factory { (command: List<String>) -> McpToolClient(command) }`
+  (по клиенту на команду; `connect`/`close` держит вызыватель). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
-- `implementation(features:llm)` (порт `ToolExecutor` + tool-типы) + mcp-sdk. JVM-only.
-Потребитель — `apps:cliJvmApp` (`SessionBuilders`).
+- `implementation(features:llm)` (порт `ToolExecutor` + tool-типы) + mcp-sdk + `koin.core` (для di).
+JVM-only. Потребитель — `apps:cliJvmApp` (`SessionBuilders`).
 
 ## Тесты
 `./gradlew :agenticHubClient:features:mcpClient:test` — `McpSchemaTest` (маппинг схемы инструмента).

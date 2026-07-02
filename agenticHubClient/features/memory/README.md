@@ -15,12 +15,15 @@ KMP-модуль, фундамент памяти (ниже `features:agent` в 
   (`db/`, поверх `platform:database`); `SessionStats`(+`seedFrom`); `MemoryStore`/`FileMemoryStore`
   (markdown под `~/.project01-cli/memory/`: `profile.md`, `profiles/<name>.md`, `rules/NNN-*.md`,
   `tasks/<id>.md`, поверх `platform:fileSystem`); `MemoryProvider` (фасад: режим+taskId+activeProfileName).
+  `FileMemoryStore(root, fs)` — `fs: LocalFileSystem` **обязателен** (из графа; дефолт-фабрики больше нет).
+- `di/`: `memoryModule` — `MemoryStore`/`MemoryProvider` по `root` (fs из `fileSystemModule`),
+  `HistoryStore` по `sessionId`/`branch` (dao из `databaseModule`). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
 - `api(features:llm)` (Message/Usage/LlmApi/PricingRegistry протекают через порты) +
   `api(platform:database)`, `implementation(platform:fileSystem)`, `implementation(platform:logging)`,
-  serialization-json. **НЕ зависит на `features:agent`** — наоборот, `agent → memory`. Потребители —
-  `features:agent`, `lifecycle:*`, `apps:cliJvmApp`.
+  serialization-json, `implementation(koin.core)` (для di). **НЕ зависит на `features:agent`** —
+  наоборот, `agent → memory`. Потребители — `features:agent`, `lifecycle:*`, `apps:cliJvmApp`.
 
 ## Тесты
 `./gradlew :agenticHubClient:features:memory:jvmTest` — домен/компакция/persistence: `MemoryStoreTest`/

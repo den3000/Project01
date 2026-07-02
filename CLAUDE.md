@@ -55,6 +55,9 @@ iOS-bundle-id остались на `project01` (это идентификато
 ## Кросс-каттинг
 
 - **Не печатать секреты** (значения ключей из `local.properties`/`BuildKonfig`) в транскрипт.
+- **DI — Koin** (`koin-core`, KMP): каждый модуль несёт свой Koin-модуль в пакете `<root>.di`;
+  конвенции (платформенный `expect/actual`→`Module` vs универсальный `module{}`, `parametersOf`,
+  holder при >5 арг, composition root `startKoin` в cliJvmApp) — [agenticHubClient/DI.md](agenticHubClient/DI.md).
 
 ## Незакрытый follow-up (кросс-модульный)
 

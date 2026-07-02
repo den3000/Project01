@@ -8,15 +8,21 @@ KMP-модуль (jvm/android/ios) с чистым Room-слоем: схема �
 - `AppDatabase` (version=4, `@ConstructedBy(AppDatabaseConstructor)`), `MessageDao`, entity
   `MessageEntity`/`SummaryEntity`/`FactsEntity`, `DEFAULT_BRANCH`, миграции `MIGRATION_1_2…3_4`
   (`AppDatabase.kt`/`MessageDao.kt`/`*Entity.kt`).
-- `buildDatabase()` (commonMain) + `expect fun databaseBuilder()` — actual JVM реальный
-  (`~/.project01-cli/history.db`), android/ios = `TODO()` (`Database.kt` + `Database.{jvm,android,ios}.kt`).
+- `di/`: `databaseModule` — Koin-модуль, биндит `AppDatabase` (single, `onClose { close() }`) +
+  `MessageDao` (`internal expect` + `public val`; jvm actual через `buildDatabase()`, android/ios `TODO`).
+  Общая дока — [DI.md](../../DI.md).
+- `buildDatabase()` — **`internal`** (зовётся только `databaseModule`); внутри `expect fun
+  databaseBuilder()` — actual JVM реальный (`~/.project01-cli/history.db`), android/ios = `TODO()`
+  (`Database.kt` + `Database.{jvm,android,ios}.kt`).
 
 ## Зависимости
-- `api(room-runtime)`; per-target KSP. Потребитель — `features:memory` (`api`).
+- `api(room-runtime)`, `implementation(koin.core)` (для di); per-target KSP. Потребитель —
+  `features:memory` (`api`; `MessageDao` из графа).
 
 ## Тесты
 `./gradlew :agenticHubClient:platform:database:jvmTest` — DAO/entities/миграции (`FactsStoreTest`/
 `SummaryStoreTest`/`MigrationTest`; `:testing` для TestDb). RoomHistoryStore/persistence — в `features:memory:jvmTest`.
 
 ## Грабли
-- android/ios `databaseBuilder()` — сейчас `TODO()` (нужны Context / NSDocumentDirectory).
+- android/ios `databaseBuilder()` / `databaseModule` actual — сейчас `TODO()` (нужны Context /
+  NSDocumentDirectory).

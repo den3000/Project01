@@ -10,8 +10,10 @@ glue планировщика. Собирается фабрикой `buildSessi
 - `TurnEngine` — чистый движок хода (`turn(): TurnResult`, persist + FSM-переход; делегирует в
   `AgentResponder`); `CommandRunner` — `/`-команды → нотисы.
 - `SessionAssembly` (`buildSessionViewModel()` + `startSchedulerLoops()`). Гидрация
-  `SessionInitialState` (`contextStrategy`/`memoryProvider`/`historyStore`) — в composition-root
-  (cliJvmApp `commandMappers`), не здесь.
+  `SessionInitialState` (`contextStrategy`/`resolveMemoryProvider`/`resolveHistoryStore`) — в
+  composition-root (cliJvmApp `commandMappers`, резолв из Koin), не здесь.
+- `di/`: `sessionModule` — `factory<SessionAssembly> { (a: SessionAssemblyArgs) -> buildSessionViewModel(…) }`;
+  `SessionAssemblyArgs` — data-holder на 9 аргументов (обход лимита `parametersOf` в 5). Дока — [DI.md](../../../DI.md).
 - `UiState`/`UiIntent`/`UiEffect`/`UiLine`(+`mcpToolLines`)/`AgentRef`/`Overlay`/`PickerKind`/
   `SessionCommand`; `TurnResult`(+`SessionStatsSnapshot`/`StageAdvance`); `IntentSource`
   (`PromptSourceIntents`/`ChannelIntentSource`/`MergedIntentSource`); `PromptSource`
@@ -25,8 +27,8 @@ ScheduleAction/TaskHandlerImpl).
 
 ## Зависимости
 - `api(lifecycle:command)` + `api(features:memory)` + `api(features:agent)`,
-  `implementation(platform:logging)` + `implementation(:scheduling)`. JVM (завязка на `:scheduling`;
-  KMP-изация отложена). Потребитель — `apps:cliJvmApp`.
+  `implementation(platform:logging)` + `implementation(:scheduling)` + `implementation(koin.core)` (для di).
+  JVM (завязка на `:scheduling`; KMP-изация отложена). Потребитель — `apps:cliJvmApp`.
 
 ## Тесты
 `./gradlew :agenticHubClient:features:lifecycle:session:test` — unit-тесты MVI/turn/intents/scheduling

@@ -4,17 +4,20 @@ JVM-модуль: диспетчер `StartCommand` — исполняет admin
 запуска сессии. Тонкий CLI-facing слой поверх БД.
 
 ## Публичный API
-- `StartExecutor(db).execute(command): StartCommand.SessionInitialState?` — admin (list/clean/inflate/
+- `StartExecutor(db, fs).execute(command): StartCommand.SessionInitialState?` — admin (list/clean/inflate/
   memory) исполняет через `AdminOps` и печатает `AdminNotice` по stream-тегу → возвращает `null`;
-  session-команду (`RunChat`/`RunOneShot`) возвращает наверх (`StartExecutor.kt`).
-- `AdminOps` (+ `AdminNotice`/`OutputStream`/`formatSessionLine`) — логика admin-операций против БД,
-  возвращает `AdminNotice` (не печатает сам) (`AdminOps.kt`).
+  session-команду (`RunChat`/`RunOneShot`) возвращает наверх (`StartExecutor.kt`). `fs: LocalFileSystem`
+  (для memory-операций через `AdminOps`) — обязателен, из графа.
+- `AdminOps(db, fs)` (+ `AdminNotice`/`OutputStream`/`formatSessionLine`) — логика admin-операций
+  против БД, возвращает `AdminNotice` (не печатает сам) (`AdminOps.kt`).
 - public `MEMORY_ROOT` — корень файловой памяти (`~/.project01-cli/memory`), используется и
   `CliRepl` в апп-модуле.
+- `di/`: `startModule` — `single { StartExecutor(db = get(), fs = get()) }`. Общая дока — [DI.md](../../../DI.md).
 
 ## Зависимости
-- `api(lifecycle:command)` + `api(platform:database)`, `implementation(features:memory)`.
-  Потребитель — `apps:cliJvmApp` (`main.kt`).
+- `api(lifecycle:command)` + `api(platform:database)`, `implementation(features:memory)`,
+  `implementation(platform:fileSystem)` (прямая — `fs` в `AdminOps`) + `implementation(koin.core)` (для di).
+  Потребитель — `apps:cliJvmApp` (`main.kt`, через граф).
 
 ## Тесты
 `./gradlew :agenticHubClient:features:lifecycle:start:test` — `StartExecutorTest` (admin → null;
