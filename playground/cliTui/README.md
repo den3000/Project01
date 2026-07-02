@@ -1,7 +1,7 @@
 # cliTui — песочница сравнения TUI-библиотек
 
 Изолированная песочница для terminal UI на Kotlin/JVM — пробовать и сравнивать подходы
-**отдельно** от боевого `:cliJvmApp` (самостоятельный модуль, чистый JVM без Compose).
+**отдельно** от боевого `:agenticHubClient:apps:cliJvmApp` (самостоятельный модуль, чистый JVM без Compose).
 **Интеграция завершена:** combo (Kotter-каркас + Mordant-виджеты), к которому пришла
 песочница, уже стоит в `cliJvmApp` (вид `-tui`); модуль остаётся для дальнейших проб.
 
@@ -10,10 +10,10 @@
 
 | Файл | Роль |
 |------|------|
-| [`ChatViewModel.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/ChatViewModel.kt) | UI-agnostic ядро (состояние + интенты + эффекты) |
-| [`TuiChat.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/TuiChat.kt) | TUI-вид: Kotter + Mordant |
-| [`KotterView.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/KotterView.kt) | словарь рендера TUI |
-| [`PlainChat.kt`](src/main/kotlin/ru/den/writes/code/project01/cliTui/PlainChat.kt) | plain-вид (тот же VM, без либ) |
+| [`ChatViewModel.kt`](src/main/kotlin/ru/den/writes/code/agenticHub/cliTui/ChatViewModel.kt) | UI-agnostic ядро (состояние + интенты + эффекты) |
+| [`TuiChat.kt`](src/main/kotlin/ru/den/writes/code/agenticHub/cliTui/TuiChat.kt) | TUI-вид: Kotter + Mordant |
+| [`KotterView.kt`](src/main/kotlin/ru/den/writes/code/agenticHub/cliTui/KotterView.kt) | словарь рендера TUI |
+| [`PlainChat.kt`](src/main/kotlin/ru/den/writes/code/agenticHub/cliTui/PlainChat.kt) | plain-вид (тот же VM, без либ) |
 
 Сравнение, которое к этому привело, — ниже (историческое, по факту прогона).
 
@@ -30,9 +30,9 @@
 ⚠️ В настоящем терминале (не из IDE/`./gradlew run`).
 
 ```bash
-./gradlew :cliTui:installDist
-./cliTui/build/install/cliTui/bin/cliTui          # TUI-вид (Kotter+Mordant)
-./cliTui/build/install/cliTui/bin/cliTui plain    # plain-вид
+./gradlew :playground:cliTui:installDist
+./playground/cliTui/build/install/cliTui/bin/cliTui          # TUI-вид (Kotter+Mordant)
+./playground/cliTui/build/install/cliTui/bin/cliTui plain    # plain-вид
 ```
 
 Печатай текст → Enter отправляет → ответ «стримится» по словам → footer со
@@ -74,4 +74,4 @@ Mordant-таблицу выбора **на месте** `stats` (стрелки/
 
 Поверх combo-рендера затем встал **MVI-каркас** (UI-agnostic `ChatViewModel` +
 plain-фолбэк над тем же VM). Этот каркас уже перенесён в боевой `cliJvmApp` (по MVI, без
-подъёма `LlmApi` наружу) — см. [`cliJvmApp/README.md`](../cliJvmApp/README.md).
+подъёма `LlmApi` наружу) — см. [`cliJvmApp/README.md`](../../agenticHubClient/apps/cliJvmApp/README.md).
