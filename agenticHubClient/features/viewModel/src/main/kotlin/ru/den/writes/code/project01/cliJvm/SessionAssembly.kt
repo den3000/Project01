@@ -8,8 +8,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
-import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
+import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.scheduling.InMemoryScheduleStore
 import ru.den.writes.code.agenticHub.scheduling.SchedulerEngine
 import ru.den.writes.code.agenticHub.features.llm.LlmApi

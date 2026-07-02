@@ -21,10 +21,10 @@ import ru.den.writes.code.project01.cliJvm.TurnEngine
 import ru.den.writes.code.project01.cliJvm.UiEffect
 import ru.den.writes.code.project01.cliJvm.UiIntent
 import ru.den.writes.code.project01.cliJvm.UiLine
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
-import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
-import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
+import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role

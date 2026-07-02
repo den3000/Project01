@@ -2,9 +2,9 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.command.ScheduleSpec
-import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
-import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
+import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore
 import ru.den.writes.code.agenticHub.scheduling.InMemoryScheduleStore
 import ru.den.writes.code.agenticHub.scheduling.SchedulerEngine
 import ru.den.writes.code.agenticHub.features.llm.Message

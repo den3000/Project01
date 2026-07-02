@@ -10,11 +10,11 @@ import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.project01.cliJvm.command.SessionConfig
-import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryLayer
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
-import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
+import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore
 import ru.den.writes.code.agenticHub.features.agent.memory.ProfileData
 import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes

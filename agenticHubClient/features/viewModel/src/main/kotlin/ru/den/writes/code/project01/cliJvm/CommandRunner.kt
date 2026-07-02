@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
-import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
+import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes
 import ru.den.writes.code.agenticHub.features.agent.memory.TaskStage

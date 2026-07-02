@@ -1,4 +1,4 @@
-package ru.den.writes.code.project01.cliJvm.memory
+package ru.den.writes.code.agenticHub.features.memory
 
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryLayer

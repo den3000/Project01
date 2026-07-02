@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
-import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
+import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.agent.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 

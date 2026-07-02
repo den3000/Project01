@@ -12,7 +12,7 @@ kotlin {
     jvm()
 
     androidLibrary {
-        namespace = "ru.den.writes.code.project01.features.memory"
+        namespace = "ru.den.writes.code.agenticHub.features.memory"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 
@@ -30,6 +30,9 @@ kotlin {
             api(projects.agenticHubClient.platform.database)
             implementation(projects.agenticHubClient.platform.fileSystem)
             implementation(libs.kotlinx.coroutinesCore)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }

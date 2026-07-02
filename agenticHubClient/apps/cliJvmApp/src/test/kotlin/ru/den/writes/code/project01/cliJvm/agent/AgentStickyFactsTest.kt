@@ -7,7 +7,7 @@ import ru.den.writes.code.project01.cliJvm.FactsExtractor
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.StickyFacts
 import ru.den.writes.code.project01.cliJvm.TestDb
-import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

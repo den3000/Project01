@@ -1,7 +1,7 @@
 package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlin.test.Test

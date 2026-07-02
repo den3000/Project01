@@ -1,9 +1,10 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.agenticHub.features.memory.SessionStats
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 import ru.den.writes.code.agenticHub.platform.database.MessageEntity
-import ru.den.writes.code.project01.cliJvm.db.seedFrom
+import ru.den.writes.code.agenticHub.features.memory.db.seedFrom
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

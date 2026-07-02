@@ -7,9 +7,9 @@ import ru.den.writes.code.project01.cliJvm.StageAdvance
 import ru.den.writes.code.project01.cliJvm.TestDb
 import ru.den.writes.code.project01.cliJvm.TurnEngine
 import ru.den.writes.code.project01.cliJvm.TurnResult
-import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
-import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
+import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore
 import ru.den.writes.code.agenticHub.features.agent.AgentConfig
 import ru.den.writes.code.agenticHub.features.agent.AgentResponder
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams

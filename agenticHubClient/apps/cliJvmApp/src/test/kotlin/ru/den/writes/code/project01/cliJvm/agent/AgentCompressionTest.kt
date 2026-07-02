@@ -10,7 +10,7 @@ import ru.den.writes.code.project01.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.project01.cliJvm.ContextStrategy
 import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.TestDb
-import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import java.io.StringReader
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,14 +1,15 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.agenticHub.features.memory.SessionStats
 import ru.den.writes.code.project01.cliJvm.command.MemoryAction
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.platform.database.DEFAULT_BRANCH
 import ru.den.writes.code.agenticHub.platform.database.MessageEntity
-import ru.den.writes.code.project01.cliJvm.db.seedFrom
-import ru.den.writes.code.project01.cliJvm.memory.FileMemoryStore
-import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
-import ru.den.writes.code.project01.cliJvm.memory.MemoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.seedFrom
+import ru.den.writes.code.agenticHub.features.memory.FileMemoryStore
+import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.MemoryStore
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.agent.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.agent.memory.TaskNotes

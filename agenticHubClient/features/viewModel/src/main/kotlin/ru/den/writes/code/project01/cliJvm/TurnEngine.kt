@@ -1,8 +1,8 @@
 package ru.den.writes.code.project01.cliJvm
 
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
-import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
+import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.agent.AgentConfig
 import ru.den.writes.code.agenticHub.features.agent.AgentResponder
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict

@@ -1,5 +1,6 @@
 package ru.den.writes.code.project01.cliJvm
 
+import ru.den.writes.code.agenticHub.features.memory.SessionStats
 import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.llm.Usage

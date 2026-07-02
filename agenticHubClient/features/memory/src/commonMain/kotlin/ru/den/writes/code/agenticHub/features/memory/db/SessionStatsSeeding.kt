@@ -1,7 +1,7 @@
-package ru.den.writes.code.project01.cliJvm.db
+package ru.den.writes.code.agenticHub.features.memory.db
 
 import ru.den.writes.code.agenticHub.platform.database.MessageEntity
-import ru.den.writes.code.project01.cliJvm.SessionStats
+import ru.den.writes.code.agenticHub.features.memory.SessionStats
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.llm.pricing.ModelPricing
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry

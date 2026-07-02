@@ -1,11 +1,11 @@
-package ru.den.writes.code.project01.cliJvm.db
+package ru.den.writes.code.agenticHub.features.memory.db
 
 import ru.den.writes.code.agenticHub.platform.database.DEFAULT_BRANCH
 import ru.den.writes.code.agenticHub.platform.database.FactsEntity
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.MessageEntity
 import ru.den.writes.code.agenticHub.platform.database.SummaryEntity
-import ru.den.writes.code.project01.cliJvm.SessionStats
+import ru.den.writes.code.agenticHub.features.memory.SessionStats
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.Usage

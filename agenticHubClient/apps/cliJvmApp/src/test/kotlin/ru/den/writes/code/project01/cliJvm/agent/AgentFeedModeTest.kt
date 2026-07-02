@@ -7,7 +7,7 @@ import ru.den.writes.code.project01.cliJvm.FakeLlmApi
 import ru.den.writes.code.project01.cliJvm.LineFilePromptSource
 import ru.den.writes.code.project01.cliJvm.StdinPromptSource
 import ru.den.writes.code.project01.cliJvm.TestDb
-import ru.den.writes.code.project01.cliJvm.db.RoomHistoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import java.io.BufferedReader
 import java.io.StringReader
 import kotlin.test.Test

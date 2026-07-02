@@ -6,8 +6,8 @@ import ru.den.writes.code.agenticHub.platform.mcpclient.McpToolClient
 import ru.den.writes.code.project01.cliJvm.commandMappers.CliArgToSessionCommandMapper
 import ru.den.writes.code.project01.cliJvm.command.StartCommand
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
-import ru.den.writes.code.project01.cliJvm.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
+import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.project01.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.project01.cliJvm.tui.TuiRenderer
 import ru.den.writes.code.agenticHub.features.llm.LlmApi

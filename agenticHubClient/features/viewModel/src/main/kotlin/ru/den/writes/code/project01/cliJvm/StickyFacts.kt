@@ -2,7 +2,7 @@ package ru.den.writes.code.project01.cliJvm
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import ru.den.writes.code.project01.cliJvm.db.HistoryStore
+import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.agent.context.evenDown
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.Message
