@@ -22,6 +22,8 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
   сортировка).
 - **Пайплайн**: `IndexingPipeline(chunking, embedder).index(docs)` → `VectorIndex`;
   `Retriever(embedder, index).retrieve(query, topK)` → `List<ScoredChunk>`.
+- **Персист**: `IndexStore(fs).save(index, path)` / `load(path)` — индекс как один JSON-документ через
+  `LocalFileSystem` (absent → `null`).
 
 ## Зависимости
 - `api(features:llm)` (`LlmApi`/`Message` протекают через порты для будущего reranking/генерации;
