@@ -1,5 +1,9 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
@@ -8,7 +12,6 @@ import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import kotlin.test.Test
@@ -16,12 +19,16 @@ import kotlin.test.assertEquals
 
 class AgentTokenAccountingTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     @Test
     fun `when turn succeeds - then usage folded into HistoryStore stats`() = runTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queue(
                     LlmResult(
                         text = "ok",
@@ -34,6 +41,7 @@ class AgentTokenAccountingTest {
                     )
                 )
             }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "tally")
             val chat = newChat(prompt = "hi", session = "tally")
 
@@ -61,7 +69,8 @@ class AgentTokenAccountingTest {
                 usage = Usage(promptTokens = 100, outputTokens = 50, totalTokens = 150),
                 modelId = "gemini-2.5-flash-lite",
             )
-            val fakeApi = FakeLlmApi().apply { queueText("next reply", promptTokens = 200, outputTokens = 20) }
+            val fakeApiScript = FakeLlmScript().apply { queueText("next reply", promptTokens = 200, outputTokens = 20) }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "rs")
             val chat = newChat(prompt = "next", session = "rs")
 

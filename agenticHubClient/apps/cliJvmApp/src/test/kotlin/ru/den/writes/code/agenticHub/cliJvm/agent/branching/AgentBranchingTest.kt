@@ -1,12 +1,15 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent.branching
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PromptResult
 import ru.den.writes.code.agenticHub.cliJvm.StdinPromptSource
 import ru.den.writes.code.agenticHub.platform.database.TestDb
@@ -20,6 +23,10 @@ import kotlin.test.assertEquals
 
 class AgentBranchingTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     //region branch and switch
 
     @Test
@@ -28,10 +35,11 @@ class AgentBranchingTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val dao = koin.get<MessageDao>()
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("r1") // opening turn on main
                 queueText("r2") // one turn after switching to alt
             }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(dao, sessionId = "s")
             val chat = newChat(prompt = "m1", session = "s")
 
@@ -45,7 +53,7 @@ class AgentBranchingTest {
 
             // then
             // Branch commands make no LLM calls — only the two real turns do.
-            assertEquals(2, fakeApi.calls.size)
+            assertEquals(2, fakeApiScript.calls.size)
             // main keeps just its opening exchange; alt has the copied prefix + its own turn.
             assertEquals(listOf("m1", "r1"), dao.all("s", "main").map { it.text })
             assertEquals(listOf("m1", "r1", "a1", "r2"), dao.all("s", "alt").map { it.text })

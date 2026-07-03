@@ -1,11 +1,14 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
@@ -44,6 +47,10 @@ import kotlin.test.assertTrue
  */
 class AgentStageRoutingTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     @Test
     fun `when no routed agents - then the fallback handles every turn`() = runTest {
         TestDb().use { harness ->
@@ -54,7 +61,8 @@ class AgentStageRoutingTest {
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fallback = FakeLlmApi().apply { queueText("ok") }
+                val fallbackScript = FakeLlmScript().apply { queueText("ok") }
+                val fallback = scriptedApi(fallbackScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -66,7 +74,7 @@ class AgentStageRoutingTest {
                 )
 
                 // then
-                assertEquals(1, fallback.calls.size)
+                assertEquals(1, fallbackScript.calls.size)
             }
         }
     }
@@ -81,8 +89,10 @@ class AgentStageRoutingTest {
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fallback = FakeLlmApi().apply { queueText("fallback") }
-                val planner = FakeLlmApi().apply { queueText("planner") }
+                val fallbackScript = FakeLlmScript().apply { queueText("fallback") }
+                val fallback = scriptedApi(fallbackScript)
+                val plannerScript = FakeLlmScript().apply { queueText("planner") }
+                val planner = scriptedApi(plannerScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -95,8 +105,8 @@ class AgentStageRoutingTest {
                 )
 
                 // then
-                assertEquals(1, planner.calls.size, "routed agent should answer")
-                assertEquals(0, fallback.calls.size, "fallback should be idle")
+                assertEquals(1, plannerScript.calls.size, "routed agent should answer")
+                assertEquals(0, fallbackScript.calls.size, "fallback should be idle")
             }
         }
     }
@@ -111,8 +121,10 @@ class AgentStageRoutingTest {
                     saveTask(TaskNotes("t", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fallback = FakeLlmApi().apply { queueText("fallback") }
-                val later = FakeLlmApi().apply { queueText("later") }
+                val fallbackScript = FakeLlmScript().apply { queueText("fallback") }
+                val fallback = scriptedApi(fallbackScript)
+                val laterScript = FakeLlmScript().apply { queueText("later") }
+                val later = scriptedApi(laterScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -125,8 +137,8 @@ class AgentStageRoutingTest {
                 )
 
                 // then
-                assertEquals(1, fallback.calls.size, "an uncovered stage falls back")
-                assertEquals(0, later.calls.size)
+                assertEquals(1, fallbackScript.calls.size, "an uncovered stage falls back")
+                assertEquals(0, laterScript.calls.size)
             }
         }
     }
@@ -142,8 +154,10 @@ class AgentStageRoutingTest {
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fallback = FakeLlmApi().apply { queueText("fallback") }
-                val planner = FakeLlmApi().apply { queueText("planner") }
+                val fallbackScript = FakeLlmScript().apply { queueText("fallback") }
+                val fallback = scriptedApi(fallbackScript)
+                val plannerScript = FakeLlmScript().apply { queueText("planner") }
+                val planner = scriptedApi(plannerScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -158,7 +172,7 @@ class AgentStageRoutingTest {
                 )
 
                 // then
-                val wire = planner.calls.single().messages.joinToString("\n") { it.text }
+                val wire = plannerScript.calls.single().messages.joinToString("\n") { it.text }
                 assertTrue(wire.contains("plan carefully"), "the routed agent's fixed profile should be injected")
             }
         }
@@ -174,10 +188,13 @@ class AgentStageRoutingTest {
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fallback = FakeLlmApi().apply { queueText("fallback") }
+                val fallbackScript = FakeLlmScript().apply { queueText("fallback") }
+                val fallback = scriptedApi(fallbackScript)
                 // planner answers turn 1 and signals the legal move to execution.
-                val planner = FakeLlmApi().apply { queueText("done planning [[stage:execution]]") }
-                val executor = FakeLlmApi().apply { queueText("executing") }
+                val plannerScript = FakeLlmScript().apply { queueText("done planning [[stage:execution]]") }
+                val planner = scriptedApi(plannerScript)
+                val executorScript = FakeLlmScript().apply { queueText("executing") }
+                val executor = scriptedApi(executorScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when — two user turns: the opening prompt, then one more line.
@@ -193,8 +210,8 @@ class AgentStageRoutingTest {
                 )
 
                 // then
-                assertEquals(1, planner.calls.size, "turn 1 (planning) routes to the planner")
-                assertEquals(1, executor.calls.size, "turn 2 (execution) routes to the executor")
+                assertEquals(1, plannerScript.calls.size, "turn 1 (planning) routes to the planner")
+                assertEquals(1, executorScript.calls.size, "turn 2 (execution) routes to the executor")
                 assertEquals(TaskStage.EXECUTION, memStore.loadTask("t")?.stage)
             }
         }
@@ -210,8 +227,10 @@ class AgentStageRoutingTest {
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fallback = FakeLlmApi().apply { queueText("fb") }
-                val planner = FakeLlmApi().apply { queueText("the plan") }
+                val fallbackScript = FakeLlmScript().apply { queueText("fb") }
+                val fallback = scriptedApi(fallbackScript)
+                val plannerScript = FakeLlmScript().apply { queueText("the plan") }
+                val planner = scriptedApi(plannerScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -247,7 +266,8 @@ class AgentStageRoutingTest {
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fake = FakeLlmApi().apply { queueText("plain reply") }
+                val fakeScript = FakeLlmScript().apply { queueText("plain reply") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when — no routed agents
@@ -272,7 +292,7 @@ class AgentStageRoutingTest {
     private fun routed(
         from: TaskStage,
         to: TaskStage,
-        api: FakeLlmApi,
+        api: LlmApi,
         profileName: String? = null,
         modelId: String = "routed-model",
     ): RoutedAgent = RoutedAgent(

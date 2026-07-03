@@ -1,5 +1,9 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
@@ -9,13 +13,16 @@ import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class AgentOneShotTest {
+
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
 
     @Test
     fun `when OneShot run - then no history loaded and nothing persisted`() = runTest {
@@ -28,7 +35,9 @@ class AgentOneShotTest {
             seeded.append(Message(Role.USER, "old turn"))
             val priorCount = dao.count()
 
-            val fakeApi = FakeLlmApi().apply { queueText("ok") }
+            val fakeApiScript = FakeLlmScript().apply { queueText("ok") }
+
+            val fakeApi = scriptedApi(fakeApiScript)
             val oneShot = StartCommand.RunOneShot(
                 prompt = "fire and forget",
                 maxTokens = null,
@@ -42,10 +51,10 @@ class AgentOneShotTest {
             runSessionForTest(oneShot, fakeApi, historyStore = null, promptSource = createStdinPromptSource(""))
 
             // then
-            assertEquals(1, fakeApi.calls.size)
+            assertEquals(1, fakeApiScript.calls.size)
             assertEquals(
                 listOf(Message(Role.USER, "fire and forget")),
-                fakeApi.calls[0].messages,
+                fakeApiScript.calls[0].messages,
             )
             assertEquals(priorCount, dao.count())
         }
@@ -54,7 +63,8 @@ class AgentOneShotTest {
     @Test
     fun `when OneShot run with generation params - then params forwarded verbatim to LLM`() = runTest {
         // given
-        val fakeApi = FakeLlmApi().apply { queueText("ok") }
+        val fakeApiScript = FakeLlmScript().apply { queueText("ok") }
+        val fakeApi = scriptedApi(fakeApiScript)
         val oneShot = StartCommand.RunOneShot(
             prompt = "x",
             maxTokens = 42,
@@ -74,6 +84,6 @@ class AgentOneShotTest {
             endSequence = "[END]",
             temperature = 0.5,
         )
-        assertEquals(expected, fakeApi.calls.single().params)
+        assertEquals(expected, fakeApiScript.calls.single().params)
     }
 }

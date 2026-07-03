@@ -1,11 +1,14 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
@@ -40,6 +43,10 @@ import kotlin.test.assertTrue
  */
 class AgentJudgeTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     @Test
     fun `when judge flags a violation - then reply is not persisted and stage held`() = runTest {
         TestDb().use { harness ->
@@ -51,7 +58,8 @@ class AgentJudgeTest {
                     addRule("Kotlin only, no Spring")
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Use Spring Boot.\n[[stage:planning]]") }
+                val fakeScript = FakeLlmScript().apply { queueText("Use Spring Boot.\n[[stage:planning]]") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -81,7 +89,8 @@ class AgentJudgeTest {
                     addRule("Kotlin only, no Spring")
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Confirmed, Kotlin it is.\n[[stage:planning]]") }
+                val fakeScript = FakeLlmScript().apply { queueText("Confirmed, Kotlin it is.\n[[stage:planning]]") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -111,7 +120,8 @@ class AgentJudgeTest {
                     addRule("Kotlin only, no Spring")
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Working.\n[[stage:validation]]") }
+                val fakeScript = FakeLlmScript().apply { queueText("Working.\n[[stage:validation]]") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 var calls = 0
                 val narrowJudge = RoutedJudge(

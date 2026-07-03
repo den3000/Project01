@@ -1,6 +1,5 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArgsParser
@@ -64,7 +63,7 @@ internal fun newChat(prompt: String, session: String?): StartCommand.RunChat = S
 
 /**
  * Agent doesn't dispatch on the provider (the concrete `LlmApi` is already
- * stubbed via `FakeLlmApi`), but `StartCommand.SessionInitialState` insists on a
+ * stubbed via the scripted fake from `llmTestModule`), but `StartCommand.SessionInitialState` insists on a
  * non-null [ModelProvider], so tests pass this throwaway.
  */
 internal fun dummyGeminiProvider(

@@ -1,11 +1,14 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.agent.createStdinPromptSource
@@ -36,6 +39,10 @@ import kotlin.test.assertEquals
  */
 class AgentTaskStateTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     //region auto-advance from the model reply
 
     @Test
@@ -48,7 +55,8 @@ class AgentTaskStateTest {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Requirements confirmed.\n[[stage:planning]]") }
+                val fakeScript = FakeLlmScript().apply { queueText("Requirements confirmed.\n[[stage:planning]]") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -76,7 +84,8 @@ class AgentTaskStateTest {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Skipping ahead.\n[[stage:done]]") }
+                val fakeScript = FakeLlmScript().apply { queueText("Skipping ahead.\n[[stage:done]]") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -103,7 +112,8 @@ class AgentTaskStateTest {
                     saveTask(TaskNotes("auth", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Still working on the plan.") }
+                val fakeScript = FakeLlmScript().apply { queueText("Still working on the plan.") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -130,7 +140,8 @@ class AgentTaskStateTest {
                     saveTask(TaskNotes("auth", stage = TaskStage.PLANNING, paused = true))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("[[stage:execution]]") }
+                val fakeScript = FakeLlmScript().apply { queueText("[[stage:execution]]") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -160,7 +171,8 @@ class AgentTaskStateTest {
                     saveTask(TaskNotes("auth", stage = TaskStage.EXECUTION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -185,7 +197,8 @@ class AgentTaskStateTest {
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>())
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM)
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when

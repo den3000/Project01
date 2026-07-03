@@ -1,12 +1,15 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.ChunkedFilePromptSource
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.cliJvm.LineFilePromptSource
 import ru.den.writes.code.agenticHub.cliJvm.StdinPromptSource
 import ru.den.writes.code.agenticHub.platform.database.TestDb
@@ -18,6 +21,10 @@ import kotlin.test.assertEquals
 
 class AgentFeedModeTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     //region feed loop error handling
 
     @Test
@@ -25,11 +32,12 @@ class AgentFeedModeTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("opening ok")  // -prompt opener
                 queueText("chunk 1 ok")  // first chunk from feed file
                 queue(LlmResult(text = null, error = "synthetic 400")) // second chunk fails
             }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "feed")
             val chat = newChat(prompt = "go", session = "feed")
             // Feed source: three chunks scripted. Loop should stop after
@@ -45,7 +53,7 @@ class AgentFeedModeTest {
 
             // then
             // Calls: opener + chunk1 + chunk2 (failed). chunk3 never sent.
-            assertEquals(3, fakeApi.calls.size)
+            assertEquals(3, fakeApiScript.calls.size)
         }
     }
     //endregion
@@ -57,11 +65,12 @@ class AgentFeedModeTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("r-open")
                 queueText("r1")
                 queueText("r2")
             }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "lines")
             val chat = newChat(prompt = "open", session = "lines")
             val source = LineFilePromptSource(BufferedReader(StringReader("turn one\nturn two\n")))
@@ -71,9 +80,9 @@ class AgentFeedModeTest {
 
             // then
             // opening -prompt + 2 lines = 3 turns.
-            assertEquals(3, fakeApi.calls.size)
-            assertEquals("turn one", fakeApi.calls[1].messages.last().text)
-            assertEquals("turn two", fakeApi.calls[2].messages.last().text)
+            assertEquals(3, fakeApiScript.calls.size)
+            assertEquals("turn one", fakeApiScript.calls[1].messages.last().text)
+            assertEquals("turn two", fakeApiScript.calls[2].messages.last().text)
         }
     }
     //endregion
@@ -85,12 +94,13 @@ class AgentFeedModeTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("opener reply")
                 queueText("chunk1 reply")
                 queueText("chunk2 reply")
                 queueText("stdin reply")
             }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "handoff")
             val chat = newChat(prompt = "open", session = "handoff")
             val feedSource = ChunkedFilePromptSource(
@@ -112,8 +122,8 @@ class AgentFeedModeTest {
             // then
             // 1 opener + 2 chunks + 1 stdin prompt = 4 calls. Then /exit
             // stops the stdin loop, finally prints session-summary.
-            assertEquals(4, fakeApi.calls.size)
-            assertEquals("after-feed", fakeApi.calls[3].messages.last().text)
+            assertEquals(4, fakeApiScript.calls.size)
+            assertEquals("after-feed", fakeApiScript.calls[3].messages.last().text)
         }
     }
 
@@ -122,11 +132,12 @@ class AgentFeedModeTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("opener ok")
                 queue(LlmResult(text = null, error = "synthetic overflow")) // chunk1 fails
                 queueText("manual probe reply") // user follow-up after the failure
             }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "abort")
             val chat = newChat(prompt = "open", session = "abort")
             val feedSource = ChunkedFilePromptSource(
@@ -149,8 +160,8 @@ class AgentFeedModeTest {
             // opener + chunk1 (failed) + manual REPL probe = 3 calls.
             // The transition happens despite feedSource.terminated = true:
             // we let the user keep poking the model after the first error.
-            assertEquals(3, fakeApi.calls.size)
-            assertEquals("manual probe", fakeApi.calls[2].messages.last().text)
+            assertEquals(3, fakeApiScript.calls.size)
+            assertEquals("manual probe", fakeApiScript.calls[2].messages.last().text)
         }
     }
     //endregion

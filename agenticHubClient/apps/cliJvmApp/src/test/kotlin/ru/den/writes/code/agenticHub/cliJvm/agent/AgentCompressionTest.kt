@@ -1,5 +1,9 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
@@ -11,7 +15,6 @@ import ru.den.writes.code.agenticHub.features.llm.Usage
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import java.io.StringReader
@@ -22,17 +25,22 @@ import kotlin.test.assertTrue
 
 class AgentCompressionTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     @Test
     fun `when compression triggers - then old turns folded into summary pair and request shrinks`() = runTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("r1")
                 queueText("r2")
                 queueText("ROLLING SUMMARY") // summarization call during send 3
                 queueText("r3")
             }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "comp")
             val chat = newChat(prompt = "p1", session = "comp")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
@@ -48,17 +56,17 @@ class AgentCompressionTest {
 
             // then
             // 3 real turns + 1 summarization call.
-            assertEquals(4, fakeApi.calls.size)
+            assertEquals(4, fakeApiScript.calls.size)
 
             // The summarization call (index 2): one USER message carrying the
             // folded turns (p1 / r1).
-            assertEquals(1, fakeApi.calls[2].messages.size)
-            assertEquals(Role.USER, fakeApi.calls[2].messages[0].role)
-            assertTrue(fakeApi.calls[2].messages[0].text.contains("p1"))
+            assertEquals(1, fakeApiScript.calls[2].messages.size)
+            assertEquals(Role.USER, fakeApiScript.calls[2].messages[0].role)
+            assertTrue(fakeApiScript.calls[2].messages[0].text.contains("p1"))
 
             // The third real turn (index 3) leads with the synthetic summary
             // pair, then the recent tail, then the current user turn.
-            val sent = fakeApi.calls[3].messages
+            val sent = fakeApiScript.calls[3].messages
             assertEquals(
                 Message(Role.USER, HistoryCompressor.SUMMARY_FRAME_PREFIX + "ROLLING SUMMARY"),
                 sent[0],
@@ -78,12 +86,13 @@ class AgentCompressionTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("r1")
                 queueText("r2")
                 queue(LlmResult(text = null, error = "summarizer boom")) // compaction fails
                 queueText("r3")
             }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "degrade")
             val chat = newChat(prompt = "p1", session = "degrade")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
@@ -98,7 +107,7 @@ class AgentCompressionTest {
             )
 
             // then
-            assertEquals(4, fakeApi.calls.size)
+            assertEquals(4, fakeApiScript.calls.size)
             // The third real turn carried the FULL history (no summary frame).
             val expected = listOf(
                 Message(Role.USER, "p1"),
@@ -107,7 +116,7 @@ class AgentCompressionTest {
                 Message(Role.ASSISTANT, "r2"),
                 Message(Role.USER, "p3"),
             )
-            assertEquals(expected, fakeApi.calls[3].messages)
+            assertEquals(expected, fakeApiScript.calls[3].messages)
             // State never advanced → nothing persisted.
             assertNull(store.loadSummary())
         }
@@ -132,7 +141,8 @@ class AgentCompressionTest {
                 usage = Usage(promptTokens = 100, outputTokens = 10, totalTokens = 110),
             )
             // Fresh run: summarizeEvery high enough that no compaction fires.
-            val fakeApi = FakeLlmApi().apply { queueText("r3") }
+            val fakeApiScript = FakeLlmScript().apply { queueText("r3") }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(dao, sessionId = "resume")
             val chat = newChat(prompt = "p3", session = "resume")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 100)
@@ -148,8 +158,8 @@ class AgentCompressionTest {
 
             // then
             // Only the single real turn — no summarization call.
-            assertEquals(1, fakeApi.calls.size)
-            val sent = fakeApi.calls[0].messages
+            assertEquals(1, fakeApiScript.calls.size)
+            val sent = fakeApiScript.calls[0].messages
             assertEquals(
                 Message(Role.USER, HistoryCompressor.SUMMARY_FRAME_PREFIX + "PRIOR SUMMARY"),
                 sent[0],
@@ -168,12 +178,13 @@ class AgentCompressionTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("r-open")   // opening prompt
                 queueText("r-c1")     // chunk 1
                 queueText("SUMMARY")  // compaction before the chunk-2 turn
                 queueText("r-c2")     // chunk 2
             }
+            val fakeApi = scriptedApi(fakeApiScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "feedcomp")
             val chat = newChat(prompt = "open", session = "feedcomp")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
@@ -194,11 +205,11 @@ class AgentCompressionTest {
 
             // then
             // open + chunk1 + (compaction) + chunk2 = 4 calls.
-            assertEquals(4, fakeApi.calls.size)
+            assertEquals(4, fakeApiScript.calls.size)
             // The chunk-2 turn (index 3) carries the summary pair.
             assertEquals(
                 Message(Role.USER, HistoryCompressor.SUMMARY_FRAME_PREFIX + "SUMMARY"),
-                fakeApi.calls[3].messages[0],
+                fakeApiScript.calls[3].messages[0],
             )
         }
     }

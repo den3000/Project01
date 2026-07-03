@@ -1,6 +1,10 @@
 package ru.den.writes.code.agenticHub.features.memory
 
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.dsl.koinApplication
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
@@ -12,6 +16,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class HistoryCompressorTest {
+
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
 
     //region planContext (pure)
 
@@ -111,7 +119,8 @@ class HistoryCompressorTest {
     @Test
     fun `when maybeCompact called below threshold - then null returned and no LLM call made`() = runTest {
         // given
-        val fakeApi = FakeLlmApi().apply { queueText("summary") }
+        val fakeApiScript = FakeLlmScript().apply { queueText("summary") }
+        val fakeApi = scriptedApi(fakeApiScript)
         val compressor = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
         val messages = buildAlternatingMessages(8) // foldable = 8 - 6 - 0 = 2 < 10
 
@@ -122,13 +131,14 @@ class HistoryCompressorTest {
         assertNull(actual)
         assertNull(compressor.summaryText)
         assertEquals(0, compressor.coveredCount)
-        assertEquals(0, fakeApi.calls.size)
+        assertEquals(0, fakeApiScript.calls.size)
     }
 
     @Test
     fun `when maybeCompact called above threshold - then oldest range folded and even watermark advanced`() = runTest {
         // given
-        val fakeApi = FakeLlmApi().apply { queueText("NEW SUMMARY", promptTokens = 100, outputTokens = 20) }
+        val fakeApiScript = FakeLlmScript().apply { queueText("NEW SUMMARY", promptTokens = 100, outputTokens = 20) }
+        val fakeApi = scriptedApi(fakeApiScript)
         val compressor = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
         val messages = buildAlternatingMessages(16) // foldable = 16 - 6 - 0 = 10 → fold [0, 10)
 
@@ -145,8 +155,8 @@ class HistoryCompressorTest {
         assertEquals(100, outcome.usage?.promptTokens)
 
         // One stateless USER summarization call containing the folded texts.
-        assertEquals(1, fakeApi.calls.size)
-        val call = fakeApi.calls[0]
+        assertEquals(1, fakeApiScript.calls.size)
+        val call = fakeApiScript.calls[0]
         assertEquals(1, call.messages.size)
         assertEquals(Role.USER, call.messages[0].role)
         val prompt = call.messages[0].text
@@ -160,7 +170,8 @@ class HistoryCompressorTest {
         // given
         // Odd-length history (invariant-violating) exercises the defensive
         // even-snap: covered must stay even regardless.
-        val fakeApi = FakeLlmApi().apply { queueText("S") }
+        val fakeApiScript = FakeLlmScript().apply { queueText("S") }
+        val fakeApi = scriptedApi(fakeApiScript)
         val compressor = HistoryCompressor(keepLast = 4, summarizeEvery = 10)
         val messages = buildAlternatingMessages(15) // size - keepLast = 11 (odd)
 
@@ -176,7 +187,8 @@ class HistoryCompressorTest {
     @Test
     fun `when maybeCompact has prior summary - then it is rolled into the new summary`() = runTest {
         // given
-        val fakeApi = FakeLlmApi().apply { queueText("UPDATED") }
+        val fakeApiScript = FakeLlmScript().apply { queueText("UPDATED") }
+        val fakeApi = scriptedApi(fakeApiScript)
         val compressor = HistoryCompressor(
             keepLast = 6, summarizeEvery = 10,
             initialSummary = "PRIOR", initialCoveredCount = 4,
@@ -190,7 +202,7 @@ class HistoryCompressorTest {
         assertEquals(14, compressor.coveredCount)
         assertEquals("UPDATED", outcome.newSummary)
         assertTrue(
-            fakeApi.calls[0].messages[0].text.contains("PRIOR"),
+            fakeApiScript.calls[0].messages[0].text.contains("PRIOR"),
             "summarization prompt should carry the prior summary",
         )
     }
@@ -198,7 +210,8 @@ class HistoryCompressorTest {
     @Test
     fun `when summarizer errors - then maybeCompact returns null and state untouched`() = runTest {
         // given
-        val fakeApi = FakeLlmApi() // empty queue → error result
+        val fakeApiScript = FakeLlmScript()
+        val fakeApi = scriptedApi(fakeApiScript) // empty queue → error result
         val compressor = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
         val messages = buildAlternatingMessages(16)
 
@@ -209,13 +222,14 @@ class HistoryCompressorTest {
         assertNull(actual)
         assertNull(compressor.summaryText)
         assertEquals(0, compressor.coveredCount)
-        assertEquals(1, fakeApi.calls.size) // the call was attempted but failed
+        assertEquals(1, fakeApiScript.calls.size) // the call was attempted but failed
     }
 
     @Test
     fun `when summarizer reply is blank - then treated as failure`() = runTest {
         // given
-        val fakeApi = FakeLlmApi().apply { queue(LlmResult(text = "   ")) }
+        val fakeApiScript = FakeLlmScript().apply { queue(LlmResult(text = "   ")) }
+        val fakeApi = scriptedApi(fakeApiScript)
         val compressor = HistoryCompressor(keepLast = 6, summarizeEvery = 10)
         val messages = buildAlternatingMessages(16)
 
@@ -231,7 +245,8 @@ class HistoryCompressorTest {
     @Test
     fun `when keepLast is odd - then snapped down to even`() = runTest {
         // given
-        val fakeApi = FakeLlmApi().apply { queueText("S") }
+        val fakeApiScript = FakeLlmScript().apply { queueText("S") }
+        val fakeApi = scriptedApi(fakeApiScript)
         val compressor = HistoryCompressor(keepLast = 5, summarizeEvery = 10) // 5 → 4
         val messages = buildAlternatingMessages(16)
 

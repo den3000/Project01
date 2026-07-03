@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
@@ -16,7 +19,6 @@ import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.session.CommandRunner
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.lifecycle.session.commandCatalog
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.IntentSource
 import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
@@ -50,12 +52,17 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionViewModelTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     @Test
     fun `when an opening turn runs then Exit - then state has the Turn, a summary, and Exit`() = runTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
@@ -86,7 +93,8 @@ class SessionViewModelTest {
                     modelId = "golden-stub",
                 )
             }
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val vm = newVm(newChat("hi", "s"), fake, RoomHistoryStore(dao, sessionId = "s"))
 
             // when
@@ -106,7 +114,8 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi() // empty queue → error
+            val fakeScript = FakeLlmScript()
+            val fake = scriptedApi(fakeScript) // empty queue → error
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
@@ -116,7 +125,7 @@ class SessionViewModelTest {
             // then
             assertTrue(
                 vm.state.value.lines.any {
-                    it is UiLine.Error && it.reason == "FakeLlmApi: no scripted response"
+                    it is UiLine.Error && it.reason == "FakeLlmScript: no scripted response"
                 },
             )
         }
@@ -127,7 +136,8 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
@@ -146,7 +156,8 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
@@ -172,7 +183,8 @@ class SessionViewModelTest {
     @Test
     fun `when OneShot - then the opening turn runs with no summary, then Exit`() = runTest {
         // given — OneShot has no history
-        val fake = FakeLlmApi().apply { queueText("reply") }
+        val fakeScript = FakeLlmScript().apply { queueText("reply") }
+        val fake = scriptedApi(fakeScript)
         val vm = newVm(oneShot("hi"), fake, store = null)
 
         // when
@@ -192,7 +204,8 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — the opening turn populates 'main' with messages
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
@@ -214,7 +227,8 @@ class SessionViewModelTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — two profiles so the cursor has somewhere to go
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home", "work"))
 
             // when
@@ -232,7 +246,8 @@ class SessionViewModelTest {
             // given — listProfileNames is sorted, so row 2 is 'work'
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val memory = tempMemory("home", "work")
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
 
             // when — open, then pick row 2
@@ -254,7 +269,8 @@ class SessionViewModelTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — no memory provider
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
@@ -277,7 +293,8 @@ class SessionViewModelTest {
             // given
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val memory = tempMemory("home")
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
 
             // when
@@ -298,7 +315,8 @@ class SessionViewModelTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
@@ -316,7 +334,8 @@ class SessionViewModelTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val vm = newVm(newChat("hi", "s"), fake, store)
             val row = commandCatalog().indexOfFirst { it.name == "/branch show" } + 1
 
@@ -335,7 +354,8 @@ class SessionViewModelTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home"))
             val row = commandCatalog().indexOfFirst { it.name == "/profile" } + 1
 
@@ -354,7 +374,8 @@ class SessionViewModelTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val vm = newVm(newChat("hi", "s"), fake, store)
             val row = commandCatalog().indexOfFirst { it.name == "/rule" } + 1
 
@@ -374,7 +395,8 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — scheduler on; the user source parks after the opening turn
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
             val atGate = CompletableDeferred<Unit>()
@@ -401,7 +423,8 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — opening reply + a scheduled reply queued on the fake
-            val fake = FakeLlmApi().apply { queueText("opening"); queueText("scheduled") }
+            val fakeScript = FakeLlmScript().apply { queueText("opening"); queueText("scheduled") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
             val atGate = CompletableDeferred<Unit>()
@@ -428,7 +451,8 @@ class SessionViewModelTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — scheduler on, a channel (push) source like the TUI
-            val fake = FakeLlmApi().apply { queueText("reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("reply") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
             val source = ChannelIntentSource().apply { offer(UiIntent.Exit) }

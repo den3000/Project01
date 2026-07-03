@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
@@ -10,7 +13,6 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.session.CommandRunner
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.IntentSource
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
@@ -47,12 +49,17 @@ import kotlin.test.assertEquals
  */
 class PlainViewGoldenTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     @Test
     fun `when a single chat turn completes - then stdout carries reply plus footer and stderr the summary`() = runTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi().apply { queueText("model reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("model reply") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
 
             // when
@@ -90,7 +97,8 @@ class PlainViewGoldenTest {
                     modelId = "golden-stub",
                 )
             }
-            val fake = FakeLlmApi().apply { queueText("model reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("model reply") }
+            val fake = scriptedApi(fakeScript)
 
             // when
             val out = runPlain(goldenChat("hi", "alpha"), fake, RoomHistoryStore(dao, sessionId = "alpha"), intents())
@@ -112,7 +120,8 @@ class PlainViewGoldenTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi() // empty queue → synthetic error result
+            val fakeScript = FakeLlmScript()
+            val fake = scriptedApi(fakeScript) // empty queue → synthetic error result
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
 
             // when
@@ -121,7 +130,7 @@ class PlainViewGoldenTest {
             // then
             assertEquals("", out.stdout)
             val expectedStderr = buildString {
-                appendLine("[error] FakeLlmApi: no scripted response")
+                appendLine("[error] FakeLlmScript: no scripted response")
                 appendLine(
                     "[session-summary] turns=0  prompt=0  output=0  total=0  " +
                         "cost=\$0.00  (current model has no pricing entry)",
@@ -139,8 +148,10 @@ class PlainViewGoldenTest {
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fallback = FakeLlmApi().apply { queueText("fb") }
-                val planner = FakeLlmApi().apply { queueText("the plan") }
+                val fallbackScript = FakeLlmScript().apply { queueText("fb") }
+                val fallback = scriptedApi(fallbackScript)
+                val plannerScript = FakeLlmScript().apply { queueText("the plan") }
+                val planner = scriptedApi(plannerScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
@@ -177,7 +188,8 @@ class PlainViewGoldenTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi().apply { queueText("model reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("model reply") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
 
             // when — opening turn (2 messages persisted), then a /branch command
@@ -203,7 +215,8 @@ class PlainViewGoldenTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi().apply { queueText("model reply") }
+            val fakeScript = FakeLlmScript().apply { queueText("model reply") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
 
             // when
@@ -249,7 +262,7 @@ class PlainViewGoldenTest {
             modelProvider = ModelProvider.Gemini(GeminiModel.Custom("golden-stub"), apiKey = "test-key"),
         )
 
-    private fun routedPlanner(api: FakeLlmApi): RoutedAgent = RoutedAgent(
+    private fun routedPlanner(api: LlmApi): RoutedAgent = RoutedAgent(
         binding = TaskBinding(TaskStage.PLANNING, TaskStage.EXECUTION),
         responder = AgentResponder(AgentConfig(llmApi = api, params = GenerationParams(), profileName = "planner")),
         profileName = "planner",

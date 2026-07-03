@@ -1,11 +1,14 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.agent.createStdinPromptSource
@@ -35,6 +38,10 @@ import kotlin.test.assertTrue
 
 class AgentMemoryTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     @Test
     fun `PREAMBLE mode prepends a USER memory frame and ASSISTANT ack to the wire list`() = runTest {
         TestDb().use { harness ->
@@ -46,13 +53,15 @@ class AgentMemoryTest {
                 }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
-                val msgs = fake.calls.single().messages
+                val msgs = fakeScript.calls.single().messages
                 assertEquals(3, msgs.size, "expected [USER frame, ASSISTANT ack, USER prompt]")
                 assertEquals(Role.USER, msgs[0].role)
                 assertTrue(msgs[0].text.startsWith(MemoryLayer.PROFILE_HEADING))
@@ -81,13 +90,15 @@ class AgentMemoryTest {
                     initialTaskId = "auth",
                 )
 
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
-                val msgs = fake.calls.single().messages
+                val msgs = fakeScript.calls.single().messages
                 val systemMsgs = msgs.takeWhile { it.role == Role.SYSTEM }
                 assertEquals(3, systemMsgs.size, "expected one SYSTEM per non-empty section")
                 assertTrue(systemMsgs[0].text.startsWith(MemoryLayer.PROFILE_HEADING))
@@ -107,7 +118,9 @@ class AgentMemoryTest {
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveProfile("anything") }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.SYSTEM)
 
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+
+                val fake = scriptedApi(fakeScript)
                 val dao = koin.get<MessageDao>()
                 val store = RoomHistoryStore(dao, sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
@@ -129,14 +142,16 @@ class AgentMemoryTest {
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>())  // empty profile / rules / tasks
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
                 // No memory frame at all — opening prompt is the lone entry.
-                assertEquals(listOf(Message(Role.USER, "hi")), fake.calls.single().messages)
+                assertEquals(listOf(Message(Role.USER, "hi")), fakeScript.calls.single().messages)
             }
         }
     }
@@ -149,10 +164,11 @@ class AgentMemoryTest {
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveProfile("Kotlin only") }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
-                val fake = FakeLlmApi().apply {
+                val fakeScript = FakeLlmScript().apply {
                     queueText("first")
                     queueText("second")
                 }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
@@ -163,10 +179,10 @@ class AgentMemoryTest {
                 )
 
                 // calls[0] — opening turn was PREAMBLE (USER frame + ASSISTANT ack + prompt)
-                assertEquals(Role.USER, fake.calls[0].messages[0].role)
-                assertEquals(Role.ASSISTANT, fake.calls[0].messages[1].role)
+                assertEquals(Role.USER, fakeScript.calls[0].messages[0].role)
+                assertEquals(Role.ASSISTANT, fakeScript.calls[0].messages[1].role)
                 // calls[1] — after /agent mode system, the next turn carries Role.SYSTEM
-                val secondWire = fake.calls[1].messages
+                val secondWire = fakeScript.calls[1].messages
                 assertEquals(Role.SYSTEM, secondWire[0].role)
                 assertTrue(secondWire[0].text.startsWith(MemoryLayer.PROFILE_HEADING))
             }
@@ -181,7 +197,9 @@ class AgentMemoryTest {
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>())
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
@@ -207,7 +225,9 @@ class AgentMemoryTest {
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>())
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
@@ -233,7 +253,9 @@ class AgentMemoryTest {
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>())
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
@@ -256,7 +278,9 @@ class AgentMemoryTest {
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>())
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
@@ -282,10 +306,11 @@ class AgentMemoryTest {
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveProfile("anything") }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
 
-                val fake = FakeLlmApi().apply {
+                val fakeScript = FakeLlmScript().apply {
                     queueText("first")
                     queueText("second")
                 }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
@@ -296,7 +321,7 @@ class AgentMemoryTest {
                 )
 
                 assertEquals(MemoryMode.PREAMBLE, memory.currentMode())
-                assertEquals(2, fake.calls.size, "garbage /agent mode landed as a real prompt")
+                assertEquals(2, fakeScript.calls.size, "garbage /agent mode landed as a real prompt")
             }
         }
     }
@@ -307,7 +332,8 @@ class AgentMemoryTest {
         // explanatory line and become no-ops, not throw or persist anything.
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
-            val fake = FakeLlmApi().apply { queueText("ok") }
+            val fakeScript = FakeLlmScript().apply { queueText("ok") }
+            val fake = scriptedApi(fakeScript)
             val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
             val chat = newChat(prompt = "hi", session = "demo")
 
@@ -319,7 +345,7 @@ class AgentMemoryTest {
 
             // Only the opening turn went out; the three memory commands were
             // recognised but bounced because no MemoryProvider was wired.
-            assertEquals(1, fake.calls.size)
+            assertEquals(1, fakeScript.calls.size)
         }
     }
 
@@ -341,13 +367,14 @@ class AgentMemoryTest {
                     )
                 }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
-                val frame = fake.calls.single().messages.first().text
+                val frame = fakeScript.calls.single().messages.first().text
                 assertTrue(frame.startsWith(MemoryLayer.PROFILE_HEADING))
                 assertTrue(frame.contains("Style:\n- кратко\n- русский"), "missing style block:\n$frame")
                 assertTrue(frame.contains("Format:\n- code-first"))
@@ -366,11 +393,12 @@ class AgentMemoryTest {
                 withTempMemoryRoot { root ->
                     val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveProfileData(profile) }
                     val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
-                    val fake = FakeLlmApi().apply { queueText("ok") }
+                    val fakeScript = FakeLlmScript().apply { queueText("ok") }
+                    val fake = scriptedApi(fakeScript)
                     val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                     val chat = newChat(prompt = "Как реализовать кэш?", session = "demo")
                     runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
-                    captured = fake.calls.single().messages.first().text
+                    captured = fakeScript.calls.single().messages.first().text
                 }
             }
             return captured!!
@@ -405,7 +433,8 @@ class AgentMemoryTest {
             withTempMemoryRoot { root ->
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>())
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
@@ -433,7 +462,8 @@ class AgentMemoryTest {
                     addProfileItem(ProfileSection.STYLE, "кратко")
                 }
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
@@ -466,13 +496,14 @@ class AgentMemoryTest {
                     initialMode = MemoryMode.PREAMBLE,
                     initialProfileName = "kotlin-senior",
                 )
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
                 runSessionForTest(chat, fake, store, promptSource = createStdinPromptSource("/exit\n"), memory = memory)
 
-                val frame = fake.calls.single().messages.first().text
+                val frame = fakeScript.calls.single().messages.first().text
                 assertTrue(frame.contains("Style:\n- кратко"))
                 assertTrue(frame.contains("Constraints:\n- Kotlin"))
             }
@@ -493,10 +524,11 @@ class AgentMemoryTest {
                     initialMode = MemoryMode.PREAMBLE,
                     initialProfileName = "kotlin-senior",
                 )
-                val fake = FakeLlmApi().apply {
+                val fakeScript = FakeLlmScript().apply {
                     queueText("ok-1")
                     queueText("ok-2")
                 }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "first", session = "demo")
 
@@ -508,9 +540,9 @@ class AgentMemoryTest {
                     memory = memory,
                 )
 
-                assertEquals(2, fake.calls.size, "expected two LLM turns")
-                val firstFrame = fake.calls[0].messages.first().text
-                val secondFrame = fake.calls[1].messages.first().text
+                assertEquals(2, fakeScript.calls.size, "expected two LLM turns")
+                val firstFrame = fakeScript.calls[0].messages.first().text
+                val secondFrame = fakeScript.calls[1].messages.first().text
                 assertTrue(firstFrame.contains("Style:\n- кратко"), "first turn should use kotlin-senior:\n$firstFrame")
                 assertTrue(secondFrame.contains("Style:\n- подробно"), "second turn should use python-junior:\n$secondFrame")
             }
@@ -524,7 +556,8 @@ class AgentMemoryTest {
             withTempMemoryRoot { root ->
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>())
                 val memory = MemoryProvider(memStore, initialMode = MemoryMode.PREAMBLE)
-                val fake = FakeLlmApi().apply { queueText("ok") }
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+                val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 val chat = newChat(prompt = "hi", session = "demo")
 
