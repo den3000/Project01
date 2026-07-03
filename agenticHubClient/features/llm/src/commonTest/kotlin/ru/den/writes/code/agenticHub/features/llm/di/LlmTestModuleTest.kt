@@ -15,10 +15,13 @@ import kotlin.test.assertNotNull
 // Backtick names без `()`/`,` — иначе iOS commonTest не компилится.
 class LlmTestModuleTest {
 
+    // Один граф на весь класс: llmTestModule целиком на factory, каждый get()
+    // отдаёт свежий инстанс — тесты независимы без пересборки koin на каждый.
+    private val koin = koinApplication { modules(llmTestModule) }.koin
+
     @Test
     fun `when script queued - then LlmApi returns scripted reply and records the call`() = runTest {
         // given
-        val koin = koinApplication { modules(llmTestModule) }.koin
         val script = koin.get<FakeLlmScript>()
         script.queueText("hello")
         val api = koin.get<LlmApi> { parametersOf(script) }
@@ -34,7 +37,7 @@ class LlmTestModuleTest {
     @Test
     fun `when script empty - then LlmApi returns a synthetic error result`() = runTest {
         // given
-        val api = koinApplication { modules(llmTestModule) }.koin.get<LlmApi>{ parametersOf(null) }
+        val api = koin.get<LlmApi> { parametersOf(null) }
 
         // when
         val result = api.send(listOf(Message(Role.USER, "hi")), GenerationParams())
