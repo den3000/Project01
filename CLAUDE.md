@@ -71,8 +71,10 @@ iOS-bundle-id остались на `project01` (это идентификато
   детали — composeApp README).
 - **iOS commonTest `features:agent` не компилится** на backtick-именах тестов с `()`/`,` (ограничение
   Kotlin/Native) — pre-existing; обход теми же `-x compileTestKotlinIos*`.
-- KMP-изация lifecycle-модулей (сейчас JVM); android/ios actual-реализации `TODO()` в
-  `platform:database`/`platform:fileSystem` (см. их README).
+- KMP-изация модулей сделана (lifecycle command/start/session, scheduling, mcpClient[jvm+android,
+  без iOS — SDK без iOS-klib]). Осталось: реальные android/ios `actual` (сейчас `TODO()`) —
+  `platform:database` (builder/TestDb), `platform:fileSystem` (LocalFileSystem/homeDirectory),
+  `lifecycle:session` (`SessionPlatform` часы/диспетчер). См. README модулей.
 - `.run/androidApp.run.xml` держит старое имя модуля (`Project01.androidApp`) — AS переразрешит на sync.
 
 ## Стиль работы пользователя
