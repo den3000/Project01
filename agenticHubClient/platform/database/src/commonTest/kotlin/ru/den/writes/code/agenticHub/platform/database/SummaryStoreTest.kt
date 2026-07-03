@@ -10,6 +10,7 @@ import ru.den.writes.code.agenticHub.platform.database.SummaryEntity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import ru.den.writes.code.agenticHub.testutils.IgnoreIos
 
 /**
  * DAO-level coverage for the `summaries` table (schema v3). Runs against a
@@ -18,6 +19,8 @@ import kotlin.test.assertNull
  * validated separately by a manual run against a real pre-existing DB —
  * see the plan's verification section.)
  */
+// @IgnoreIos: opens a real DB via TestDb (iOS actual is TODO()).
+@IgnoreIos
 class SummaryStoreTest {
 
     @Test

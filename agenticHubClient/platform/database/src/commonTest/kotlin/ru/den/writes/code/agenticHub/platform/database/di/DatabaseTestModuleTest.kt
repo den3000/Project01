@@ -9,7 +9,10 @@ import ru.den.writes.code.agenticHub.platform.database.TestDb
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
+import ru.den.writes.code.agenticHub.testutils.IgnoreIos
 
+// @IgnoreIos: opens a real DB via TestDb (iOS actual is TODO()).
+@IgnoreIos
 class DatabaseTestModuleTest {
 
     @Test

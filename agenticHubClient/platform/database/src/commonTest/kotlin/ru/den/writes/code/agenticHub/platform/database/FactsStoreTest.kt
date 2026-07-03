@@ -9,12 +9,15 @@ import ru.den.writes.code.agenticHub.platform.database.FactsEntity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import ru.den.writes.code.agenticHub.testutils.IgnoreIos
 
 /**
  * DAO-level coverage for the `facts` table (schema v4). Runs against a freshly
  * built v4 DB via [TestDb]; that these pass proves the entity↔schema match
  * Room generates. The v3→v4 migration itself is guarded by [MigrationTest].
  */
+// @IgnoreIos: opens a real DB via TestDb (iOS actual is TODO()).
+@IgnoreIos
 class FactsStoreTest {
 
     @Test

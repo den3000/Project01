@@ -34,9 +34,11 @@ kotlin {
             implementation(libs.kotlinx.coroutinesCore)
             implementation(libs.koin.core)
         }
-        jvmTest.dependencies {
+        commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutinesTest)
+            // @IgnoreIos on the TestDb-backed DAO tests (iOS DB actual is TODO там).
+            implementation(projects.agenticHubClient.testUtils)
         }
     }
 }
