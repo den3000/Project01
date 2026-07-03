@@ -12,11 +12,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import ru.den.writes.code.agenticHub.testutils.IgnoreIos
 
 /**
  * Branch deletion ([HistoryStore.deleteBranch]) — the DB side of `/branch clear`.
  * Kept separate from [HistoryStoreTest], which is at the file-size limit.
  */
+// @IgnoreIos: opens a real DB via TestDb (iOS DB actual is TODO()).
+@IgnoreIos
 class HistoryStoreBranchTest {
 
     @Test

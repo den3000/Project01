@@ -13,7 +13,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import ru.den.writes.code.agenticHub.testutils.IgnoreIos
 
+// @IgnoreIos: opens a real DB via TestDb (iOS DB actual is TODO()).
+@IgnoreIos
 class HistoryStoreTest {
 
     //region basic load and append

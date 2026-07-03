@@ -37,9 +37,9 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-        }
-        jvmTest.dependencies {
             implementation(libs.kotlinx.coroutinesTest)
+            // @IgnoreIos on the TestDb-backed history tests (iOS DB actual is TODO там).
+            implementation(projects.agenticHubClient.testUtils)
         }
     }
 }
