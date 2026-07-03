@@ -10,6 +10,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+// @IgnoreIos: fileSystemModule (eager val в этом же файле) на iOS = TODO(), Native
+// инициализирует все top-level val файла разом → тест упал бы при инициализации.
+// Помечаем как ignored на iOS (видно в репорте: iOS-реализация не готова), на JVM гоняется.
+@IgnoreIos
 class FileSystemModuleTest {
 
     // Один граф на весь класс: fileSystemTestModule на factory, каждый get() —

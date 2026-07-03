@@ -127,8 +127,9 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
   инициализации val**, если тот таргет реально его дёрнет. android/ios di заводится вместе с их реальными
   `LocalFileSystem`/`databaseBuilder`.
   - **Следствие для тестов**: Kotlin/Native инициализирует **все** top-level `val` файла при первом
-    касании любого из них. Поэтому `fileSystemTestModule` (common, гоняется в iOS-тестах) вынесен в
-    **отдельный файл** `FileSystemTestModule.kt` — будь он рядом с eager `fileSystemModule`, простой
-    резолв тест-модуля падал бы на iOS (`FileFailedToInitializeException`). `llmTestModule` рядом с
-    `llmModule` можно (у llm нет `TODO`-actual).
+    касании любого из них. Значит common-тест, который трогает `fileSystemTestModule` (лежит рядом с
+    eager `fileSystemModule` в одном файле), на iOS падает `FileFailedToInitializeException`. **НЕ**
+    прячем это разнесением по файлам (маскировало бы «iOS не готов») — помечаем тест `@IgnoreIos`
+    (expect/actual: JVM — no-op, iOS — `kotlin.test.Ignore`), тогда в iOS-репорте он виден как
+    **ignored**, а JVM гоняет. `llmTestModule` рядом с `llmModule` без проблем (у llm нет `TODO`-actual).
 - **`onClose`** — из `org.koin.dsl.onClose` (инфиксный на `KoinDefinition`), не из `core.module.dsl`.
