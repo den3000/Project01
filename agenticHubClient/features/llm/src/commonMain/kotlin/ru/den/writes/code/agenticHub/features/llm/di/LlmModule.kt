@@ -27,9 +27,14 @@ public val llmModule: Module = module {
  * [FakeLlmScript] `single`: configure it cross-module via
  * `koin.get<FakeLlmScript>().queueText(...)`. Plain `common` module → runs on
  * every target. The fake ([ScriptedLlmApi]) and its holder live next to the real
- * `*Api` impls. See agenticHubClient/DI.md.
+ * `*Api` impls.
+ *
+ * A **function**, not a `val`: a reused module value would share its `single`
+ * [FakeLlmScript] across every test's `koinApplication` (Koin caches the
+ * singleton in the module's factory); a fresh module per call keeps each test's
+ * script isolated. See agenticHubClient/DI.md.
  */
-public val llmTestModule: Module = module {
+public fun llmTestModule(): Module = module {
     single { FakeLlmScript() }
     single<LlmApi> { ScriptedLlmApi(get()) }
 }

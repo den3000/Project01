@@ -17,7 +17,7 @@ class LlmTestModuleTest {
     @Test
     fun `when script queued - then LlmApi returns scripted reply and records the call`() = runTest {
         // given
-        val koin = koinApplication { modules(llmTestModule) }.koin
+        val koin = koinApplication { modules(llmTestModule()) }.koin
         koin.get<FakeLlmScript>().queueText("hello")
         val api = koin.get<LlmApi>()
 
@@ -32,7 +32,7 @@ class LlmTestModuleTest {
     @Test
     fun `when script empty - then LlmApi returns a synthetic error result`() = runTest {
         // given
-        val api = koinApplication { modules(llmTestModule) }.koin.get<LlmApi>()
+        val api = koinApplication { modules(llmTestModule()) }.koin.get<LlmApi>()
 
         // when
         val result = api.send(listOf(Message(Role.USER, "hi")), GenerationParams())

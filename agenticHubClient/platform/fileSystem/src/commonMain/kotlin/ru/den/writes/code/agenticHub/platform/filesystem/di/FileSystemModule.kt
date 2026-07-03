@@ -25,8 +25,13 @@ public val fileSystemModule: Module = fileSystemModule()
  * resolves on **every** target, letting integration graphs run their tests in
  * any platform environment. Compose it in place of [fileSystemModule]; seed and
  * assert through the public [LocalFileSystem] surface. The fake
- * [InMemoryLocalFileSystem] lives next to the real impl. See agenticHubClient/DI.md.
+ * [InMemoryLocalFileSystem] lives next to the real impl.
+ *
+ * A **function**, not a `val`: each test spins up its own `koinApplication`, and
+ * a reused module value would share its `single` instance across them (Koin
+ * caches the singleton in the module's factory). A fresh module per call keeps
+ * the in-memory state isolated per test. See agenticHubClient/DI.md.
  */
-public val fileSystemTestModule: Module = module {
+public fun fileSystemTestModule(): Module = module {
     single<LocalFileSystem> { InMemoryLocalFileSystem() }
 }
