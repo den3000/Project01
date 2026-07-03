@@ -1,7 +1,8 @@
 # :agenticHubClient:features:lifecycle:command — словарь запуска/конфига
 
-JVM-модуль: нейтральный неразделимый command-домен, общий для `lifecycle:start` (исполняет) и
-`lifecycle:session` (конфигурит runtime). Только типы-данные, без логики.
+KMP-модуль (common; таргеты jvm/android/ios): нейтральный неразделимый command-домен, общий для
+`lifecycle:start` (исполняет) и `lifecycle:session` (конфигурит runtime). Только типы-данные, без
+логики — платформенного кода нет, весь код в `commonMain`.
 
 ## Публичный API
 - `StartCommand` (sealed): admin `ListSessions`/`CleanHistory`/`CleanSession`/`InflateSession`/
