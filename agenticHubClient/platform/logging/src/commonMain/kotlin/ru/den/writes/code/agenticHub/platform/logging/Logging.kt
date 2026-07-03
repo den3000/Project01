@@ -11,3 +11,12 @@ package ru.den.writes.code.agenticHub.platform.logging
  * back to `println`.
  */
 expect fun logWarn(message: String)
+
+/**
+ * Platform-neutral hook for error-stream output — the stderr half of a CLI's
+ * stdout/stderr split (e.g. lifecycle:start's admin-command error notices).
+ * Same routing as [logWarn] (JVM/Android → `System.err`, iOS → `println`); the
+ * two are kept distinct so callers say what they mean rather than tagging every
+ * error as a "warning".
+ */
+expect fun logErr(message: String)
