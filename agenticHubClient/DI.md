@@ -101,6 +101,12 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
   (`internal` фейк) + `factory { FakeLlmScript() }`. Интерфейс `LlmApi` (`send`) узкий → очередь
   ответов/инспекция вызовов живут в публичном `FakeLlmScript`; тест создаёт его, `queueText(...)`,
   передаёт через `parametersOf`, потом читает `script.calls`.
+- **`platform:database` → `fun databaseTestModule(db: AppDatabase)`**: биндит **реальную** БД (без мока
+  таблиц), которую тест уже собрал через `TestDb` (temp-file Room поверх bundled SQLite). Аргументом —
+  потому что БД это closeable-ресурс, которым владеет тест (`TestDb().use { … }` чистит), и её надо
+  **забиндить** (`single<AppDatabase>`/`single<MessageDao>`), а не передать resolve-параметром: до
+  вложенного `get<MessageDao>()` в `memoryModule` `parametersOf` не доедет. `single` тут без утечки —
+  инстанс приходит снаружи, а модуль создаётся заново на каждый тест (`fun`, свой `db`).
 - **Соотношение с `:testing`** — аддитивно, не замена. `FakeLlmApi`/`testLocalFileSystem()`/`TestDb` в
   `:testing` остаются для unit-тестов, что конструируют/настраивают фейк напрямую; `*TestModule` — для
   композиции Koin-графа, где фейк отдаётся под интерфейсом.
