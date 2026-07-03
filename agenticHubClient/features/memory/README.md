@@ -29,7 +29,7 @@ KMP-модуль, фундамент памяти (ниже `features:agent` в 
 `./gradlew :agenticHubClient:features:memory:jvmTest` — домен/компакция/persistence: `MemoryStoreTest`/
 `MemoryProviderProfileTest`, `HistoryCompressorTest`/`MemoryLayerTest`/`ProfileTest`/`TaskStateTest`,
 `ContextStrategyTest`/`FactsExtractorTest`/`HistoryStoreTest`/`HistoryStoreBranchTest`/`SessionStatsTest`.
-jvmTest (не commonTest — TestDb JVM + обход iOS backtick-грабли); `FakeLlmApi`/`TestDb` — из `:testing`.
+jvmTest (не commonTest — TestDb JVM + обход iOS backtick-грабли); фейки: `FakeLlmScript`/`llmTestModule` (features:llm), `TestDb` (platform:database).
 
 ## Грабли
 - **`Role.SYSTEM` НЕ персистится в `HistoryStore`** — в `messages`-таблице только `USER`/`ASSISTANT`;

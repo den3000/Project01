@@ -491,7 +491,7 @@ memoryModule, agentModule, mcpClientModule, startModule, sessionModule) }`; вс
 ./gradlew :agenticHubClient:apps:cliJvmApp:test
 ```
 
-Offline и быстро — все провайдеры застаблены через `FakeLlmApi`, сети нет. Парсинг покрыт
+Offline и быстро — провайдеры застаблены через `llmTestModule` (`FakeLlmScript`), сети нет. Парсинг покрыт
 `cliargs/*Test` (grammar/crossvalidation) + `commandMappers/CliArgsToStartCommandMapper*Test` (оба маппера);
 MVI-стек диалога — через хелпер `runSessionForTest`, байт-в-байт вывод пинит `PlainViewGoldenTest`.
 Доменное ядро вынесено в отдельные модули (`features:llm` — LLM/pricing, `features:agent` —

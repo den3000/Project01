@@ -41,10 +41,8 @@ KMP-проект на Compose Multiplatform (Android, iOS, Desktop/JVM) плюс
 **[scheduling](./scheduling)** — переиспользуемое ядро планировщика (без зависимостей), используется
 openmeteo-mcp и cliJvmApp.
 
-**[testing](./agenticHubClient/testing)** — shared тест-хелперы (`FakeLlmApi`/`TestDb`/
-`testLocalFileSystem`), только для `testImplementation`.
-
-**DI** — граф собирается через Koin; конвенции и composition root — [agenticHubClient/DI.md](./agenticHubClient/DI.md).
+**DI** — граф собирается через Koin; конвенции, composition root и **тест-модули** (фейки живут рядом
+с реальными реализациями, `:testing` снесён) — [agenticHubClient/DI.md](./agenticHubClient/DI.md).
 
 ## Запуск
 

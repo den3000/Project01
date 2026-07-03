@@ -25,7 +25,7 @@ Memory-домен (профиль/правила/task-FSM/`MemoryLayer`) и ко
 
 ## Тесты
 `./gradlew :agenticHubClient:features:agent:jvmTest` — `AgentResponderTest`, `InvariantJudgePromptTest`,
-`LlmInvariantJudgeTest` (`FakeLlmApi` — из `:testing`). Memory-домен-тесты уехали в `features:memory`.
+`LlmInvariantJudgeTest` (`FakeLlmScript`/`llmTestModule` из features:llm). Memory-домен-тесты уехали в `features:memory`.
 Backtick-имена в commonTest **без** `()`/`,` — иначе iOS commonTest не компилится.
 
 ## Грабли

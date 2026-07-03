@@ -32,7 +32,7 @@ ScheduleAction/TaskHandlerImpl).
 
 ## Тесты
 `./gradlew :agenticHubClient:features:lifecycle:session:test` — unit-тесты MVI/turn/intents/scheduling
-(TurnResult/UiState/Overlay/CommandPalette/MergedIntentSource/TaskHandlerImpl/CommandRunner; `:testing`).
+(TurnResult/UiState/Overlay/CommandPalette/MergedIntentSource/TaskHandlerImpl/CommandRunner).
 Интеграция (`runSessionForTest` = `TurnEngine`+`SessionViewModel`+`PlainRenderer`, golden
 `PlainViewGoldenTest`) остаётся в `apps:cliJvmApp:test` (нужен `PlainRenderer`).
 
