@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.start
 
+import ru.den.writes.code.agenticHub.platform.database.AppDatabase
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
@@ -21,6 +24,7 @@ class StartExecutorTest {
     @Test
     fun `when a session command - then it is returned unrun`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val oneShot = StartCommand.RunOneShot(
                 prompt = "hi",
@@ -32,7 +36,7 @@ class StartExecutorTest {
             )
 
             // when
-            val result = StartExecutor(harness.db, testLocalFileSystem()).execute(oneShot)
+            val result = StartExecutor(koin.get<AppDatabase>(), testLocalFileSystem()).execute(oneShot)
 
             // then — same object back, nothing launched
             assertSame(oneShot, result)
@@ -42,8 +46,9 @@ class StartExecutorTest {
     @Test
     fun `when an admin command - then it runs and returns null`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // when — list runs against the (empty) test db
-            val result = StartExecutor(harness.db, testLocalFileSystem()).execute(StartCommand.ListSessions)
+            val result = StartExecutor(koin.get<AppDatabase>(), testLocalFileSystem()).execute(StartCommand.ListSessions)
 
             // then
             assertNull(result)

@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.memory.HistoryCompressor
 import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Message
@@ -22,6 +25,7 @@ class AgentCompressionTest {
     @Test
     fun `when compression triggers - then old turns folded into summary pair and request shrinks`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply {
                 queueText("r1")
@@ -29,7 +33,7 @@ class AgentCompressionTest {
                 queueText("ROLLING SUMMARY") // summarization call during send 3
                 queueText("r3")
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "comp")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "comp")
             val chat = newChat(prompt = "p1", session = "comp")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
 
@@ -72,6 +76,7 @@ class AgentCompressionTest {
     @Test
     fun `when summarization fails - then degrades to full tail and the real turn still goes out`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply {
                 queueText("r1")
@@ -79,7 +84,7 @@ class AgentCompressionTest {
                 queue(LlmResult(text = null, error = "summarizer boom")) // compaction fails
                 queueText("r3")
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "degrade")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "degrade")
             val chat = newChat(prompt = "p1", session = "degrade")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
 
@@ -111,8 +116,9 @@ class AgentCompressionTest {
     @Test
     fun `when resumed with persisted summary - then used directly without re-summarizing covered messages`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             // Seed prior history + a persisted summary covering the first pair.
             val seed = RoomHistoryStore(dao, sessionId = "resume")
             seed.append(Message(Role.USER, "p1"))
@@ -160,6 +166,7 @@ class AgentCompressionTest {
     @Test
     fun `when compression runs in feed mode - then folds chunks across compactions`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply {
                 queueText("r-open")   // opening prompt
@@ -167,7 +174,7 @@ class AgentCompressionTest {
                 queueText("SUMMARY")  // compaction before the chunk-2 turn
                 queueText("r-c2")     // chunk 2
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "feedcomp")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "feedcomp")
             val chat = newChat(prompt = "open", session = "feedcomp")
             val compressor = HistoryCompressor(keepLast = 2, summarizeEvery = 2)
             val feed = ChunkedFilePromptSource(

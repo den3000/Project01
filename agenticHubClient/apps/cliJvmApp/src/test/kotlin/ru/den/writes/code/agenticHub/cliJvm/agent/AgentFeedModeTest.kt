@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.ChunkedFilePromptSource
@@ -20,13 +23,14 @@ class AgentFeedModeTest {
     @Test
     fun `when feed chunk fails - then loop aborts after current chunk and remaining chunks not sent`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply {
                 queueText("opening ok")  // -prompt opener
                 queueText("chunk 1 ok")  // first chunk from feed file
                 queue(LlmResult(text = null, error = "synthetic 400")) // second chunk fails
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "feed")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "feed")
             val chat = newChat(prompt = "go", session = "feed")
             // Feed source: three chunks scripted. Loop should stop after
             // the failed turn even though chunk 3 is still in the source.
@@ -51,13 +55,14 @@ class AgentFeedModeTest {
     @Test
     fun `when LineFilePromptSource drives Agent - then one turn per line plus opening prompt`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply {
                 queueText("r-open")
                 queueText("r1")
                 queueText("r2")
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "lines")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "lines")
             val chat = newChat(prompt = "open", session = "lines")
             val source = LineFilePromptSource(BufferedReader(StringReader("turn one\nturn two\n")))
 
@@ -78,6 +83,7 @@ class AgentFeedModeTest {
     @Test
     fun `when feed source naturally exhausts - then control hands off to replAfterFeed`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply {
                 queueText("opener reply")
@@ -85,7 +91,7 @@ class AgentFeedModeTest {
                 queueText("chunk2 reply")
                 queueText("stdin reply")
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "handoff")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "handoff")
             val chat = newChat(prompt = "open", session = "handoff")
             val feedSource = ChunkedFilePromptSource(
                 reader = StringReader("ABCDEF"), // 2 chunks × 3 chars
@@ -114,13 +120,14 @@ class AgentFeedModeTest {
     @Test
     fun `when feed source aborts on error - then still transitions to replAfterFeed for manual probing`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply {
                 queueText("opener ok")
                 queue(LlmResult(text = null, error = "synthetic overflow")) // chunk1 fails
                 queueText("manual probe reply") // user follow-up after the failure
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "abort")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "abort")
             val chat = newChat(prompt = "open", session = "abort")
             val feedSource = ChunkedFilePromptSource(
                 reader = StringReader("AAABBB"),

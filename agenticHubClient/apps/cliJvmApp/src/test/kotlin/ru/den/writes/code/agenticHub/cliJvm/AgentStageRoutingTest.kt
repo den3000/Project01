@@ -1,13 +1,14 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
-
 import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.agent.createStdinPromptSource
-
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
@@ -45,6 +46,7 @@ class AgentStageRoutingTest {
     @Test
     fun `when no routed agents - then the fallback handles every turn`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
@@ -52,7 +54,7 @@ class AgentStageRoutingTest {
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("ok") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -71,6 +73,7 @@ class AgentStageRoutingTest {
     @Test
     fun `when the active stage matches a routed agent - then that agent answers`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
@@ -79,7 +82,7 @@ class AgentStageRoutingTest {
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fallback") }
                 val planner = FakeLlmApi().apply { queueText("planner") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -100,6 +103,7 @@ class AgentStageRoutingTest {
     @Test
     fun `when the active stage is outside every binding - then the fallback answers`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
@@ -108,7 +112,7 @@ class AgentStageRoutingTest {
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fallback") }
                 val later = FakeLlmApi().apply { queueText("later") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -129,6 +133,7 @@ class AgentStageRoutingTest {
     @Test
     fun `when a routed agent has a fixed profile - then that profile is on its wire`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
@@ -138,7 +143,7 @@ class AgentStageRoutingTest {
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fallback") }
                 val planner = FakeLlmApi().apply { queueText("planner") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -161,6 +166,7 @@ class AgentStageRoutingTest {
     @Test
     fun `when the reply advances the stage - then the next turn routes to the new stage's agent`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
@@ -171,7 +177,7 @@ class AgentStageRoutingTest {
                 // planner answers turn 1 and signals the legal move to execution.
                 val planner = FakeLlmApi().apply { queueText("done planning [[stage:execution]]") }
                 val executor = FakeLlmApi().apply { queueText("executing") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when — two user turns: the opening prompt, then one more line.
                 runSessionForTest(
@@ -198,13 +204,14 @@ class AgentStageRoutingTest {
     @Test
     fun `when multi-agent - then the reply is prefixed with the agent tag`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fb") }
                 val planner = FakeLlmApi().apply { queueText("the plan") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 val out = captureStdout {
@@ -234,12 +241,13 @@ class AgentStageRoutingTest {
     @Test
     fun `when single-agent - then the reply has no agent tag`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fake = FakeLlmApi().apply { queueText("plain reply") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when — no routed agents
                 val out = captureStdout {

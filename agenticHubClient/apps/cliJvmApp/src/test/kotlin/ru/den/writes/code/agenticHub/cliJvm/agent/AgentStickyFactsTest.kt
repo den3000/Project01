@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
@@ -17,6 +20,7 @@ class AgentStickyFactsTest {
     @Test
     fun `when StickyFacts strategy used - then facts extracted and injected on subsequent turns`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply {
                 queueText("""{"k":"v1"}""") // extraction for turn 1 (opening prompt)
@@ -24,7 +28,7 @@ class AgentStickyFactsTest {
                 queueText("""{"k":"v2"}""") // extraction for turn 2
                 queueText("r2")             // main reply turn 2
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "facts")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "facts")
             val chat = newChat(prompt = "p1", session = "facts")
 
             // when
@@ -67,6 +71,7 @@ class AgentStickyFactsTest {
     @Test
     fun `when StickyFacts extraction returns non-json - then prior facts kept on next turn`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply {
                 queueText("""{"k":"v1"}""")      // extraction turn 1 → facts set
@@ -74,7 +79,7 @@ class AgentStickyFactsTest {
                 queueText("no json here, sorry") // extraction turn 2 → degrade to prior
                 queueText("r2")                  // main turn 2
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "degrade")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "degrade")
             val chat = newChat(prompt = "p1", session = "degrade")
 
             // when

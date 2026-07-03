@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.features.memory
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
@@ -19,8 +22,9 @@ class HistoryStoreBranchTest {
     @Test
     fun `when deleteBranch called - then that branch's messages summary and facts go`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — two branches; the doomed one carries messages + summary + facts
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             val exp = RoomHistoryStore(dao, sessionId = "s", initialBranch = "exp")
             exp.append(Message(Role.USER, "e1"))
             exp.append(Message(Role.ASSISTANT, "e2"))
@@ -44,8 +48,9 @@ class HistoryStoreBranchTest {
     @Test
     fun `when deleteBranch targets an absent branch - then it is a no-op and others survive`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             val main = RoomHistoryStore(dao, sessionId = "s", initialBranch = "main")
             main.append(Message(Role.USER, "m1"))
 

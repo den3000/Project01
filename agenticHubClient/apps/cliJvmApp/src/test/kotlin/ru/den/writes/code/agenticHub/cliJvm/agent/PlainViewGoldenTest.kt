@@ -1,7 +1,9 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
-
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
@@ -47,9 +49,10 @@ class PlainViewGoldenTest {
     @Test
     fun `when a single chat turn completes - then stdout carries reply plus footer and stderr the summary`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fake = FakeLlmApi().apply { queueText("model reply") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
 
             // when
             val out = runPlain(goldenChat("hi", "alpha"), fake, store, intents())
@@ -75,8 +78,9 @@ class PlainViewGoldenTest {
     @Test
     fun `when the session resumes with prior history - then the resumed banner prints to stderr`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             RoomHistoryStore(dao, sessionId = "alpha").apply {
                 append(Message(Role.USER, "earlier user"))
                 append(
@@ -105,9 +109,10 @@ class PlainViewGoldenTest {
     @Test
     fun `when the turn fails - then stderr carries the error and stdout stays empty`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fake = FakeLlmApi() // empty queue → synthetic error result
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
 
             // when
             val out = runPlain(goldenChat("hi", "alpha"), fake, store, intents())
@@ -128,13 +133,14 @@ class PlainViewGoldenTest {
     @Test
     fun `when multi-agent routing answers - then stdout is prefixed with the agent tag`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
                 val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fb") }
                 val planner = FakeLlmApi().apply { queueText("the plan") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 val out = runPlain(
@@ -168,9 +174,10 @@ class PlainViewGoldenTest {
     @Test
     fun `when a branch command runs after a turn - then it reports the fork to stderr`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fake = FakeLlmApi().apply { queueText("model reply") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
 
             // when — opening turn (2 messages persisted), then a /branch command
             val out = runPlain(
@@ -193,9 +200,10 @@ class PlainViewGoldenTest {
     @Test
     fun `when a feed hands off to a REPL - then interim and final summaries bracket the handoff`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fake = FakeLlmApi().apply { queueText("model reply") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
 
             // when
             val out = runPlain(goldenChat("hi", "alpha"), fake, store, primary = intents(), followUp = intents())

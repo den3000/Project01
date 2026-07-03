@@ -1,6 +1,8 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent.branching
 
-
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
@@ -23,8 +25,9 @@ class AgentBranchingTest {
     @Test
     fun `when slash-branch then slash-switch issued - then history forks and continues on the new branch`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             val fakeApi = FakeLlmApi().apply {
                 queueText("r1") // opening turn on main
                 queueText("r2") // one turn after switching to alt

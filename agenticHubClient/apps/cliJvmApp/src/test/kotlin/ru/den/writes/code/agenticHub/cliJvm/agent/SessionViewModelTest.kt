@@ -1,7 +1,9 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
-
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -50,9 +52,10 @@ class SessionViewModelTest {
     @Test
     fun `when an opening turn runs then Exit - then state has the Turn, a summary, and Exit`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
@@ -71,8 +74,9 @@ class SessionViewModelTest {
     @Test
     fun `when resuming with prior history - then the first line is the resumed notice`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             RoomHistoryStore(dao, sessionId = "s").apply {
                 append(Message(Role.USER, "old"))
                 append(
@@ -99,9 +103,10 @@ class SessionViewModelTest {
     @Test
     fun `when the opening turn fails - then state gains an Error line`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fake = FakeLlmApi() // empty queue → error
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
@@ -119,9 +124,10 @@ class SessionViewModelTest {
     @Test
     fun `when a slash command runs - then its result lands in the state lane`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
@@ -137,9 +143,10 @@ class SessionViewModelTest {
     @Test
     fun `when a feed hands off to a REPL - then interim, continuing and final notices are ordered`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when — both sources stop immediately
@@ -182,9 +189,10 @@ class SessionViewModelTest {
     @Test
     fun `when a branch picker opens - then its options list the branches`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — the opening turn populates 'main' with messages
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store)
 
             // when
@@ -202,8 +210,9 @@ class SessionViewModelTest {
     @Test
     fun `when the picker cursor moves down - then the cursor advances`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — two profiles so the cursor has somewhere to go
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home", "work"))
 
@@ -218,8 +227,9 @@ class SessionViewModelTest {
     @Test
     fun `when a profile is picked by number - then the active profile switches`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — listProfileNames is sorted, so row 2 is 'work'
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val memory = tempMemory("home", "work")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
@@ -240,8 +250,9 @@ class SessionViewModelTest {
     @Test
     fun `when a profile picker opens without memory - then it explains and stays closed`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — no memory provider
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store)
 
@@ -261,8 +272,9 @@ class SessionViewModelTest {
     @Test
     fun `when the picker is cancelled - then it closes and runs no command`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val memory = tempMemory("home")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store, memory = memory)
@@ -282,8 +294,9 @@ class SessionViewModelTest {
     @Test
     fun `when the palette opens - then it lists the command catalog`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store)
 
@@ -299,8 +312,9 @@ class SessionViewModelTest {
     @Test
     fun `when a no-argument command is chosen from the palette - then it runs`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store)
             val row = commandCatalog().indexOfFirst { it.name == "/branch show" } + 1
@@ -317,8 +331,9 @@ class SessionViewModelTest {
     @Test
     fun `when a picker command is chosen from the palette - then that picker opens`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store, memory = tempMemory("home"))
             val row = commandCatalog().indexOfFirst { it.name == "/profile" } + 1
@@ -335,8 +350,9 @@ class SessionViewModelTest {
     @Test
     fun `when a free-text command is chosen from the palette - then a prefill effect is emitted`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val fake = FakeLlmApi().apply { queueText("reply") }
             val vm = newVm(newChat("hi", "s"), fake, store)
             val row = commandCatalog().indexOfFirst { it.name == "/rule" } + 1
@@ -355,9 +371,10 @@ class SessionViewModelTest {
     @Test
     fun `when the scheduler posts a notice while idle - then it lands as a Notice line`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — scheduler on; the user source parks after the opening turn
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
             val atGate = CompletableDeferred<Unit>()
             val release = CompletableDeferred<Unit>()
@@ -381,9 +398,10 @@ class SessionViewModelTest {
     @Test
     fun `when the scheduler submits while idle - then a turn runs through the serialized loop`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — opening reply + a scheduled reply queued on the fake
             val fake = FakeLlmApi().apply { queueText("opening"); queueText("scheduled") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
             val atGate = CompletableDeferred<Unit>()
             val release = CompletableDeferred<Unit>()
@@ -407,9 +425,10 @@ class SessionViewModelTest {
     @Test
     fun `when scheduler is on and Exit arrives via a push source - then run terminates`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — scheduler on, a channel (push) source like the TUI
             val fake = FakeLlmApi().apply { queueText("reply") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val vm = newVm(newChat("hi", "s"), fake, store, schedulerEnabled = true)
             val source = ChannelIntentSource().apply { offer(UiIntent.Exit) }
 

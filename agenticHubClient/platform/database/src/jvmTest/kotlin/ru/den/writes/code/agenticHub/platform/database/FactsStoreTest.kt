@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.platform.database
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.platform.database.FactsEntity
@@ -17,8 +20,9 @@ class FactsStoreTest {
     @Test
     fun `when upsertFacts then getFacts called - then all fields round-trip`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             val row = FactsEntity(
                 sessionId = "s1",
                 branchId = "main",
@@ -43,8 +47,9 @@ class FactsStoreTest {
     @Test
     fun `when getFacts called with unknown session or branch - then null returned`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             dao.upsertFacts(FactsEntity(sessionId = "s1", branchId = "main", factsJson = "{}"))
 
             // when
@@ -60,8 +65,9 @@ class FactsStoreTest {
     @Test
     fun `when same session has two branches - then facts isolated per branch`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             dao.upsertFacts(FactsEntity(sessionId = "s", branchId = "main", factsJson = """{"k":"main"}"""))
             dao.upsertFacts(FactsEntity(sessionId = "s", branchId = "alt", factsJson = """{"k":"alt"}"""))
 
@@ -78,8 +84,9 @@ class FactsStoreTest {
     @Test
     fun `when upsertFacts called twice for same key - then second value replaces first`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             dao.upsertFacts(FactsEntity(sessionId = "s", branchId = "main", factsJson = "{}"))
 
             // when
@@ -95,8 +102,9 @@ class FactsStoreTest {
     @Test
     fun `when clearAllFacts called - then table is empty`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             dao.upsertFacts(FactsEntity(sessionId = "s", branchId = "main", factsJson = "{}"))
 
             // when

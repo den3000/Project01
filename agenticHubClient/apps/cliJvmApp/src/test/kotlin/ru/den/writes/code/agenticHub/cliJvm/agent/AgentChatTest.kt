@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import kotlinx.coroutines.test.runTest
@@ -17,9 +20,10 @@ class AgentChatTest {
     @Test
     fun `when Chat with empty history started - then opening prompt sent alone and turn persisted`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply { queueText("model reply") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
             val chat = newChat(prompt = "hi", session = "alpha")
 
             // when
@@ -32,7 +36,7 @@ class AgentChatTest {
                 fakeApi.calls[0].messages,
             )
             // Fresh reader sees both rows in the DB.
-            val reader = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val reader = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
             reader.load()
             val expected = listOf(
                 Message(Role.USER, "hi"),
@@ -45,8 +49,9 @@ class AgentChatTest {
     @Test
     fun `when Chat with restored history started - then history plus new user turn sent`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             val seeder = RoomHistoryStore(dao, sessionId = "alpha")
             seeder.append(Message(Role.USER, "earlier user"))
             seeder.append(Message(Role.ASSISTANT, "earlier assistant"))
@@ -71,16 +76,17 @@ class AgentChatTest {
     @Test
     fun `when opening turn fails - then DB left untouched`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi() // empty queue → returns error
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
             val chat = newChat(prompt = "hi", session = "alpha")
 
             // when
             runSessionForTest(chat, fakeApi, store, promptSource = createStdinPromptSource("/exit\n"))
 
             // then
-            assertEquals(0, harness.db.messageDao().count())
+            assertEquals(0, koin.get<MessageDao>().count())
         }
     }
 
@@ -90,9 +96,10 @@ class AgentChatTest {
         // assert on stderr here (would require capturing), but exercise
         // the path to make sure it doesn't crash on an empty store.
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply { queueText("ok") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "fresh")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "fresh")
             val chat = newChat(prompt = "hi", session = "fresh")
 
             // when
@@ -109,12 +116,13 @@ class AgentChatTest {
     @Test
     fun `when slash-reuse called after a reply - then last model reply resent as next user turn`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply {
                 queueText("first reply")
                 queueText("second reply")
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
             val chat = newChat(prompt = "start", session = "alpha")
 
             // when
@@ -134,9 +142,10 @@ class AgentChatTest {
     @Test
     fun `when slash-reuse called without prior reply - then no extra LLM call made`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi() // empty queue → opening fails, no reply to reuse
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
             val chat = newChat(prompt = "start", session = "alpha")
 
             // when
@@ -155,9 +164,10 @@ class AgentChatTest {
     @Test
     fun `when stdin EOF reached - then REPL exits cleanly after opening turn`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             val fakeApi = FakeLlmApi().apply { queueText("ok") }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
             val chat = newChat(prompt = "hi", session = "alpha")
 
             // when

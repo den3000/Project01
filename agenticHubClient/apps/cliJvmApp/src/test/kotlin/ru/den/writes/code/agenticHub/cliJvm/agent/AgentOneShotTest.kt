@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.Message
@@ -17,8 +20,9 @@ class AgentOneShotTest {
     @Test
     fun `when OneShot run - then no history loaded and nothing persisted`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             // Pre-existing rows that OneShot must NOT load nor see.
             val seeded = RoomHistoryStore(dao, sessionId = "ignored")
             seeded.append(Message(Role.USER, "old turn"))

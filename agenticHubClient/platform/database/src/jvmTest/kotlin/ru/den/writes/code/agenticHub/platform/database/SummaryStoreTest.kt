@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.platform.database
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.platform.database.MessageEntity
@@ -20,8 +23,9 @@ class SummaryStoreTest {
     @Test
     fun `when upsertSummary then getSummary called - then all fields round-trip`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             val row = SummaryEntity(
                 sessionId = "s1",
                 summaryText = "rolling summary",
@@ -46,8 +50,9 @@ class SummaryStoreTest {
     @Test
     fun `when getSummary called with unknown session - then null returned`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
 
             // when
             val actual = dao.getSummary("nope")
@@ -60,8 +65,9 @@ class SummaryStoreTest {
     @Test
     fun `when upsertSummary called twice for same session - then second replaces first`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             dao.upsertSummary(SummaryEntity("s1", "first", coveredCount = 4))
 
             // when
@@ -83,8 +89,9 @@ class SummaryStoreTest {
     @Test
     fun `when two sessions have summaries - then they stay isolated`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             dao.upsertSummary(SummaryEntity("a", "summary A", coveredCount = 2))
             dao.upsertSummary(SummaryEntity("b", "summary B", coveredCount = 6))
 
@@ -101,8 +108,9 @@ class SummaryStoreTest {
     @Test
     fun `when clearAllSummaries called - then table is empty`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             dao.upsertSummary(SummaryEntity("a", "summary A", coveredCount = 2))
             dao.upsertSummary(SummaryEntity("b", "summary B", coveredCount = 6))
 
@@ -120,8 +128,9 @@ class SummaryStoreTest {
         // Mirrors the -clean handler: wipe both tables so no orphan summary
         // survives a reused session id.
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             dao.insert(MessageEntity(sessionId = "a", role = "USER", text = "hi"))
             dao.upsertSummary(SummaryEntity("a", "summary A", coveredCount = 2))
 

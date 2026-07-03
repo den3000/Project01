@@ -1,7 +1,9 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.session
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
-
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
@@ -113,8 +115,9 @@ class CommandRunnerTest {
     @Test
     fun `when forking a new branch - then it reports the fork`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — two messages on the default branch
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             store.append(Message(Role.USER, "a"))
             store.append(Message(Role.ASSISTANT, "b"))
             val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
@@ -130,23 +133,25 @@ class CommandRunnerTest {
     @Test
     fun `when clearing a branch by name - then it deletes that branch`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — fork 'exp' off 'main'; we stay on 'main'
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             store.append(Message(Role.USER, "a"))
             store.fork("exp")
             val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
 
             // when - then
             assertEquals(listOf("[branch] deleted 'exp'"), runner.run(SessionCommand.DeleteBranch("exp")))
-            assertEquals(listOf("main"), harness.db.messageDao().branchesOf("s"))
+            assertEquals(listOf("main"), koin.get<MessageDao>().branchesOf("s"))
         }
     }
 
     @Test
     fun `when clearing the current branch - then it refuses`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — on 'main'
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             store.append(Message(Role.USER, "a"))
             val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
 
@@ -161,8 +166,9 @@ class CommandRunnerTest {
     @Test
     fun `when clearing a branch that doesn't exist - then it says no such branch`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             store.append(Message(Role.USER, "a"))
             val runner = CommandRunner(store, memory = null, strategy = ContextStrategy.FullHistory)
 
@@ -177,8 +183,9 @@ class CommandRunnerTest {
     @Test
     fun `when clearing all branches - then every branch but the current goes`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — two extra branches off 'main'
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             store.append(Message(Role.USER, "a"))
             store.fork("exp")
             store.fork("wip")
@@ -189,7 +196,7 @@ class CommandRunnerTest {
                 listOf("[branch] deleted 2 branch(es) (exp, wip); kept current 'main'"),
                 runner.run(SessionCommand.ClearBranches),
             )
-            assertEquals(listOf("main"), harness.db.messageDao().branchesOf("s"))
+            assertEquals(listOf("main"), koin.get<MessageDao>().branchesOf("s"))
         }
     }
 

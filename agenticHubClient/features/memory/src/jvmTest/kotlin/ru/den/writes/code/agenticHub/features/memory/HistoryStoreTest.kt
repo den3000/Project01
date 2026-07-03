@@ -1,5 +1,8 @@
 package ru.den.writes.code.agenticHub.features.memory
 
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
@@ -18,8 +21,9 @@ class HistoryStoreTest {
     @Test
     fun `when load called on empty store - then messages list is empty`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
 
             // when
             store.load()
@@ -32,8 +36,9 @@ class HistoryStoreTest {
     @Test
     fun `when append called - then messages view updates immediately`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
 
             // when
             store.append(Message(Role.USER, "hi"))
@@ -51,16 +56,17 @@ class HistoryStoreTest {
     @Test
     fun `when two sessions written to same DB - then their messages stay isolated`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val alpha = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
-            val beta = RoomHistoryStore(harness.db.messageDao(), sessionId = "beta")
+            val alpha = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
+            val beta = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "beta")
             alpha.append(Message(Role.USER, "for alpha"))
             beta.append(Message(Role.USER, "for beta"))
 
             // when
-            val freshAlpha = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val freshAlpha = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
             freshAlpha.load()
-            val freshBeta = RoomHistoryStore(harness.db.messageDao(), sessionId = "beta")
+            val freshBeta = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "beta")
             freshBeta.load()
 
             // then
@@ -72,8 +78,9 @@ class HistoryStoreTest {
     @Test
     fun `when one session is deleted - then its rows go and other sessions survive`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given — two sessions in one DB
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             val alpha = RoomHistoryStore(dao, sessionId = "alpha")
             alpha.append(Message(Role.USER, "a1"))
             alpha.append(Message(Role.ASSISTANT, "a2"))
@@ -95,13 +102,14 @@ class HistoryStoreTest {
     @Test
     fun `when load called on fresh instance - then rows persisted earlier are read back`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val writer = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val writer = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
             writer.append(Message(Role.USER, "remember 42"))
             writer.append(Message(Role.ASSISTANT, "got it"))
 
             // when
-            val reader = RoomHistoryStore(harness.db.messageDao(), sessionId = "alpha")
+            val reader = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "alpha")
             reader.load()
 
             // then
@@ -116,8 +124,9 @@ class HistoryStoreTest {
     @Test
     fun `when dao clearAll called - then count drops to zero and all sessions become empty`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             val foo = RoomHistoryStore(dao, sessionId = "foo")
             val bar = RoomHistoryStore(dao, sessionId = "bar")
             foo.append(Message(Role.USER, "1"))
@@ -139,8 +148,9 @@ class HistoryStoreTest {
     @Test
     fun `when listSessions called - then one summary per session with correct counts`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             val foo = RoomHistoryStore(dao, sessionId = "foo")
             val bar = RoomHistoryStore(dao, sessionId = "bar")
             foo.append(Message(Role.USER, "f1"))
@@ -162,8 +172,9 @@ class HistoryStoreTest {
     @Test
     fun `when append called with usage - then stats updated and token counts persisted`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "stats")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "stats")
             store.append(Message(Role.USER, "ask"))
 
             // when
@@ -185,7 +196,7 @@ class HistoryStoreTest {
             assertEquals(33, store.stats.totalTokens)
 
             // Verify the row really hit the DB with the token columns.
-            val rows = harness.db.messageDao().assistantMessages("stats")
+            val rows = koin.get<MessageDao>().assistantMessages("stats")
             assertEquals(1, rows.size)
             assertEquals(11, rows[0].promptTokens)
             assertEquals(22, rows[0].outputTokens)
@@ -197,9 +208,10 @@ class HistoryStoreTest {
     @Test
     fun `when load called - then stats seeded from existing assistant rows`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
             // Seed via one HistoryStore instance.
-            val seeder = RoomHistoryStore(harness.db.messageDao(), sessionId = "resume-stats")
+            val seeder = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "resume-stats")
             seeder.append(Message(Role.USER, "u1"))
             seeder.append(
                 Message(Role.ASSISTANT, "a1"),
@@ -215,7 +227,7 @@ class HistoryStoreTest {
 
             // when
             // Fresh store re-opens the same session, load reseeds stats.
-            val resumed = RoomHistoryStore(harness.db.messageDao(), sessionId = "resume-stats")
+            val resumed = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "resume-stats")
             resumed.load()
 
             // then
@@ -232,8 +244,9 @@ class HistoryStoreTest {
     @Test
     fun `when append called without usage - then stats untouched`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "no-usage")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "no-usage")
             store.append(Message(Role.USER, "u"))
 
             // when
@@ -251,8 +264,9 @@ class HistoryStoreTest {
     @Test
     fun `when saveSummary called - then row persisted and overhead folded into stats without a turn`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "comp")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "comp")
 
             // when
             store.saveSummary(
@@ -272,7 +286,7 @@ class HistoryStoreTest {
             assertEquals(expectedCost, store.stats.totalCostUsd, 1e-12)
 
             // Row persisted with watermark + cumulative tokens.
-            val row = harness.db.messageDao().getSummary("comp")
+            val row = koin.get<MessageDao>().getSummary("comp")
             assertEquals("rolling", row?.summaryText)
             assertEquals(10, row?.coveredCount)
             assertEquals(1000, row?.promptTokens)
@@ -282,8 +296,9 @@ class HistoryStoreTest {
     @Test
     fun `when saveSummary called with null usage - then row persisted but stats untouched`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "comp")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "comp")
 
             // when
             store.saveSummary("rolling", coveredCount = 4, modelId = "gemini-2.5-flash-lite", usage = null)
@@ -292,15 +307,16 @@ class HistoryStoreTest {
             assertEquals(0, store.stats.turns)
             assertEquals(0, store.stats.totalTokens)
             assertEquals(0.0, store.stats.totalCostUsd)
-            assertEquals("rolling", harness.db.messageDao().getSummary("comp")?.summaryText)
+            assertEquals("rolling", koin.get<MessageDao>().getSummary("comp")?.summaryText)
         }
     }
 
     @Test
     fun `when saveSummary called twice - then overhead tokens accumulate across compactions`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "comp")
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "comp")
 
             // when
             store.saveSummary(
@@ -314,7 +330,7 @@ class HistoryStoreTest {
 
             // then
             // Row holds the cumulative overhead; latest summary + watermark win.
-            val row = harness.db.messageDao().getSummary("comp")
+            val row = koin.get<MessageDao>().getSummary("comp")
             assertEquals("s2", row?.summaryText)
             assertEquals(20, row?.coveredCount)
             assertEquals(400, row?.promptTokens) // 100 + 300
@@ -328,15 +344,16 @@ class HistoryStoreTest {
     @Test
     fun `when load called with persisted summary - then overhead re-seeded from row`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val writer = RoomHistoryStore(harness.db.messageDao(), sessionId = "resume-comp")
+            val writer = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "resume-comp")
             writer.saveSummary(
                 "rolling", coveredCount = 8, modelId = "gemini-2.5-flash-lite",
                 usage = Usage(promptTokens = 500, outputTokens = 100, totalTokens = 600),
             )
 
             // when
-            val resumed = RoomHistoryStore(harness.db.messageDao(), sessionId = "resume-comp")
+            val resumed = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "resume-comp")
             resumed.load()
 
             // then
@@ -352,8 +369,9 @@ class HistoryStoreTest {
     @Test
     fun `when load called with both messages and summary - then stats combine assistant rows with summary overhead`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val writer = RoomHistoryStore(harness.db.messageDao(), sessionId = "mix")
+            val writer = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "mix")
             writer.append(Message(Role.USER, "u"))
             writer.append(
                 Message(Role.ASSISTANT, "a"),
@@ -366,7 +384,7 @@ class HistoryStoreTest {
             )
 
             // when
-            val resumed = RoomHistoryStore(harness.db.messageDao(), sessionId = "mix")
+            val resumed = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "mix")
             resumed.load()
 
             // then
@@ -379,12 +397,13 @@ class HistoryStoreTest {
     @Test
     fun `when loadSummary called after saveSummary - then text and watermark round-trip`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val writer = RoomHistoryStore(harness.db.messageDao(), sessionId = "rt")
+            val writer = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "rt")
             writer.saveSummary("the summary", coveredCount = 12, modelId = "m", usage = null)
 
             // when
-            val reader = RoomHistoryStore(harness.db.messageDao(), sessionId = "rt")
+            val reader = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "rt")
             val row = reader.loadSummary()
 
             // then
@@ -396,8 +415,9 @@ class HistoryStoreTest {
     @Test
     fun `when load called without summary row - then no overhead seeded`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val writer = RoomHistoryStore(harness.db.messageDao(), sessionId = "plain")
+            val writer = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "plain")
             writer.append(Message(Role.USER, "u"))
             writer.append(
                 Message(Role.ASSISTANT, "a"),
@@ -406,7 +426,7 @@ class HistoryStoreTest {
             )
 
             // when
-            val reader = RoomHistoryStore(harness.db.messageDao(), sessionId = "plain")
+            val reader = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "plain")
             reader.load()
 
             // then
@@ -424,8 +444,9 @@ class HistoryStoreTest {
     @Test
     fun `when branches written to same session - then their messages stay isolated`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             RoomHistoryStore(dao, sessionId = "s", initialBranch = "main").append(Message(Role.USER, "on main"))
             RoomHistoryStore(dao, sessionId = "s", initialBranch = "feature").append(Message(Role.USER, "on feature"))
 
@@ -444,8 +465,9 @@ class HistoryStoreTest {
     @Test
     fun `when switchTo called - then store re-hydrated for the new branch`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             RoomHistoryStore(dao, "s", "main").append(Message(Role.USER, "m1"))
             RoomHistoryStore(dao, "s", "feature").append(Message(Role.USER, "f1"))
             val store = RoomHistoryStore(dao, "s", "main")
@@ -465,8 +487,9 @@ class HistoryStoreTest {
     @Test
     fun `when saveFacts called - then overhead folded without a turn and load re-seeds it`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val dao = harness.db.messageDao()
+            val dao = koin.get<MessageDao>()
             val store = RoomHistoryStore(dao, "s", "main")
 
             // when
