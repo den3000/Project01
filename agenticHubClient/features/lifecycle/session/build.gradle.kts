@@ -39,11 +39,10 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutinesTest)
-        }
-        jvmTest.dependencies {
-            // CommandRunnerTest resolves LocalFileSystem from fileSystemModule (koin)
-            // and uses java.nio for temp dirs — JVM-only.
+            // CommandRunnerTest: LocalFileSystemFake via fileSystemTestModule (koin) +
+            // @IgnoreIos (its branch cases open a real DB via TestDb).
             implementation(projects.agenticHubClient.platform.fileSystem)
+            implementation(projects.agenticHubClient.testUtils)
         }
     }
 }
