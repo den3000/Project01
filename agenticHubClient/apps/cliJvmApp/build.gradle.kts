@@ -7,7 +7,6 @@ plugins {
 }
 
 dependencies {
-    testImplementation(projects.agenticHubClient.testing)
     implementation(projects.agenticHubClient.features.lifecycle.session)
     implementation(projects.agenticHubClient.features.lifecycle.start)
     implementation(projects.agenticHubClient.features.lifecycle.command)

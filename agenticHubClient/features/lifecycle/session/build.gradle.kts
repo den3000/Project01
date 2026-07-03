@@ -18,10 +18,11 @@ dependencies {
     implementation(libs.kotlinx.serializationJson)
     implementation(libs.koin.core)
 
-    testImplementation(projects.agenticHubClient.testing)
     testImplementation(libs.kotlin.testJunit)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutinesTest)
+    // CommandRunnerTest resolves LocalFileSystem from fileSystemModule (koin).
+    testImplementation(projects.agenticHubClient.platform.fileSystem)
 }
 
 val compileKotlin: KotlinCompile by tasks

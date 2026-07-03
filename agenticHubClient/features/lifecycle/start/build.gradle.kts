@@ -15,7 +15,6 @@ dependencies {
     implementation(libs.kotlinx.coroutinesCore)
     implementation(libs.koin.core)
 
-    testImplementation(projects.agenticHubClient.testing)
     testImplementation(libs.kotlin.testJunit)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutinesTest)

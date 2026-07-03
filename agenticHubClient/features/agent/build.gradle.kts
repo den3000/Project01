@@ -35,7 +35,6 @@ kotlin {
             implementation(libs.koin.core)
         }
         commonTest.dependencies {
-            implementation(projects.agenticHubClient.testing)
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutinesTest)
         }

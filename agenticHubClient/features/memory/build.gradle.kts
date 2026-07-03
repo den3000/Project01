@@ -39,7 +39,6 @@ kotlin {
             implementation(libs.kotlin.test)
         }
         jvmTest.dependencies {
-            implementation(projects.agenticHubClient.testing)
             implementation(libs.kotlinx.coroutinesTest)
         }
     }
