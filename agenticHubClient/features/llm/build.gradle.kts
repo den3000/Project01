@@ -42,11 +42,5 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutinesTest)
         }
-        jvmTest.dependencies {
-            // llmTestModule/DI test: Koin `parametersOf` behaves on JVM; keep it
-            // off Kotlin/Native (iOS DI is not wired yet — see DI.md follow-up).
-            implementation(libs.kotlin.test)
-            implementation(libs.kotlinx.coroutinesTest)
-        }
     }
 }
