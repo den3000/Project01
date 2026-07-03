@@ -24,6 +24,10 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
   `Retriever(embedder, index).retrieve(query, topK)` → `List<ScoredChunk>`.
 - **Персист**: `IndexStore(fs).save(index, path)` / `load(path)` — индекс как один JSON-документ через
   `LocalFileSystem` (absent → `null`).
+- **`di/`**: `ragModule` — `IndexStore` (single, `fs` из графа), `IndexingPipeline` (factory на
+  `ChunkingStrategy`), `Retriever` (factory на `VectorIndex`); `Embedder` берётся из графа, но
+  **этим модулем не биндится**. Рядом `ragTestModule` (val) — `factory<Embedder> { FakeEmbedder() }`
+  (offline). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
 - `api(features:llm)` (`LlmApi`/`Message` протекают через порты для будущего reranking/генерации;
@@ -34,4 +38,10 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
 `./gradlew :agenticHubClient:features:rag:jvmTest` — offline, на фейках/детерминированном эмбеддере.
 
 ## Грабли
-- (пока нет)
+- **`ragModule` не биндит `Embedder`** — реального (Ollama) эмбеддера пока нет; резолв
+  `IndexingPipeline`/`Retriever` из чистого прод-графа неполон by design, эмбеддер надо докомпоновать
+  (`ragTestModule` в тестах). Появится сетевой эмбеддер — забиндится здесь.
+- **`Json.encodeToString(index)` (reified) не выводит тип** без импорта `kotlinx.serialization.*` →
+  явный `encodeToString(VectorIndex.serializer(), index)` в `IndexStore`.
+- **Тесты, трогающие `fileSystemTestModule`, помечены `@IgnoreIos`** — фейк лежит в одном файле с
+  eager iOS-TODO `fileSystemModule` val (Kotlin/Native инициализирует все top-level val файла разом).
