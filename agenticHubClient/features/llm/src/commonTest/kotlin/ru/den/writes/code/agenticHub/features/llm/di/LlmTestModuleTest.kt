@@ -2,6 +2,7 @@ package ru.den.writes.code.agenticHub.features.llm.di
 
 import kotlinx.coroutines.test.runTest
 import org.koin.dsl.koinApplication
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.Message
