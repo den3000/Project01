@@ -41,6 +41,9 @@ KMP-проект на Compose Multiplatform (Android, iOS, Desktop/JVM) плюс
 **[scheduling](./scheduling)** — переиспользуемое ядро планировщика (без зависимостей), используется
 openmeteo-mcp и cliJvmApp.
 
+**[testUtils](./agenticHubClient/testUtils)** — кросс-каттинг тест-утилиты (напр. `@IgnoreIos`),
+`commonTest`-зависимость. Фейки тут НЕ живут — они рядом со своими реализациями.
+
 **DI** — граф собирается через Koin; конвенции, composition root и **тест-модули** (фейки живут рядом
 с реальными реализациями, `:testing` снесён) — [agenticHubClient/DI.md](./agenticHubClient/DI.md).
 

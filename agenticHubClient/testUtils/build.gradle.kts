@@ -1,5 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+// Кросс-каттинг тест-утилиты (не фейки — те живут рядом со своими реализациями).
+// Подключается через `commonTest.dependencies { implementation(projects.agenticHubClient.testUtils) }`.
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
@@ -12,7 +14,7 @@ kotlin {
     jvm()
 
     androidLibrary {
-        namespace = "ru.den.writes.code.agenticHub.platform.filesystem"
+        namespace = "ru.den.writes.code.agenticHub.testutils"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 
@@ -23,13 +25,8 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // fileSystemModule (di) declares the LocalFileSystem binding.
-            implementation(libs.koin.core)
-        }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
-            // @IgnoreIos (skip fileSystemModule tests on iOS — actual is TODO там).
-            implementation(projects.agenticHubClient.testUtils)
+            // @IgnoreIos актуализируется на iOS через kotlin.test.Ignore.
+            api(libs.kotlin.test)
         }
     }
 }

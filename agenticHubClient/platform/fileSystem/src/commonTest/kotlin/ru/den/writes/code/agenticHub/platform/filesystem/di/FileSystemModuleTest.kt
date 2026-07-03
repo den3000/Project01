@@ -1,5 +1,6 @@
 package ru.den.writes.code.agenticHub.platform.filesystem.di
 
+import ru.den.writes.code.agenticHub.testutils.IgnoreIos
 import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import kotlin.test.Test

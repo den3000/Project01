@@ -129,7 +129,8 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
   - **Следствие для тестов**: Kotlin/Native инициализирует **все** top-level `val` файла при первом
     касании любого из них. Значит common-тест, который трогает `fileSystemTestModule` (лежит рядом с
     eager `fileSystemModule` в одном файле), на iOS падает `FileFailedToInitializeException`. **НЕ**
-    прячем это разнесением по файлам (маскировало бы «iOS не готов») — помечаем тест `@IgnoreIos`
-    (expect/actual: JVM — no-op, iOS — `kotlin.test.Ignore`), тогда в iOS-репорте он виден как
-    **ignored**, а JVM гоняет. `llmTestModule` рядом с `llmModule` без проблем (у llm нет `TODO`-actual).
+    прячем это разнесением по файлам (маскировало бы «iOS не готов») — помечаем тест `@IgnoreIos` из
+    модуля **`:testUtils`** (expect/actual: JVM/Android — no-op, iOS — `kotlin.test.Ignore`), тогда в
+    iOS-репорте он виден как **ignored**, а JVM гоняет. `llmTestModule` рядом с `llmModule` без проблем
+    (у llm нет `TODO`-actual).
 - **`onClose`** — из `org.koin.dsl.onClose` (инфиксный на `KoinDefinition`), не из `core.module.dsl`.

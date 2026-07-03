@@ -36,6 +36,8 @@ iOS-bundle-id остались на `project01` (это идентификато
 - **playground**: [cliTui](playground/cliTui/README.md) ·
   [openmeteo-mcp](playground/openmeteo-mcp/README.md) · [localfs-mcp](playground/localfs-mcp/README.md)
 - **[scheduling](scheduling/README.md)** — ядро планировщика.
+- **testUtils** (`agenticHubClient/testUtils`) — кросс-каттинг тест-утилиты (`@IgnoreIos` — expect/actual,
+  на iOS = `kotlin.test.Ignore`; JVM/Android — no-op), `commonTest`-зависимость. Фейки тут НЕ живут.
 - Тест-фейки живут **рядом с реальными реализациями** (не в отдельном модуле): `FakeLlmScript`/
   `LlmApiFake`+`llmTestModule` (features:llm), `LocalFileSystemFake`+`fileSystemTestModule`
   (platform:fileSystem), `TestDb`+`databaseTestModule` (platform:database). Модуль `:testing` снесён —
