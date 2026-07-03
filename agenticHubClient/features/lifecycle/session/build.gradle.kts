@@ -1,32 +1,49 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.kotlinJvm)
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.kotlinSerialization)
 }
 
-dependencies {
-    // Portable conversation runtime (MVI stack + turn engine + intent/prompt
-    // sources + scheduler glue). Depends on the command vocabulary + domain
-    // features; scheduling is JVM-only, so this module is JVM for now.
-    api(projects.agenticHubClient.features.lifecycle.command)
-    api(projects.agenticHubClient.features.memory)
-    api(projects.agenticHubClient.features.agent)
-    implementation(projects.agenticHubClient.platform.logging)
-    implementation(projects.scheduling)
-    implementation(libs.kotlinx.coroutinesCore)
-    implementation(libs.kotlinx.serializationJson)
-    implementation(libs.koin.core)
+kotlin {
+    iosArm64()
+    iosSimulatorArm64()
 
-    testImplementation(libs.kotlin.testJunit)
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutinesTest)
-    // CommandRunnerTest resolves LocalFileSystem from fileSystemModule (koin).
-    testImplementation(projects.agenticHubClient.platform.fileSystem)
-}
+    jvm()
 
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.compilerOptions {
-    // SessionViewModel exposes `state` via an explicit backing field.
-    freeCompilerArgs.set(listOf("-Xexplicit-backing-fields"))
+    androidLibrary {
+        namespace = "ru.den.writes.code.agenticHub.features.lifecycle.session"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_11
+        }
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            // Portable conversation runtime (MVI stack + turn engine + intent/prompt
+            // sources + scheduler glue). The two platform primitives (clock + scheduler
+            // dispatcher) live behind expect/actual (SessionPlatform).
+            api(projects.agenticHubClient.features.lifecycle.command)
+            api(projects.agenticHubClient.features.memory)
+            api(projects.agenticHubClient.features.agent)
+            implementation(projects.agenticHubClient.platform.logging)
+            implementation(projects.scheduling)
+            implementation(libs.kotlinx.coroutinesCore)
+            implementation(libs.kotlinx.serializationJson)
+            implementation(libs.koin.core)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutinesTest)
+        }
+        jvmTest.dependencies {
+            // CommandRunnerTest resolves LocalFileSystem from fileSystemModule (koin)
+            // and uses java.nio for temp dirs — JVM-only.
+            implementation(projects.agenticHubClient.platform.fileSystem)
+        }
+    }
 }

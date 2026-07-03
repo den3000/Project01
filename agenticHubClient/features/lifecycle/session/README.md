@@ -1,8 +1,10 @@
 # :agenticHubClient:features:lifecycle:session — MVI-runtime сессии
 
-JVM-модуль: портируемый цикл диалога (MVI), движок хода, `/`-команды, источники интентов/промптов и
-glue планировщика. Собирается фабрикой `buildSessionViewModel`; апп (`cliJvmApp`) инжектит рендереры
-и конкретные I/O-реализации.
+KMP-модуль (common; таргеты jvm/android/ios): портируемый цикл диалога (MVI), движок хода,
+`/`-команды, источники интентов/промптов и glue планировщика. Собирается фабрикой
+`buildSessionViewModel`; апп (`cliJvmApp`) инжектит рендереры и конкретные I/O-реализации. Две
+платформенные примитивы (часы + диспетчер планировщика) — за expect/actual (`SessionPlatform`; jvm
+реальный, ios/android `TODO()`). `CommandRunnerTest` (java.nio) в `jvmTest`, остальные — `commonTest`.
 
 ## Публичный API
 - `SessionViewModel` — цикл: `state: StateFlow<UiState>` (единственный писатель), `run(IntentSource)`,
