@@ -5,7 +5,7 @@ import org.koin.dsl.module
 import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
-import ru.den.writes.code.agenticHub.features.llm.ScriptedLlmApi
+import ru.den.writes.code.agenticHub.features.llm.LlmApiFake
 import ru.den.writes.code.agenticHub.features.llm.buildLlmApi
 
 /**
@@ -25,17 +25,17 @@ public val llmModule: Module = module {
  * Both bindings are `factory` (fresh per `get()` → tests stay independent). Since
  * the [LlmApi] interface (`send`) is too thin to script through, the queue lives
  * in [FakeLlmScript]. Two ways to drive it:
- * - default — `get<LlmApi>()` builds a [ScriptedLlmApi] over a fresh empty script
+ * - default — `get<LlmApi>()` builds a [LlmApiFake] over a fresh empty script
  *   (returns synthetic errors; fine when the graph just needs *an* LLM);
  * - scripted — create+configure a [FakeLlmScript] in the test and pass it in:
  *   `get<LlmApi> { parametersOf(script) }`, then assert on `script.calls`.
  *
- * The fake ([ScriptedLlmApi]) and its holder ([FakeLlmScript]) live next to the
+ * The fake ([LlmApiFake]) and its holder ([FakeLlmScript]) live next to the
  * real `*Api` impls. See agenticHubClient/DI.md.
  */
 public val llmTestModule: Module = module {
     factory { FakeLlmScript() }
     factory<LlmApi> { (script: FakeLlmScript?) ->
-        ScriptedLlmApi(script ?: get())
+        LlmApiFake(script ?: get())
     }
 }

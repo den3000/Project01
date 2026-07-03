@@ -87,17 +87,17 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
 - **`common`, не `expect/actual`** — фейк платформо-агностичен, поэтому модуль работает на **всех**
   таргетах, в т.ч. там, где прод-модуль ещё `TODO` (`fileSystemTestModule` поднимается на iOS, где
   `fileSystemModule` падает). Это и даёт «тесты в любом окружении».
-- **Размещение фейков** — сами fake-классы (`InMemoryLocalFileSystem`, `ScriptedLlmApi`/`FakeLlmScript`)
+- **Размещение фейков** — сами fake-классы (`InMemoryLocalFileSystem`, `LlmApiFake`/`FakeLlmScript`)
   лежат в **отдельных файлах, в пакете реальной реализации** (`...filesystem`, `...features.llm`) — не в
   `di`-файле с модулем. `internal` виден `di`-модулю (та же gradle-единица).
 - **Конфигурация/шаринг через `parametersOf`** — если фейк надо настроить или разделить между
   компонентами, тест создаёт инстанс сам и передаёт его resolve-параметром. Так `llmTestModule`:
-  `factory<LlmApi> { (script: FakeLlmScript?) -> ScriptedLlmApi(script ?: get()) }` — без параметра
+  `factory<LlmApi> { (script: FakeLlmScript?) -> LlmApiFake(script ?: get()) }` — без параметра
   строится свежий пустой скрипт, а `get<LlmApi> { parametersOf(myScript) }` подставляет настроенный.
 - **`platform:fileSystem` → `fileSystemTestModule`**: `factory<LocalFileSystem> { InMemoryLocalFileSystem() }`
   (path→content map, `internal`). Seed/assert — через публичный интерфейс `LocalFileSystem`
   (`writeText`/`readText`/`listFileNames`).
-- **`features:llm` → `llmTestModule`**: `factory<LlmApi> { (script) -> ScriptedLlmApi(script ?: get()) }`
+- **`features:llm` → `llmTestModule`**: `factory<LlmApi> { (script) -> LlmApiFake(script ?: get()) }`
   (`internal` фейк) + `factory { FakeLlmScript() }`. Интерфейс `LlmApi` (`send`) узкий → очередь
   ответов/инспекция вызовов живут в публичном `FakeLlmScript`; тест создаёт его, `queueText(...)`,
   передаёт через `parametersOf`, потом читает `script.calls`.

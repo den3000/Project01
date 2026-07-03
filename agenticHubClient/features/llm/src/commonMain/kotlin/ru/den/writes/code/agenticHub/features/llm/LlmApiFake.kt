@@ -4,7 +4,7 @@ package ru.den.writes.code.agenticHub.features.llm
  * Scriptable/inspectable driver behind
  * [llmTestModule][ru.den.writes.code.agenticHub.features.llm.di.llmTestModule]'s
  * fake [LlmApi]. Public so tests (any module) can configure it off the graph;
- * the [LlmApi] itself ([ScriptedLlmApi]) stays `internal`. Mirrors `FakeLlmApi`
+ * the [LlmApi] itself ([LlmApiFake]) stays `internal`. Mirrors `FakeLlmApi`
  * from `:testing`, but as a graph-resident holder rather than a hand-constructed
  * stub.
  */
@@ -58,7 +58,7 @@ public class FakeLlmScript {
  * under the [LlmApi] interface. Empty script → synthetic error result (matches
  * the production «failed call, already logged» contract).
  */
-internal class ScriptedLlmApi(private val script: FakeLlmScript) : LlmApi {
+internal class LlmApiFake(private val script: FakeLlmScript) : LlmApi {
     override suspend fun send(messages: List<Message>, params: GenerationParams): LlmResult {
         script.record(messages, params)
         return script.next()
