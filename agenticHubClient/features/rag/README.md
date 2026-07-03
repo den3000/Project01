@@ -15,6 +15,13 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
   - `StructuralChunking` — по markdown-заголовкам (ATX `#`..`######`): один чанк на раздел, имя
     раздела → `section`, заголовок остаётся в тексте чанка; преамбула до первого заголовка →
     `section = null`.
+  - `ChunkingComparison.compare(doc, strategies)` → `ChunkingComparisonReport` (+ `render()`) —
+    сравнение стратегий по размерным метрикам.
+- **Embeddings/поиск**: `Embedder` (fun interface, `suspend embed(List<String>)`), `cosineSimilarity`;
+  `IndexedChunk`/`ScoredChunk`/`VectorIndex.search(query, topK)` (brute-force косинус, стабильная
+  сортировка).
+- **Пайплайн**: `IndexingPipeline(chunking, embedder).index(docs)` → `VectorIndex`;
+  `Retriever(embedder, index).retrieve(query, topK)` → `List<ScoredChunk>`.
 
 ## Зависимости
 - `api(features:llm)` (`LlmApi`/`Message` протекают через порты для будущего reranking/генерации;
