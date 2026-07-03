@@ -50,7 +50,7 @@ internal suspend fun runSession(
     val historyStore: HistoryStore? = initialState.resolveHistoryStore(koin)
     val llmApi: LlmApi = koin.get { parametersOf(initialState.modelProvider) }
     val strategy: ContextStrategy = initialState.contextStrategy()
-    val memory: MemoryProvider? = initialState.resolveMemoryProvider(koin, MEMORY_ROOT.absolutePath)
+    val memory: MemoryProvider? = initialState.resolveMemoryProvider(koin, MEMORY_ROOT)
     val routedAgents: List<RoutedAgent> =
         koin.get { parametersOf(chat?.config?.stageAgents.orEmpty(), initialState.toGenerationParams()) }
     val routedJudges: List<RoutedJudge> =

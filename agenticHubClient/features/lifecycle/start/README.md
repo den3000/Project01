@@ -1,7 +1,9 @@
 # :agenticHubClient:features:lifecycle:start — первоначальный запуск
 
-JVM-модуль: диспетчер `StartCommand` — исполняет admin-операции и отдаёт session-команду наверх для
-запуска сессии. Тонкий CLI-facing слой поверх БД.
+KMP-модуль (common; таргеты jvm/android/ios): диспетчер `StartCommand` — исполняет admin-операции и
+отдаёт session-команду наверх для запуска сессии. Тонкий CLI-facing слой поверх БД. Платформенного
+кода нет: домашняя папка (`MEMORY_ROOT`) через `platform:fileSystem.homeDirectory()`, stderr — через
+`platform:logging.logErr()`. `StartExecutorTest` в `commonTest` под `@IgnoreIos` (поднимает `TestDb`).
 
 ## Публичный API
 - `StartExecutor(db, fs).execute(command): StartCommand.SessionInitialState?` — admin (list/clean/inflate/

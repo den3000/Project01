@@ -16,6 +16,8 @@ import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
+import kotlin.math.abs
+import kotlin.math.roundToLong
 
 /** Which stream an [AdminNotice] belongs on when the composition root prints it. */
 public enum class OutputStream { STDOUT, STDERR }
@@ -272,13 +274,26 @@ public fun formatSessionLine(
     val label = if (branchId == DEFAULT_BRANCH) sessionId else "$sessionId/$branchId"
     var line = "$label\t$messageCount messages" +
         "\ttotal_tokens=$totalTokens" +
-        "\tcost=\$${"%.5f".format(costUsd)}"
+        "\tcost=\$${formatUsd(costUsd)}"
     if (coveredCount != null) {
         line += "\tcompressed(covered=$coveredCount/$messageCount" +
-            ", overhead=${overheadTokens}tok \$${"%.5f".format(overheadCostUsd)})"
+            ", overhead=${overheadTokens}tok \$${formatUsd(overheadCostUsd)})"
     }
     if (factsPresent) {
-        line += "\tfacts(overhead=${factsOverheadTokens}tok \$${"%.5f".format(factsOverheadCostUsd)})"
+        line += "\tfacts(overhead=${factsOverheadTokens}tok \$${formatUsd(factsOverheadCostUsd)})"
     }
     return line
+}
+
+/**
+ * Format [value] with exactly 5 decimals (the CLI's USD precision) without the
+ * JVM-only `String.format` — a common replacement so [formatSessionLine] lives
+ * in `commonMain`. Rounds half up to the 5th place.
+ */
+private fun formatUsd(value: Double): String {
+    val scaled = (value * 100_000.0).roundToLong()
+    val magnitude = abs(scaled)
+    val intPart = magnitude / 100_000L
+    val fracPart = (magnitude % 100_000L).toString().padStart(5, '0')
+    return (if (scaled < 0L) "-" else "") + "$intPart.$fracPart"
 }

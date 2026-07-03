@@ -3,17 +3,15 @@ package ru.den.writes.code.agenticHub.features.lifecycle.start
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
-import java.io.File
+import ru.den.writes.code.agenticHub.platform.filesystem.homeDirectory
+import ru.den.writes.code.agenticHub.platform.logging.logErr
 
 /**
  * Root of the on-disk memory layer. Profile, rules and task notes live under
  * this folder as markdown files. Shared by the admin memory ops (via [AdminOps])
  * and the session's `memoryProvider` accessor.
  */
-val MEMORY_ROOT: File = File(
-    System.getProperty("user.home"),
-    ".project01-cli/memory",
-)
+val MEMORY_ROOT: String = "${homeDirectory()}/.project01-cli/memory"
 
 /**
  * Runs a parsed [StartCommand] against the runtime — the "how" to the parser's
@@ -33,7 +31,7 @@ public class StartExecutor(
         is StartCommand.CleanHistory -> { ops.cleanHistory().print(); null }
         is StartCommand.CleanSession -> { ops.cleanSession(command.sessionId).print(); null }
         is StartCommand.InflateSession -> { ops.inflateSession(command).print(); null }
-        is StartCommand.MemoryOp -> { ops.handleMemoryCommand(command.action, MEMORY_ROOT.absolutePath).print(); null }
+        is StartCommand.MemoryOp -> { ops.handleMemoryCommand(command.action, MEMORY_ROOT).print(); null }
         is StartCommand.SessionInitialState -> command
     }
 }
@@ -42,6 +40,6 @@ public class StartExecutor(
 private fun List<AdminNotice>.print() = forEach {
     when (it.stream) {
         OutputStream.STDOUT -> println(it.text)
-        OutputStream.STDERR -> System.err.println(it.text)
+        OutputStream.STDERR -> logErr(it.text)
     }
 }

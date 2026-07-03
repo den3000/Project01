@@ -11,6 +11,7 @@ import ru.den.writes.code.agenticHub.features.lifecycle.start.StartExecutor
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
+import ru.den.writes.code.agenticHub.testutils.IgnoreIos
 import kotlin.test.Test
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -20,6 +21,9 @@ import kotlin.test.assertSame
  * session command is returned unrun for `main` to launch. This pins the split
  * between "the executor finishes it" and "the executor hands it back".
  */
+// @IgnoreIos: opens a real DB via TestDb and touches the eager fileSystemModule
+// val — both TODO() on iOS.
+@IgnoreIos
 class StartExecutorTest {
 
     @Test
