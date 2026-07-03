@@ -32,6 +32,6 @@ public val fileSystemModule: Module = fileSystemModule()
  * caches the singleton in the module's factory). A fresh module per call keeps
  * the in-memory state isolated per test. See agenticHubClient/DI.md.
  */
-public fun fileSystemTestModule(): Module = module {
-    single<LocalFileSystem> { InMemoryLocalFileSystem() }
+public val fileSystemTestModule: Module = module {
+    factory <LocalFileSystem> { InMemoryLocalFileSystem() }
 }

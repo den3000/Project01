@@ -1,6 +1,7 @@
 package ru.den.writes.code.agenticHub.features.llm.di
 
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.module
 import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
@@ -34,7 +35,9 @@ public val llmModule: Module = module {
  * singleton in the module's factory); a fresh module per call keeps each test's
  * script isolated. See agenticHubClient/DI.md.
  */
-public fun llmTestModule(): Module = module {
-    single { FakeLlmScript() }
-    single<LlmApi> { ScriptedLlmApi(get()) }
+public val llmTestModule: Module = module {
+    factory { FakeLlmScript() }
+    factory<LlmApi> { (script: FakeLlmScript?) ->
+        ScriptedLlmApi(script ?: get())
+    }
 }
