@@ -22,7 +22,8 @@ public val databaseModule: Module = databaseModule()
  * driver) — no table mocking, real SQL. Takes the DB as an argument because it's
  * a closeable resource the test owns (`TestDb().use { … }` handles cleanup) and
  * because it must be *bound* into the graph to reach nested `get<MessageDao>()`
- * (a resolve-time `parametersOf` wouldn't propagate there):
+ * (a resolve-time `parametersOf` wouldn't propagate there). `factory` (every
+ * `get()` returns the passed-in [db] — no singletons in tests):
  *
  * ```
  * TestDb().use { harness ->
@@ -33,6 +34,6 @@ public val databaseModule: Module = databaseModule()
  * See agenticHubClient/DI.md.
  */
 public fun databaseTestModule(db: AppDatabase): Module = module {
-    single<AppDatabase> { db }
-    single<MessageDao> { db.messageDao() }
+    factory<AppDatabase> { db }
+    factory<MessageDao> { db.messageDao() }
 }

@@ -11,7 +11,7 @@ KMP-модуль (jvm/android/ios) с чистым Room-слоем: схема �
 - `di/`: `databaseModule` — Koin-модуль, биндит `AppDatabase` (single, `onClose { close() }`) +
   `MessageDao` (`internal expect` + `public val`; jvm actual через `buildDatabase()`, android/ios `TODO`).
   Рядом `fun databaseTestModule(db: AppDatabase)` — биндит **реальную** БД, собранную тестом через
-  `TestDb` (без мока таблиц; `single<AppDatabase>`/`single<MessageDao>`; аргумент — т.к. closeable и
+  `TestDb` (без мока таблиц; `factory<AppDatabase>`/`factory<MessageDao>`; аргумент — т.к. closeable и
   нужен биндинг для вложенных `get`). Общая дока — [DI.md](../../DI.md).
 - `buildDatabase()` — **`internal`** (зовётся только `databaseModule`); внутри `expect fun
   databaseBuilder()` — actual JVM реальный (`~/.project01-cli/history.db`), android/ios = `TODO()`
