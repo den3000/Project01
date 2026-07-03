@@ -119,7 +119,7 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
   не доедет. Никаких синглтонов в тестах — инстанс приходит снаружи, модуль создаётся на каждый тест
   (`fun`, свой `db`).
 - **Использование LLM-фейка в тестах** — над общим `koin` (`modules(llmTestModule)`):
-  `val script = FakeLlmScript().apply { queueText(...) }`, затем `koin.get<LlmApi> { parametersOf(script) }`,
+  `val script = koin.get<FakeLlmScript>()` → `script.queueText(...)`, затем `koin.get<LlmApi> { parametersOf(script) }`,
   потом ассерт по `script.calls`. Пустая очередь → `LlmResult(error = "FakeLlmScript: no scripted response")`.
 - **`testLocalFileSystem` больше нет** — где тесту нужен реальный `LocalFileSystem` (пишет на диск),
   резолвится напрямую из прод-модуля: `koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()`
