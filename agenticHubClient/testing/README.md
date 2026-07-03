@@ -14,6 +14,10 @@ Multiplatform не поддерживает `java-test-fixtures`, поэтому
   `fileSystemModule` через изолированный `koinApplication` (koin-core, без koin-test). Для тестов,
   строящих `FileMemoryStore(root, fs = …)`. Общая дока по DI — [DI.md](../DI.md).
 
+> Для **композиции Koin-графа** (интеграционные тесты) фейки живут не здесь, а рядом со своими
+> прод-модулями как `*TestModule` (`fileSystemTestModule`/`llmTestModule` + holder `FakeLlmScript`) —
+> см. [DI.md](../DI.md). `FakeLlmApi` здесь остаётся для unit-тестов, конструирующих фейк напрямую.
+
 ## Зависимости
 - commonMain `api(features:llm)` (FakeLlmApi) + `api(platform:fileSystem)` + `koin.core`
   (testLocalFileSystem); jvmMain `api(platform:database)` + sqlite-bundled (TestDb). Потребители

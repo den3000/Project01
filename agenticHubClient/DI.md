@@ -73,9 +73,35 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
   (`object BuildKonfig`), `platform:greeting`, `features:lifecycle:command` (только data-типы),
   `features:composeApp`.
 
-## Тесты
+## Test-модули (`*TestModule`)
 
-`koin-test` не подключён. Тестам, которым нужен `LocalFileSystem`, `:testing` даёт
+Чтобы интеграционные тесты собирали большой граф, где фейковыми должны быть лишь **некоторые** листья
+(и не приходилось дублировать иерархии в `:testing`), модуль с фейкопригодным портом объявляет —
+**рядом со своим прод-модулем, в том же файле** — test-вариант, биндящий тот же интерфейс на
+`internal`-фейк. Интеграционный тест грузит `startKoin`/`koinApplication` с test-вариантом **вместо**
+прод-модуля, а остальные (real) модули — как есть.
+
+- **Форма** — обычный `common val` (НЕ `expect/actual`): фейк платформо-агностичен, поэтому модуль
+  работает на **всех** таргетах — в т.ч. там, где прод-модуль ещё `TODO` (`fileSystemTestModule`
+  поднимается на iOS, где `fileSystemModule` падает). Это и даёт «тесты в любом окружении».
+- **`platform:fileSystem` → `fileSystemTestModule`**: `single<LocalFileSystem> { InMemoryLocalFileSystem() }`
+  (path→content map, `internal`). Seed/assert — через публичный интерфейс `LocalFileSystem`
+  (`writeText`/`readText`/`listFileNames`), holder не нужен.
+- **`features:llm` → `llmTestModule`**: `single<LlmApi> { ScriptedLlmApi(get()) }` (`internal` фейк) +
+  публичный `single { FakeLlmScript() }`. Интерфейс `LlmApi` (`send`) слишком узок, чтобы через него
+  скриптовать → очередь ответов/инспекция живут в holder'е `FakeLlmScript`, тесты настраивают его
+  cross-module через `koin.get<FakeLlmScript>().queueText(...)`. Фейк — drop-in для
+  `get<LlmApi> { parametersOf(mp) }` (провайдер игнорируется).
+- **Соотношение с `:testing`** — аддитивно, не замена. `FakeLlmApi`/`testLocalFileSystem()` в
+  `:testing` остаются для unit-тестов, что конструируют/настраивают фейк напрямую; `*TestModule` — для
+  композиции Koin-графа, где фейк отдаётся под интерфейсом.
+- **Источник** — `commonMain` (тот же файл, что прод-модуль), т.е. фейки попадают в прод-артефакт;
+  цена — крошечные `internal`-классы, зато `*TestModule` виден тестам любого модуля (KMP не умеет
+  `java-test-fixtures`).
+
+## Тесты (прочее)
+
+`koin-test` не подключён. Для точечного `LocalFileSystem` (без композиции графа) `:testing` даёт
 `testLocalFileSystem()` — резолвит из `fileSystemModule` через изолированный
 `koinApplication { modules(fileSystemModule) }` (не глобальный `startKoin`).
 
