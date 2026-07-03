@@ -18,7 +18,7 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.IntentSo
 import ru.den.writes.code.agenticHub.features.lifecycle.session.Overlay
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PickerKind
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
-import ru.den.writes.code.agenticHub.testing.TestDb
+import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.UiEffect
 import ru.den.writes.code.agenticHub.features.lifecycle.session.UiIntent

@@ -6,7 +6,7 @@ import ru.den.writes.code.agenticHub.cliJvm.ChunkedFilePromptSource
 import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.cliJvm.LineFilePromptSource
 import ru.den.writes.code.agenticHub.cliJvm.StdinPromptSource
-import ru.den.writes.code.agenticHub.testing.TestDb
+import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import java.io.BufferedReader
 import java.io.StringReader

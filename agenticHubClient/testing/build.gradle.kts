@@ -33,10 +33,5 @@ kotlin {
             api(projects.agenticHubClient.platform.fileSystem)
             implementation(libs.koin.core)
         }
-        jvmMain.dependencies {
-            // TestDb builds a real AppDatabase over the bundled SQLite driver.
-            api(projects.agenticHubClient.platform.database)
-            implementation(libs.androidx.sqlite.bundled)
-        }
     }
 }

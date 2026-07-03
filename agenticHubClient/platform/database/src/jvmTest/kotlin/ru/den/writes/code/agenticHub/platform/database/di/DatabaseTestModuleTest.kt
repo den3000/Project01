@@ -5,7 +5,7 @@ import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.MessageEntity
-import ru.den.writes.code.agenticHub.testing.TestDb
+import ru.den.writes.code.agenticHub.platform.database.TestDb
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame

@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.start
 
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.testing.TestDb
+import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
 import ru.den.writes.code.agenticHub.features.lifecycle.start.StartExecutor
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand

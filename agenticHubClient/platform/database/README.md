@@ -16,6 +16,9 @@ KMP-модуль (jvm/android/ios) с чистым Room-слоем: схема �
 - `buildDatabase()` — **`internal`** (зовётся только `databaseModule`); внутри `expect fun
   databaseBuilder()` — actual JVM реальный (`~/.project01-cli/history.db`), android/ios = `TODO()`
   (`Database.kt` + `Database.{jvm,android,ios}.kt`).
+- `TestDb` (jvmMain, `TestDb.kt`) — одноразовая реальная Room-БД на temp-файле (bundled SQLite),
+  `AutoCloseable` (в `.use { … }`). Живёт здесь (рядом с реальной БД), в граф отдаётся через
+  `databaseTestModule(TestDb().db)`. Публичный (не `:testing`) — нужен тестам других модулей.
 
 ## Зависимости
 - `api(room-runtime)`, `implementation(koin.core)` (для di); per-target KSP. Потребитель —
@@ -23,7 +26,8 @@ KMP-модуль (jvm/android/ios) с чистым Room-слоем: схема �
 
 ## Тесты
 `./gradlew :agenticHubClient:platform:database:jvmTest` — DAO/entities/миграции (`FactsStoreTest`/
-`SummaryStoreTest`/`MigrationTest`; `:testing` для TestDb). RoomHistoryStore/persistence — в `features:memory:jvmTest`.
+`SummaryStoreTest`/`MigrationTest` на `TestDb`; `DatabaseTestModuleTest` — резолв реальной БД из
+`databaseTestModule`). RoomHistoryStore/persistence — в `features:memory:jvmTest`.
 
 ## Грабли
 - android/ios `databaseBuilder()` / `databaseModule` actual — сейчас `TODO()` (нужны Context /

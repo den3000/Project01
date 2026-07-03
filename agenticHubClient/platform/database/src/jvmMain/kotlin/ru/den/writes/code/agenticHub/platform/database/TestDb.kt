@@ -1,8 +1,7 @@
-package ru.den.writes.code.agenticHub.testing
+package ru.den.writes.code.agenticHub.platform.database
 
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import java.io.File
 
 /**
@@ -10,16 +9,16 @@ import java.io.File
  * `.use { … }` so the file (plus the WAL/SHM siblings SQLite creates
  * alongside it) gets removed when the block exits.
  *
- * Why file-based instead of `:memory:`: Room 2.8's KMP-style
- * `databaseBuilder<T>(name = …)` expects a real path; bundled-driver
- * in-memory support exists but is fiddlier than just dropping into
- * `File.createTempFile`. The temp file lives for one test, so any
- * "real disk I/O" overhead is irrelevant in practice.
+ * Lives next to the real DB (not in `:testing`) so it can back the DI
+ * test module: `databaseTestModule(TestDb().db)` hands this real DB into a
+ * Koin graph. Why file-based instead of `:memory:`: Room 2.8's KMP-style
+ * `databaseBuilder<T>(name = …)` expects a real path; the temp file lives
+ * for one test, so any "real disk I/O" overhead is irrelevant in practice.
  */
 public class TestDb : AutoCloseable {
     private val dbFile: File = File.createTempFile("project01-test-", ".db")
 
-    val db: AppDatabase = Room.databaseBuilder<AppDatabase>(name = dbFile.absolutePath)
+    public val db: AppDatabase = Room.databaseBuilder<AppDatabase>(name = dbFile.absolutePath)
         .setDriver(BundledSQLiteDriver())
         .build()
 

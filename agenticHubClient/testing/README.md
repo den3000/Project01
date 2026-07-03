@@ -8,20 +8,16 @@ Multiplatform не поддерживает `java-test-fixtures`, поэтому
 ## Публичный API
 - `FakeLlmApi` (commonMain) — детерминированный стаб `LlmApi`: очередь ответов (`queue`/`queueText`),
   инспекция вызовов (`calls`). Пустая очередь → синтетический error-результат.
-- `TestDb` (jvmMain) — одноразовая Room-БД на temp-файле (bundled SQLite driver), `AutoCloseable`
-  (чистит `.db`/`-wal`/`-shm` в `close()`; использовать в `.use { … }`). В Koin-граф её отдаёт
-  `databaseTestModule(db)` из `platform:database` (реальная БД, без мока таблиц).
 - `testLocalFileSystem()` (commonMain, `TestFileSystem.kt`) — `LocalFileSystem`, резолвится из
   `fileSystemModule` через изолированный `koinApplication` (koin-core, без koin-test). Для тестов,
   строящих `FileMemoryStore(root, fs = …)`. Общая дока по DI — [DI.md](../DI.md).
 
-> Для **композиции Koin-графа** (интеграционные тесты) фейки живут не здесь, а рядом со своими
-> прод-модулями как `*TestModule` (`fileSystemTestModule`/`llmTestModule` + `FakeLlmScript`;
-> `databaseTestModule(db)` берёт реальную `TestDb`) — см. [DI.md](../DI.md). `FakeLlmApi`/`TestDb` здесь
-> остаются для unit-тестов, конструирующих/использующих их напрямую.
+> `TestDb` живёт **не здесь**, а в `platform:database` (рядом с реальной БД): в Koin-граф её отдаёт
+> `databaseTestModule(TestDb().db)`. Для **композиции Koin-графа** фейки тоже живут рядом со своими
+> прод-модулями как `*TestModule` (`fileSystemTestModule`/`llmTestModule` + `FakeLlmScript`) —
+> см. [DI.md](../DI.md). `FakeLlmApi` здесь остаётся для unit-тестов, конструирующих фейк напрямую.
 
 ## Зависимости
 - commonMain `api(features:llm)` (FakeLlmApi) + `api(platform:fileSystem)` + `koin.core`
-  (testLocalFileSystem); jvmMain `api(platform:database)` + sqlite-bundled (TestDb). Потребители
-  (testImplementation): features:agent, features:memory, platform:database, lifecycle:session,
-  lifecycle:start, apps:cliJvmApp.
+  (testLocalFileSystem). Потребители (testImplementation): features:agent, features:memory,
+  platform:database, lifecycle:session, lifecycle:start, apps:cliJvmApp.
