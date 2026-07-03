@@ -12,7 +12,9 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
 - **Chunking** (`ChunkingStrategy` — fun interface, чистая нарезка):
   - `FixedSizeChunking(chunkSize, overlap)` — скользящее окно фикс-размера с перекрытием
     (structure-blind, `section = null`).
-  - _(далее)_ `StructuralChunking` — по markdown-заголовкам/разделам.
+  - `StructuralChunking` — по markdown-заголовкам (ATX `#`..`######`): один чанк на раздел, имя
+    раздела → `section`, заголовок остаётся в тексте чанка; преамбула до первого заголовка →
+    `section = null`.
 
 ## Зависимости
 - `api(features:llm)` (`LlmApi`/`Message` протекают через порты для будущего reranking/генерации;
