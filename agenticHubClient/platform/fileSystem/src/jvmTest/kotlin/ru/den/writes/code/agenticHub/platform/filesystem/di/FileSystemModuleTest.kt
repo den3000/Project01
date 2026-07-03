@@ -40,7 +40,7 @@ class FileSystemModuleTest {
     @Test
     fun `when fileSystemTestModule loaded - then LocalFileSystem round-trips in memory`() {
         // given
-        val fs = koinApplication { modules(fileSystemTestModule) }.koin.get<LocalFileSystem>()
+        val fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()
 
         // when
         fs.mkdirs("/root/rules")
@@ -56,7 +56,7 @@ class FileSystemModuleTest {
     @Test
     fun `when file deleted - then it is gone and not listed`() {
         // given
-        val fs = koinApplication { modules(fileSystemTestModule) }.koin.get<LocalFileSystem>()
+        val fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()
         fs.writeText("/root/x.md", "x")
 
         // when

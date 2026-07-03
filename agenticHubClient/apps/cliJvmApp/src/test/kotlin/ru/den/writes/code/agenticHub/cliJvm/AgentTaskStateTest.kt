@@ -1,9 +1,10 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
+import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
-import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
 import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
@@ -43,7 +44,7 @@ class AgentTaskStateTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
@@ -71,7 +72,7 @@ class AgentTaskStateTest {
             withTempMemoryRoot { root ->
                 // given
                 // clarification → done is not in the table; the proposal is dropped.
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
@@ -98,7 +99,7 @@ class AgentTaskStateTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
@@ -125,7 +126,7 @@ class AgentTaskStateTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.PLANNING, paused = true))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
@@ -155,7 +156,7 @@ class AgentTaskStateTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.EXECUTION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
@@ -182,7 +183,7 @@ class AgentTaskStateTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem())
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>())
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM)
                 val fake = FakeLlmApi().apply { queueText("ok") }
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")

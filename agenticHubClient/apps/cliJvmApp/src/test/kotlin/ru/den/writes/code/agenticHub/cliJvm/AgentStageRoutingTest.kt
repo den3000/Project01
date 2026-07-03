@@ -1,9 +1,10 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
+import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
-import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
 import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
@@ -49,7 +50,7 @@ class AgentStageRoutingTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
@@ -76,7 +77,7 @@ class AgentStageRoutingTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
@@ -106,7 +107,7 @@ class AgentStageRoutingTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("t", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
@@ -136,7 +137,7 @@ class AgentStageRoutingTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     addNamedProfileItem("planner", ProfileSection.STYLE, "plan carefully")
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
@@ -169,7 +170,7 @@ class AgentStageRoutingTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
@@ -207,7 +208,7 @@ class AgentStageRoutingTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fb") }
                 val planner = FakeLlmApi().apply { queueText("the plan") }
@@ -244,7 +245,7 @@ class AgentStageRoutingTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fake = FakeLlmApi().apply { queueText("plain reply") }
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")

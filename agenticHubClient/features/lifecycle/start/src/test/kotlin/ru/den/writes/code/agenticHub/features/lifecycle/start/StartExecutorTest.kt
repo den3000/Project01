@@ -1,11 +1,12 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.start
 
+import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.platform.database.TestDb
-import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
 import ru.den.writes.code.agenticHub.features.lifecycle.start.StartExecutor
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
@@ -36,7 +37,7 @@ class StartExecutorTest {
             )
 
             // when
-            val result = StartExecutor(koin.get<AppDatabase>(), testLocalFileSystem()).execute(oneShot)
+            val result = StartExecutor(koin.get<AppDatabase>(), koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).execute(oneShot)
 
             // then — same object back, nothing launched
             assertSame(oneShot, result)
@@ -48,7 +49,7 @@ class StartExecutorTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // when — list runs against the (empty) test db
-            val result = StartExecutor(koin.get<AppDatabase>(), testLocalFileSystem()).execute(StartCommand.ListSessions)
+            val result = StartExecutor(koin.get<AppDatabase>(), koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).execute(StartCommand.ListSessions)
 
             // then
             assertNull(result)

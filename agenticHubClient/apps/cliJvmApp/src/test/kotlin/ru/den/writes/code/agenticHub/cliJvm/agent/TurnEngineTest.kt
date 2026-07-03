@@ -1,9 +1,10 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
-import ru.den.writes.code.agenticHub.testing.testLocalFileSystem
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
@@ -103,7 +104,7 @@ class TurnEngineTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fake = FakeLlmApi().apply { queueText("on it [[stage:execution]]") }
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
@@ -128,7 +129,7 @@ class TurnEngineTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given — DONE isn't reachable from PLANNING
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fake = FakeLlmApi().apply { queueText("skip ahead [[stage:done]]") }
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
@@ -153,7 +154,7 @@ class TurnEngineTest {
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath, fs = testLocalFileSystem()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
                 val fallback = FakeLlmApi().apply { queueText("fb") }
                 val planner = FakeLlmApi().apply { queueText("planned") }
