@@ -84,6 +84,16 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
 - **`factory`, не `single`** — каждый `get()` отдаёт свежий фейк, тесты полностью независимы (никакого
   состояния между ними, и `val`-модуль можно переиспользовать между `koinApplication` без утечки
   закэшированного инстанса). Прод-модули — свои binding'и (`single` там, где нужен один инстанс на сессию).
+- **Один koin на тест-класс** — в DI-тесте граф поднимается **один раз**, `private val` на класс, а не в
+  каждом тест-методе: `private val koin = koinApplication { modules(...) }.koin`. Безопасно ровно потому,
+  что test-модули на `factory` → каждый `koin.get()` даёт свежий инстанс, тесты остаются независимыми
+  (примеры: `LlmTestModuleTest`, `FileSystemModuleTest`).
+- **`@IgnoreIos` (из `:testUtils`) для недостающих реализаций** — если тест не проходит из-за того, что
+  платформенная реализация ещё `actual = TODO()` (типично: common-тест трогает eager `fileSystemModule`,
+  чей iOS-`actual` не готов → Kotlin/Native падает при инициализации файла), **не прячь** это (ни
+  разнесением по файлам, ни удалением теста) — помечай тест `@IgnoreIos`. На iOS он станет `ignored`
+  (виден в репорте как «платформа не готова»), на JVM выполнится. `@IgnoreIos`: JVM/Android — no-op, iOS —
+  `kotlin.test.Ignore` (детали грабли — ниже).
 - **`common`, не `expect/actual`** — фейк платформо-агностичен, поэтому модуль работает на **всех**
   таргетах, в т.ч. там, где прод-модуль ещё `TODO` (`fileSystemTestModule` поднимается на iOS, где
   `fileSystemModule` падает). Это и даёт «тесты в любом окружении».
@@ -108,10 +118,9 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
   а не передать resolve-параметром: до вложенного `get<MessageDao>()` в `memoryModule` `parametersOf`
   не доедет. Никаких синглтонов в тестах — инстанс приходит снаружи, модуль создаётся на каждый тест
   (`fun`, свой `db`).
-- **Использование LLM-фейка в тестах** — тест держит локальный хелпер
-  `scriptedApi(script) = koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }`;
-  `val script = FakeLlmScript().apply { queueText(...) }; val api = scriptedApi(script)`, потом ассертит
-  `script.calls`. Пустая очередь → `LlmResult(error = "FakeLlmScript: no scripted response")`.
+- **Использование LLM-фейка в тестах** — над общим `koin` (`modules(llmTestModule)`):
+  `val script = FakeLlmScript().apply { queueText(...) }`, затем `koin.get<LlmApi> { parametersOf(script) }`,
+  потом ассерт по `script.calls`. Пустая очередь → `LlmResult(error = "FakeLlmScript: no scripted response")`.
 - **`testLocalFileSystem` больше нет** — где тесту нужен реальный `LocalFileSystem` (пишет на диск),
   резолвится напрямую из прод-модуля: `koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()`
   (даёт `JvmLocalFileSystem`). `fileSystemTestModule` (in-memory) — для графов, где диск не нужен.
