@@ -5,7 +5,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.UUID
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 /**
  * The scheduler. All state lives behind a [Mutex], so control calls (add/cancel/list/
@@ -17,11 +18,12 @@ import java.util.UUID
  * context the integration launches it in (openmeteo-mcp uses `Dispatchers.IO`). That is what lets
  * both integrations sit on top purely additively.
  */
+@OptIn(ExperimentalUuidApi::class)
 class SchedulerEngine(
     private val store: ScheduleStore,
     private val handler: TaskHandler,
     private val now: () -> Long,
-    private val newId: () -> String = { UUID.randomUUID().toString() },
+    private val newId: () -> String = { Uuid.random().toString() },
 ) {
     private val mutex = Mutex()
 
