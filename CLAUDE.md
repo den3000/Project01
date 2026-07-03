@@ -36,7 +36,12 @@ iOS-bundle-id остались на `project01` (это идентификато
 - **playground**: [cliTui](playground/cliTui/README.md) ·
   [openmeteo-mcp](playground/openmeteo-mcp/README.md) · [localfs-mcp](playground/localfs-mcp/README.md)
 - **[scheduling](scheduling/README.md)** — ядро планировщика.
-- **[testing](agenticHubClient/testing/README.md)** — shared тест-хелперы (FakeLlmApi/TestDb; только `testImplementation`).
+- **testUtils** (`agenticHubClient/testUtils`) — кросс-каттинг тест-утилиты (`@IgnoreIos` — expect/actual,
+  на iOS = `kotlin.test.Ignore`; JVM/Android — no-op), `commonTest`-зависимость. Фейки тут НЕ живут.
+- Тест-фейки живут **рядом с реальными реализациями** (не в отдельном модуле): `FakeLlmScript`/
+  `LlmApiFake`+`llmTestModule` (features:llm), `LocalFileSystemFake`+`fileSystemTestModule`
+  (platform:fileSystem), `TestDb`+`databaseTestModule` (platform:database). Модуль `:testing` снесён —
+  [DI.md](agenticHubClient/DI.md).
 
 ## Команды (offline; сеть/токены/TTY — спрашивать перед запуском)
 
@@ -55,6 +60,9 @@ iOS-bundle-id остались на `project01` (это идентификато
 ## Кросс-каттинг
 
 - **Не печатать секреты** (значения ключей из `local.properties`/`BuildKonfig`) в транскрипт.
+- **DI — Koin** (`koin-core`, KMP): каждый модуль несёт свой Koin-модуль в пакете `<root>.di`;
+  конвенции (платформенный `expect/actual`→`Module` vs универсальный `module{}`, `parametersOf`,
+  holder при >5 арг, composition root `startKoin` в cliJvmApp) — [agenticHubClient/DI.md](agenticHubClient/DI.md).
 
 ## Незакрытый follow-up (кросс-модульный)
 
@@ -63,8 +71,10 @@ iOS-bundle-id остались на `project01` (это идентификато
   детали — composeApp README).
 - **iOS commonTest `features:agent` не компилится** на backtick-именах тестов с `()`/`,` (ограничение
   Kotlin/Native) — pre-existing; обход теми же `-x compileTestKotlinIos*`.
-- KMP-изация lifecycle-модулей (сейчас JVM); android/ios actual-реализации `TODO()` в
-  `platform:database`/`platform:fileSystem` (см. их README).
+- KMP-изация модулей сделана (lifecycle command/start/session, scheduling, mcpClient[jvm+android,
+  без iOS — SDK без iOS-klib]). Осталось: реальные android/ios `actual` (сейчас `TODO()`) —
+  `platform:database` (builder/TestDb), `platform:fileSystem` (LocalFileSystem/homeDirectory),
+  `lifecycle:session` (`SessionPlatform` часы/диспетчер). См. README модулей.
 - `.run/androidApp.run.xml` держит старое имя модуля (`Project01.androidApp`) — AS переразрешит на sync.
 
 ## Стиль работы пользователя

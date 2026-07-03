@@ -33,13 +33,13 @@ kotlin {
             implementation(projects.agenticHubClient.platform.logging)
             implementation(libs.kotlinx.coroutinesCore)
             implementation(libs.kotlinx.serializationJson)
+            implementation(libs.koin.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-        }
-        jvmTest.dependencies {
-            implementation(projects.agenticHubClient.testing)
             implementation(libs.kotlinx.coroutinesTest)
+            // @IgnoreIos on the TestDb-backed history tests (iOS DB actual is TODO там).
+            implementation(projects.agenticHubClient.testUtils)
         }
     }
 }

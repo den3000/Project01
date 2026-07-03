@@ -22,5 +22,3 @@ internal class JvmLocalFileSystem : LocalFileSystem {
     override fun listFileNames(dir: String): List<String> =
         File(dir).listFiles()?.filter { it.isFile }?.map { it.name } ?: emptyList()
 }
-
-public actual fun localFileSystem(): LocalFileSystem = JvmLocalFileSystem()

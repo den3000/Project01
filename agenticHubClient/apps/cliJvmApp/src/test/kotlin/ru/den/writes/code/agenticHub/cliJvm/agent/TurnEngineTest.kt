@@ -1,10 +1,18 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
+import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.StageAdvance
-import ru.den.writes.code.agenticHub.testing.TestDb
+import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnResult
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
@@ -32,12 +40,18 @@ import kotlin.test.assertTrue
  */
 class TurnEngineTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     @Test
     fun `when a turn succeeds - then both sides persist and Ok carries the snapshot`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi().apply { queueText("reply", promptTokens = 12, outputTokens = 3) }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fakeScript = FakeLlmScript().apply { queueText("reply", promptTokens = 12, outputTokens = 3) }
+            val fake = scriptedApi(fakeScript)
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val engine = TurnEngine(newChat("hi", "s"), fake, store)
 
             // when
@@ -49,7 +63,7 @@ class TurnEngineTest {
             assertEquals(12, result.usage?.promptTokens)
             assertEquals(StageAdvance.None, result.stageAdvance)
             assertEquals(1, result.session?.turns)
-            val reader = RoomHistoryStore(harness.db.messageDao(), sessionId = "s").apply { load() }
+            val reader = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s").apply { load() }
             assertEquals(
                 listOf(Message(Role.USER, "hi"), Message(Role.ASSISTANT, "reply")),
                 reader.messages,
@@ -60,26 +74,30 @@ class TurnEngineTest {
     @Test
     fun `when the provider errors - then Failed and nothing persisted`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi() // empty queue → synthetic error
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fakeScript = FakeLlmScript()
+            val fake = scriptedApi(fakeScript) // empty queue → synthetic error
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val engine = TurnEngine(newChat("hi", "s"), fake, store)
 
             // when
             val result = engine.turn("hi")
 
             // then
-            assertEquals(TurnResult.Failed("FakeLlmApi: no scripted response"), result)
-            assertEquals(0, harness.db.messageDao().count())
+            assertEquals(TurnResult.Failed("FakeLlmScript: no scripted response"), result)
+            assertEquals(0, koin.get<MessageDao>().count())
         }
     }
 
     @Test
     fun `when the reply is empty with no usage - then Failed with that reason`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fake = FakeLlmApi().apply { queue(LlmResult(text = null)) }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+            val fakeScript = FakeLlmScript().apply { queue(LlmResult(text = null)) }
+            val fake = scriptedApi(fakeScript)
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
             val engine = TurnEngine(newChat("hi", "s"), fake, store)
 
             // when
@@ -93,12 +111,14 @@ class TurnEngineTest {
     @Test
     fun `when the reply signals a legal stage move - then Advanced and the task is saved`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fake = FakeLlmApi().apply { queueText("on it [[stage:execution]]") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+                val fakeScript = FakeLlmScript().apply { queueText("on it [[stage:execution]]") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
                 val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory)
 
                 // when
@@ -117,12 +137,14 @@ class TurnEngineTest {
     @Test
     fun `when the reply signals an illegal stage move - then Rejected and the task is unchanged`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given — DONE isn't reachable from PLANNING
-                val memStore = FileMemoryStore(root.absolutePath).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fake = FakeLlmApi().apply { queueText("skip ahead [[stage:done]]") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+                val fakeScript = FakeLlmScript().apply { queueText("skip ahead [[stage:done]]") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
                 val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory)
 
                 // when
@@ -141,13 +163,16 @@ class TurnEngineTest {
     @Test
     fun `when the active stage matches a routed agent - then that agent answers`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
-                val fallback = FakeLlmApi().apply { queueText("fb") }
-                val planner = FakeLlmApi().apply { queueText("planned") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "s")
+                val fallbackScript = FakeLlmScript().apply { queueText("fb") }
+                val fallback = scriptedApi(fallbackScript)
+                val plannerScript = FakeLlmScript().apply { queueText("planned") }
+                val planner = scriptedApi(plannerScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
                 val engine = TurnEngine(
                     newChat("hi", "s"), fallback, store, memory = memory,
                     routedAgents = listOf(routed(TaskStage.PLANNING, TaskStage.EXECUTION, planner, "planner")),
@@ -160,8 +185,8 @@ class TurnEngineTest {
                 result as TurnResult.Ok
                 assertEquals("planned", result.reply)
                 assertEquals("planner", result.profileName)
-                assertEquals(1, planner.calls.size)
-                assertEquals(0, fallback.calls.size)
+                assertEquals(1, plannerScript.calls.size)
+                assertEquals(0, fallbackScript.calls.size)
             }
         }
     }
@@ -171,7 +196,7 @@ class TurnEngineTest {
     private fun routed(
         from: TaskStage,
         to: TaskStage,
-        api: FakeLlmApi,
+        api: LlmApi,
         profileName: String? = null,
     ): RoutedAgent = RoutedAgent(
         binding = TaskBinding(from, to),

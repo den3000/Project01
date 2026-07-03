@@ -466,6 +466,16 @@ Downstream-мапперы живут в `commandMappers/`: `CliArgsToStartComman
 | `commandMappers/CliArgsToStartCommandMapper.kt` | startup: `parse(args)` = `parseArgv` → `map` → `ParsedStartCommand` (`Ok(StartCommand)`/`Err(ParseError)`); пост-парсинг-проверки bail'ят `MapBail(ParseError.*)` |
 | `commandMappers/CliArgToSessionCommandMapper.kt` | CMD-строка → `SessionCommand` (in-session; ошибка → `null`) |
 | `ModelProviders.kt` | `ApiKeys` + `ModelProviderFactory` (изолятор ключей; адаптер `ParsedArg` → `features:llm.buildModelProvider`, транслирует `ModelProviderError` → `ParseError` через bail) |
+| `di/AppModule.kt` | `appModule` — app-owned Koin-биндинги: `HttpClient` (Java, single+`onClose`), `ApiKeys`(из `BuildKonfig`), `ModelProviderFactory`, `CliArgsParser` |
+
+### Composition root (Koin)
+
+`main.kt` поднимает `startKoin { modules(appModule, fileSystemModule, databaseModule, llmModule,
+memoryModule, agentModule, mcpClientModule, startModule, sessionModule) }`; всё резолвится из графа
+(`koin.get()` / `koin.get { parametersOf(…) }`), `stopKoin()` в `finally` закрывает `HttpClient` и
+`AppDatabase` через их `onClose`. `runSession`/accessors (`commandMappers/SessionInitialStateExtensions`:
+`resolveHistoryStore(koin)`/`resolveMemoryProvider(koin, root)`) резолвят leaf-зависимости из графа;
+`contextStrategy()` — чистая логика без инъекций. Как устроен DI в проекте целиком — [DI.md](../../DI.md).
 
 ### Текущие ограничения
 
@@ -481,7 +491,7 @@ Downstream-мапперы живут в `commandMappers/`: `CliArgsToStartComman
 ./gradlew :agenticHubClient:apps:cliJvmApp:test
 ```
 
-Offline и быстро — все провайдеры застаблены через `FakeLlmApi`, сети нет. Парсинг покрыт
+Offline и быстро — провайдеры застаблены через `llmTestModule` (`FakeLlmScript`), сети нет. Парсинг покрыт
 `cliargs/*Test` (grammar/crossvalidation) + `commandMappers/CliArgsToStartCommandMapper*Test` (оба маппера);
 MVI-стек диалога — через хелпер `runSessionForTest`, байт-в-байт вывод пинит `PlainViewGoldenTest`.
 Доменное ядро вынесено в отдельные модули (`features:llm` — LLM/pricing, `features:agent` —

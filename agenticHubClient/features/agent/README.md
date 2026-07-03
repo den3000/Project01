@@ -16,14 +16,16 @@ Memory-домен (профиль/правила/task-FSM/`MemoryLayer`) и ко
   `InvariantJudgePrompt` + `InvariantVerdict`/`InvariantViolation`.
 - Memory-типы, которыми оперирует ход (`MemoryLayer`/`Profile`/`TaskStage`/`TaskBinding`/`RuleEntry`),
   берутся из `features:memory`.
+- `di/`: `agentModule` — `List<RoutedAgent>` по (`stageAgents`, `params`) и `List<RoutedJudge>` по
+  `judgeAgents` (`HttpClient` из графа; `LlmApi` строится билдером по каждому spec). Дока — [DI.md](../../DI.md).
 
 ## Зависимости
 - `api(features:llm)` + `api(features:memory)` (публичный API протекает LLM- и memory-домен-типами),
-  `implementation(platform:logging)`. Потребители — `features:lifecycle:*`.
+  `implementation(platform:logging)` + `implementation(koin.core)` (для di). Потребители — `features:lifecycle:*`.
 
 ## Тесты
 `./gradlew :agenticHubClient:features:agent:jvmTest` — `AgentResponderTest`, `InvariantJudgePromptTest`,
-`LlmInvariantJudgeTest` (`FakeLlmApi` — из `:testing`). Memory-домен-тесты уехали в `features:memory`.
+`LlmInvariantJudgeTest` (`FakeLlmScript`/`llmTestModule` из features:llm). Memory-домен-тесты уехали в `features:memory`.
 Backtick-имена в commonTest **без** `()`/`,` — иначе iOS commonTest не компилится.
 
 ## Грабли

@@ -6,6 +6,8 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import org.koin.core.Koin
+import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.features.llm.McpToolRouter
 import ru.den.writes.code.agenticHub.features.mcpclient.McpToolClient
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
@@ -37,10 +39,13 @@ internal fun buildHttpClient(): HttpClient = HttpClient(Java) {
     }
 }
 
-/** One [McpToolClient] per configured MCP server command (not yet connected). */
-internal fun buildMcpToolClients(chat: StartCommand.RunChat?): List<McpToolClient> =
+/**
+ * One [McpToolClient] per configured MCP server command (not yet connected),
+ * each resolved from the graph (`mcpClientModule`) with the parsed command.
+ */
+internal fun buildMcpToolClients(koin: Koin, chat: StartCommand.RunChat?): List<McpToolClient> =
     chat?.config?.mcpServers.orEmpty().map { cmd ->
-        McpToolClient(cmd.split(Regex("\\s+")).filter { it.isNotEmpty() })
+        koin.get<McpToolClient> { parametersOf(cmd.split(Regex("\\s+")).filter { it.isNotEmpty() }) }
     }
 
 /**

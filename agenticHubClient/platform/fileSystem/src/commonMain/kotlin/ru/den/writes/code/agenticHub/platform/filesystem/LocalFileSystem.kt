@@ -4,7 +4,7 @@ package ru.den.writes.code.agenticHub.platform.filesystem
  * Minimal local-filesystem port — enough for the markdown-backed memory store
  * (profiles / rules / tasks). Path-string based so the neutral (KMP) callers
  * never touch a platform file type; the actual I/O lives in the per-target
- * implementations obtained via [localFileSystem].
+ * implementations bound by `fileSystemModule`.
  */
 public interface LocalFileSystem {
     /** Create [path] and any missing parents. No-op if it already exists. */
@@ -25,6 +25,3 @@ public interface LocalFileSystem {
     /** Names of the regular files directly in [dir] (empty if [dir] is absent). */
     public fun listFileNames(dir: String): List<String>
 }
-
-/** The default [LocalFileSystem] for the current platform. */
-public expect fun localFileSystem(): LocalFileSystem

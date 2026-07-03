@@ -1,12 +1,18 @@
 package ru.den.writes.code.agenticHub.cliJvm.agent
 
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.ChunkedFilePromptSource
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
 import ru.den.writes.code.agenticHub.cliJvm.LineFilePromptSource
 import ru.den.writes.code.agenticHub.cliJvm.StdinPromptSource
-import ru.den.writes.code.agenticHub.testing.TestDb
+import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import java.io.BufferedReader
 import java.io.StringReader
@@ -15,18 +21,24 @@ import kotlin.test.assertEquals
 
 class AgentFeedModeTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     //region feed loop error handling
 
     @Test
     fun `when feed chunk fails - then loop aborts after current chunk and remaining chunks not sent`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("opening ok")  // -prompt opener
                 queueText("chunk 1 ok")  // first chunk from feed file
                 queue(LlmResult(text = null, error = "synthetic 400")) // second chunk fails
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "feed")
+            val fakeApi = scriptedApi(fakeApiScript)
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "feed")
             val chat = newChat(prompt = "go", session = "feed")
             // Feed source: three chunks scripted. Loop should stop after
             // the failed turn even though chunk 3 is still in the source.
@@ -41,7 +53,7 @@ class AgentFeedModeTest {
 
             // then
             // Calls: opener + chunk1 + chunk2 (failed). chunk3 never sent.
-            assertEquals(3, fakeApi.calls.size)
+            assertEquals(3, fakeApiScript.calls.size)
         }
     }
     //endregion
@@ -51,13 +63,15 @@ class AgentFeedModeTest {
     @Test
     fun `when LineFilePromptSource drives Agent - then one turn per line plus opening prompt`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("r-open")
                 queueText("r1")
                 queueText("r2")
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "lines")
+            val fakeApi = scriptedApi(fakeApiScript)
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "lines")
             val chat = newChat(prompt = "open", session = "lines")
             val source = LineFilePromptSource(BufferedReader(StringReader("turn one\nturn two\n")))
 
@@ -66,9 +80,9 @@ class AgentFeedModeTest {
 
             // then
             // opening -prompt + 2 lines = 3 turns.
-            assertEquals(3, fakeApi.calls.size)
-            assertEquals("turn one", fakeApi.calls[1].messages.last().text)
-            assertEquals("turn two", fakeApi.calls[2].messages.last().text)
+            assertEquals(3, fakeApiScript.calls.size)
+            assertEquals("turn one", fakeApiScript.calls[1].messages.last().text)
+            assertEquals("turn two", fakeApiScript.calls[2].messages.last().text)
         }
     }
     //endregion
@@ -78,14 +92,16 @@ class AgentFeedModeTest {
     @Test
     fun `when feed source naturally exhausts - then control hands off to replAfterFeed`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("opener reply")
                 queueText("chunk1 reply")
                 queueText("chunk2 reply")
                 queueText("stdin reply")
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "handoff")
+            val fakeApi = scriptedApi(fakeApiScript)
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "handoff")
             val chat = newChat(prompt = "open", session = "handoff")
             val feedSource = ChunkedFilePromptSource(
                 reader = StringReader("ABCDEF"), // 2 chunks × 3 chars
@@ -106,21 +122,23 @@ class AgentFeedModeTest {
             // then
             // 1 opener + 2 chunks + 1 stdin prompt = 4 calls. Then /exit
             // stops the stdin loop, finally prints session-summary.
-            assertEquals(4, fakeApi.calls.size)
-            assertEquals("after-feed", fakeApi.calls[3].messages.last().text)
+            assertEquals(4, fakeApiScript.calls.size)
+            assertEquals("after-feed", fakeApiScript.calls[3].messages.last().text)
         }
     }
 
     @Test
     fun `when feed source aborts on error - then still transitions to replAfterFeed for manual probing`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             // given
-            val fakeApi = FakeLlmApi().apply {
+            val fakeApiScript = FakeLlmScript().apply {
                 queueText("opener ok")
                 queue(LlmResult(text = null, error = "synthetic overflow")) // chunk1 fails
                 queueText("manual probe reply") // user follow-up after the failure
             }
-            val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "abort")
+            val fakeApi = scriptedApi(fakeApiScript)
+            val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "abort")
             val chat = newChat(prompt = "open", session = "abort")
             val feedSource = ChunkedFilePromptSource(
                 reader = StringReader("AAABBB"),
@@ -142,8 +160,8 @@ class AgentFeedModeTest {
             // opener + chunk1 (failed) + manual REPL probe = 3 calls.
             // The transition happens despite feedSource.terminated = true:
             // we let the user keep poking the model after the first error.
-            assertEquals(3, fakeApi.calls.size)
-            assertEquals("manual probe", fakeApi.calls[2].messages.last().text)
+            assertEquals(3, fakeApiScript.calls.size)
+            assertEquals("manual probe", fakeApiScript.calls[2].messages.last().text)
         }
     }
     //endregion

@@ -20,4 +20,16 @@ kotlin {
             jvmTarget = JvmTarget.JVM_11
         }
     }
+
+    sourceSets {
+        commonMain.dependencies {
+            // fileSystemModule (di) declares the LocalFileSystem binding.
+            implementation(libs.koin.core)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            // @IgnoreIos (skip fileSystemModule tests on iOS — actual is TODO там).
+            implementation(projects.agenticHubClient.testUtils)
+        }
+    }
 }

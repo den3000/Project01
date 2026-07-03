@@ -1,11 +1,18 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
-import ru.den.writes.code.agenticHub.testing.TestDb
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
+import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
+import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.agent.createStdinPromptSource
-
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.cliJvm.agent.runSessionForTest
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
@@ -36,18 +43,24 @@ import kotlin.test.assertTrue
  */
 class AgentJudgeTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     @Test
     fun `when judge flags a violation - then reply is not persisted and stage held`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given — task at clarification; the model would advance, but the judge objects
-                val memStore = FileMemoryStore(root.absolutePath).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                     addRule("Kotlin only, no Spring")
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Use Spring Boot.\n[[stage:planning]]") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val fakeScript = FakeLlmScript().apply { queueText("Use Spring Boot.\n[[stage:planning]]") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -68,15 +81,17 @@ class AgentJudgeTest {
     @Test
     fun `when judge passes - then reply persists and stage advances`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                     addRule("Kotlin only, no Spring")
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Confirmed, Kotlin it is.\n[[stage:planning]]") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val fakeScript = FakeLlmScript().apply { queueText("Confirmed, Kotlin it is.\n[[stage:planning]]") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -97,15 +112,17 @@ class AgentJudgeTest {
     @Test
     fun `when no judge spans the active stage - then the judge is not invoked`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given — task at execution, but the judge only covers clarification..planning
-                val memStore = FileMemoryStore(root.absolutePath).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.EXECUTION))
                     addRule("Kotlin only, no Spring")
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Working.\n[[stage:validation]]") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val fakeScript = FakeLlmScript().apply { queueText("Working.\n[[stage:validation]]") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
                 var calls = 0
                 val narrowJudge = RoutedJudge(
                     TaskBinding(TaskStage.CLARIFICATION, TaskStage.PLANNING),

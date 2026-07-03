@@ -1,7 +1,6 @@
 package ru.den.writes.code.agenticHub.features.memory
 
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
-import ru.den.writes.code.agenticHub.platform.filesystem.localFileSystem
 
 /**
  * File-backed [MemoryStore]: reads and writes the long-term (profile +
@@ -9,9 +8,9 @@ import ru.den.writes.code.agenticHub.platform.filesystem.localFileSystem
  * memory (chat history, summaries, sticky facts) is owned by `HistoryStore`
  * and lives in the Room database, untouched by this class.
  *
- * All I/O goes through the injected [LocalFileSystem] port (defaulting to the
- * platform's [localFileSystem]) — no direct file-type dependency, so the store
- * itself is multiplatform. [root] is a path string; the layout under it:
+ * All I/O goes through the injected [LocalFileSystem] port — no direct file-type
+ * dependency, so the store itself is multiplatform. [root] is a path string; the
+ * layout under it:
  *
  * ```
  * <root>/
@@ -29,7 +28,7 @@ import ru.den.writes.code.agenticHub.platform.filesystem.localFileSystem
  */
 public class FileMemoryStore(
     private val root: String,
-    private val fs: LocalFileSystem = localFileSystem(),
+    private val fs: LocalFileSystem,
 ) : MemoryStore {
     init {
         fs.mkdirs(root)

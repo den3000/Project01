@@ -13,10 +13,15 @@ Hugging Face) + tool-типы, ценовой реестр и generic tool-ро�
   `McpToolRouter.kt` (generic над `ToolExecutor`: объединяет несколько executor'ов, роутит по имени).
 - `pricing/ModelPricing.kt` — `ModelPricing`/`PricingRegistry` (**single source of truth по ценам**).
 - `LlmFactories.kt` — `buildLlmApi`/`buildModelProvider`(+`ModelProviderError`).
+- `di/`: `llmModule` — `factory<LlmApi> { (mp: ModelProvider) -> buildLlmApi(mp, get()) }` (`ModelProvider`
+  runtime, `HttpClient` из графа). Рядом `llmTestModule` (val) — `factory<LlmApi> { (script) ->
+  LlmApiFake(script ?: get()) }` + `factory { FakeLlmScript() }`: сетевой вызов не делается, скрипт
+  ответов/инспекция в публичном `FakeLlmScript` (тест создаёт, `queueText`, передаёт через
+  `parametersOf`; оба фейка в `LlmApiFake.kt`). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
 - `api(ktor.client.core)` + `api(kotlinx.coroutinesCore)` (протекают через публичные `*Api`),
-  `implementation(platform:logging)`. Лист в доменном слое (`agent`→`llm`).
+  `implementation(platform:logging)` + `implementation(koin.core)` (для di). Лист в доменном слое (`agent`→`llm`).
 
 ## Тесты
 `./gradlew :agenticHubClient:features:llm:jvmTest` — `*ApiTest` (gemini/openrouter/huggingface,

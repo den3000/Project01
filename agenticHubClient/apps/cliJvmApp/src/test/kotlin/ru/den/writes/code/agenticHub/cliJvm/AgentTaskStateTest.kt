@@ -1,10 +1,17 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
-import ru.den.writes.code.agenticHub.testing.FakeLlmApi
-import ru.den.writes.code.agenticHub.testing.TestDb
+import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
+import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
+import org.koin.core.parameter.parametersOf
+import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
+import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
+import ru.den.writes.code.agenticHub.platform.database.MessageDao
+import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
+import org.koin.dsl.koinApplication
+import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.agent.createStdinPromptSource
-
 import ru.den.writes.code.agenticHub.cliJvm.agent.runSessionForTest
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
@@ -32,19 +39,25 @@ import kotlin.test.assertEquals
  */
 class AgentTaskStateTest {
 
+    private fun scriptedApi(script: FakeLlmScript): LlmApi =
+        koinApplication { modules(llmTestModule) }.koin.get { parametersOf(script) }
+
+
     //region auto-advance from the model reply
 
     @Test
     fun `when reply signals a legal next stage - then the task auto-advances`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Requirements confirmed.\n[[stage:planning]]") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val fakeScript = FakeLlmScript().apply { queueText("Requirements confirmed.\n[[stage:planning]]") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -63,15 +76,17 @@ class AgentTaskStateTest {
     @Test
     fun `when reply signals an illegal jump - then the stage is unchanged`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
                 // clarification → done is not in the table; the proposal is dropped.
-                val memStore = FileMemoryStore(root.absolutePath).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Skipping ahead.\n[[stage:done]]") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val fakeScript = FakeLlmScript().apply { queueText("Skipping ahead.\n[[stage:done]]") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -90,14 +105,16 @@ class AgentTaskStateTest {
     @Test
     fun `when reply has no stage marker - then the stage is unchanged`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.PLANNING))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("Still working on the plan.") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val fakeScript = FakeLlmScript().apply { queueText("Still working on the plan.") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -116,14 +133,16 @@ class AgentTaskStateTest {
     @Test
     fun `when the task is paused - then a stage marker does not advance it`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.PLANNING, paused = true))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("[[stage:execution]]") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val fakeScript = FakeLlmScript().apply { queueText("[[stage:execution]]") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -145,14 +164,16 @@ class AgentTaskStateTest {
     @Test
     fun `when -task-pause then -task-resume issued - then the paused flag toggles`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath).apply {
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.EXECUTION))
                 }
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
-                val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
@@ -171,12 +192,14 @@ class AgentTaskStateTest {
     @Test
     fun `when slash task creates a fresh task - then it starts at the initial stage`() = runTest {
         TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
                 // given
-                val memStore = FileMemoryStore(root.absolutePath)
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>())
                 val memory = MemoryProvider(memStore, MemoryMode.SYSTEM)
-                val fake = FakeLlmApi().apply { queueText("ok") }
-                val store = RoomHistoryStore(harness.db.messageDao(), sessionId = "demo")
+                val fakeScript = FakeLlmScript().apply { queueText("ok") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
 
                 // when
                 runSessionForTest(
