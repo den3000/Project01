@@ -1,13 +1,12 @@
 package ru.den.writes.code.agenticHub.features.memory
 
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
-import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
+import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemTestModule
 import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
-import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -17,9 +16,9 @@ class MemoryProviderProfileTest {
 
     @Test
     fun `when memoryLayerFor null - then identical to memoryLayer for the active profile`() {
-        withTempMemoryRoot { root ->
+        withFakeMemoryRoot { root, fs ->
             // given
-            val store = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+            val store = FileMemoryStore(root, fs).apply {
                 addNamedProfileItem("coder", ProfileSection.STYLE, "write code")
             }
             val provider = MemoryProvider(store, MemoryMode.PREAMBLE, initialProfileName = "coder")
@@ -37,9 +36,9 @@ class MemoryProviderProfileTest {
 
     @Test
     fun `when memoryLayerFor a fixed profile - then uses it and ignores the active profile`() {
-        withTempMemoryRoot { root ->
+        withFakeMemoryRoot { root, fs ->
             // given
-            val store = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+            val store = FileMemoryStore(root, fs).apply {
                 addNamedProfileItem("planner", ProfileSection.STYLE, "plan carefully")
                 addNamedProfileItem("coder", ProfileSection.STYLE, "write code")
             }
@@ -57,9 +56,9 @@ class MemoryProviderProfileTest {
 
     @Test
     fun `when memoryLayerFor a fixed profile - then rules and task still come from the live store`() {
-        withTempMemoryRoot { root ->
+        withFakeMemoryRoot { root, fs ->
             // given
-            val store = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+            val store = FileMemoryStore(root, fs).apply {
                 addNamedProfileItem("planner", ProfileSection.STYLE, "plan carefully")
                 addRule("no frameworks")
                 saveTask(TaskNotes("auth", goal = "ship login", stage = TaskStage.PLANNING))
@@ -77,12 +76,8 @@ class MemoryProviderProfileTest {
         }
     }
 
-    private inline fun withTempMemoryRoot(block: (java.io.File) -> Unit) {
-        val dir = Files.createTempDirectory("project01-mem-profile-").toFile()
-        try {
-            block(dir)
-        } finally {
-            dir.deleteRecursively()
-        }
+    private inline fun withFakeMemoryRoot(block: (root: String, fs: LocalFileSystem) -> Unit) {
+        val fs = koinApplication { modules(fileSystemTestModule) }.koin.get<LocalFileSystem>()
+        block("/mem", fs)
     }
 }
