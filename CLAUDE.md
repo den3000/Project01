@@ -37,7 +37,7 @@ iOS-bundle-id остались на `project01` (это идентификато
   [openmeteo-mcp](playground/openmeteo-mcp/README.md) · [localfs-mcp](playground/localfs-mcp/README.md)
 - **[scheduling](scheduling/README.md)** — ядро планировщика.
 - Тест-фейки живут **рядом с реальными реализациями** (не в отдельном модуле): `FakeLlmScript`/
-  `LlmApiFake`+`llmTestModule` (features:llm), `InMemoryLocalFileSystem`+`fileSystemTestModule`
+  `LlmApiFake`+`llmTestModule` (features:llm), `LocalFileSystemFake`+`fileSystemTestModule`
   (platform:fileSystem), `TestDb`+`databaseTestModule` (platform:database). Модуль `:testing` снесён —
   [DI.md](agenticHubClient/DI.md).
 

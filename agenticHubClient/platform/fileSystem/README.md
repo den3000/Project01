@@ -7,10 +7,11 @@ KMP-модуль (jvm/android/ios): узкий путь-строковый по�
 - `LocalFileSystem` — интерфейс: `exists`/`readText`/`writeText`/`delete`/`mkdirs`/`listFileNames`
   (все по строковому пути) (`LocalFileSystem.kt`). `JvmLocalFileSystem` (`java.io`) — `internal`.
 - `di/`: `fileSystemModule` — Koin-модуль, биндит `LocalFileSystem` (`internal expect` + `public val`;
-  jvm actual `single { JvmLocalFileSystem() }`, android/ios `TODO`). Рядом `fileSystemTestModule` (val) —
-  `factory<LocalFileSystem> { InMemoryLocalFileSystem() }` (фейк в отдельном файле, in-memory; свежий
-  инстанс на `get()`; все таргеты; для integration-графов вместо `fileSystemModule`). Общая дока —
-  [DI.md](../../DI.md).
+  jvm actual `single { JvmLocalFileSystem() }`, android/ios `TODO`). `fileSystemTestModule` (val,
+  **отдельный файл** `FileSystemTestModule.kt` — иначе eager `fileSystemModule` роняет iOS-тесты) —
+  `factory<LocalFileSystem> { LocalFileSystemFake() }` (фейк `LocalFileSystemFake` тоже отдельным файлом,
+  in-memory; свежий инстанс на `get()`; все таргеты; для integration-графов вместо `fileSystemModule`).
+  Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
 - `implementation(koin.core)` (для di). Модульных — нет (лист). Потребитель — `features:memory`

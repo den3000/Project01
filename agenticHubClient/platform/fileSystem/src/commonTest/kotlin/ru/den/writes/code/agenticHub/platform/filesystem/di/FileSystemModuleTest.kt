@@ -12,11 +12,12 @@ import kotlin.test.assertTrue
 
 class FileSystemModuleTest {
 
+    // Один граф на весь класс: fileSystemTestModule на factory, каждый get() —
+    // свежий LocalFileSystemFake, так что тесты независимы без пересборки koin.
+    private val koin = koinApplication { modules(fileSystemTestModule) }.koin
+
     @Test
     fun `when fileSystemModule loaded - then LocalFileSystem resolves`() {
-        // given
-        val koin = koinApplication { modules(fileSystemTestModule) }.koin
-
         // when
         val fs = koin.get<LocalFileSystem>()
 
@@ -26,9 +27,6 @@ class FileSystemModuleTest {
 
     @Test
     fun `when resolved twice - then module returns different instances`() {
-        // given
-        val koin = koinApplication { modules(fileSystemTestModule) }.koin
-
         // when
         val first = koin.get<LocalFileSystem>()
         val second = koin.get<LocalFileSystem>()
@@ -40,7 +38,7 @@ class FileSystemModuleTest {
     @Test
     fun `when fileSystemTestModule loaded - then LocalFileSystem round-trips in memory`() {
         // given
-        val fs = koinApplication { modules(fileSystemTestModule) }.koin.get<LocalFileSystem>()
+        val fs = koin.get<LocalFileSystem>()
 
         // when
         fs.mkdirs("/root/rules")
@@ -56,7 +54,7 @@ class FileSystemModuleTest {
     @Test
     fun `when file deleted - then it is gone and not listed`() {
         // given
-        val fs = koinApplication { modules(fileSystemTestModule) }.koin.get<LocalFileSystem>()
+        val fs = koin.get<LocalFileSystem>()
         fs.writeText("/root/x.md", "x")
 
         // when

@@ -18,8 +18,8 @@ internal expect fun fileSystemModule(): Module
 public val fileSystemModule: Module = fileSystemModule()
 
 // jvmMain/…/di/FileSystemModule.jvm.kt
-internal actual fun fileSystemModule(): Module = module {
-    single<LocalFileSystem> { JvmLocalFileSystem() }
+internal actual fun fileSystemModule(): Module = module { 
+    factory<LocalFileSystem> { JvmLocalFileSystem() }
 }
 // androidMain / iosMain: internal actual fun fileSystemModule(): Module = TODO("… not implemented yet")
 ```
@@ -87,14 +87,14 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
 - **`common`, не `expect/actual`** — фейк платформо-агностичен, поэтому модуль работает на **всех**
   таргетах, в т.ч. там, где прод-модуль ещё `TODO` (`fileSystemTestModule` поднимается на iOS, где
   `fileSystemModule` падает). Это и даёт «тесты в любом окружении».
-- **Размещение фейков** — сами fake-классы (`InMemoryLocalFileSystem`, `LlmApiFake`/`FakeLlmScript`)
+- **Размещение фейков** — сами fake-классы (`LocalFileSystemFake`, `LlmApiFake`/`FakeLlmScript`)
   лежат в **отдельных файлах, в пакете реальной реализации** (`...filesystem`, `...features.llm`) — не в
   `di`-файле с модулем. `internal` виден `di`-модулю (та же gradle-единица).
 - **Конфигурация/шаринг через `parametersOf`** — если фейк надо настроить или разделить между
   компонентами, тест создаёт инстанс сам и передаёт его resolve-параметром. Так `llmTestModule`:
   `factory<LlmApi> { (script: FakeLlmScript?) -> LlmApiFake(script ?: get()) }` — без параметра
   строится свежий пустой скрипт, а `get<LlmApi> { parametersOf(myScript) }` подставляет настроенный.
-- **`platform:fileSystem` → `fileSystemTestModule`**: `factory<LocalFileSystem> { InMemoryLocalFileSystem() }`
+- **`platform:fileSystem` → `fileSystemTestModule`**: `factory<LocalFileSystem> { LocalFileSystemFake() }`
   (path→content map, `internal`). Seed/assert — через публичный интерфейс `LocalFileSystem`
   (`writeText`/`readText`/`listFileNames`).
 - **`features:llm` → `llmTestModule`**: `factory<LlmApi> { (script) -> LlmApiFake(script ?: get()) }`
@@ -124,7 +124,11 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
 ## Грабли
 
 - **Eager `public val xModule = xModule()`** на android/ios с `actual = TODO()` упадёт **при
-  инициализации val**, если тот таргет реально его дёрнет. На этом заходе единственный потребитель —
-  JVM (`cliJvmApp`), поэтому безопасно; android/ios di заводится вместе с их реальными
+  инициализации val**, если тот таргет реально его дёрнет. android/ios di заводится вместе с их реальными
   `LocalFileSystem`/`databaseBuilder`.
+  - **Следствие для тестов**: Kotlin/Native инициализирует **все** top-level `val` файла при первом
+    касании любого из них. Поэтому `fileSystemTestModule` (common, гоняется в iOS-тестах) вынесен в
+    **отдельный файл** `FileSystemTestModule.kt` — будь он рядом с eager `fileSystemModule`, простой
+    резолв тест-модуля падал бы на iOS (`FileFailedToInitializeException`). `llmTestModule` рядом с
+    `llmModule` можно (у llm нет `TODO`-actual).
 - **`onClose`** — из `org.koin.dsl.onClose` (инфиксный на `KoinDefinition`), не из `core.module.dsl`.

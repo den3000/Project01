@@ -8,7 +8,7 @@ package ru.den.writes.code.agenticHub.platform.filesystem
  * file memory store builds them); [listFileNames] returns regular files directly
  * in a directory. Not thread-safe (tests are single-threaded).
  */
-internal class InMemoryLocalFileSystem : LocalFileSystem {
+internal class LocalFileSystemFake : LocalFileSystem {
     private val files = mutableMapOf<String, String>()
     private val dirs = mutableSetOf<String>()
 

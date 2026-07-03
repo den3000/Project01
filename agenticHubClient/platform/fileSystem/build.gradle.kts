@@ -26,7 +26,7 @@ kotlin {
             // fileSystemModule (di) declares the LocalFileSystem binding.
             implementation(libs.koin.core)
         }
-        jvmTest.dependencies {
+        commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
     }
