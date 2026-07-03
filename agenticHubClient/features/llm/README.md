@@ -14,10 +14,10 @@ Hugging Face) + tool-типы, ценовой реестр и generic tool-ро�
 - `pricing/ModelPricing.kt` — `ModelPricing`/`PricingRegistry` (**single source of truth по ценам**).
 - `LlmFactories.kt` — `buildLlmApi`/`buildModelProvider`(+`ModelProviderError`).
 - `di/`: `llmModule` — `factory<LlmApi> { (mp: ModelProvider) -> buildLlmApi(mp, get()) }` (`ModelProvider`
-  runtime, `HttpClient` из графа). Рядом `llmTestModule()` (функция) — биндит `LlmApi` на `internal
-  ScriptedLlmApi` + публичный holder `FakeLlmScript` (скрипт ответов/инспекция; настраивается через
-  `koin.get<FakeLlmScript>()`; оба в `ScriptedLlmApi.kt`, для integration-графов вместо `llmModule`).
-  Общая дока — [DI.md](../../DI.md).
+  runtime, `HttpClient` из графа). Рядом `llmTestModule` (val) — `factory<LlmApi> { (script) ->
+  ScriptedLlmApi(script ?: get()) }` + `factory { FakeLlmScript() }`: сетевой вызов не делается, скрипт
+  ответов/инспекция в публичном `FakeLlmScript` (тест создаёт, `queueText`, передаёт через
+  `parametersOf`; оба фейка в `ScriptedLlmApi.kt`). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
 - `api(ktor.client.core)` + `api(kotlinx.coroutinesCore)` (протекают через публичные `*Api`),

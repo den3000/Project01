@@ -77,38 +77,35 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
 
 Чтобы интеграционные тесты собирали большой граф, где фейковыми должны быть лишь **некоторые** листья
 (и не приходилось дублировать иерархии в `:testing`), модуль с фейкопригодным портом объявляет — **рядом
-со своим прод-модулем** (в `di`-файле) — test-вариант `fun xxxTestModule(): Module`, биндящий тот же
-интерфейс на фейк. Интеграционный тест грузит `startKoin`/`koinApplication` с test-вариантом **вместо**
-прод-модуля, а остальные (real) модули — как есть.
+со своим прод-модулем** (в `di`-файле) — `val xxxTestModule`, биндящий тот же интерфейс на фейк.
+Интеграционный тест грузит `koinApplication` с test-вариантом **вместо** прод-модуля, а остальные (real)
+модули — как есть.
 
-- **Функция, не `val`** — при переиспользовании одного `Module`-`val` между несколькими
-  `koinApplication` Koin шарит инстанс `single` (кэшируется в фабрике модуля) → состояние фейка течёт
-  между тестами. `fun` отдаёт свежий модуль на каждый вызов → изоляция per test (шаринг `single` внутри
-  одного графа сохраняется — то, что нужно). Прод-модули остаются `val` (один `startKoin`, переиспользования нет).
+- **`factory`, не `single`** — каждый `get()` отдаёт свежий фейк, тесты полностью независимы (никакого
+  состояния между ними, и `val`-модуль можно переиспользовать между `koinApplication` без утечки
+  закэшированного инстанса). Прод-модули — свои binding'и (`single` там, где нужен один инстанс на сессию).
 - **`common`, не `expect/actual`** — фейк платформо-агностичен, поэтому модуль работает на **всех**
-  таргетах, в т.ч. там, где прод-модуль ещё `TODO` (`fileSystemTestModule()` поднимается на iOS, где
+  таргетах, в т.ч. там, где прод-модуль ещё `TODO` (`fileSystemTestModule` поднимается на iOS, где
   `fileSystemModule` падает). Это и даёт «тесты в любом окружении».
-- **Размещение фейков** — сами fake-классы (`InMemoryLocalFileSystem`, `ScriptedLlmApi`/`FakeLlmScript`,
-  `FakeMessageDao`) лежат в **отдельных файлах, в пакете реальной реализации** (`...filesystem`,
-  `...features.llm`, `...database`) — не в `di`-файле с модулем. `internal` виден `di`-модулю (та же
-  gradle-единица).
-- **`platform:fileSystem` → `fileSystemTestModule()`**: `single<LocalFileSystem> { InMemoryLocalFileSystem() }`
+- **Размещение фейков** — сами fake-классы (`InMemoryLocalFileSystem`, `ScriptedLlmApi`/`FakeLlmScript`)
+  лежат в **отдельных файлах, в пакете реальной реализации** (`...filesystem`, `...features.llm`) — не в
+  `di`-файле с модулем. `internal` виден `di`-модулю (та же gradle-единица).
+- **Конфигурация/шаринг через `parametersOf`** — если фейк надо настроить или разделить между
+  компонентами, тест создаёт инстанс сам и передаёт его resolve-параметром. Так `llmTestModule`:
+  `factory<LlmApi> { (script: FakeLlmScript?) -> ScriptedLlmApi(script ?: get()) }` — без параметра
+  строится свежий пустой скрипт, а `get<LlmApi> { parametersOf(myScript) }` подставляет настроенный.
+- **`platform:fileSystem` → `fileSystemTestModule`**: `factory<LocalFileSystem> { InMemoryLocalFileSystem() }`
   (path→content map, `internal`). Seed/assert — через публичный интерфейс `LocalFileSystem`
-  (`writeText`/`readText`/`listFileNames`), holder не нужен.
-- **`features:llm` → `llmTestModule()`**: `single<LlmApi> { ScriptedLlmApi(get()) }` (`internal` фейк) +
-  публичный `single { FakeLlmScript() }`. Интерфейс `LlmApi` (`send`) слишком узок, чтобы через него
-  скриптовать → очередь ответов/инспекция живут в holder'е `FakeLlmScript`, тесты настраивают его
-  cross-module через `koin.get<FakeLlmScript>().queueText(...)`. Фейк — drop-in для
-  `get<LlmApi> { parametersOf(mp) }` (провайдер игнорируется).
-- **`platform:database` → `databaseTestModule()`**: `single<MessageDao> { FakeMessageDao() }` —
-  in-memory DAO, повторяет семантику запросов (без SQLite, все таргеты). `AppDatabase` **не** фейкается
-  (Room-генерируемый класс) → модули на `AppDatabase` напрямую (`startModule`) не покрыты — для них
-  реальный `databaseModule` или `TestDb`.
+  (`writeText`/`readText`/`listFileNames`).
+- **`features:llm` → `llmTestModule`**: `factory<LlmApi> { (script) -> ScriptedLlmApi(script ?: get()) }`
+  (`internal` фейк) + `factory { FakeLlmScript() }`. Интерфейс `LlmApi` (`send`) узкий → очередь
+  ответов/инспекция вызовов живут в публичном `FakeLlmScript`; тест создаёт его, `queueText(...)`,
+  передаёт через `parametersOf`, потом читает `script.calls`.
 - **Соотношение с `:testing`** — аддитивно, не замена. `FakeLlmApi`/`testLocalFileSystem()`/`TestDb` в
-  `:testing` остаются для unit-тестов, что конструируют/настраивают фейк напрямую; `*TestModule()` — для
+  `:testing` остаются для unit-тестов, что конструируют/настраивают фейк напрямую; `*TestModule` — для
   композиции Koin-графа, где фейк отдаётся под интерфейсом.
 - **Источник** — `commonMain` (main source set), т.е. фейки попадают в прод-артефакт; цена — крошечные
-  `internal`-классы, зато `*TestModule()` виден тестам любого модуля (KMP не умеет `java-test-fixtures`).
+  `internal`-классы, зато `*TestModule` виден тестам любого модуля (KMP не умеет `java-test-fixtures`).
 
 ## Тесты (прочее)
 

@@ -10,9 +10,7 @@ KMP-модуль (jvm/android/ios) с чистым Room-слоем: схема �
   (`AppDatabase.kt`/`MessageDao.kt`/`*Entity.kt`).
 - `di/`: `databaseModule` — Koin-модуль, биндит `AppDatabase` (single, `onClose { close() }`) +
   `MessageDao` (`internal expect` + `public val`; jvm actual через `buildDatabase()`, android/ios `TODO`).
-  Рядом `databaseTestModule()` (функция, common) — на `internal FakeMessageDao` (отдельный файл,
-  in-memory DAO, повторяет семантику запросов; все таргеты; `AppDatabase` не фейкается). Общая дока —
-  [DI.md](../../DI.md).
+  Общая дока — [DI.md](../../DI.md).
 - `buildDatabase()` — **`internal`** (зовётся только `databaseModule`); внутри `expect fun
   databaseBuilder()` — actual JVM реальный (`~/.project01-cli/history.db`), android/ios = `TODO()`
   (`Database.kt` + `Database.{jvm,android,ios}.kt`).

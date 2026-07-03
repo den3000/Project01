@@ -27,11 +27,12 @@ public val fileSystemModule: Module = fileSystemModule()
  * assert through the public [LocalFileSystem] surface. The fake
  * [InMemoryLocalFileSystem] lives next to the real impl.
  *
- * A **function**, not a `val`: each test spins up its own `koinApplication`, and
- * a reused module value would share its `single` instance across them (Koin
- * caches the singleton in the module's factory). A fresh module per call keeps
- * the in-memory state isolated per test. See agenticHubClient/DI.md.
+ * `factory`, not `single`: every `get()` yields a fresh in-memory fake, so tests
+ * stay independent (no state carried between them, and the module `val` can be
+ * reused across `koinApplication`s without leaking a cached instance). Need a
+ * pre-seeded fake shared across a graph? Build it in the test and pass it in.
+ * See agenticHubClient/DI.md.
  */
 public val fileSystemTestModule: Module = module {
-    factory <LocalFileSystem> { InMemoryLocalFileSystem() }
+    factory<LocalFileSystem> { InMemoryLocalFileSystem() }
 }

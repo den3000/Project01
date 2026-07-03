@@ -1,7 +1,6 @@
 package ru.den.writes.code.agenticHub.features.llm.di
 
 import org.koin.core.module.Module
-import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.module
 import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
@@ -21,19 +20,18 @@ public val llmModule: Module = module {
 
 /**
  * Test counterpart of [llmModule]: binds [LlmApi] to a scripted fake that never
- * touches the network. Compose it in place of [llmModule] in an integration
- * graph (the fake ignores any `parametersOf` provider, so it's a drop-in for
- * `get<LlmApi> { parametersOf(mp) }`). Because Koin hands the fake out under the
- * [LlmApi] interface — too thin to script through — the queue lives in a public
- * [FakeLlmScript] `single`: configure it cross-module via
- * `koin.get<FakeLlmScript>().queueText(...)`. Plain `common` module → runs on
- * every target. The fake ([ScriptedLlmApi]) and its holder live next to the real
- * `*Api` impls.
+ * touches the network. Compose it in place of [llmModule] in an integration graph.
  *
- * A **function**, not a `val`: a reused module value would share its `single`
- * [FakeLlmScript] across every test's `koinApplication` (Koin caches the
- * singleton in the module's factory); a fresh module per call keeps each test's
- * script isolated. See agenticHubClient/DI.md.
+ * Both bindings are `factory` (fresh per `get()` → tests stay independent). Since
+ * the [LlmApi] interface (`send`) is too thin to script through, the queue lives
+ * in [FakeLlmScript]. Two ways to drive it:
+ * - default — `get<LlmApi>()` builds a [ScriptedLlmApi] over a fresh empty script
+ *   (returns synthetic errors; fine when the graph just needs *an* LLM);
+ * - scripted — create+configure a [FakeLlmScript] in the test and pass it in:
+ *   `get<LlmApi> { parametersOf(script) }`, then assert on `script.calls`.
+ *
+ * The fake ([ScriptedLlmApi]) and its holder ([FakeLlmScript]) live next to the
+ * real `*Api` impls. See agenticHubClient/DI.md.
  */
 public val llmTestModule: Module = module {
     factory { FakeLlmScript() }
