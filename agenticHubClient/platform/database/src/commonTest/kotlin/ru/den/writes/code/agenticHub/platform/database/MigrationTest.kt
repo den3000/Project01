@@ -1,14 +1,12 @@
 package ru.den.writes.code.agenticHub.platform.database
 
-import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import kotlinx.coroutines.test.runTest
-import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.platform.database.MIGRATION_1_2
 import ru.den.writes.code.agenticHub.platform.database.MIGRATION_2_3
 import ru.den.writes.code.agenticHub.platform.database.MIGRATION_3_4
-import java.io.File
+import ru.den.writes.code.agenticHub.testutils.IgnoreIos
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -20,18 +18,23 @@ import kotlin.test.assertNull
  * Room derives from the entities, Room's schema validation throws on open and
  * this test fails — the byte-match safety net the plan calls out (we run
  * hand-written migrations with `exportSchema = false`).
+ *
+ * The raw v3 seeding is common (the bundled SQLite driver is multiplatform); only
+ * the temp path + Room builder + cleanup are platform (shared [tempDatabaseFilePath]/
+ * [testDatabaseBuilder]/[deleteDatabaseFile]). @IgnoreIos: those are TODO() on iOS.
  */
+@IgnoreIos
 class MigrationTest {
 
     @Test
     fun `when v3 database opened through Room with migrations - then upgraded to v4 with branch_id backfilled to main`() = runTest {
         // given
-        val dbFile = File.createTempFile("migration-v3-v4", ".db").apply { delete() }
+        val path = tempDatabaseFilePath()
         try {
-            buildV3Database(dbFile)
+            buildV3Database(path)
 
             // when
-            val db = Room.databaseBuilder<AppDatabase>(name = dbFile.absolutePath)
+            val db = testDatabaseBuilder(path)
                 .setDriver(BundledSQLiteDriver())
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
@@ -54,13 +57,13 @@ class MigrationTest {
                 db.close()
             }
         } finally {
-            listOf("", "-shm", "-wal", "-journal").forEach { File(dbFile.absolutePath + it).delete() }
+            deleteDatabaseFile(path)
         }
     }
 
     /** Lay down the exact v3 schema + a couple of rows + user_version=3. */
-    private fun buildV3Database(dbFile: File) {
-        val conn = BundledSQLiteDriver().open(dbFile.absolutePath)
+    private fun buildV3Database(path: String) {
+        val conn = BundledSQLiteDriver().open(path)
         try {
             conn.execSQL(
                 "CREATE TABLE IF NOT EXISTS `messages` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
