@@ -48,7 +48,7 @@ class MemoryLayerTest {
     }
 
     @Test
-    fun `task block renders stage, status, expected action and allowed-next`() {
+    fun `task block renders stage status expected-action and allowed-next`() {
         // given
         val msgs = MemoryLayer.composeSystem(
             profile = null,

@@ -118,7 +118,7 @@ class FactsExtractorTest {
     }
 
     @Test
-    fun `when mergeOrKeep called with json array reply - then null returned (must be object)`() {
+    fun `when mergeOrKeep called with json array reply - then null returned because reply must be object`() {
         // given
         val reply = "[1, 2, 3]"
 

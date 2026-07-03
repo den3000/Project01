@@ -79,7 +79,7 @@ class HistoryCompressorTest {
     }
 
     @Test
-    fun `when planContext output appended with user turn - then roles alternate (Gemini-friendly)`() {
+    fun `when planContext output appended with user turn - then roles alternate to stay Gemini-friendly`() {
         // given
         val compressor = HistoryCompressor(
             keepLast = 4, summarizeEvery = 10,
