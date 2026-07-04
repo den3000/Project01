@@ -42,5 +42,13 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutinesTest)
         }
+        jvmTest.dependencies {
+            // JVM-only live tests hitting a real local Ollama: platform:network gives the
+            // shared HttpClient (Java engine + ContentNegotiation) via networkModule; junit
+            // for the org.junit.Assume skip when Ollama isn't running (mirrors features:rag).
+            implementation(projects.agenticHubClient.platform.network)
+            implementation(libs.junit)
+        }
     }
 }
+// Live tests (*LiveTest) are gated centrally in the root build.gradle.kts (-PliveTests).
