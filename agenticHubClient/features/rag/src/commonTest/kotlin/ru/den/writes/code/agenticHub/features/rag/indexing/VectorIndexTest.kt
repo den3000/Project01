@@ -11,16 +11,19 @@ class VectorIndexTest {
     @Test
     fun `when searching - then results are ordered by descending score`() {
         // given
+        val farEmbedding = listOf(0f, 1f)
+        val exactEmbedding = listOf(1f, 0f)
+        val midEmbedding = listOf(1f, 1f)
         val index = VectorIndex(
             listOf(
-                indexed("far", listOf(0f, 1f)),
-                indexed("exact", listOf(1f, 0f)),
-                indexed("mid", listOf(1f, 1f)),
+                indexed("far", farEmbedding),
+                indexed("mid", midEmbedding),
+                indexed("exact", exactEmbedding),
             ),
         )
 
         // when
-        val actual = index.search(query = listOf(1f, 0f), topK = 3)
+        val actual = index.search(query = exactEmbedding, topK = 3)
 
         // then
         assertEquals(listOf("exact", "mid", "far"), actual.map { it.chunk.text })
@@ -29,16 +32,19 @@ class VectorIndexTest {
     @Test
     fun `when topK smaller than index - then only topK returned`() {
         // given
+        val exactEmbedding = listOf(1f, 0f)
+        val midEmbedding = listOf(1f, 1f)
+        val farEmbedding = listOf(0f, 1f)
         val index = VectorIndex(
             listOf(
-                indexed("exact", listOf(1f, 0f)),
-                indexed("mid", listOf(1f, 1f)),
-                indexed("far", listOf(0f, 1f)),
+                indexed("far", farEmbedding),
+                indexed("mid", midEmbedding),
+                indexed("exact", exactEmbedding),
             ),
         )
 
         // when
-        val actual = index.search(query = listOf(1f, 0f), topK = 2)
+        val actual = index.search(query = exactEmbedding, topK = 2)
 
         // then
         assertEquals(listOf("exact", "mid"), actual.map { it.chunk.text })
@@ -47,10 +53,17 @@ class VectorIndexTest {
     @Test
     fun `when topK exceeds index size - then all chunks returned`() {
         // given
-        val index = VectorIndex(listOf(indexed("a", listOf(1f, 0f)), indexed("b", listOf(0f, 1f))))
+        val aEmbedding = listOf(1f, 0f)
+        val bEmbedding = listOf(0f, 1f)
+        val index = VectorIndex(
+            listOf(
+                indexed("a", aEmbedding),
+                indexed("b", bEmbedding),
+            ),
+        )
 
         // when
-        val actual = index.search(query = listOf(1f, 0f), topK = 10)
+        val actual = index.search(query = aEmbedding, topK = 10)
 
         // then
         assertEquals(2, actual.size)
@@ -59,10 +72,11 @@ class VectorIndexTest {
     @Test
     fun `when topK is zero - then empty`() {
         // given
-        val index = VectorIndex(listOf(indexed("a", listOf(1f, 0f))))
+        val aEmbedding = listOf(1f, 0f)
+        val index = VectorIndex(listOf(indexed("a", aEmbedding)))
 
         // when
-        val actual = index.search(query = listOf(1f, 0f), topK = 0)
+        val actual = index.search(query = aEmbedding, topK = 0)
 
         // then
         assertTrue(actual.isEmpty())
@@ -71,10 +85,11 @@ class VectorIndexTest {
     @Test
     fun `when index empty - then empty`() {
         // given
+        val queryEmbedding = listOf(1f, 0f)
         val index = VectorIndex(emptyList())
 
         // when
-        val actual = index.search(query = listOf(1f, 0f), topK = 5)
+        val actual = index.search(query = queryEmbedding, topK = 5)
 
         // then
         assertTrue(actual.isEmpty())
