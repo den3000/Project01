@@ -9,6 +9,7 @@ import ru.den.writes.code.agenticHub.features.rag.chunking.TokenChunking
 import ru.den.writes.code.agenticHub.features.rag.di.ragModule
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexStore
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
+import ru.den.writes.code.agenticHub.features.rag.indexing.ScoredChunk
 import ru.den.writes.code.agenticHub.features.rag.indexing.VectorIndex
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
@@ -82,7 +83,7 @@ class DocsIndexingOllamaLiveTest {
         assertEquals(index, loadedIndex)
         assertChunksCarryMetadataAndEmbeddings(loadedIndex)
         assertTrue(hits.isNotEmpty())
-        println("[fixed] ${loadedIndex.chunks.size} chunks; top: ${hits.first().chunk.metadata.title} / ${hits.first().chunk.metadata.section}")
+        logIndexAndQuery("fixed", loadedIndex, hits)
     }
 
     @Test
@@ -106,7 +107,7 @@ class DocsIndexingOllamaLiveTest {
         assertEquals(index, loadedIndex)
         assertChunksCarryMetadataAndEmbeddings(loadedIndex)
         assertTrue(hits.isNotEmpty())
-        println("[token] ${loadedIndex.chunks.size} chunks; top: ${hits.first().chunk.metadata.title} / ${hits.first().chunk.metadata.section}")
+        logIndexAndQuery("token", loadedIndex, hits)
     }
 
     @Test
@@ -130,7 +131,7 @@ class DocsIndexingOllamaLiveTest {
         assertEquals(index, loadedIndex)
         assertChunksCarryMetadataAndEmbeddings(loadedIndex)
         assertTrue(hits.isNotEmpty())
-        println("[structural] ${loadedIndex.chunks.size} chunks; top: ${hits.first().chunk.metadata.title} / ${hits.first().chunk.metadata.section}")
+        logIndexAndQuery("structural", loadedIndex, hits)
     }
 
     private fun assertChunksCarryMetadataAndEmbeddings(index: VectorIndex) {
@@ -140,6 +141,12 @@ class DocsIndexingOllamaLiveTest {
             assertTrue(it.chunk.metadata.source.isNotEmpty(), "missing source")
             assertTrue(it.chunk.metadata.title.isNotEmpty(), "missing title")
         }
+    }
+
+    private fun logIndexAndQuery(strategy: String, index: VectorIndex, hits: List<ScoredChunk>) {
+        val dim = index.chunks.first().embedding.size
+        println("[$strategy] indexed ${index.chunks.size} chunks (${dim}-dim); q=\"$DI_QUERY\":")
+        hits.forEach { println("    %.3f  %s / %s".format(it.score, it.chunk.metadata.title, it.chunk.metadata.section)) }
     }
 
     private fun loadMarkdownCorpus(root: File): List<SourceDocument> {

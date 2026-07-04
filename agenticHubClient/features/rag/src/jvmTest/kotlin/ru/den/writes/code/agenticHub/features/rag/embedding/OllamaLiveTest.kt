@@ -35,6 +35,7 @@ class OllamaLiveTest {
         // then
         assertEquals(1, actual.size)
         assertTrue(actual.single().isNotEmpty())
+        println("[embed] \"hello world\" → ${actual.single().size}-dim vector, head=${actual.single().take(3)}")
     }
 
     @Test
@@ -48,6 +49,7 @@ class OllamaLiveTest {
         // then
         assertEquals(2, actual.size)
         assertEquals(actual[0].size, actual[1].size)
+        println("[embed batch] ${actual.size} texts → ${actual.first().size}-dim vectors")
     }
 
     @Test
@@ -68,19 +70,24 @@ class OllamaLiveTest {
 
         // then
         assertTrue(related > unrelated, "related=$related should exceed unrelated=$unrelated")
+        println("[semantic] cos(related)=%.3f > cos(unrelated)=%.3f".format(related, unrelated))
     }
 
     @Test
     fun `when indexed and queried through the real model - then the relevant section ranks first`() = liveOllamaTest(koin) {
         // given
         val embedder = koin.get<Embedder>()
+        val query = "how do embeddings and cosine similarity work"
         val index = IndexingPipeline(StructuralChunking(), embedder).index(listOf(knowledgeDoc()))
         val retriever = Retriever(embedder, index)
 
         // when
-        val actual = retriever.retrieve("how do embeddings and cosine similarity work", topK = 1)
+        val actual = retriever.retrieve(query, topK = 1)
 
         // then
-        assertEquals(VECTOR_SEARCH_SECTION, actual.single().chunk.metadata.section)
+        val top = actual.single()
+        assertEquals(VECTOR_SEARCH_SECTION, top.chunk.metadata.section)
+        println("[retrieve] q=\"$query\" → section=\"${top.chunk.metadata.section}\" score=%.3f".format(top.score))
+        println("           text: ${top.chunk.text.take(80).replace("\n", " ")}…")
     }
 }
