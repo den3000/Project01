@@ -8,10 +8,11 @@ import kotlin.test.assertTrue
 class ChunkingComparisonTest {
 
     @Test
-    fun `when comparing two strategies - then report carries stats per strategy in order`() {
+    fun `when comparing several strategies - then report carries stats per strategy in order`() {
         // given
         val strategies = mapOf(
             "fixed" to FixedSizeChunking(chunkSize = 1000),
+            "token" to TokenChunking(tokensPerChunk = 2),
             "structural" to StructuralChunking(),
         )
         val markdownText = "# A\nalpha\n\n# B\nbeta\n\n# C\ngamma"
@@ -21,14 +22,15 @@ class ChunkingComparisonTest {
         val actual = ChunkingComparison.compare(markdownDoc, strategies)
 
         // then
-        assertEquals(listOf("fixed", "structural"), actual.stats.map { it.strategyName })
+        assertEquals(listOf("fixed", "token", "structural"), actual.stats.map { it.strategyName })
     }
 
     @Test
-    fun `when fixed size covers whole doc but structural splits - then chunk counts differ`() {
+    fun `when strategies slice the doc differently - then chunk counts differ`() {
         // given
         val strategies = mapOf(
             "fixed" to FixedSizeChunking(chunkSize = 1000),
+            "token" to TokenChunking(tokensPerChunk = 2),
             "structural" to StructuralChunking(),
         )
         val markdownText = "# A\nalpha\n\n# B\nbeta\n\n# C\ngamma"
@@ -39,6 +41,7 @@ class ChunkingComparisonTest {
 
         // then
         assertEquals(1, actual.stats.first { it.strategyName == "fixed" }.chunkCount)
+        assertEquals(5, actual.stats.first { it.strategyName == "token" }.chunkCount)
         assertEquals(3, actual.stats.first { it.strategyName == "structural" }.chunkCount)
     }
 
@@ -80,6 +83,7 @@ class ChunkingComparisonTest {
             markdownDoc,
             mapOf(
                 "fixed" to FixedSizeChunking(chunkSize = 1000),
+                "token" to TokenChunking(tokensPerChunk = 2),
                 "structural" to StructuralChunking(),
             ),
         )
@@ -89,6 +93,7 @@ class ChunkingComparisonTest {
 
         // then
         assertTrue(actual.contains("fixed: 1 chunks"))
+        assertTrue(actual.contains("token: 5 chunks"))
         assertTrue(actual.contains("structural: 3 chunks"))
     }
 }

@@ -12,50 +12,68 @@ class TokenChunkingTest {
     @Test
     fun `when fewer tokens than window - then single chunk holds the trimmed text`() {
         // given
+        val text = "  one two three  "
         val strategy = TokenChunking(tokensPerChunk = 5)
 
         // when
-        val actual = strategy.chunk(doc("  one two three  "))
+        val actual = strategy.chunk(doc(text))
 
         // then
-        assertEquals(listOf("one two three"), actual.map { it.text })
+        assertEquals(listOf(text.trim()), actual.map { it.text })
     }
 
     @Test
     fun `when no overlap - then windows tile by whole tokens`() {
         // given
+        val words = listOf("one", "two", "three", "four", "five")
+        val text = words.joinToString(" ")
         val strategy = TokenChunking(tokensPerChunk = 2, overlap = 0)
 
         // when
-        val actual = strategy.chunk(doc("one two three four five"))
+        val actual = strategy.chunk(doc(text))
 
         // then
-        assertEquals(listOf("one two", "three four", "five"), actual.map { it.text })
+        assertEquals(
+            listOf("${words[0]} ${words[1]}", "${words[2]} ${words[3]}", words[4]),
+            actual.map { it.text },
+        )
     }
 
     @Test
     fun `when token count is exact multiple - then no trailing empty chunk`() {
         // given
+        val words = listOf("one", "two", "three", "four")
+        val text = words.joinToString(" ")
         val strategy = TokenChunking(tokensPerChunk = 2, overlap = 0)
 
         // when
-        val actual = strategy.chunk(doc("one two three four"))
+        val actual = strategy.chunk(doc(text))
 
         // then
-        assertEquals(listOf("one two", "three four"), actual.map { it.text })
+        assertEquals(
+            listOf("${words[0]} ${words[1]}", "${words[2]} ${words[3]}"),
+            actual.map { it.text },
+        )
     }
 
     @Test
     fun `when overlap set - then consecutive chunks share tokens`() {
         // given
+        val words = listOf("one", "two", "three", "four", "five")
+        val text = words.joinToString(" ")
         val strategy = TokenChunking(tokensPerChunk = 2, overlap = 1)
 
         // when
-        val actual = strategy.chunk(doc("one two three four five"))
+        val actual = strategy.chunk(doc(text))
 
         // then
         assertEquals(
-            listOf("one two", "two three", "three four", "four five"),
+            listOf(
+                "${words[0]} ${words[1]}",
+                "${words[1]} ${words[2]}",
+                "${words[2]} ${words[3]}",
+                "${words[3]} ${words[4]}",
+            ),
             actual.map { it.text },
         )
     }
@@ -65,13 +83,14 @@ class TokenChunkingTest {
     @Test
     fun `when tokenized - then no chunk splits a word`() {
         // given
+        val words = setOf("alpha", "beta", "gamma")
+        val text = words.joinToString(" ")
         val strategy = TokenChunking(tokensPerChunk = 2, overlap = 1)
 
         // when
-        val actual = strategy.chunk(doc("alpha beta gamma"))
+        val actual = strategy.chunk(doc(text))
 
         // then
-        val words = setOf("alpha", "beta", "gamma")
         val emitted = actual.flatMap { it.text.split(Regex("\\s+")) }.toSet()
         assertTrue(words.containsAll(emitted), "emitted non-word fragments: ${emitted - words}")
     }
@@ -79,13 +98,14 @@ class TokenChunkingTest {
     @Test
     fun `when window spans a newline - then inner whitespace is preserved`() {
         // given
+        val text = "one two\nthree four"
         val strategy = TokenChunking(tokensPerChunk = 4)
 
         // when
-        val actual = strategy.chunk(doc("one two\nthree four"))
+        val actual = strategy.chunk(doc(text))
 
         // then
-        assertEquals("one two\nthree four", actual.single().text)
+        assertEquals(text, actual.single().text)
     }
     //endregion
 
@@ -93,25 +113,29 @@ class TokenChunkingTest {
     @Test
     fun `when chunked - then metadata carries source and title with null section`() {
         // given
+        val text = "one two three"
+        val source = "docs/a.md"
+        val title = "a.md"
         val strategy = TokenChunking(tokensPerChunk = 2)
 
         // when
-        val actual = strategy.chunk(doc("one two three", source = "docs/a.md", title = "a.md"))
+        val actual = strategy.chunk(doc(text, source = source, title = title))
 
         // then
         val meta = actual.first().metadata
-        assertEquals("docs/a.md", meta.source)
-        assertEquals("a.md", meta.title)
+        assertEquals(source, meta.source)
+        assertEquals(title, meta.title)
         assertEquals(null, meta.section)
     }
 
     @Test
     fun `when multiple chunks emitted - then chunkId increments from zero in order`() {
         // given
+        val text = "one two three four five"
         val strategy = TokenChunking(tokensPerChunk = 2, overlap = 0)
 
         // when
-        val actual = strategy.chunk(doc("one two three four five"))
+        val actual = strategy.chunk(doc(text))
 
         // then
         assertEquals(listOf(0, 1, 2), actual.map { it.metadata.chunkId })
@@ -120,10 +144,11 @@ class TokenChunkingTest {
     @Test
     fun `when body blank - then no chunks`() {
         // given
+        val text = "   \n  "
         val strategy = TokenChunking(tokensPerChunk = 2)
 
         // when
-        val actual = strategy.chunk(doc("   \n  "))
+        val actual = strategy.chunk(doc(text))
 
         // then
         assertTrue(actual.isEmpty())
