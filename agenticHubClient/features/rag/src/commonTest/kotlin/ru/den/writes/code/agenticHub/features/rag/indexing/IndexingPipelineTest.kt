@@ -2,8 +2,8 @@ package ru.den.writes.code.agenticHub.features.rag.indexing
 
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.rag.chunking.FixedSizeChunking
-import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
+import ru.den.writes.code.agenticHub.features.rag.chunking.doc
 import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderFake
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -47,7 +47,4 @@ class IndexingPipelineTest {
         // then
         assertTrue(actual.chunks.isEmpty())
     }
-
-    private fun doc(text: String): SourceDocument =
-        SourceDocument(source = "src", title = "title", text = text)
 }

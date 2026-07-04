@@ -148,10 +148,4 @@ class TokenChunkingTest {
         assertFailsWith<IllegalArgumentException> { TokenChunking(tokensPerChunk = 2, overlap = 2) }
     }
     //endregion
-
-    private fun doc(
-        text: String,
-        source: String = "src",
-        title: String = "title",
-    ): SourceDocument = SourceDocument(source = source, title = title, text = text)
 }

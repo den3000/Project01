@@ -130,10 +130,4 @@ class FixedSizeChunkingTest {
         assertFailsWith<IllegalArgumentException> { FixedSizeChunking(chunkSize = 4, overlap = 4) }
     }
     //endregion
-
-    private fun doc(
-        text: String,
-        source: String = "src",
-        title: String = "title",
-    ): SourceDocument = SourceDocument(source = source, title = title, text = text)
 }

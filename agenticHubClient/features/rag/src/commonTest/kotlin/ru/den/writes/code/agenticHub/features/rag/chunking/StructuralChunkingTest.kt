@@ -136,10 +136,4 @@ class StructuralChunkingTest {
         assertEquals(listOf(0, 1, 2), actual.map { it.metadata.chunkId })
     }
     //endregion
-
-    private fun doc(
-        text: String,
-        source: String = "src",
-        title: String = "title",
-    ): SourceDocument = SourceDocument(source = source, title = title, text = text)
 }
