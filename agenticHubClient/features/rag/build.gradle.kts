@@ -1,4 +1,3 @@
-import org.gradle.api.tasks.testing.Test
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -53,11 +52,4 @@ kotlin {
         }
     }
 }
-
-// Live Ollama tests (class *OllamaLiveTest) are opt-in: excluded from the normal
-// jvmTest run, included only with -PollamaLive (they need a local Ollama up).
-tasks.named<Test>("jvmTest") {
-    if (!project.hasProperty("ollamaLive")) {
-        filter { excludeTestsMatching("*OllamaLiveTest") }
-    }
-}
+// Live tests (*LiveTest) are gated centrally in the root build.gradle.kts (-PliveTests).

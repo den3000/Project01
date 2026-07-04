@@ -13,12 +13,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// Opt-in: excluded from the normal jvmTest run (build.gradle excludes *OllamaLiveTest),
-// enabled with `-PollamaLive` (or `ollamaLive=true` in ~/.gradle/gradle.properties so
-// Android Studio's gutter-run picks it up). Reachability skip lives in liveOllamaTest.
-// Package `...embedding` to reach the internal `cosineSimilarity`. The graph resolves
-// the real production binding (ragModule's OllamaEmbedder over networkModule's
-// HttpClient) against a live model.
+// Opt-in live test (see LIVE_TESTS.md): the central gate excludes `*LiveTest` unless
+// `-PliveTests` (or `liveTests=true` in ~/.gradle/gradle.properties for Android Studio's
+// gutter-run). Reachability skip lives in liveOllamaTest. Package `...embedding` to reach
+// the internal `cosineSimilarity`. The graph resolves the real production binding
+// (ragModule's OllamaEmbedder over networkModule's HttpClient) against a live model.
 class OllamaLiveTest {
 
     // One koin per test method (JUnit4 makes a fresh test instance per @Test → a fresh

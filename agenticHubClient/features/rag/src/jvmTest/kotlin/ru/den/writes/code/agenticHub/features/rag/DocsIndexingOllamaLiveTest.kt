@@ -18,9 +18,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 // The Day-21 deliverable end-to-end on a real corpus: read the repo's markdown docs
-// (~44 pages), compare 3 chunking strategies, embed with the real Ollama model, save
-// a JSON index with metadata, and query it. Opt-in (gated as *OllamaLiveTest); run
-// with -PollamaLive. Resolves everything from the real production graph.
+// (~30 pages), compare 3 chunking strategies, embed with the real Ollama model, save
+// a JSON index with metadata, and query it. Opt-in live test (gated as *LiveTest; see
+// LIVE_TESTS.md) — run with -PliveTests. Resolves everything from the real production graph.
 class DocsIndexingOllamaLiveTest {
 
     private val koin = koinApplication {

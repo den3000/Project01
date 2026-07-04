@@ -47,19 +47,16 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
 
 ## Тесты
 - Offline (по умолчанию): `./gradlew :agenticHubClient:features:rag:jvmTest` — на фейках/детерминированном
-  эмбеддере; live-Ollama-тесты (`OllamaLiveTest`) исключены.
+  эмбеддере; live-тесты (`*LiveTest`) исключены центральным гейтом.
 - Live (нужна поднятая Ollama + `ollama pull nomic-embed-text`):
-  `./gradlew :agenticHubClient:features:rag:jvmTest -PollamaLive` — реальный embed / семантика /
-  end-to-end retrieve; Ollama недоступна → `Assume`-скип, не падает.
-  - **Из Android Studio** (gutter-run): пропиши `ollamaLive=true` в `~/.gradle/gradle.properties`
-    (личный, не в git) — тогда исключение снимается и тест запускается кликом; либо добавь
-    `-PollamaLive` в аргументы Gradle-run-конфигурации. **Без проперти** click-run по `OllamaLiveTest`
-    даст «0 tests» — build-script-`exclude` перебивает `--tests`. (AS должна гонять тесты через Gradle.)
+  `./gradlew :agenticHubClient:features:rag:jvmTest -PliveTests` — реальный embed / семантика /
+  end-to-end retrieve + capstone-индексация корпуса; Ollama недоступна → `Assume`-скип, не падает.
+- Общий механизм live-тестов (флаг `-PliveTests`, конвенция `*LiveTest`, запуск из Android Studio) —
+  [LIVE_TESTS.md](../../../LIVE_TESTS.md).
 
 ## Грабли
-- **Live-Ollama-тесты — opt-in** (`*OllamaLiveTest` исключены из дефолтного `jvmTest`, гоняются по
-  `-PollamaLive`) — чтобы offline-сьют не зависел от локального сервиса. Живут в `src/jvmTest` (нужен
-  реальный `HttpClient` из `platform:network`).
+- **Live-тесты — opt-in** (`OllamaLiveTest`/`DocsIndexingOllamaLiveTest` в `src/jvmTest`; нужен реальный
+  `HttpClient` из `platform:network`); гейт и флаг — общие, см. [LIVE_TESTS.md](../../../LIVE_TESTS.md).
 - **`Json.encodeToString(index)` (reified) не выводит тип** без импорта `kotlinx.serialization.*` →
   явный `encodeToString(VectorIndex.serializer(), index)` в `IndexStore`.
 - **Тесты, трогающие `fileSystemTestModule`, помечены `@IgnoreIos`** — фейк лежит в одном файле с

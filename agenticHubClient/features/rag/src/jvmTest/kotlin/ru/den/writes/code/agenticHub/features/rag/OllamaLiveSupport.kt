@@ -11,10 +11,11 @@ import org.koin.core.Koin
 internal const val OLLAMA_BASE = "http://localhost:11434"
 
 /**
- * Shared harness for the opt-in `*OllamaLiveTest` classes: run [block] as a coroutine
- * test, but skip it (JUnit [assumeTrue]) when the local Ollama at [OLLAMA_BASE] isn't
- * reachable — so a `-PollamaLive` run degrades to "skipped" instead of failing when
- * the server is down. The [koin] graph supplies the probe [HttpClient].
+ * Shared harness for the Ollama-backed `*LiveTest` classes (see LIVE_TESTS.md): run
+ * [block] as a coroutine test, but skip it (JUnit [assumeTrue]) when the local Ollama
+ * at [OLLAMA_BASE] isn't reachable — so a `-PliveTests` run degrades to "skipped"
+ * instead of failing when the server is down. The [koin] graph supplies the probe
+ * [HttpClient].
  */
 internal fun liveOllamaTest(koin: Koin, block: suspend () -> Unit): TestResult = runTest {
     assumeOllamaUp(koin.get())
