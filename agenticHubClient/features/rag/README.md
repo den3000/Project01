@@ -14,8 +14,11 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
   `ChunkMetadata(source,title,section,chunkId)` (`@Serializable`; метаданные едут на каждый чанк для
   цитирования источника).
 - **Chunking** (`ChunkingStrategy` — fun interface, чистая нарезка):
-  - `FixedSizeChunking(chunkSize, overlap)` — скользящее окно фикс-размера с перекрытием
+  - `FixedSizeChunking(chunkSize, overlap)` — скользящее окно фикс-размера (по символам) с перекрытием
     (structure-blind, `section = null`).
+  - `TokenChunking(tokensPerChunk, overlap)` — скользящее окно по токенам (`\S+`) с перекрытием: рез
+    всегда по границе токена (слово не рвётся), внутренние пробелы/переносы сохраняются
+    (structure-blind).
   - `StructuralChunking` — по markdown-заголовкам (ATX `#`..`######`): один чанк на раздел, имя
     раздела → `section`, заголовок остаётся в тексте чанка; преамбула до первого заголовка →
     `section = null`.
