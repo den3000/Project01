@@ -2,6 +2,7 @@ package ru.den.writes.code.agenticHub.features.llm
 
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.features.llm.huggingface.HuggingFaceModel
+import ru.den.writes.code.agenticHub.features.llm.ollama.OllamaModel
 import ru.den.writes.code.agenticHub.features.llm.openrouter.OpenRouterModel
 
 /**
@@ -9,9 +10,10 @@ import ru.den.writes.code.agenticHub.features.llm.openrouter.OpenRouterModel
  * URL, resolved API key, and the typed model.
  *
  * Exists only as a CLI-layer discriminator between the supported
- * providers (currently Gemini, OpenRouter and Hugging Face). The actual
- * wire shapes, DTOs and per-turn logic live in [GeminiApi] /
- * [OpenRouterApi] / [HuggingFaceApi]; [ModelProvider] is just the
+ * providers (currently Gemini, OpenRouter, Hugging Face and a local
+ * Ollama). The actual wire shapes, DTOs and per-turn logic live in
+ * [GeminiApi] / [OpenRouterApi] / [HuggingFaceApi] / [LocalOllamaApi];
+ * [ModelProvider] is just the
  * carrier that lets the CLI layer expose a single field and `main.kt`
  * dispatch on a `when`.
  */
@@ -61,6 +63,21 @@ sealed interface ModelProvider {
         override val apiKey: String,
     ) : ModelProvider {
         override val endpoint: String get() = "https://router.huggingface.co/v1/chat/completions"
+        override val modelId: String get() = model.id
+    }
+
+    /**
+     * A local Ollama server — one endpoint (`/api/chat`) for all models, the model
+     * tag rides in the request body (like OpenRouter). No credentials: the model
+     * runs locally, so [apiKey] is empty. [baseUrl] is configurable to reach a
+     * remote host (default `http://localhost:11434`).
+     */
+    data class LocalOllama(
+        val model: OllamaModel = OllamaModel.Default,
+        val baseUrl: String = "http://localhost:11434",
+        override val apiKey: String = "",
+    ) : ModelProvider {
+        override val endpoint: String get() = "$baseUrl/api/chat"
         override val modelId: String get() = model.id
     }
 }
