@@ -1,8 +1,10 @@
 package ru.den.writes.code.agenticHub.features.rag.indexing
 
 import org.koin.dsl.koinApplication
-import ru.den.writes.code.agenticHub.features.rag.chunking.Chunk
-import ru.den.writes.code.agenticHub.features.rag.chunking.ChunkMetadata
+import ru.den.writes.code.agenticHub.features.rag.KB_FILE
+import ru.den.writes.code.agenticHub.features.rag.SAMPLE_INDEX_PATH
+import ru.den.writes.code.agenticHub.features.rag.SAMPLE_SECTION
+import ru.den.writes.code.agenticHub.features.rag.sampleIndex
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemTestModule
 import ru.den.writes.code.agenticHub.testutils.IgnoreIos
@@ -26,8 +28,8 @@ class IndexStoreTest {
         val index = sampleIndex()
 
         // when
-        store.save(index, PATH)
-        val actual = store.load(PATH)
+        store.save(index, SAMPLE_INDEX_PATH)
+        val actual = store.load(SAMPLE_INDEX_PATH)
 
         // then
         assertEquals(index, actual)
@@ -51,31 +53,15 @@ class IndexStoreTest {
         // given
         val fs = koin.get<LocalFileSystem>()
         val store = IndexStore(fs)
-        store.save(sampleIndex(), PATH)
+        store.save(sampleIndex(), SAMPLE_INDEX_PATH)
 
         // when
-        val actual = store.load(PATH)!!.chunks.single().chunk.metadata
+        val actual = store.load(SAMPLE_INDEX_PATH)!!.chunks.single().chunk.metadata
 
         // then
-        assertEquals("kb.md", actual.source)
-        assertEquals("kb.md", actual.title)
-        assertEquals("Intro", actual.section)
+        assertEquals(KB_FILE, actual.source)
+        assertEquals(KB_FILE, actual.title)
+        assertEquals(SAMPLE_SECTION, actual.section)
         assertEquals(0, actual.chunkId)
-    }
-
-    private fun sampleIndex(): VectorIndex = VectorIndex(
-        listOf(
-            IndexedChunk(
-                chunk = Chunk(
-                    text = "hello world",
-                    metadata = ChunkMetadata(source = "kb.md", title = "kb.md", section = "Intro", chunkId = 0),
-                ),
-                embedding = listOf(0.1f, 0.2f, 0.3f),
-            ),
-        ),
-    )
-
-    private companion object {
-        const val PATH = "indexes/kb.json"
     }
 }

@@ -48,7 +48,7 @@ class RetrieverTest {
         val actual = retriever.retrieve("how do embeddings and cosine similarity work", topK = 2)
 
         // then
-        assertEquals("Vector search", actual.first().chunk.metadata.section)
+        assertEquals(VECTOR_SEARCH_SECTION, actual.first().chunk.metadata.section)
     }
 
     @Test
@@ -63,15 +63,6 @@ class RetrieverTest {
 
         // then
         assertEquals(1, actual.size)
-        assertEquals("Gardening", actual.single().chunk.metadata.section)
+        assertEquals(GARDENING_SECTION, actual.single().chunk.metadata.section)
     }
-
-    private fun knowledgeDoc() = doc(
-        source = "kb.md",
-        title = "kb.md",
-        text = "# Vector search\n" +
-            "embeddings and cosine similarity power vector search over documents\n\n" +
-            "# Gardening\n" +
-            "tomatoes need sunlight water and rich soil to grow well",
-    )
 }
