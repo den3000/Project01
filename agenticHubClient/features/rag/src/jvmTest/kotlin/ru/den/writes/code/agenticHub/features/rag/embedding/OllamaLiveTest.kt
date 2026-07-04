@@ -17,14 +17,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// Opt-in: excluded from the normal jvmTest run (see build.gradle exclude on
-// *OllamaLiveTest), run with `-PollamaLive` against a local Ollama. Even then, each
-// test first probes reachability and skips (Assume) if Ollama isn't up. Package
-// `...embedding` so it can use the internal `cosineSimilarity`.
+// Opt-in: excluded from the normal jvmTest run (build.gradle excludes *OllamaLiveTest),
+// enabled with `-PollamaLive` (or `ollamaLive=true` in ~/.gradle/gradle.properties so
+// Android Studio's gutter-run picks it up). Each test still probes reachability and
+// Assume-skips if Ollama isn't up. Package `...embedding` to reach the internal
+// `cosineSimilarity`.
 class OllamaLiveTest {
 
     @Test
-    fun `when embedding one text - then a non-empty vector comes back`() = runOllama { embedder ->
+    fun `when embedding one text - then a non-empty vector comes back`() = liveTest {
         // when
         val actual = embedder.embed(listOf("hello world"))
 
@@ -34,7 +35,7 @@ class OllamaLiveTest {
     }
 
     @Test
-    fun `when embedding a batch - then vectors align and share one dimension`() = runOllama { embedder ->
+    fun `when embedding a batch - then vectors align and share one dimension`() = liveTest {
         // when
         val actual = embedder.embed(listOf("first text", "second text"))
 
@@ -44,7 +45,7 @@ class OllamaLiveTest {
     }
 
     @Test
-    fun `when texts are semantically related - then their cosine exceeds an unrelated pair`() = runOllama { embedder ->
+    fun `when texts are semantically related - then their cosine exceeds an unrelated pair`() = liveTest {
         // given
         val vectors = embedder.embed(
             listOf(
@@ -63,7 +64,7 @@ class OllamaLiveTest {
     }
 
     @Test
-    fun `when indexed and queried through the real model - then the relevant section ranks first`() = runOllama { embedder ->
+    fun `when indexed and queried through the real model - then the relevant section ranks first`() = liveTest {
         // given
         val index = IndexingPipeline(StructuralChunking(), embedder).index(listOf(knowledgeDoc()))
         val retriever = Retriever(embedder, index)
@@ -75,18 +76,12 @@ class OllamaLiveTest {
         assertEquals(VECTOR_SEARCH_SECTION, actual.single().chunk.metadata.section)
     }
 
-    private fun runOllama(block: suspend (OllamaEmbedder) -> Unit): TestResult = runTest {
-        val app = koinApplication { modules(networkModule) }
-        val client = app.koin.get<HttpClient>()
-        try {
-            assumeOllamaUp(client)
-            block(OllamaEmbedder(client))
-        } finally {
-            app.close()
-        }
+    private fun liveTest(block: suspend () -> Unit): TestResult = runTest {
+        assumeOllamaUp()
+        block()
     }
 
-    private suspend fun assumeOllamaUp(client: HttpClient) {
+    private suspend fun assumeOllamaUp() {
         val reachable = try {
             client.get("$OLLAMA_BASE/api/tags").status.isSuccess()
         } catch (_: Exception) {
@@ -95,7 +90,13 @@ class OllamaLiveTest {
         assumeTrue("Ollama not reachable at $OLLAMA_BASE — skipping live test", reachable)
     }
 
+    // One koin/client/embedder for the whole class: JVM-static → a single instance
+    // across all test methods (a plain `val` would be rebuilt per method, since JUnit4
+    // makes a fresh test instance per @Test). Stateless client → safe to share.
     private companion object {
+        private val koin = koinApplication { modules(networkModule) }.koin
+        val client: HttpClient = koin.get()
+        val embedder = OllamaEmbedder(client)
         const val OLLAMA_BASE = "http://localhost:11434"
     }
 }

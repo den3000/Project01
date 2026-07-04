@@ -51,6 +51,10 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
 - Live (нужна поднятая Ollama + `ollama pull nomic-embed-text`):
   `./gradlew :agenticHubClient:features:rag:jvmTest -PollamaLive` — реальный embed / семантика /
   end-to-end retrieve; Ollama недоступна → `Assume`-скип, не падает.
+  - **Из Android Studio** (gutter-run): пропиши `ollamaLive=true` в `~/.gradle/gradle.properties`
+    (личный, не в git) — тогда исключение снимается и тест запускается кликом; либо добавь
+    `-PollamaLive` в аргументы Gradle-run-конфигурации. **Без проперти** click-run по `OllamaLiveTest`
+    даст «0 tests» — build-script-`exclude` перебивает `--tests`. (AS должна гонять тесты через Gradle.)
 
 ## Грабли
 - **Live-Ollama-тесты — opt-in** (`*OllamaLiveTest` исключены из дефолтного `jvmTest`, гоняются по
