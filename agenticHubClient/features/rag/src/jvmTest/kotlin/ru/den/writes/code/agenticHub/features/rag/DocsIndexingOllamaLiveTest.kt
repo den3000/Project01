@@ -146,7 +146,13 @@ class DocsIndexingOllamaLiveTest {
     private fun logIndexAndQuery(strategy: String, index: VectorIndex, hits: List<ScoredChunk>) {
         val dim = index.chunks.first().embedding.size
         println("[$strategy] indexed ${index.chunks.size} chunks (${dim}-dim); q=\"$DI_QUERY\":")
-        hits.forEach { println("    %.3f  %s / %s".format(it.score, it.chunk.metadata.title, it.chunk.metadata.section)) }
+        hits.forEach {
+            val meta = it.chunk.metadata
+            // section for structure-aware chunking; otherwise the chunkId (ordinal within
+            // its source doc — meaningful only paired with source).
+            val locator = meta.section ?: "chunk #${meta.chunkId}"
+            println("    %.3f  %s  %s".format(it.score, meta.source, locator))
+        }
     }
 
     private fun loadMarkdownCorpus(root: File): List<SourceDocument> {
