@@ -22,6 +22,7 @@ iOS-bundle-id остались на `project01` (это идентификато
 - **features**: [llm](agenticHubClient/features/llm/README.md) ·
   [agent](agenticHubClient/features/agent/README.md) ·
   [memory](agenticHubClient/features/memory/README.md) ·
+  [rag](agenticHubClient/features/rag/README.md) ·
   [composeApp](agenticHubClient/features/composeApp/README.md) ·
   [mcpClient](agenticHubClient/features/mcpClient/README.md) · lifecycle
   [command](agenticHubClient/features/lifecycle/command/README.md)/[session](agenticHubClient/features/lifecycle/session/README.md)/[start](agenticHubClient/features/lifecycle/start/README.md)
@@ -29,6 +30,7 @@ iOS-bundle-id остались на `project01` (это идентификато
   [config](agenticHubClient/platform/config/README.md) ·
   [database](agenticHubClient/platform/database/README.md) ·
   [fileSystem](agenticHubClient/platform/fileSystem/README.md) ·
+  [network](agenticHubClient/platform/network/README.md) ·
   [greeting](agenticHubClient/platform/greeting/README.md)
 - **apps**: [cliJvmApp](agenticHubClient/apps/cliJvmApp/README.md) ·
   [androidApp](agenticHubClient/apps/androidApp/README.md) ·
@@ -40,7 +42,8 @@ iOS-bundle-id остались на `project01` (это идентификато
   на iOS = `kotlin.test.Ignore`; JVM/Android — no-op), `commonTest`-зависимость. Фейки тут НЕ живут.
 - Тест-фейки живут **рядом с реальными реализациями** (не в отдельном модуле): `FakeLlmScript`/
   `LlmApiFake`+`llmTestModule` (features:llm), `LocalFileSystemFake`+`fileSystemTestModule`
-  (platform:fileSystem), `TestDb`+`databaseTestModule` (platform:database). Модуль `:testing` снесён —
+  (platform:fileSystem), `TestDb`+`databaseTestModule` (platform:database), `EmbedderFake`+`ragTestModule`
+  (features:rag). Модуль `:testing` снесён —
   [DI.md](agenticHubClient/DI.md).
 
 ## Команды (offline; сеть/токены/TTY — спрашивать перед запуском)

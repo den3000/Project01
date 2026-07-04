@@ -10,7 +10,8 @@ Koin они прячутся внутри платформенного `actual`-
 ## Две формы di-модуля
 
 ### Платформенный модуль (`expect/actual` → `Module`)
-Для модулей с платформенными реализациями (`platform:fileSystem`, `platform:database`). Тело модуля —
+Для модулей с платформенными реализациями (`platform:fileSystem`, `platform:database`, `platform:network`
+— jvm actual строит `HttpClient(Java)`, android/ios = `TODO`). Тело модуля —
 `actual` на таргет, аргументы платформы прячутся в нём:
 ```kotlin
 // commonMain/…/di/FileSystemModule.kt
@@ -55,10 +56,11 @@ val memoryModule = module {
 
 ## Composition root (`apps:cliJvmApp`)
 
-`main.kt` → `startKoin { modules(appModule, fileSystemModule, databaseModule, llmModule, memoryModule,
-agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `koin.get { parametersOf(…) }`
-вместо ручных `new`; `stopKoin()` в `finally`. `appModule` (`cliJvm/di/AppModule.kt`) держит app-owned
-биндинги: `HttpClient` (Java-движок, single+`onClose`), `ApiKeys` (из `BuildKonfig`),
+`main.kt` → `startKoin { modules(appModule, networkModule, fileSystemModule, databaseModule, llmModule,
+memoryModule, agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` /
+`koin.get { parametersOf(…) }` вместо ручных `new`; `stopKoin()` в `finally`. Общий `HttpClient`
+(Java-движок, single+`onClose`) — в `networkModule` (`platform:network`). `appModule`
+(`cliJvm/di/AppModule.kt`) держит app-owned биндинги: `ApiKeys` (из `BuildKonfig`),
 `ModelProviderFactory`, `CliArgsParser`. `ModelProvider` НЕ биндится — он runtime-производный,
 передаётся параметром в `llmModule`. Условная логика RunChat/RunOneShot остаётся в accessor'ах
 `SessionInitialStateExtensions` (`resolveHistoryStore(koin)`/`resolveMemoryProvider(koin, root)`);
@@ -66,9 +68,9 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
 
 ## Какие модули имеют di-пакет
 
-- **Есть**: `platform:fileSystem`, `platform:database`; `features:llm`, `features:memory`,
-  `features:agent`, `features:mcpClient`, `features:lifecycle:session`, `features:lifecycle:start`;
-  `apps:cliJvmApp` (`appModule`).
+- **Есть**: `platform:fileSystem`, `platform:database`, `platform:network`; `features:llm`,
+  `features:memory`, `features:agent`, `features:mcpClient`, `features:rag`,
+  `features:lifecycle:session`, `features:lifecycle:start`; `apps:cliJvmApp` (`appModule`).
 - **Нет** (нечего инжектить): `platform:logging` (top-level `logWarn`), `platform:config`
   (`object BuildKonfig`), `platform:greeting`, `features:lifecycle:command` (только data-типы),
   `features:composeApp`.
@@ -111,6 +113,10 @@ agentModule, mcpClientModule, startModule, sessionModule) }`; `koin.get()` / `ko
   (`internal` фейк) + `factory { FakeLlmScript() }`. Интерфейс `LlmApi` (`send`) узкий → очередь
   ответов/инспекция вызовов живут в публичном `FakeLlmScript`; тест создаёт его, `queueText(...)`,
   передаёт через `parametersOf`, потом читает `script.calls`.
+- **`features:rag` → `ragTestModule`**: `factory<Embedder> { EmbedderFake() }` (детерминированный
+  bag-of-words фейк, `internal`) — перекрывает сетевой `OllamaEmbedder` из `ragModule`. Компонуется
+  вместе с `ragModule` (общий `sharedRagModule` через `includes`); `IndexStore` в тесте — `factory`,
+  в проде — `single`.
 - **`platform:database` → `fun databaseTestModule(db: AppDatabase)`**: биндит **реальную** БД (без мока
   таблиц), которую тест уже собрал через `TestDb` (temp-file Room поверх bundled SQLite). Аргументом —
   потому что БД это closeable-ресурс, которым владеет тест (`TestDb().use { … }` чистит), и её надо
