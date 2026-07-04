@@ -48,6 +48,10 @@ kotlin {
             // for the org.junit.Assume skip when Ollama isn't running (mirrors features:rag).
             implementation(projects.agenticHubClient.platform.network)
             implementation(libs.junit)
+            // Test-only: the RAG-comparison live test wires the full retrieval pipeline
+            // (chunk → embed → index → retrieve) and feeds it into LocalOllamaApi. No cycle —
+            // features:rag does NOT depend on features:llm; the seam lives here, in test scope.
+            implementation(projects.agenticHubClient.features.rag)
         }
     }
 }
