@@ -42,12 +42,24 @@ class DocsIndexingOllamaLiveTest {
         )
 
         // when
-        val counts = strategies.mapValues { (_, strategy) -> docs.flatMap { strategy.chunk(it) }.size }
+        val sizesByStrategy = strategies.mapValues { (_, strategy) ->
+            docs.flatMap { strategy.chunk(it) }.map { it.text.length }
+        }
 
         // then
         assertTrue(totalChars >= 60_000, "corpus too small ($totalChars chars) — need a substantial multi-doc corpus")
-        assertEquals(strategies.size, counts.values.toSet().size, "strategies should chunk the corpus differently")
-        counts.forEach { (name, count) -> println("[chunking] $name: $count chunks over ${docs.size} docs") }
+        assertEquals(
+            strategies.size,
+            sizesByStrategy.values.map { it.size }.toSet().size,
+            "strategies should chunk the corpus differently",
+        )
+        println("[chunking comparison] over ${docs.size} docs, $totalChars chars:")
+        sizesByStrategy.forEach { (name, sizes) ->
+            println(
+                "  %-20s %4d chunks  chars avg=%-5d min=%-4d max=%d"
+                    .format(name, sizes.size, sizes.average().toInt(), sizes.min(), sizes.max()),
+            )
+        }
     }
 
     @Test
