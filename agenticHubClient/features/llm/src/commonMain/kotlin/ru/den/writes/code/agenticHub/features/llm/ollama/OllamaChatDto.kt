@@ -7,8 +7,13 @@ import kotlinx.serialization.Serializable
  * Request body for Ollama's `POST /api/chat` endpoint. Roughly OpenAI-shaped
  * (`model` + `messages[{role, content}]`), but per-turn knobs (temperature, token
  * cap, stop sequences) go inside a nested [OllamaOptions] object rather than at the
- * top level. [stream] is pinned `false` so the whole reply comes back as one JSON
- * body (no NDJSON streaming to assemble).
+ * top level.
+ *
+ * [stream] carries NO default on purpose: Ollama streams NDJSON unless it receives an
+ * explicit `"stream": false`, and kotlinx JSON (`encodeDefaults = false`) would drop
+ * a property left at its declared default — so a `= false` default would silently
+ * vanish from the wire and the server would stream. Declaring it defaultless forces
+ * it onto every request.
  *
  * See: https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion
  */
@@ -16,7 +21,14 @@ import kotlinx.serialization.Serializable
 internal data class OllamaChatRequest(
     val model: String,
     val messages: List<OllamaMessage>,
-    val stream: Boolean = false,
+    val stream: Boolean,
+    /**
+     * Toggles reasoning on thinking-capable models (gemma4, qwen3.5, …). `null` leaves
+     * the model default; `false` disables — important because with thinking ON a small
+     * token cap can be spent entirely on the (separate) `thinking` field, leaving
+     * `content` empty. Mapped from [GenerationParams.thinkingBudget].
+     */
+    val think: Boolean? = null,
     val options: OllamaOptions? = null,
 )
 
@@ -51,4 +63,9 @@ internal data class OllamaChatResponse(
 )
 
 @Serializable
-internal data class OllamaRespMessage(val role: String, val content: String? = null)
+internal data class OllamaRespMessage(
+    val role: String,
+    val content: String? = null,
+    /** Reasoning trace on thinking models (separate from [content]); we surface content. */
+    val thinking: String? = null,
+)

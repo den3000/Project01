@@ -48,6 +48,8 @@ public class LocalOllamaApi(
                         model = model.id,
                         messages = wireMessages,
                         stream = false,
+                        // Reuse the neutral thinking knob: 0 disables, >0 enables, null = model default.
+                        think = params.thinkingBudget?.let { it > 0 },
                         options = params.toOllamaOptions(),
                     )
                 )

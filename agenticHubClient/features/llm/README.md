@@ -45,6 +45,12 @@ offline, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`,
 - **Ollama**: токен-кап зовётся `num_predict` (не `max_tokens`), `temperature`/`stop` — внутри `options`;
   теги (`OllamaModel`) зависят от локально спуленных моделей → основной путь `Custom`, не `Known`. В
   `PricingRegistry` не заводим (локально бесплатно; lookup→null).
+- **Ollama `stream` без дефолта — намеренно**: при `encodeDefaults=false` (наш JSON) поле, равное
+  дефолту, выпадает с wire → Ollama стримит NDJSON → `NoTransformationFound`. Поле без дефолта уходит
+  всегда (регресс — `OllamaChatDtoTest`).
+- **Ollama thinking-модели** (gemma4/qwen3.5): reasoning идёт в отдельное поле `message.thinking`, при
+  малом `num_predict` весь бюджет уходит туда, а `content` пуст. `GenerationParams.thinkingBudget`
+  маппится в top-level `think` (0 → off, >0 → on, null → дефолт модели).
 - **`McpToolRouter`: коллизия имён инструментов между серверами — fail-fast `require`** на старте
   (модель не должна видеть неоднозначный каталог).
 - **`*Api` не печатают `>>>>`-debug в stdout** — прямой `println` рушил Kotter в TUI и порядок в plain.

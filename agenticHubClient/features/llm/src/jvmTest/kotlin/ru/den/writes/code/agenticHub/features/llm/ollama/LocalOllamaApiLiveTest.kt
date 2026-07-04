@@ -28,7 +28,7 @@ class LocalOllamaApiLiveTest {
         // when
         val result = api.send(
             messages = listOf(Message(Role.USER, "Reply with a single word: what colour is the sky on a clear day?")),
-            params = GenerationParams(temperature = 0.0, maxTokens = 32),
+            params = GenerationParams(temperature = 0.0, maxTokens = 32, thinkingBudget = 0),
         )
 
         // then
@@ -48,7 +48,7 @@ class LocalOllamaApiLiveTest {
                 Message(Role.SYSTEM, "You always answer in exactly one uppercase word."),
                 Message(Role.USER, "Name a primary colour."),
             ),
-            params = GenerationParams(temperature = 0.0, maxTokens = 16),
+            params = GenerationParams(temperature = 0.0, maxTokens = 16, thinkingBudget = 0),
         )
 
         // then

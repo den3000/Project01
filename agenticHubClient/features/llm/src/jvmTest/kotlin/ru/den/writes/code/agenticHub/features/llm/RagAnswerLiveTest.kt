@@ -58,7 +58,7 @@ class RagAnswerLiveTest {
             val httpClient = koin.get<HttpClient>()
             val embedder = OllamaEmbedder(httpClient)
             val chatApi = LocalOllamaApi(httpClient = httpClient, model = liveChatModel())
-            val params = GenerationParams(temperature = 0.0, maxTokens = 160)
+            val params = GenerationParams(temperature = 0.0, maxTokens = 160, thinkingBudget = 0)
 
             val index = IndexingPipeline(StructuralChunking(), embedder).index(listOf(handbook))
             val retriever = Retriever(embedder, index)
