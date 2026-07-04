@@ -3,7 +3,7 @@ package ru.den.writes.code.agenticHub.features.rag.indexing
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.rag.chunking.FixedSizeChunking
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
-import ru.den.writes.code.agenticHub.features.rag.chunking.doc
+import ru.den.writes.code.agenticHub.features.rag.doc
 import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderFake
 import kotlin.test.Test
 import kotlin.test.assertEquals

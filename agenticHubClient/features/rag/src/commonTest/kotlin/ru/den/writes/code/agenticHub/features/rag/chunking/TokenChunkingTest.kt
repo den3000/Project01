@@ -1,5 +1,6 @@
 package ru.den.writes.code.agenticHub.features.rag.chunking
 
+import ru.den.writes.code.agenticHub.features.rag.doc
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

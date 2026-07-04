@@ -1,5 +1,6 @@
 package ru.den.writes.code.agenticHub.features.rag.chunking
 
+import ru.den.writes.code.agenticHub.features.rag.doc
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -43,7 +44,7 @@ class ChunkingComparisonTest {
         val strategies = mapOf("fixed" to FixedSizeChunking(chunkSize = 4, overlap = 0))
 
         // when
-        val actual = ChunkingComparison.compare(plainDoc("abcdefghij"), strategies).stats.single()
+        val actual = ChunkingComparison.compare(doc("abcdefghij"), strategies).stats.single()
 
         // then
         assertEquals(3, actual.chunkCount)
@@ -88,7 +89,4 @@ class ChunkingComparisonTest {
         title = "doc.md",
         text = "# A\nalpha\n\n# B\nbeta\n\n# C\ngamma",
     )
-
-    private fun plainDoc(text: String): SourceDocument =
-        SourceDocument(source = "src", title = "title", text = text)
 }
