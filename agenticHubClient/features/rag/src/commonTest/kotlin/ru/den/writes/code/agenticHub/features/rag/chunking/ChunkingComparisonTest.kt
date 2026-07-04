@@ -14,9 +14,11 @@ class ChunkingComparisonTest {
             "fixed" to FixedSizeChunking(chunkSize = 1000),
             "structural" to StructuralChunking(),
         )
+        val markdownText = "# A\nalpha\n\n# B\nbeta\n\n# C\ngamma"
+        val markdownDoc = doc(source = "src", title = "doc.md", text = markdownText)
 
         // when
-        val actual = ChunkingComparison.compare(markdownDoc(), strategies)
+        val actual = ChunkingComparison.compare(markdownDoc, strategies)
 
         // then
         assertEquals(listOf("fixed", "structural"), actual.stats.map { it.strategyName })
@@ -29,9 +31,11 @@ class ChunkingComparisonTest {
             "fixed" to FixedSizeChunking(chunkSize = 1000),
             "structural" to StructuralChunking(),
         )
+        val markdownText = "# A\nalpha\n\n# B\nbeta\n\n# C\ngamma"
+        val markdownDoc = doc(source = "src", title = "doc.md", text = markdownText)
 
         // when
-        val actual = ChunkingComparison.compare(markdownDoc(), strategies)
+        val actual = ChunkingComparison.compare(markdownDoc, strategies)
 
         // then
         assertEquals(1, actual.stats.first { it.strategyName == "fixed" }.chunkCount)
@@ -57,9 +61,11 @@ class ChunkingComparisonTest {
     fun `when no strategies supplied - then report has no stats`() {
         // given
         val strategies = emptyMap<String, ChunkingStrategy>()
+        val markdownText = "# A\nalpha\n\n# B\nbeta\n\n# C\ngamma"
+        val markdownDoc = doc(source = "src", title = "doc.md", text = markdownText)
 
         // when
-        val actual = ChunkingComparison.compare(markdownDoc(), strategies)
+        val actual = ChunkingComparison.compare(markdownDoc, strategies)
 
         // then
         assertTrue(actual.stats.isEmpty())
@@ -68,8 +74,10 @@ class ChunkingComparisonTest {
     @Test
     fun `when rendered - then output names each strategy with its chunk count`() {
         // given
+        val markdownText = "# A\nalpha\n\n# B\nbeta\n\n# C\ngamma"
+        val markdownDoc = doc(source = "src", title = "doc.md", text = markdownText)
         val report = ChunkingComparison.compare(
-            markdownDoc(),
+            markdownDoc,
             mapOf(
                 "fixed" to FixedSizeChunking(chunkSize = 1000),
                 "structural" to StructuralChunking(),
@@ -83,10 +91,4 @@ class ChunkingComparisonTest {
         assertTrue(actual.contains("fixed: 1 chunks"))
         assertTrue(actual.contains("structural: 3 chunks"))
     }
-
-    private fun markdownDoc(): SourceDocument = SourceDocument(
-        source = "src",
-        title = "doc.md",
-        text = "# A\nalpha\n\n# B\nbeta\n\n# C\ngamma",
-    )
 }
