@@ -1,6 +1,8 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.indexing
 
 import org.koin.dsl.koinApplication
+import ru.den.writes.code.agenticHub.features.rag.chunking.Chunk
+import ru.den.writes.code.agenticHub.features.rag.chunking.ChunkMetadata
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemTestModule
 import ru.den.writes.code.agenticHub.testutils.IgnoreIos

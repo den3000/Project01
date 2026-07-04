@@ -1,6 +1,8 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.indexing
 
 import kotlinx.serialization.Serializable
+import ru.den.writes.code.agenticHub.features.rag.chunking.Chunk
+import ru.den.writes.code.agenticHub.features.rag.embedding.cosineSimilarity
 
 /**
  * A [Chunk] paired with its embedding — the unit stored in a [VectorIndex].

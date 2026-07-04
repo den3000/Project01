@@ -1,4 +1,8 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.indexing
+
+import ru.den.writes.code.agenticHub.features.rag.chunking.ChunkingStrategy
+import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
+import ru.den.writes.code.agenticHub.features.rag.embedding.Embedder
 
 /**
  * Builds a [VectorIndex] from raw documents: chunk every document with [chunking],

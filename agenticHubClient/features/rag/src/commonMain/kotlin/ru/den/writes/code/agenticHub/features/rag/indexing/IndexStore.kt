@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.indexing
 
 import kotlinx.serialization.json.Json
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem

@@ -1,5 +1,7 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.indexing
 
+import ru.den.writes.code.agenticHub.features.rag.chunking.Chunk
+import ru.den.writes.code.agenticHub.features.rag.chunking.ChunkMetadata
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.embedding
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.chunking
 
 /**
  * Turns a [SourceDocument] into an ordered list of [Chunk]s. Pure — no I/O, no

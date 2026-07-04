@@ -6,7 +6,11 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
 тестируется на фейках без сети.
 
 ## Публичный API
-- **Модель**: `SourceDocument(source,title,text)` → вход пайплайна; `Chunk(text,metadata)` +
+
+Раскладка по пакетам: `chunking/` (модель + стратегии + сравнение), `embedding/` (`Embedder`/косинус/
+фейк), `indexing/` (индекс + пайплайн + персист); `Retriever` и `di/` — в корне модуля.
+
+- **Модель** (`chunking/`): `SourceDocument(source,title,text)` → вход пайплайна; `Chunk(text,metadata)` +
   `ChunkMetadata(source,title,section,chunkId)` (`@Serializable`; метаданные едут на каждый чанк для
   цитирования источника).
 - **Chunking** (`ChunkingStrategy` — fun interface, чистая нарезка):

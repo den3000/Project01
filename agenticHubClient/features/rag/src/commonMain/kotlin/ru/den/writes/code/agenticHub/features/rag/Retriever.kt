@@ -1,5 +1,9 @@
 package ru.den.writes.code.agenticHub.features.rag
 
+import ru.den.writes.code.agenticHub.features.rag.embedding.Embedder
+import ru.den.writes.code.agenticHub.features.rag.indexing.ScoredChunk
+import ru.den.writes.code.agenticHub.features.rag.indexing.VectorIndex
+
 /**
  * The query half of the RAG pipeline: embed a natural-language [query] with the
  * same [Embedder] the index was built with, then rank the [index] by cosine

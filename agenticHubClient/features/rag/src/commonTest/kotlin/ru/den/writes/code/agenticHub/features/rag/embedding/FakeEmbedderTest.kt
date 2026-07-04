@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.embedding
 
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test

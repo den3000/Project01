@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.chunking
 
 /**
  * Fixed-size sliding-window chunking: cut the document body into [chunkSize]-char

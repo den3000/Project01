@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.chunking
 
 private val HEADING_REGEX = Regex("""^#{1,6}\s+(.*\S)\s*$""")
 

@@ -1,6 +1,10 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.indexing
 
 import kotlinx.coroutines.test.runTest
+import ru.den.writes.code.agenticHub.features.rag.chunking.FixedSizeChunking
+import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
+import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
+import ru.den.writes.code.agenticHub.features.rag.embedding.FakeEmbedder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.chunking
 
 /**
  * One document fed into the indexing pipeline before chunking.

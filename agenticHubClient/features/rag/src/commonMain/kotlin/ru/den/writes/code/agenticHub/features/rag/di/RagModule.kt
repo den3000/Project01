@@ -2,13 +2,13 @@ package ru.den.writes.code.agenticHub.features.rag.di
 
 import org.koin.core.module.Module
 import org.koin.dsl.module
-import ru.den.writes.code.agenticHub.features.rag.ChunkingStrategy
-import ru.den.writes.code.agenticHub.features.rag.Embedder
-import ru.den.writes.code.agenticHub.features.rag.FakeEmbedder
-import ru.den.writes.code.agenticHub.features.rag.IndexStore
-import ru.den.writes.code.agenticHub.features.rag.IndexingPipeline
 import ru.den.writes.code.agenticHub.features.rag.Retriever
-import ru.den.writes.code.agenticHub.features.rag.VectorIndex
+import ru.den.writes.code.agenticHub.features.rag.chunking.ChunkingStrategy
+import ru.den.writes.code.agenticHub.features.rag.embedding.Embedder
+import ru.den.writes.code.agenticHub.features.rag.embedding.FakeEmbedder
+import ru.den.writes.code.agenticHub.features.rag.indexing.IndexStore
+import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
+import ru.den.writes.code.agenticHub.features.rag.indexing.VectorIndex
 
 /**
  * Koin module for the RAG layer.

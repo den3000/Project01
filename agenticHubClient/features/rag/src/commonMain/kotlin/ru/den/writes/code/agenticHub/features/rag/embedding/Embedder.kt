@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.features.rag
+package ru.den.writes.code.agenticHub.features.rag.embedding
 
 /**
  * Maps texts to dense vectors for semantic search. Batched (one call, many texts)
