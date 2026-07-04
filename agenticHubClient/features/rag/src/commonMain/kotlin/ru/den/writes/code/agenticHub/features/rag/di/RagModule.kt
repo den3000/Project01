@@ -6,6 +6,7 @@ import ru.den.writes.code.agenticHub.features.rag.Retriever
 import ru.den.writes.code.agenticHub.features.rag.chunking.ChunkingStrategy
 import ru.den.writes.code.agenticHub.features.rag.embedding.Embedder
 import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderFake
+import ru.den.writes.code.agenticHub.features.rag.embedding.OllamaEmbedder
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexStore
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
 import ru.den.writes.code.agenticHub.features.rag.indexing.VectorIndex
@@ -17,9 +18,9 @@ import ru.den.writes.code.agenticHub.features.rag.indexing.VectorIndex
  *
  * The [ChunkingStrategy] (fixed/token/structural) and the built [VectorIndex] are
  * runtime-derived → factory parameters (`parametersOf`); the [Embedder] comes from
- * the graph. Nothing here binds an [Embedder] — production will bind the network
- * (Ollama) one, tests bind [EmbedderFake] — so resolving [IndexingPipeline] /
- * [Retriever] needs an embedder composed in first.
+ * the graph. Nothing here binds an [Embedder] — [ragModule] binds the network
+ * ([OllamaEmbedder]) one, [ragTestModule] binds [EmbedderFake] — so resolving
+ * [IndexingPipeline] / [Retriever] needs one of those modules composed in too.
  */
 private val sharedRagModule: Module = module {
     factory { (chunking: ChunkingStrategy) -> IndexingPipeline(chunking, embedder = get()) }
@@ -28,13 +29,14 @@ private val sharedRagModule: Module = module {
 
 /**
  * Production Koin module for the RAG layer: the shared pipeline/retriever bindings
- * ([sharedRagModule]) plus [IndexStore] as a `single` — one stateless wrapper over
- * the filesystem port per session. Does not bind an [Embedder] (see
- * [sharedRagModule]); the network-backed embedder will bind here later.
+ * ([sharedRagModule]), [IndexStore] as a `single` (one stateless wrapper over the
+ * filesystem port per session), and the [Embedder] bound to [OllamaEmbedder] — the
+ * `HttpClient` it needs comes from the graph (`networkModule`, platform:network).
  */
 public val ragModule: Module = module {
     includes(sharedRagModule)
     single { IndexStore(fs = get()) }
+    single<Embedder> { OllamaEmbedder(httpClient = get()) }
 }
 
 /**

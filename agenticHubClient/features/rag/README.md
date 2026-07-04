@@ -24,7 +24,9 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
     `section = null`.
   - `ChunkingComparison.compare(doc, strategies)` → `ChunkingComparisonReport` (+ `render()`) —
     сравнение стратегий по размерным метрикам.
-- **Embeddings/поиск**: `Embedder` (fun interface, `suspend embed(List<String>)`);
+- **Embeddings/поиск**: `Embedder` (fun interface, `suspend embed(List<String>)`) + реализация
+  `OllamaEmbedder(httpClient, model="nomic-embed-text", baseUrl="http://localhost:11434")` — батч
+  `POST /api/embed` к локальной Ollama; `EmbedderFake` (`internal`) — детерминированный для тестов.
   `IndexedChunk`/`ScoredChunk`/`VectorIndex.search(query, topK)` (brute-force косинус, стабильная
   сортировка). `cosineSimilarity` — `internal` (ранжирует только `VectorIndex.search`, наружу не отдаётся).
 - **Пайплайн**: `IndexingPipeline(chunking, embedder).index(docs)` → `VectorIndex`;
@@ -34,9 +36,9 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
 - **`di/`**: приватный `sharedRagModule` держит общие для прод и теста factory —
   `IndexingPipeline` (на `ChunkingStrategy`) и `Retriever` (на `VectorIndex`); оба публичных модуля
   подключают его через `includes(...)` (без дублирования). `ragModule` = `sharedRagModule` +
-  `single { IndexStore }`. `ragTestModule` = `sharedRagModule` + `factory { IndexStore }` +
-  `factory<Embedder> { EmbedderFake() }` (offline). `Embedder` **прод-модулем не биндится**. Общая
-  дока — [DI.md](../../DI.md).
+  `single { IndexStore }` + `single<Embedder> { OllamaEmbedder(get()) }` (`HttpClient` — из
+  `networkModule`/`platform:network`). `ragTestModule` = `sharedRagModule` + `factory { IndexStore }` +
+  `factory<Embedder> { EmbedderFake() }` (offline, перекрывает Ollama). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
 - `api(features:llm)` (`LlmApi`/`Message` протекают через порты для будущего reranking/генерации;
@@ -44,12 +46,16 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
   `implementation(platform:logging)`, `serialization-json`, `koin.core`.
 
 ## Тесты
-`./gradlew :agenticHubClient:features:rag:jvmTest` — offline, на фейках/детерминированном эмбеддере.
+- Offline (по умолчанию): `./gradlew :agenticHubClient:features:rag:jvmTest` — на фейках/детерминированном
+  эмбеддере; live-Ollama-тесты (`OllamaLiveTest`) исключены.
+- Live (нужна поднятая Ollama + `ollama pull nomic-embed-text`):
+  `./gradlew :agenticHubClient:features:rag:jvmTest -PollamaLive` — реальный embed / семантика /
+  end-to-end retrieve; Ollama недоступна → `Assume`-скип, не падает.
 
 ## Грабли
-- **`ragModule` не биндит `Embedder`** — реального (Ollama) эмбеддера пока нет; резолв
-  `IndexingPipeline`/`Retriever` из чистого прод-графа неполон by design, эмбеддер надо докомпоновать
-  (`ragTestModule` в тестах). Появится сетевой эмбеддер — забиндится здесь.
+- **Live-Ollama-тесты — opt-in** (`*OllamaLiveTest` исключены из дефолтного `jvmTest`, гоняются по
+  `-PollamaLive`) — чтобы offline-сьют не зависел от локального сервиса. Живут в `src/jvmTest` (нужен
+  реальный `HttpClient` из `platform:network`).
 - **`Json.encodeToString(index)` (reified) не выводит тип** без импорта `kotlinx.serialization.*` →
   явный `encodeToString(VectorIndex.serializer(), index)` в `IndexStore`.
 - **Тесты, трогающие `fileSystemTestModule`, помечены `@IgnoreIos`** — фейк лежит в одном файле с
