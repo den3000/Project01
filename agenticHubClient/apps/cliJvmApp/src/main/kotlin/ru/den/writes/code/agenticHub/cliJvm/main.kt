@@ -18,6 +18,7 @@ import ru.den.writes.code.agenticHub.features.mcpclient.di.mcpClientModule
 import ru.den.writes.code.agenticHub.features.memory.di.memoryModule
 import ru.den.writes.code.agenticHub.platform.database.di.databaseModule
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
+import ru.den.writes.code.agenticHub.platform.network.di.networkModule
 import kotlin.system.exitProcess
 
 /**
@@ -32,6 +33,7 @@ suspend fun main(args: Array<String>) {
     val koin = startKoin {
         modules(
             appModule,
+            networkModule,
             fileSystemModule,
             databaseModule,
             llmModule,
