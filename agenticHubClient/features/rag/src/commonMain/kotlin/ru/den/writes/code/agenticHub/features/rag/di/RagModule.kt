@@ -5,7 +5,7 @@ import org.koin.dsl.module
 import ru.den.writes.code.agenticHub.features.rag.Retriever
 import ru.den.writes.code.agenticHub.features.rag.chunking.ChunkingStrategy
 import ru.den.writes.code.agenticHub.features.rag.embedding.Embedder
-import ru.den.writes.code.agenticHub.features.rag.embedding.FakeEmbedder
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderFake
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexStore
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
 import ru.den.writes.code.agenticHub.features.rag.indexing.VectorIndex
@@ -31,10 +31,10 @@ public val ragModule: Module = module {
 
 /**
  * Test counterpart of [ragModule]: binds [Embedder] to the deterministic,
- * network-free [FakeEmbedder]. Compose it alongside [ragModule] (and
+ * network-free [EmbedderFake]. Compose it alongside [ragModule] (and
  * `fileSystemTestModule` for [IndexStore]) in an integration graph. `factory` —
  * fresh fake per `get()`, tests independent. See agenticHubClient/DI.md.
  */
 public val ragTestModule: Module = module {
-    factory<Embedder> { FakeEmbedder() }
+    factory<Embedder> { EmbedderFake() }
 }

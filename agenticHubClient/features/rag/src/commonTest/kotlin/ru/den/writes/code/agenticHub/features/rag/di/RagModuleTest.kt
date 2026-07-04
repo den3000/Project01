@@ -9,7 +9,7 @@ import ru.den.writes.code.agenticHub.features.rag.chunking.ChunkMetadata
 import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
 import ru.den.writes.code.agenticHub.features.rag.embedding.Embedder
-import ru.den.writes.code.agenticHub.features.rag.embedding.FakeEmbedder
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderFake
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexStore
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexedChunk
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
@@ -64,7 +64,7 @@ class RagModuleTest {
         val actual = koin.get<Embedder>()
 
         // then
-        assertTrue(actual is FakeEmbedder)
+        assertTrue(actual is EmbedderFake)
     }
 
     private fun knowledgeDoc(): SourceDocument = SourceDocument(

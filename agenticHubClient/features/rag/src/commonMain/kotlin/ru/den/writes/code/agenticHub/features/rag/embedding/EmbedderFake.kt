@@ -14,7 +14,7 @@ import kotlin.math.sqrt
  * under the [Embedder] interface, next to the real code (the Ollama impl). Not a
  * production embedder: token hashing collides and ignores word order.
  */
-internal class FakeEmbedder(private val dimensions: Int = 64) : Embedder {
+internal class EmbedderFake(private val dimensions: Int = 64) : Embedder {
     override suspend fun embed(texts: List<String>): List<List<Float>> =
         texts.map { embedOne(it) }
 

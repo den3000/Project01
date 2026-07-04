@@ -5,12 +5,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class FakeEmbedderTest {
+class EmbedderFakeTest {
 
     @Test
     fun `when same text embedded twice - then vectors are identical`() = runTest {
         // given
-        val embedder = FakeEmbedder()
+        val embedder = EmbedderFake()
 
         // when
         val actual = embedder.embed(listOf("cosine similarity search", "cosine similarity search"))
@@ -22,7 +22,7 @@ class FakeEmbedderTest {
     @Test
     fun `when texts share words - then their cosine exceeds an unrelated pair`() = runTest {
         // given
-        val embedder = FakeEmbedder()
+        val embedder = EmbedderFake()
         val vectors = embedder.embed(
             listOf(
                 "vector search over embeddings",
@@ -42,7 +42,7 @@ class FakeEmbedderTest {
     @Test
     fun `when batch embedded - then output aligns positionally with input`() = runTest {
         // given
-        val embedder = FakeEmbedder()
+        val embedder = EmbedderFake()
         val texts = listOf("alpha", "beta", "gamma")
 
         // when
@@ -56,7 +56,7 @@ class FakeEmbedderTest {
     @Test
     fun `when embedded - then vector has the configured dimension`() = runTest {
         // given
-        val embedder = FakeEmbedder(dimensions = 32)
+        val embedder = EmbedderFake(dimensions = 32)
 
         // when
         val actual = embedder.embed(listOf("some text")).single()

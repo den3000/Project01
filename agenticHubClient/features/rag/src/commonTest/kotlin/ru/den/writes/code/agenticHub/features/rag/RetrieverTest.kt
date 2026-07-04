@@ -3,7 +3,7 @@ package ru.den.writes.code.agenticHub.features.rag
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
-import ru.den.writes.code.agenticHub.features.rag.embedding.FakeEmbedder
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderFake
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,7 +13,7 @@ class RetrieverTest {
     @Test
     fun `when querying - then the most relevant chunk ranks first`() = runTest {
         // given
-        val embedder = FakeEmbedder()
+        val embedder = EmbedderFake()
         val index = IndexingPipeline(StructuralChunking(), embedder).index(listOf(knowledgeDoc()))
         val retriever = Retriever(embedder, index)
 
@@ -27,7 +27,7 @@ class RetrieverTest {
     @Test
     fun `when topK given - then at most topK results returned`() = runTest {
         // given
-        val embedder = FakeEmbedder()
+        val embedder = EmbedderFake()
         val index = IndexingPipeline(StructuralChunking(), embedder).index(listOf(knowledgeDoc()))
         val retriever = Retriever(embedder, index)
 

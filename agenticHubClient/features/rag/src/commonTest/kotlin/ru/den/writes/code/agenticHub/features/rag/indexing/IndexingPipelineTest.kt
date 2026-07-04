@@ -4,7 +4,7 @@ import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.rag.chunking.FixedSizeChunking
 import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
-import ru.den.writes.code.agenticHub.features.rag.embedding.FakeEmbedder
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderFake
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -14,7 +14,7 @@ class IndexingPipelineTest {
     @Test
     fun `when indexing documents - then every chunk becomes an indexed chunk with a vector`() = runTest {
         // given
-        val pipeline = IndexingPipeline(FixedSizeChunking(chunkSize = 4, overlap = 0), FakeEmbedder())
+        val pipeline = IndexingPipeline(FixedSizeChunking(chunkSize = 4, overlap = 0), EmbedderFake())
 
         // when
         val actual = pipeline.index(listOf(doc("abcdefghij")))
@@ -27,7 +27,7 @@ class IndexingPipelineTest {
     @Test
     fun `when indexing multiple documents - then chunks from all of them are indexed`() = runTest {
         // given
-        val pipeline = IndexingPipeline(StructuralChunking(), FakeEmbedder())
+        val pipeline = IndexingPipeline(StructuralChunking(), EmbedderFake())
 
         // when
         val actual = pipeline.index(listOf(doc("# A\na"), doc("# B\nb")))
@@ -39,7 +39,7 @@ class IndexingPipelineTest {
     @Test
     fun `when documents produce no chunks - then index is empty`() = runTest {
         // given
-        val pipeline = IndexingPipeline(FixedSizeChunking(chunkSize = 4), FakeEmbedder())
+        val pipeline = IndexingPipeline(FixedSizeChunking(chunkSize = 4), EmbedderFake())
 
         // when
         val actual = pipeline.index(listOf(doc("   ")))

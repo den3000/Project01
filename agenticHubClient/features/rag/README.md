@@ -33,7 +33,7 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
   `LocalFileSystem` (absent → `null`).
 - **`di/`**: `ragModule` — `IndexStore` (single, `fs` из графа), `IndexingPipeline` (factory на
   `ChunkingStrategy`), `Retriever` (factory на `VectorIndex`); `Embedder` берётся из графа, но
-  **этим модулем не биндится**. Рядом `ragTestModule` (val) — `factory<Embedder> { FakeEmbedder() }`
+  **этим модулем не биндится**. Рядом `ragTestModule` (val) — `factory<Embedder> { EmbedderFake() }`
   (offline). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
