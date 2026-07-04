@@ -64,7 +64,7 @@ probe-`HttpClient`.
   - `OllamaLiveTest` — реальный embed, семантическая близость, end-to-end retrieve.
   - `DocsIndexingOllamaLiveTest` — индексация реального корпуса (markdown репо) с сохранением
     JSON-индекса и метаданных; сравнение стратегий чанкинга.
-- **`features:llm`** (нужна локальная Ollama + генеративная модель, по умолчанию `gemma3:4b`;
+- **`features:llm`** (нужна локальная Ollama + генеративная модель, по умолчанию `gemma4:26b`;
   тег переопределяется через `-Dollama.chat.model=<tag>`):
   - `LocalOllamaApiLiveTest` — генерация через `POST /api/chat` (простой вопрос + system-инструкция).
   - `RagAnswerLiveTest` — «первый RAG-запрос»: тот же вопрос с индексом vs без индекса, полный

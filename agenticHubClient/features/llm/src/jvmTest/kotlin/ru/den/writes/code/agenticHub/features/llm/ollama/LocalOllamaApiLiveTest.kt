@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 // Opt-in live test (see LIVE_TESTS.md): the central gate excludes `*LiveTest` unless
 // `-PliveTests`. Reachability skip lives in liveOllamaTest; a non-skipped run needs the
-// generative tag pulled (`ollama pull <tag>`, default gemma3:4b, override via
+// generative tag pulled (`ollama pull <tag>`, default gemma4:26b, override via
 // -Dollama.chat.model=<tag>). Uses the real networkModule HttpClient against a live model.
 class LocalOllamaApiLiveTest {
 

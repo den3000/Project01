@@ -18,7 +18,7 @@ class OllamaModelTest {
     }
 
     @Test
-    fun `Default is a Known light generative tag`() {
-        assertEquals(OllamaModel.Known.Gemma3_4b, OllamaModel.Default)
+    fun `Default is a Known generative tag`() {
+        assertEquals(OllamaModel.Known.Gemma4_26b, OllamaModel.Default)
     }
 }

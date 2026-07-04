@@ -14,7 +14,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 // Opt-in live test (see LIVE_TESTS.md): excluded unless `-PliveTests`. Needs a live Ollama
-// with BOTH a generative tag (default gemma3:4b, -Dollama.chat.model=<tag>) and the embed
+// with BOTH a generative tag (default gemma4:26b, -Dollama.chat.model=<tag>) and the embed
 // model (`ollama pull nomic-embed-text`). This is the día-22 "first RAG query" comparison —
 // same question answered WITH the retrieved index vs WITHOUT it — wired end-to-end across the
 // full features:rag + features:llm modules. The formal 10-question suite is a later deliverable;

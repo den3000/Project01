@@ -18,19 +18,17 @@ sealed interface OllamaModel {
 
     /** A few common generative tags. The real roster is whatever is pulled locally. */
     enum class Known(override val id: String) : OllamaModel {
-        Gemma3_4b("gemma3:4b"),
-        Gemma3_12b("gemma3:12b"),
-        Gemma3_27b("gemma3:27b"),
-        Llama33_70b("llama3.3:70b"),
-        Qwen3_8b("qwen3:8b"),
+        Gemma4_26b("gemma4:26b"),
+        Gemma4_31b("gemma4:31b"),
+        Qwen35_27b("qwen3.5:27b"),
     }
 
     /** Escape hatch for any tag not in [Known] (the common case for local models). */
     data class Custom(override val id: String) : OllamaModel
 
     companion object {
-        /** A light default so a smoke run works on modest hardware. */
-        val Default: OllamaModel = Known.Gemma3_4b
+        /** Default generative tag; override per-run with any pulled tag via `Custom`. */
+        val Default: OllamaModel = Known.Gemma4_26b
 
         /** Resolves a raw tag to a [Known] entry, falling back to [Custom]. */
         fun fromId(id: String): OllamaModel =
