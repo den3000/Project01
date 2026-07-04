@@ -18,6 +18,7 @@ import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemTestModule
 import ru.den.writes.code.agenticHub.testutils.IgnoreIos
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 // @IgnoreIos: fileSystemTestModule shares a file with the eager, iOS-TODO
