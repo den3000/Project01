@@ -31,10 +31,12 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
   `Retriever(embedder, index).retrieve(query, topK)` → `List<ScoredChunk>`.
 - **Персист**: `IndexStore(fs).save(index, path)` / `load(path)` — индекс как один JSON-документ через
   `LocalFileSystem` (absent → `null`).
-- **`di/`**: `ragModule` — `IndexStore` (single, `fs` из графа), `IndexingPipeline` (factory на
-  `ChunkingStrategy`), `Retriever` (factory на `VectorIndex`); `Embedder` берётся из графа, но
-  **этим модулем не биндится**. Рядом `ragTestModule` (val) — `factory<Embedder> { EmbedderFake() }`
-  (offline). Общая дока — [DI.md](../../DI.md).
+- **`di/`**: приватный `sharedRagModule` держит общие для прод и теста factory —
+  `IndexingPipeline` (на `ChunkingStrategy`) и `Retriever` (на `VectorIndex`); оба публичных модуля
+  подключают его через `includes(...)` (без дублирования). `ragModule` = `sharedRagModule` +
+  `single { IndexStore }`. `ragTestModule` = `sharedRagModule` + `factory { IndexStore }` +
+  `factory<Embedder> { EmbedderFake() }` (offline). `Embedder` **прод-модулем не биндится**. Общая
+  дока — [DI.md](../../DI.md).
 
 ## Зависимости
 - `api(features:llm)` (`LlmApi`/`Message` протекают через порты для будущего reranking/генерации;

@@ -25,9 +25,10 @@ import kotlin.test.assertTrue
 @IgnoreIos
 class RagModuleTest {
 
-    // Один граф на класс; всё на factory → каждый get() свежий, тесты независимы.
+    // Один граф на класс; только ragTestModule (включает sharedRagModule + IndexStore-factory
+    // + EmbedderFake) + fileSystemTestModule. Всё на factory → каждый get() свежий, тесты независимы.
     private val koin = koinApplication {
-        modules(ragModule, ragTestModule, fileSystemTestModule)
+        modules(ragTestModule, fileSystemTestModule)
     }.koin
 
     @Test

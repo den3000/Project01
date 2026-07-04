@@ -11,30 +11,41 @@ import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
 import ru.den.writes.code.agenticHub.features.rag.indexing.VectorIndex
 
 /**
- * Koin module for the RAG layer.
+ * Bindings shared by both [ragModule] and [ragTestModule] — the pieces that don't
+ * differ between the production and test graphs. Private and pulled in via
+ * `includes`, so the two public modules never duplicate (nor drift on) them.
  *
- * The [ChunkingStrategy] (fixed-size vs structural) and the built [VectorIndex] are
- * runtime-derived, so they're factory parameters (`parametersOf`); the
- * [io.ktor.client.HttpClient] and [Embedder] come from the graph. [IndexStore] is a
- * stateless wrapper over the filesystem port → `single`.
- *
- * Note: this module does **not** bind an [Embedder]. The offline fake comes from
- * [ragTestModule]; the network-backed (Ollama) embedder will bind here later. Until
- * then, resolving [IndexingPipeline]/[Retriever] from a pure production graph is
- * incomplete by design — an embedder must be composed in first.
+ * The [ChunkingStrategy] (fixed/token/structural) and the built [VectorIndex] are
+ * runtime-derived → factory parameters (`parametersOf`); the [Embedder] comes from
+ * the graph. Nothing here binds an [Embedder] — production will bind the network
+ * (Ollama) one, tests bind [EmbedderFake] — so resolving [IndexingPipeline] /
+ * [Retriever] needs an embedder composed in first.
  */
-public val ragModule: Module = module {
-    single { IndexStore(fs = get()) }
+private val sharedRagModule: Module = module {
     factory { (chunking: ChunkingStrategy) -> IndexingPipeline(chunking, embedder = get()) }
     factory { (index: VectorIndex) -> Retriever(embedder = get(), index = index) }
 }
 
 /**
- * Test counterpart of [ragModule]: binds [Embedder] to the deterministic,
- * network-free [EmbedderFake]. Compose it alongside [ragModule] (and
- * `fileSystemTestModule` for [IndexStore]) in an integration graph. `factory` —
- * fresh fake per `get()`, tests independent. See agenticHubClient/DI.md.
+ * Production Koin module for the RAG layer: the shared pipeline/retriever bindings
+ * ([sharedRagModule]) plus [IndexStore] as a `single` — one stateless wrapper over
+ * the filesystem port per session. Does not bind an [Embedder] (see
+ * [sharedRagModule]); the network-backed embedder will bind here later.
+ */
+public val ragModule: Module = module {
+    includes(sharedRagModule)
+    single { IndexStore(fs = get()) }
+}
+
+/**
+ * Test counterpart of [ragModule]: the same shared pipeline/retriever bindings, but
+ * [IndexStore] as a `factory` (fresh per `get()` → tests independent) and the
+ * offline [EmbedderFake] bound as the [Embedder]. Compose it — with
+ * `fileSystemTestModule` for [IndexStore]'s filesystem — **instead of** [ragModule]
+ * in an integration graph. See agenticHubClient/DI.md.
  */
 public val ragTestModule: Module = module {
+    includes(sharedRagModule)
+    factory { IndexStore(fs = get()) }
     factory<Embedder> { EmbedderFake() }
 }
