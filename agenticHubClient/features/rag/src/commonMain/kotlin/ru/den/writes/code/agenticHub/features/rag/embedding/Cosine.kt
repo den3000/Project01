@@ -10,8 +10,11 @@ import kotlin.math.sqrt
  * dividing by zero).
  *
  * @throws IllegalArgumentException if the vectors differ in length.
+ *
+ * `internal`: only [VectorIndex.search][ru.den.writes.code.agenticHub.features.rag.indexing.VectorIndex]
+ * ranks on it — not part of the module's public surface.
  */
-public fun cosineSimilarity(a: List<Float>, b: List<Float>): Double {
+internal fun cosineSimilarity(a: List<Float>, b: List<Float>): Double {
     require(a.size == b.size) { "vectors differ in length: ${a.size} vs ${b.size}" }
     var dot = 0.0
     var normA = 0.0

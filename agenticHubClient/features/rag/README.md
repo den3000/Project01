@@ -24,9 +24,9 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
     `section = null`.
   - `ChunkingComparison.compare(doc, strategies)` → `ChunkingComparisonReport` (+ `render()`) —
     сравнение стратегий по размерным метрикам.
-- **Embeddings/поиск**: `Embedder` (fun interface, `suspend embed(List<String>)`), `cosineSimilarity`;
+- **Embeddings/поиск**: `Embedder` (fun interface, `suspend embed(List<String>)`);
   `IndexedChunk`/`ScoredChunk`/`VectorIndex.search(query, topK)` (brute-force косинус, стабильная
-  сортировка).
+  сортировка). `cosineSimilarity` — `internal` (ранжирует только `VectorIndex.search`, наружу не отдаётся).
 - **Пайплайн**: `IndexingPipeline(chunking, embedder).index(docs)` → `VectorIndex`;
   `Retriever(embedder, index).retrieve(query, topK)` → `List<ScoredChunk>`.
 - **Персист**: `IndexStore(fs).save(index, path)` / `load(path)` — индекс как один JSON-документ через
