@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.testing.Test
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -43,5 +44,20 @@ kotlin {
             // file with the eager, iOS-TODO fileSystemModule val).
             implementation(projects.agenticHubClient.testUtils)
         }
+        jvmTest.dependencies {
+            // JVM-only tests hitting a real HTTP client: platform:network gives the
+            // shared HttpClient (Java engine + CN) via networkModule; junit for the
+            // org.junit.Assume skip when Ollama isn't running.
+            implementation(projects.agenticHubClient.platform.network)
+            implementation(libs.junit)
+        }
+    }
+}
+
+// Live Ollama tests (class *OllamaLiveTest) are opt-in: excluded from the normal
+// jvmTest run, included only with -PollamaLive (they need a local Ollama up).
+tasks.named<Test>("jvmTest") {
+    if (!project.hasProperty("ollamaLive")) {
+        filter { excludeTestsMatching("*OllamaLiveTest") }
     }
 }
