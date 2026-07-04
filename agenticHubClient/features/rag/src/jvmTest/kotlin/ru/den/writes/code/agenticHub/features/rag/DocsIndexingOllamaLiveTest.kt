@@ -17,10 +17,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-// The Day-21 deliverable end-to-end on a real corpus: read the repo's markdown docs
-// (~30 pages), compare 3 chunking strategies, embed with the real Ollama model, save
-// a JSON index with metadata, and query it. Opt-in live test (gated as *LiveTest; see
-// LIVE_TESTS.md) — run with -PliveTests. Resolves everything from the real production graph.
+// End-to-end indexing of a real corpus: read the repo's markdown docs, compare the
+// chunking strategies, embed with the real Ollama model, save a JSON index with
+// metadata, and query it. Opt-in live test (gated as *LiveTest; see LIVE_TESTS.md) —
+// run with -PliveTests. Resolves everything from the real production graph.
 class DocsIndexingOllamaLiveTest {
 
     private val koin = koinApplication {
@@ -34,9 +34,9 @@ class DocsIndexingOllamaLiveTest {
         val docs = loadMarkdownCorpus(root)
         val totalChars = docs.sumOf { it.text.length }
         println("[corpus] ${docs.size} markdown docs, $totalChars chars (~${totalChars / 3000} pages)")
-        assertTrue(totalChars >= 60_000, "corpus too small ($totalChars chars) — expected 20-30+ pages")
+        assertTrue(totalChars >= 60_000, "corpus too small ($totalChars chars) — need a substantial multi-doc corpus")
 
-        // усиление: compare chunking strategies over the whole corpus
+        // compare the chunking strategies over the whole corpus
         val strategies = mapOf(
             "fixed(1000,ov100)" to FixedSizeChunking(chunkSize = 1000, overlap = 100),
             "token(400,ov40)" to TokenChunking(tokensPerChunk = 400, overlap = 40),
