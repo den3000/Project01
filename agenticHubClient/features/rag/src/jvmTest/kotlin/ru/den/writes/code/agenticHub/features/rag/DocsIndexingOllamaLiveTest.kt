@@ -16,7 +16,6 @@ import ru.den.writes.code.agenticHub.platform.network.di.networkModule
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 // Indexing a real corpus (the repo's markdown docs) with the real Ollama model. One
@@ -75,7 +74,7 @@ class DocsIndexingOllamaLiveTest {
         val index = pipeline.index(docs)
         val indexStore = koin.get<IndexStore>()
         indexStore.save(index, indexPath)
-        val loadedIndex = assertNotNull(indexStore.load(indexPath), "index did not reload from $indexPath")
+        val loadedIndex = requireNotNull(indexStore.load(indexPath)) { "index did not reload from $indexPath" }
         val retriever = koin.get<Retriever> { parametersOf(loadedIndex) }
         val hits = retriever.retrieve(DI_QUERY, topK = 5)
 
@@ -99,7 +98,7 @@ class DocsIndexingOllamaLiveTest {
         val index = pipeline.index(docs)
         val indexStore = koin.get<IndexStore>()
         indexStore.save(index, indexPath)
-        val loadedIndex = assertNotNull(indexStore.load(indexPath), "index did not reload from $indexPath")
+        val loadedIndex = requireNotNull(indexStore.load(indexPath)) { "index did not reload from $indexPath" }
         val retriever = koin.get<Retriever> { parametersOf(loadedIndex) }
         val hits = retriever.retrieve(DI_QUERY, topK = 5)
 
@@ -123,7 +122,7 @@ class DocsIndexingOllamaLiveTest {
         val index = pipeline.index(docs)
         val indexStore = koin.get<IndexStore>()
         indexStore.save(index, indexPath)
-        val loadedIndex = assertNotNull(indexStore.load(indexPath), "index did not reload from $indexPath")
+        val loadedIndex = requireNotNull(indexStore.load(indexPath)) { "index did not reload from $indexPath" }
         val retriever = koin.get<Retriever> { parametersOf(loadedIndex) }
         val hits = retriever.retrieve(DI_QUERY, topK = 5)
 
