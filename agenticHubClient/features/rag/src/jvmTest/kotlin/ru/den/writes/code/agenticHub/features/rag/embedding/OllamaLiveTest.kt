@@ -1,11 +1,5 @@
 package ru.den.writes.code.agenticHub.features.rag.embedding
 
-import io.ktor.client.HttpClient
-import io.ktor.client.request.get
-import io.ktor.http.isSuccess
-import kotlinx.coroutines.test.TestResult
-import kotlinx.coroutines.test.runTest
-import org.junit.Assume.assumeTrue
 import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.rag.Retriever
 import ru.den.writes.code.agenticHub.features.rag.VECTOR_SEARCH_SECTION
@@ -13,6 +7,7 @@ import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
 import ru.den.writes.code.agenticHub.features.rag.di.ragModule
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
 import ru.den.writes.code.agenticHub.features.rag.knowledgeDoc
+import ru.den.writes.code.agenticHub.features.rag.liveOllamaTest
 import ru.den.writes.code.agenticHub.platform.network.di.networkModule
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,10 +15,10 @@ import kotlin.test.assertTrue
 
 // Opt-in: excluded from the normal jvmTest run (build.gradle excludes *OllamaLiveTest),
 // enabled with `-PollamaLive` (or `ollamaLive=true` in ~/.gradle/gradle.properties so
-// Android Studio's gutter-run picks it up). Each test still probes reachability and
-// Assume-skips if Ollama isn't up. Package `...embedding` to reach the internal
-// `cosineSimilarity`. The graph resolves the real production binding (ragModule's
-// OllamaEmbedder over networkModule's HttpClient) against a live model.
+// Android Studio's gutter-run picks it up). Reachability skip lives in liveOllamaTest.
+// Package `...embedding` to reach the internal `cosineSimilarity`. The graph resolves
+// the real production binding (ragModule's OllamaEmbedder over networkModule's
+// HttpClient) against a live model.
 class OllamaLiveTest {
 
     // One koin per test method (JUnit4 makes a fresh test instance per @Test → a fresh
@@ -31,7 +26,7 @@ class OllamaLiveTest {
     private val koin = koinApplication { modules(ragModule, networkModule) }.koin
 
     @Test
-    fun `when embedding one text - then a non-empty vector comes back`() = liveTest {
+    fun `when embedding one text - then a non-empty vector comes back`() = liveOllamaTest(koin) {
         // given
         val embedder = koin.get<Embedder>()
 
@@ -44,7 +39,7 @@ class OllamaLiveTest {
     }
 
     @Test
-    fun `when embedding a batch - then vectors align and share one dimension`() = liveTest {
+    fun `when embedding a batch - then vectors align and share one dimension`() = liveOllamaTest(koin) {
         // given
         val embedder = koin.get<Embedder>()
 
@@ -57,7 +52,7 @@ class OllamaLiveTest {
     }
 
     @Test
-    fun `when texts are semantically related - then their cosine exceeds an unrelated pair`() = liveTest {
+    fun `when texts are semantically related - then their cosine exceeds an unrelated pair`() = liveOllamaTest(koin) {
         // given
         val embedder = koin.get<Embedder>()
         val vectors = embedder.embed(
@@ -77,7 +72,7 @@ class OllamaLiveTest {
     }
 
     @Test
-    fun `when indexed and queried through the real model - then the relevant section ranks first`() = liveTest {
+    fun `when indexed and queried through the real model - then the relevant section ranks first`() = liveOllamaTest(koin) {
         // given
         val embedder = koin.get<Embedder>()
         val index = IndexingPipeline(StructuralChunking(), embedder).index(listOf(knowledgeDoc()))
@@ -88,23 +83,5 @@ class OllamaLiveTest {
 
         // then
         assertEquals(VECTOR_SEARCH_SECTION, actual.single().chunk.metadata.section)
-    }
-
-    private fun liveTest(block: suspend () -> Unit): TestResult = runTest {
-        assumeOllamaUp()
-        block()
-    }
-
-    private suspend fun assumeOllamaUp() {
-        val reachable = try {
-            koin.get<HttpClient>().get("$OLLAMA_BASE/api/tags").status.isSuccess()
-        } catch (_: Exception) {
-            false
-        }
-        assumeTrue("Ollama not reachable at $OLLAMA_BASE — skipping live test", reachable)
-    }
-
-    private companion object {
-        const val OLLAMA_BASE = "http://localhost:11434"
     }
 }

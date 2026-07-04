@@ -1,11 +1,5 @@
 package ru.den.writes.code.agenticHub.features.rag
 
-import io.ktor.client.HttpClient
-import io.ktor.client.request.get
-import io.ktor.http.isSuccess
-import kotlinx.coroutines.test.TestResult
-import kotlinx.coroutines.test.runTest
-import org.junit.Assume.assumeTrue
 import org.koin.core.parameter.parametersOf
 import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.rag.chunking.FixedSizeChunking
@@ -34,7 +28,7 @@ class DocsIndexingOllamaLiveTest {
     }.koin
 
     @Test
-    fun `when the project docs are indexed with the real model - then a JSON index with metadata is built and queryable`() = liveTest {
+    fun `when the project docs are indexed with the real model - then a JSON index with metadata is built and queryable`() = liveOllamaTest(koin) {
         // given — real corpus: every markdown doc in the repo (README / CLAUDE.md / DI.md / per-module READMEs)
         val root = repoRoot()
         val docs = loadMarkdownCorpus(root)
@@ -106,23 +100,5 @@ class DocsIndexingOllamaLiveTest {
             dir = dir.parentFile ?: error("repo root (settings.gradle.kts) not found from ${File("").absolutePath}")
         }
         return dir
-    }
-
-    private fun liveTest(block: suspend () -> Unit): TestResult = runTest {
-        assumeOllamaUp()
-        block()
-    }
-
-    private suspend fun assumeOllamaUp() {
-        val reachable = try {
-            koin.get<HttpClient>().get("$OLLAMA_BASE/api/tags").status.isSuccess()
-        } catch (_: Exception) {
-            false
-        }
-        assumeTrue("Ollama not reachable at $OLLAMA_BASE — skipping live test", reachable)
-    }
-
-    private companion object {
-        const val OLLAMA_BASE = "http://localhost:11434"
     }
 }
