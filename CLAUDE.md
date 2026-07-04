@@ -56,6 +56,8 @@ iOS-bundle-id остались на `project01` (это идентификато
 - Инспекция БД: `sqlite3 ~/.project01-cli/history.db ".schema"`.
 - MCP-демо / TUI-прогон / real-network smoke — жгут токены или нужен настоящий TTY: **спрашивать**
   (детали — [cliJvmApp README](agenticHubClient/apps/cliJvmApp/README.md)).
+- **Live-тесты** (бьют по реальному сервису, напр. локальной Ollama) — opt-in, класс `*LiveTest`,
+  исключены из дефолтного прогона; запуск флагом `-PliveTests`. Механизм/конвенция — [LIVE_TESTS.md](LIVE_TESTS.md).
 
 ## Кросс-каттинг
 
