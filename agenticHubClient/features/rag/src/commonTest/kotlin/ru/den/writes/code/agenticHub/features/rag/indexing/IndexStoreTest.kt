@@ -36,7 +36,8 @@ class IndexStoreTest {
     @Test
     fun `when loading absent path - then null`() {
         // given
-        val store = IndexStore(koin.get<LocalFileSystem>())
+        val fs = koin.get<LocalFileSystem>()
+        val store = IndexStore(fs)
 
         // when
         val actual = store.load("nowhere/missing.json")
