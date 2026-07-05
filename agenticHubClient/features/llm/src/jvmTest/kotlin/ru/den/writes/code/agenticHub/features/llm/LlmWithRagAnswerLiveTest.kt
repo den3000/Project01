@@ -60,7 +60,7 @@ class LlmWithRagAnswerLiveTest {
      * [liveOllamaTest].
      */
     private suspend fun assertRagComparison(llmApi: LlmApi, label: String) {
-        val index = koin.get<IndexingPipeline> { parametersOf(StructuralChunking()) }.index(listOf(HANDBOOK))
+        val index = koin.get<IndexingPipeline> { parametersOf(StructuralChunking()) }.index(listOf(BIG_HANDBOOK))
         val retriever = koin.get<Retriever> { parametersOf(index) }
         val params = GenerationParams(temperature = 0.0, maxTokens = 200, thinkingBudget = 0)
 

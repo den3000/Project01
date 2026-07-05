@@ -42,7 +42,7 @@ class LlmWithRagRerankerAnswerLiveTest {
      * per-run numbers are logged (RAG quality is empirical/model-dependent — see LIVE_TESTS.md).
      */
     private suspend fun assertRerankerLiftsGrounding(llmApi: LlmApi, label: String) {
-        val index = koin.get<IndexingPipeline> { parametersOf(StructuralChunking()) }.index(listOf(HANDBOOK))
+        val index = koin.get<IndexingPipeline> { parametersOf(StructuralChunking()) }.index(listOf(BIG_HANDBOOK))
         val retriever = koin.get<Retriever> { parametersOf(index) }
         val rewriter = ModelQueryRewriter(llmApi)
         val reranker = ModelReranker(llmApi, threshold = RERANK_THRESHOLD, topKAfter = TOP_K_AFTER)

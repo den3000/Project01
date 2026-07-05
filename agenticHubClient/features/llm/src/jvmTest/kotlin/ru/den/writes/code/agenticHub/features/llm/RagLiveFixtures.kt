@@ -47,20 +47,22 @@ internal fun logComparison(label: String, outcomes: List<Outcome>, retrievalHits
     }
 }
 
-// A fictional internal handbook — facts the base model cannot know, so the difference
-// between the RAG and no-RAG answers is unambiguous. One H2 section per fact;
+// Two versions of a fictional internal handbook — facts the base model cannot know, so the
+// difference between the RAG and no-RAG answers is unambiguous. One H2 section per fact;
 // StructuralChunking maps each `## Heading` to a chunk's metadata.section.
 //
-// Every authoritative section that CARRIES an answer is drowned in non-answering noise of two
-// kinds: a topical sibling (same nouns, no number — "topically similar yet non-answering" from
-// the theory) and a question-mirroring sibling that echoes the very phrasing of the question
-// ("how long / how often / minimum … required") while still stating NO number. By cosine those
-// decoys sit at or above the real section, so a tight top-1 retrieval routinely hands the model
-// a decoy and the answer slips out of the window — the baseline drops below 10/10. Over-retrieving
-// a wider top-N and reranking by "does this passage actually answer?" (a CrossEncoder reads
-// passage+question jointly, which cosine cannot) pulls the real section back — see
-// LlmWithRagRerankerAnswerLiveTest.
-internal val HANDBOOK = SourceDocument(
+// SMALL_HANDBOOK: just the 10 authoritative sections, each answer in its own clean section. Nothing
+// competes with it, so plain top-K retrieval already scores 10/10 — the "RAG works, no second stage
+// needed" case.
+//
+// BIG_HANDBOOK: the same 10 answers drowned in [NOISE_SECTIONS] — for every answer two non-answering
+// decoys (a topical sibling with the same nouns, and a question-mirroring sibling that echoes the
+// very phrasing "how long / how often / minimum … required"), all stating NO number. By cosine those
+// decoys sit at or above the real section, so a tight top-1 retrieval hands the model a decoy and the
+// answer slips out of the window — the baseline collapses to ~1/10. Over-retrieving a wider top-N and
+// reranking by "does this passage actually answer?" (a CrossEncoder reads passage+question jointly,
+// which cosine cannot) pulls the real section back — see LlmWithRagRerankerAnswerLiveTest.
+internal val SMALL_HANDBOOK = SourceDocument(
     source = "handbook/zephyr.md",
     title = "Project Zephyr — Engineering Handbook",
     text = """
@@ -70,121 +72,129 @@ internal val HANDBOOK = SourceDocument(
         Every merge request in Project Zephyr requires exactly 3 approvals before it can be
         merged. The maximum review turnaround (SLA) is 12 hours.
 
-        ## Code Review Culture
-        Project Zephyr values thorough code review. Reviewers leave inline comments on a merge
-        request, request changes, and approve once their concerns are resolved. Good reviews
-        weigh correctness and readability over style nits, and mentor newer engineers.
-
         ## Deployment Windows
         Production deploys are permitted only on Tuesdays and Thursdays, between 10:00 and
         12:00 UTC. Deploys outside this window need VP sign-off.
 
-        ## Deployment Pipeline
-        The production deployment pipeline builds an artifact, runs smoke tests, and promotes
-        the release. Every production deploy is logged and announced in the release channel.
-
         ## On-Call Rotation
         The on-call rotation lasts 5 days and is handed over every Monday at 09:00 UTC.
-
-        ## On-Call Responsibilities
-        The on-call engineer watches dashboards, acknowledges pages, and coordinates the
-        response. On-call duties are shared fairly across the rotation and tracked in the
-        scheduling tool.
 
         ## Incident Severity
         There are four severity levels. A SEV-1 incident must receive a first response
         within 15 minutes; lower severities are handled best-effort.
 
-        ## Incident Response
-        When a SEV-1 incident is declared, the responder opens a channel, assigns a scribe, and
-        drives the incident toward mitigation. A postmortem follows every SEV-1.
-
         ## Branching Model
         Project Zephyr is trunk-based: a feature branch must merge within 2 days, and every
         branch uses the `zephyr/` name prefix.
-
-        ## Feature Development
-        Feature work starts from a short design note. Engineers open a feature branch, push
-        early, and keep the change small so the review of the branch stays quick.
 
         ## Secrets Management
         All secrets live in HashiCorp Vault and are rotated every 90 days. Plaintext secrets
         committed to source control are forbidden.
 
-        ## Secret Storage
-        Project Zephyr keeps its secrets out of source control. Application code reads each
-        secret from the Vault agent at runtime; nothing sensitive is baked into the image.
-
         ## Data Retention
         Application logs are retained for 30 days; database backups are kept for 1 year.
-
-        ## Logging Practices
-        Application logs are shipped to the central log store and searchable by request id.
-        Structured logging is required so dashboards and alerts can be built on the logs.
 
         ## Release Cadence
         A new version ships every two weeks, following the CalVer versioning scheme.
 
-        ## Versioning Scheme
-        Project Zephyr uses CalVer for its version numbers. Each release is tagged, a changelog
-        is generated, and the artifact is published to the internal registry.
-
         ## Testing Requirements
         A merge is blocked below 80% line coverage on the changed modules.
-
-        ## Test Strategy
-        Tests span unit, integration, and end-to-end layers. Line coverage is measured per
-        module and reported on every merge request so gaps are visible.
 
         ## Support SLA
         Production support must acknowledge a ticket within 4 hours, with a resolution
         target of 3 business days.
-
-        ## Support Process
-        Production support triages incoming tickets, tags them by severity, and routes each
-        ticket to the owning team. An acknowledged ticket gets status updates until resolved.
-
-        ## Merge Requirements
-        Before a Project Zephyr merge request can be merged it must pass the required checks and
-        gather the necessary approvals from reviewers. The exact bar is enforced by branch
-        protection, not by convention.
-
-        ## Production Deployment
-        Whether a production deployment is allowed on a given day for Project Zephyr depends on the
-        deployment calendar and any active change freeze. Check the calendar before you ship.
-
-        ## Rotation Schedule
-        How long each Project Zephyr on-call rotation lasts is defined in the rotation schedule and
-        can vary by team. The scheduling tool is the source of truth for handoff timing.
-
-        ## Response Times
-        The first-response time for a SEV-1 incident is tracked against the incident SLA. Response
-        timers start the moment the incident is declared and stop at first human acknowledgement.
-
-        ## Branch Lifetime
-        The maximum lifetime of a feature branch before it must be merged is governed by the
-        trunk-based policy — long-lived branches are discouraged and flagged by tooling.
-
-        ## Secret Rotation
-        How often secrets are rotated in Project Zephyr is set by the security policy and enforced
-        by Vault. Rotation is automated so engineers never handle raw credentials.
-
-        ## Log Retention
-        How long application logs are retained in Project Zephyr is defined by the data-retention
-        policy and may differ between environments. Retention is enforced by the log store.
-
-        ## Shipping Cadence
-        The release cadence for Project Zephyr — how often a new release is shipped — follows the
-        team roadmap and the CalVer tags. Releases go out on a regular schedule.
-
-        ## Coverage Gate
-        The minimum line coverage required to merge in Project Zephyr is enforced by the CI coverage
-        gate on the changed modules. Merges that lower coverage are blocked automatically.
-
-        ## Acknowledgement SLA
-        Within how long production support must acknowledge a ticket is defined by the support SLA
-        and tracked per ticket. The clock starts when the ticket is filed.
     """.trimIndent(),
+)
+
+// Two decoys per answer (10 topical + 10 question-mirroring), appended to SMALL_HANDBOOK to make
+// BIG_HANDBOOK. None of them states a number — they only sit close to the question in vector space.
+private val NOISE_SECTIONS = """
+    ## Code Review Culture
+    Project Zephyr values thorough code review. Reviewers leave inline comments on a merge
+    request, request changes, and approve once their concerns are resolved. Good reviews
+    weigh correctness and readability over style nits, and mentor newer engineers.
+
+    ## Deployment Pipeline
+    The production deployment pipeline builds an artifact, runs smoke tests, and promotes
+    the release. Every production deploy is logged and announced in the release channel.
+
+    ## On-Call Responsibilities
+    The on-call engineer watches dashboards, acknowledges pages, and coordinates the
+    response. On-call duties are shared fairly across the rotation and tracked in the
+    scheduling tool.
+
+    ## Incident Response
+    When a SEV-1 incident is declared, the responder opens a channel, assigns a scribe, and
+    drives the incident toward mitigation. A postmortem follows every SEV-1.
+
+    ## Feature Development
+    Feature work starts from a short design note. Engineers open a feature branch, push
+    early, and keep the change small so the review of the branch stays quick.
+
+    ## Secret Storage
+    Project Zephyr keeps its secrets out of source control. Application code reads each
+    secret from the Vault agent at runtime; nothing sensitive is baked into the image.
+
+    ## Logging Practices
+    Application logs are shipped to the central log store and searchable by request id.
+    Structured logging is required so dashboards and alerts can be built on the logs.
+
+    ## Versioning Scheme
+    Project Zephyr uses CalVer for its version numbers. Each release is tagged, a changelog
+    is generated, and the artifact is published to the internal registry.
+
+    ## Test Strategy
+    Tests span unit, integration, and end-to-end layers. Line coverage is measured per
+    module and reported on every merge request so gaps are visible.
+
+    ## Support Process
+    Production support triages incoming tickets, tags them by severity, and routes each
+    ticket to the owning team. An acknowledged ticket gets status updates until resolved.
+
+    ## Merge Requirements
+    Before a Project Zephyr merge request can be merged it must pass the required checks and
+    gather the necessary approvals from reviewers. The exact bar is enforced by branch
+    protection, not by convention.
+
+    ## Production Deployment
+    Whether a production deployment is allowed on a given day for Project Zephyr depends on the
+    deployment calendar and any active change freeze. Check the calendar before you ship.
+
+    ## Rotation Schedule
+    How long each Project Zephyr on-call rotation lasts is defined in the rotation schedule and
+    can vary by team. The scheduling tool is the source of truth for handoff timing.
+
+    ## Response Times
+    The first-response time for a SEV-1 incident is tracked against the incident SLA. Response
+    timers start the moment the incident is declared and stop at first human acknowledgement.
+
+    ## Branch Lifetime
+    The maximum lifetime of a feature branch before it must be merged is governed by the
+    trunk-based policy — long-lived branches are discouraged and flagged by tooling.
+
+    ## Secret Rotation
+    How often secrets are rotated in Project Zephyr is set by the security policy and enforced
+    by Vault. Rotation is automated so engineers never handle raw credentials.
+
+    ## Log Retention
+    How long application logs are retained in Project Zephyr is defined by the data-retention
+    policy and may differ between environments. Retention is enforced by the log store.
+
+    ## Shipping Cadence
+    The release cadence for Project Zephyr — how often a new release is shipped — follows the
+    team roadmap and the CalVer tags. Releases go out on a regular schedule.
+
+    ## Coverage Gate
+    The minimum line coverage required to merge in Project Zephyr is enforced by the CI coverage
+    gate on the changed modules. Merges that lower coverage are blocked automatically.
+
+    ## Acknowledgement SLA
+    Within how long production support must acknowledge a ticket is defined by the support SLA
+    and tracked per ticket. The clock starts when the ticket is filed.
+""".trimIndent()
+
+internal val BIG_HANDBOOK = SMALL_HANDBOOK.copy(
+    text = SMALL_HANDBOOK.text + "\n\n" + NOISE_SECTIONS,
 )
 
 // The 10 control questions with their fixed expectations (source + expected answer fragment).
