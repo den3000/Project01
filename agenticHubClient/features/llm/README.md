@@ -28,8 +28,13 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
   не зависит от llm. `jvmTest` дополнительно тянет `platform:config` (BuildKonfig для Gemini live-теста).
 
 ## Тесты
-`./gradlew :agenticHubClient:features:llm:jvmTest` — `*ApiTest` (gemini/openrouter/huggingface/ollama,
-offline, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`, `LlmFactoriesTest`.
+- Offline (по умолчанию): `./gradlew :agenticHubClient:features:llm:jvmTest` — `*ApiTest`
+  (gemini/openrouter/huggingface/ollama, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`,
+  `LlmFactoriesTest`, `OllamaChatDtoTest`; live-тесты (`*LiveTest`) исключены центральным гейтом.
+- Live (`-PliveTests`, `jvmTest`): `LocalOllamaApiLiveTest` (генерация в локальную Ollama),
+  `LlmWithRagAnswerLiveTest` (día-22 RAG-сравнение с индексом/без на 10 контрольных вопросах — два
+  теста: Ollama и **реальный Gemini**; Gemini жжёт токены и требует `GEMINI_API_KEY`, ретривел всегда
+  через локальную Ollama). Механизм — [LIVE_TESTS.md](../../../LIVE_TESTS.md).
 
 ## Грабли
 - **Ktor engine — `Java`, не CIO** (CIO рвёт длинные thinking-ответы Gemini). Движок задаёт апп.

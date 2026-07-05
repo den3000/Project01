@@ -44,7 +44,8 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
 - `api(ktor-client-core)` (`HttpClient` протекает через публичный конструктор `OllamaEmbedder`),
   `implementation(platform:fileSystem)` (персист индекса), `implementation(platform:logging)`,
   `serialization-json`, `koin.core`, `coroutines-core`. **Модуль не зависит от `features:llm`** —
-  оркестрация «retrieve → генерация ответа» живёт над обоими leaf-модулями.
+  наоборот, `features:llm` тянет rag (`api`) ради `RagContextMapper` (сборка grounding-промпта из
+  `ScoredChunk`); полная оркестрация двухрежимного RAG-ответа живёт выше rag (в agent/CLI).
 
 ## Тесты
 - Offline (по умолчанию): `./gradlew :agenticHubClient:features:rag:jvmTest` — на фейках/детерминированном
