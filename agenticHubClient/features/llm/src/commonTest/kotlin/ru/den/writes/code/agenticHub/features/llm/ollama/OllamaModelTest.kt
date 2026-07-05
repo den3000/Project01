@@ -6,19 +6,34 @@ import kotlin.test.assertEquals
 class OllamaModelTest {
 
     @Test
-    fun `fromId resolves every Known tag back to its enum entry`() {
+    fun `when fromId is given a Known tag - then it resolves to that enum entry`() {
         OllamaModel.Known.entries.forEach { known ->
-            assertEquals(known, OllamaModel.fromId(known.id))
+            // when
+            val actual = OllamaModel.fromId(known.id)
+
+            // then
+            assertEquals(known, actual, "tag ${known.id} should resolve to $known")
         }
     }
 
     @Test
-    fun `fromId falls back to Custom for an unpulled tag`() {
-        assertEquals(OllamaModel.Custom("mistral-small:24b"), OllamaModel.fromId("mistral-small:24b"))
+    fun `when fromId is given an unpulled tag - then it falls back to Custom`() {
+        // given
+        val tag = "mistral-small:24b"
+
+        // when
+        val actual = OllamaModel.fromId(tag)
+
+        // then
+        assertEquals(OllamaModel.Custom(tag), actual)
     }
 
     @Test
-    fun `Default is a Known generative tag`() {
-        assertEquals(OllamaModel.Known.Gemma4_26b, OllamaModel.Default)
+    fun `when Default is read - then it is a Known generative tag`() {
+        // when
+        val actual = OllamaModel.Default
+
+        // then
+        assertEquals(OllamaModel.Known.Gemma4_26b, actual)
     }
 }

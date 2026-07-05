@@ -3,33 +3,42 @@ package ru.den.writes.code.agenticHub.features.llm
 import ru.den.writes.code.agenticHub.features.llm.ollama.OllamaModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
 
 class LlmFactoriesTest {
 
     @Test
-    fun `buildModelProvider resolves ollama without any api key`() {
-        val mp = buildModelProvider(
-            providerRaw = PROVIDER_OLLAMA,
-            modelRaw = null,
-            geminiApiKey = "",
-            openRouterApiKey = "",
-            huggingFaceApiKey = "",
-        )
-        assertTrue(mp is ModelProvider.LocalOllama)
-        assertEquals(OllamaModel.Default.id, mp.modelId)
-        assertEquals("http://localhost:11434/api/chat", mp.endpoint)
+    fun `when buildModelProvider is given ollama - then it resolves without an api key`() {
+        // given
+        val provider = PROVIDER_OLLAMA
+
+        // when
+        val actual = buildModelProviderWithBlankKeys(provider, modelRaw = null)
+
+        // then
+        assertIs<ModelProvider.LocalOllama>(actual)
+        assertEquals(OllamaModel.Default.id, actual.modelId)
+        assertEquals("http://localhost:11434/api/chat", actual.endpoint)
     }
 
     @Test
-    fun `buildModelProvider forwards an explicit ollama tag verbatim`() {
-        val mp = buildModelProvider(
-            providerRaw = PROVIDER_OLLAMA,
-            modelRaw = "gemma3:27b",
+    fun `when buildModelProvider is given an explicit ollama tag - then it is forwarded verbatim`() {
+        // given
+        val tag = "gemma3:27b"
+
+        // when
+        val actual = buildModelProviderWithBlankKeys(PROVIDER_OLLAMA, modelRaw = tag)
+
+        // then
+        assertEquals(tag, actual.modelId)
+    }
+
+    private fun buildModelProviderWithBlankKeys(provider: String, modelRaw: String?): ModelProvider =
+        buildModelProvider(
+            providerRaw = provider,
+            modelRaw = modelRaw,
             geminiApiKey = "",
             openRouterApiKey = "",
             huggingFaceApiKey = "",
         )
-        assertEquals("gemma3:27b", mp.modelId)
-    }
 }
