@@ -10,6 +10,8 @@ import ru.den.writes.code.agenticHub.features.rag.embedding.OllamaEmbedder
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexStore
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
 import ru.den.writes.code.agenticHub.features.rag.indexing.VectorIndex
+import ru.den.writes.code.agenticHub.features.rag.rerank.LexicalReranker
+import ru.den.writes.code.agenticHub.features.rag.rerank.Reranker
 
 /**
  * Bindings shared by both [ragModule] and [ragTestModule] — the pieces that don't
@@ -21,10 +23,14 @@ import ru.den.writes.code.agenticHub.features.rag.indexing.VectorIndex
  * the graph. Nothing here binds an [Embedder] — [ragModule] binds the network
  * ([OllamaEmbedder]) one, [ragTestModule] binds [EmbedderFake] — so resolving
  * [IndexingPipeline] / [Retriever] needs one of those modules composed in too.
+ *
+ * The [Reranker] is bound to the offline [LexicalReranker] here (its default, model-free
+ * signal is safe in both graphs); a model-backed CrossEncoder is a features:llm concern.
  */
 private val sharedRagModule: Module = module {
     factory { (chunking: ChunkingStrategy) -> IndexingPipeline(chunking, embedder = get()) }
     factory { (index: VectorIndex) -> Retriever(embedder = get(), index = index) }
+    factory<Reranker> { LexicalReranker() }
 }
 
 /**

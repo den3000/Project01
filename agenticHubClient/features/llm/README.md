@@ -12,6 +12,10 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
   (`POST /api/chat`, без ключа, `baseUrl` настраивается); эмбеддинги живут в `features:rag`.
 - `Tool.kt` — `ToolDefinition`/`ToolCall`/`fun interface ToolExecutor` (нейтральные tool-типы) +
   `McpToolRouter.kt` (generic над `ToolExecutor`: объединяет несколько executor'ов, роутит по имени).
+- RAG-обвязка над `features:rag`: `RagContextMapper.ragChunksToContextMessage(List<ScoredChunk>)`
+  (grounding-промпт из найденных чанков); `QueryRewriter` (fun interface + `Identity` + `ModelQueryRewriter`
+  — перефраз запроса перед retrieval); `ModelReranker` — модельный CrossEncoder-`Reranker` (реализует
+  rag-интерфейс через per-candidate скоринг «отвечает ли пассаж на запрос» + порог + topK-after).
 - `pricing/ModelPricing.kt` — `ModelPricing`/`PricingRegistry` (**single source of truth по ценам**).
 - `LlmFactories.kt` — `buildLlmApi`/`buildModelProvider`(+`ModelProviderError`).
 - `di/`: `llmModule` — `factory<LlmApi> { (mp: ModelProvider) -> buildLlmApi(mp, get()) }` (`ModelProvider`
@@ -28,8 +32,16 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
   не зависит от llm. `jvmTest` дополнительно тянет `platform:config` (BuildKonfig для Gemini live-теста).
 
 ## Тесты
-`./gradlew :agenticHubClient:features:llm:jvmTest` — `*ApiTest` (gemini/openrouter/huggingface/ollama,
-offline, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`, `LlmFactoriesTest`.
+- Offline (по умолчанию): `./gradlew :agenticHubClient:features:llm:jvmTest` — `*ApiTest`
+  (gemini/openrouter/huggingface/ollama, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`,
+  `LlmFactoriesTest`, `OllamaChatDtoTest`; live-тесты (`*LiveTest`) исключены центральным гейтом.
+- Live (`-PliveTests`, `jvmTest`): `LocalOllamaApiLiveTest` (генерация в локальную Ollama),
+  `LlmWithRagAnswerLiveTest` (baseline без реранка, сетка 2×2 с пином grounding: `SMALL_HANDBOOK` top-3
+  → 10/10, `BIG_HANDBOOK` top-1 → 1/10, каждое через Ollama и **реальный Gemini**) и
+  `LlmWithRagRerankerAnswerLiveTest` (те же 10 вопросов на `BIG_HANDBOOK`: plain top-K vs
+  rewrite+CrossEncoder-реранк поднимает 1/10 → 10/10; варианты через Ollama и Gemini). Gemini жжёт
+  токены и требует `GEMINI_API_KEY`; ретривел всегда через локальную Ollama. Общий корпус/метрики —
+  `RagLiveFixtures`. Механизм — [LIVE_TESTS.md](../../../LIVE_TESTS.md).
 
 ## Грабли
 - **Ktor engine — `Java`, не CIO** (CIO рвёт длинные thinking-ответы Gemini). Движок задаёт апп.

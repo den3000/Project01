@@ -67,11 +67,16 @@ probe-`HttpClient`.
 - **`features:llm`** (нужна локальная Ollama + генеративная модель, по умолчанию `gemma4:26b`;
   тег переопределяется через `-Dollama.chat.model=<tag>`):
   - `LocalOllamaApiLiveTest` — генерация через `POST /api/chat` (простой вопрос + system-инструкция).
-  - `LlmWithRagAnswerLiveTest` — «первый RAG-запрос»: **10 контрольных вопросов** по фиктивной базе
-    (Project Zephyr handbook) с индексом vs без индекса, полный пайплайн rag (chunk→embed→index→retrieve).
-    База, вопросы (с зафиксированными ожиданием+источником), сравнение и метрики (retrieval/grounding как
-    доля, порог 8/10) — в самом файле. Два теста:
-    - `…run through Ollama…` — генерация локально (`LocalOllamaApi`, default `gemma4:26b`).
-    - `…run through Gemini…` — генерация через **реальный Gemini** (**жжёт токены**, нужен `GEMINI_API_KEY`,
-      иначе skip); эмбеддинги всё равно локальные.
-    Обоим нужен `ollama pull nomic-embed-text`. Общий probe/модель — в `LlmWithRagLiveSupport`.
+  - `LlmWithRagAnswerLiveTest` — baseline (без второго этапа): **10 контрольных вопросов**, полный
+    пайплайн rag (chunk→embed→index→retrieve). Сетка 2×2 с **пином** grounding, наглядно «чистый vs
+    зашумлённый корпус» на обоих провайдерах:
+    - `SMALL_HANDBOOK` (10 чистых секций), top-3 → пин **10/10** — через Ollama и через Gemini.
+    - `BIG_HANDBOOK` (каждый ответ завален decoy), top-1 → пин **1/10** — через Ollama и через Gemini.
+    Retrieval детерминирован → пины стабильны. Gemini-строки **жгут токены**, нужен `GEMINI_API_KEY`
+    (иначе skip). Корпус/вопросы/метрики — в `RagLiveFixtures`.
+  - `LlmWithRagRerankerAnswerLiveTest` — те же 10 вопросов на `BIG_HANDBOOK` двумя путями: plain top-K vs
+    query-rewrite → over-retrieve top-N → `ModelReranker` (CrossEncoder) → top-K-after. Ассерт
+    относительный: reranked grounding не ниже baseline и `>= n - MAX_MISSES` (замер: 1/10 → 10/10). Два
+    теста по провайдеру rewrite/rerank/ответа: `…through Ollama…` (бесплатно) и `…through Gemini…`
+    (**жжёт токены** — вызов модели на каждый кандидат, нужен `GEMINI_API_KEY`).
+    Всем нужен `ollama pull nomic-embed-text`. Общий probe/модель — в `LlmWithRagLiveSupport`.
