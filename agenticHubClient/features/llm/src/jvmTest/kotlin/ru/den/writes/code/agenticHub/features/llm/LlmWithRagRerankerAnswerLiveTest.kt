@@ -1,8 +1,11 @@
 package ru.den.writes.code.agenticHub.features.llm
 
+import org.junit.Assume.assumeTrue
 import org.koin.core.parameter.parametersOf
 import org.koin.dsl.koinApplication
+import ru.den.writes.code.agenticHub.BuildKonfig
 import ru.den.writes.code.agenticHub.features.llm.di.llmModule
+import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.features.rag.Retriever
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
 import ru.den.writes.code.agenticHub.features.rag.di.ragModule
@@ -13,18 +16,20 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 // Opt-in live test (see LIVE_TESTS.md): excluded unless `-PliveTests`. The reranked counterpart
-// of LlmWithRagAnswerLiveTest — same corpus, same 10 [CONTROL_QUESTIONS], same grounding metric.
-// Shows the second RAG stage earning its keep: on the noisy handbook a plain top-K baseline lets
-// the answer slip out of the window, but rewriting the query and reranking a wider pool with a
-// CrossEncoder ("does this passage answer the question?") pulls it back. Needs local Ollama up
-// (`ollama pull nomic-embed-text` for embeddings + a chat tag for generation); rewrite/rerank use
-// the SAME local model as the answer, so the whole test is free and offline-of-the-cloud.
+// of LlmWithRagAnswerLiveTest — same BIG_HANDBOOK, same 10 [CONTROL_QUESTIONS], same grounding
+// metric. Shows the second RAG stage earning its keep: on the noisy handbook a plain top-K baseline
+// lets the answer slip out of the window, but rewriting the query and reranking a wider pool with a
+// CrossEncoder ("does this passage answer the question?") pulls it back. Retrieval always embeds via
+// local Ollama (`ollama pull nomic-embed-text`). Two rows by who does the rewrite+rerank+answer:
+//   - Ollama — the same local chat model; free and offline-of-the-cloud;
+//   - Gemini — the REAL Gemini API for QueryRewriter + ModelReranker + answer: BURNS TOKENS (a
+//     model call per candidate × question), needs `GEMINI_API_KEY`, else skip.
 class LlmWithRagRerankerAnswerLiveTest {
 
     private val koin = koinApplication { modules(llmModule, ragModule, networkModule) }.koin
 
     @Test
-    fun `when the same questions run reranked vs plain top-K - then rewrite plus rerank lifts grounding`() =
+    fun `when reranked through Ollama - then rewrite plus rerank lifts grounding`() =
         liveOllamaTest(koin) {
             // given
             val llmApi = koin.get<LlmApi> { parametersOf(ModelProvider.LocalOllama(model = liveChatModel())) }
@@ -32,6 +37,20 @@ class LlmWithRagRerankerAnswerLiveTest {
             // when / then
             assertRerankerLiftsGrounding(llmApi, label = "ollama ${liveChatModel().id}")
         }
+
+    @Test
+    fun `when reranked through Gemini - then rewrite plus rerank lifts grounding`() {
+        assumeTrue("GEMINI_API_KEY not set — skipping Gemini live test", BuildKonfig.GEMINI_API_KEY.isNotBlank())
+        liveOllamaTest(koin) {
+            // given — Gemini drives QueryRewriter + ModelReranker + answer; embeddings stay local
+            val llmApi = koin.get<LlmApi> {
+                parametersOf(ModelProvider.Gemini(model = GeminiModel.Default, apiKey = BuildKonfig.GEMINI_API_KEY))
+            }
+
+            // when / then
+            assertRerankerLiftsGrounding(llmApi, label = "gemini ${GeminiModel.Default.id}")
+        }
+    }
 
     /**
      * Answer every [CONTROL_QUESTIONS] entry twice off the same index: once the plain way
