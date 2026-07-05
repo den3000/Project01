@@ -50,6 +50,15 @@ internal fun logComparison(label: String, outcomes: List<Outcome>, retrievalHits
 // A fictional internal handbook — facts the base model cannot know, so the difference
 // between the RAG and no-RAG answers is unambiguous. One H2 section per fact;
 // StructuralChunking maps each `## Heading` to a chunk's metadata.section.
+//
+// Each authoritative "…Policy/Windows/Rotation/…" section that CARRIES an answer is shadowed
+// by a sibling section that shares its vocabulary (same nouns the question uses) but states NO
+// number — the "topically similar yet non-answering" noise from the theory. By cosine those
+// siblings sit right next to the real section, so a small top-K often retrieves the noise and
+// pushes the answer out of the window: the baseline (topK=3, no rerank) drops below 10/10.
+// Over-retrieving a wider top-N and reranking by "does this passage actually answer?" (a
+// CrossEncoder reads passage+question jointly, which cosine cannot) pulls the answer back — see
+// LlmWithRagRerankerAnswerLiveTest.
 internal val HANDBOOK = SourceDocument(
     source = "handbook/zephyr.md",
     title = "Project Zephyr — Engineering Handbook",
@@ -60,37 +69,79 @@ internal val HANDBOOK = SourceDocument(
         Every merge request in Project Zephyr requires exactly 3 approvals before it can be
         merged. The maximum review turnaround (SLA) is 12 hours.
 
+        ## Code Review Culture
+        Project Zephyr values thorough code review. Reviewers leave inline comments on a merge
+        request, request changes, and approve once their concerns are resolved. Good reviews
+        weigh correctness and readability over style nits, and mentor newer engineers.
+
         ## Deployment Windows
         Production deploys are permitted only on Tuesdays and Thursdays, between 10:00 and
         12:00 UTC. Deploys outside this window need VP sign-off.
 
+        ## Deployment Pipeline
+        The production deployment pipeline builds an artifact, runs smoke tests, and promotes
+        the release. Every production deploy is logged and announced in the release channel.
+
         ## On-Call Rotation
         The on-call rotation lasts 5 days and is handed over every Monday at 09:00 UTC.
+
+        ## On-Call Responsibilities
+        The on-call engineer watches dashboards, acknowledges pages, and coordinates the
+        response. On-call duties are shared fairly across the rotation and tracked in the
+        scheduling tool.
 
         ## Incident Severity
         There are four severity levels. A SEV-1 incident must receive a first response
         within 15 minutes; lower severities are handled best-effort.
 
+        ## Incident Response
+        When a SEV-1 incident is declared, the responder opens a channel, assigns a scribe, and
+        drives the incident toward mitigation. A postmortem follows every SEV-1.
+
         ## Branching Model
         Project Zephyr is trunk-based: a feature branch must merge within 2 days, and every
         branch uses the `zephyr/` name prefix.
+
+        ## Feature Development
+        Feature work starts from a short design note. Engineers open a feature branch, push
+        early, and keep the change small so the review of the branch stays quick.
 
         ## Secrets Management
         All secrets live in HashiCorp Vault and are rotated every 90 days. Plaintext secrets
         committed to source control are forbidden.
 
+        ## Secret Storage
+        Project Zephyr keeps its secrets out of source control. Application code reads each
+        secret from the Vault agent at runtime; nothing sensitive is baked into the image.
+
         ## Data Retention
         Application logs are retained for 30 days; database backups are kept for 1 year.
+
+        ## Logging Practices
+        Application logs are shipped to the central log store and searchable by request id.
+        Structured logging is required so dashboards and alerts can be built on the logs.
 
         ## Release Cadence
         A new version ships every two weeks, following the CalVer versioning scheme.
 
+        ## Versioning Scheme
+        Project Zephyr uses CalVer for its version numbers. Each release is tagged, a changelog
+        is generated, and the artifact is published to the internal registry.
+
         ## Testing Requirements
         A merge is blocked below 80% line coverage on the changed modules.
+
+        ## Test Strategy
+        Tests span unit, integration, and end-to-end layers. Line coverage is measured per
+        module and reported on every merge request so gaps are visible.
 
         ## Support SLA
         Production support must acknowledge a ticket within 4 hours, with a resolution
         target of 3 business days.
+
+        ## Support Process
+        Production support triages incoming tickets, tags them by severity, and routes each
+        ticket to the owning team. An acknowledged ticket gets status updates until resolved.
     """.trimIndent(),
 )
 
