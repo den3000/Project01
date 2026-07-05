@@ -36,11 +36,12 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
   (gemini/openrouter/huggingface/ollama, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`,
   `LlmFactoriesTest`, `OllamaChatDtoTest`; live-тесты (`*LiveTest`) исключены центральным гейтом.
 - Live (`-PliveTests`, `jvmTest`): `LocalOllamaApiLiveTest` (генерация в локальную Ollama),
-  `LlmWithRagAnswerLiveTest` (baseline RAG-сравнение с индексом/без на 10 контрольных вопросах — два
-  теста: Ollama и **реальный Gemini**; Gemini жжёт токены и требует `GEMINI_API_KEY`, ретривел всегда
-  через локальную Ollama) и `LlmWithRagRerankerAnswerLiveTest` (те же 10 вопросов: plain top-K vs
-  rewrite+CrossEncoder-реранк — второй этап поднимает grounding; rewrite/rerank на той же локальной
-  Ollama). Общий корпус/метрики — `RagLiveFixtures`. Механизм — [LIVE_TESTS.md](../../../LIVE_TESTS.md).
+  `LlmWithRagAnswerLiveTest` (baseline без реранка, сетка 2×2 с пином grounding: `SMALL_HANDBOOK` top-3
+  → 10/10, `BIG_HANDBOOK` top-1 → 1/10, каждое через Ollama и **реальный Gemini**) и
+  `LlmWithRagRerankerAnswerLiveTest` (те же 10 вопросов на `BIG_HANDBOOK`: plain top-K vs
+  rewrite+CrossEncoder-реранк поднимает 1/10 → 10/10; варианты через Ollama и Gemini). Gemini жжёт
+  токены и требует `GEMINI_API_KEY`; ретривел всегда через локальную Ollama. Общий корпус/метрики —
+  `RagLiveFixtures`. Механизм — [LIVE_TESTS.md](../../../LIVE_TESTS.md).
 
 ## Грабли
 - **Ktor engine — `Java`, не CIO** (CIO рвёт длинные thinking-ответы Gemini). Движок задаёт апп.
