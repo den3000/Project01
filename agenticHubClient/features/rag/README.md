@@ -41,9 +41,10 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
   `factory<Embedder> { EmbedderFake() }` (offline, перекрывает Ollama). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
-- `api(features:llm)` (`LlmApi`/`Message` протекают через порты для будущего reranking/генерации;
-  транзитивно ktor-core + coroutines), `implementation(platform:fileSystem)` (персист индекса),
-  `implementation(platform:logging)`, `serialization-json`, `koin.core`.
+- `api(ktor-client-core)` (`HttpClient` протекает через публичный конструктор `OllamaEmbedder`),
+  `implementation(platform:fileSystem)` (персист индекса), `implementation(platform:logging)`,
+  `serialization-json`, `koin.core`, `coroutines-core`. **Модуль не зависит от `features:llm`** —
+  оркестрация «retrieve → генерация ответа» живёт над обоими leaf-модулями.
 
 ## Тесты
 - Offline (по умолчанию): `./gradlew :agenticHubClient:features:rag:jvmTest` — на фейках/детерминированном

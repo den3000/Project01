@@ -1,14 +1,15 @@
 # :agenticHubClient:features:llm — provider-нейтральное LLM-ядро
 
 KMP-модуль: единый контракт к chat-style LLM + реализации по провайдерам (Gemini/OpenRouter/
-Hugging Face) + tool-типы, ценовой реестр и generic tool-роутер. `HttpClient` инжектится снаружи
-(движок в апп-модуле), так что ядро остаётся портируемым.
+Hugging Face/локальная Ollama) + tool-типы, ценовой реестр и generic tool-роутер. `HttpClient`
+инжектится снаружи (движок в апп-модуле), так что ядро остаётся портируемым.
 
 ## Публичный API
 - `LlmApi` + нейтральные `Message`/`Role`/`GenerationParams`(вкл. `thinkingBudget`)/`Usage`/
   `LlmResult` (`LlmApi.kt`); `ModelProvider` (sealed-дискриминатор, `ModelProvider.kt`).
-- Провайдеры `gemini|openrouter|huggingface/` — `*Api` (реализация `LlmApi`) + `*Dto` + `*Model`
-  (typed каталог + `Custom`).
+- Провайдеры `gemini|openrouter|huggingface|ollama/` — `*Api` (реализация `LlmApi`) + `*Dto` + `*Model`
+  (typed каталог + `Custom`). `ollama/LocalOllamaApi` — генеративный chat к локальной Ollama
+  (`POST /api/chat`, без ключа, `baseUrl` настраивается); эмбеддинги живут в `features:rag`.
 - `Tool.kt` — `ToolDefinition`/`ToolCall`/`fun interface ToolExecutor` (нейтральные tool-типы) +
   `McpToolRouter.kt` (generic над `ToolExecutor`: объединяет несколько executor'ов, роутит по имени).
 - `pricing/ModelPricing.kt` — `ModelPricing`/`PricingRegistry` (**single source of truth по ценам**).
@@ -21,11 +22,14 @@ Hugging Face) + tool-типы, ценовой реестр и generic tool-ро�
 
 ## Зависимости
 - `api(ktor.client.core)` + `api(kotlinx.coroutinesCore)` (протекают через публичные `*Api`),
-  `implementation(platform:logging)` + `implementation(koin.core)` (для di). Лист в доменном слое (`agent`→`llm`).
+  `implementation(platform:logging)` + `implementation(koin.core)` (для di).
+- `api(features:rag)` — `RagContextMapper.ragChunksToContextMessage(List<ScoredChunk>)` (сборка
+  grounding-промпта для RAG-ответа) торчит `ScoredChunk` в публичной сигнатуре. Цикла нет: `features:rag`
+  не зависит от llm. `jvmTest` дополнительно тянет `platform:config` (BuildKonfig для Gemini live-теста).
 
 ## Тесты
-`./gradlew :agenticHubClient:features:llm:jvmTest` — `*ApiTest` (gemini/openrouter/huggingface,
-offline, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`.
+`./gradlew :agenticHubClient:features:llm:jvmTest` — `*ApiTest` (gemini/openrouter/huggingface/ollama,
+offline, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`, `LlmFactoriesTest`.
 
 ## Грабли
 - **Ktor engine — `Java`, не CIO** (CIO рвёт длинные thinking-ответы Gemini). Движок задаёт апп.
@@ -41,6 +45,15 @@ offline, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`.
 - **HF Router** маршрутизирует между провайдерами — цены в `ModelPricing.kt` для HF *приближения*;
   503 при cold start → одна retry с `Retry-After`. Каталог: `https://router.huggingface.co/v1/models`.
 - **flash-lite TPM 4M** — боттлнек нагрузочных прогонов (rate-limit раньше переполнения контекста).
+- **Ollama**: токен-кап зовётся `num_predict` (не `max_tokens`), `temperature`/`stop` — внутри `options`;
+  теги (`OllamaModel`) зависят от локально спуленных моделей → основной путь `Custom`, не `Known`. В
+  `PricingRegistry` не заводим (локально бесплатно; lookup→null).
+- **Ollama `stream` без дефолта — намеренно**: при `encodeDefaults=false` (наш JSON) поле, равное
+  дефолту, выпадает с wire → Ollama стримит NDJSON → `NoTransformationFound`. Поле без дефолта уходит
+  всегда (регресс — `OllamaChatDtoTest`).
+- **Ollama thinking-модели** (gemma4/qwen3.5): reasoning идёт в отдельное поле `message.thinking`, при
+  малом `num_predict` весь бюджет уходит туда, а `content` пуст. `GenerationParams.thinkingBudget`
+  маппится в top-level `think` (0 → off, >0 → on, null → дефолт модели).
 - **`McpToolRouter`: коллизия имён инструментов между серверами — fail-fast `require`** на старте
   (модель не должна видеть неоднозначный каталог).
 - **`*Api` не печатают `>>>>`-debug в stdout** — прямой `println` рушил Kotter в TUI и порядок в plain.

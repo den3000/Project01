@@ -24,12 +24,13 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // RAG domain (chunking / embeddings / index / retrieval). LLM types
-            // (LlmApi/Message) surface through the ports for later reranking and
-            // answer generation → api. The built index is persisted as JSON via
-            // the filesystem port; embedding is suspend → coroutines. @Serializable
+            // RAG domain (chunking / embeddings / index / retrieval), a standalone
+            // leaf: it does NOT depend on features:llm — retrieve→answer orchestration
+            // lives above both modules. HttpClient leaks through the public OllamaEmbedder
+            // constructor → api(ktor-client-core). The built index is persisted as JSON
+            // via the filesystem port; embedding is suspend → coroutines. @Serializable
             // on the index model needs the serialization plugin + json runtime.
-            api(projects.agenticHubClient.features.llm)
+            api(libs.ktor.client.core)
             implementation(projects.agenticHubClient.platform.fileSystem)
             implementation(projects.agenticHubClient.platform.logging)
             implementation(libs.kotlinx.coroutinesCore)

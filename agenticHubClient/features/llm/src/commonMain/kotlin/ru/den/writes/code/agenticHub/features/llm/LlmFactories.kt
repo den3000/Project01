@@ -5,12 +5,15 @@ import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiApi
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.features.llm.huggingface.HuggingFaceApi
 import ru.den.writes.code.agenticHub.features.llm.huggingface.HuggingFaceModel
+import ru.den.writes.code.agenticHub.features.llm.ollama.LocalOllamaApi
+import ru.den.writes.code.agenticHub.features.llm.ollama.OllamaModel
 import ru.den.writes.code.agenticHub.features.llm.openrouter.OpenRouterApi
 import ru.den.writes.code.agenticHub.features.llm.openrouter.OpenRouterModel
 
 public const val PROVIDER_GEMINI: String = "gemini"
 public const val PROVIDER_OPENROUTER: String = "openrouter"
 public const val PROVIDER_HUGGINGFACE: String = "huggingface"
+public const val PROVIDER_OLLAMA: String = "ollama"
 
 /** Gemini API limit on the number of stop sequences. */
 public const val MAX_STOP_SEQUENCES: Int = 5
@@ -34,6 +37,7 @@ public fun buildLlmApi(mp: ModelProvider, client: HttpClient): LlmApi = when (mp
     is ModelProvider.Gemini -> GeminiApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
     is ModelProvider.OpenRouter -> OpenRouterApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
     is ModelProvider.HuggingFace -> HuggingFaceApi(httpClient = client, apiKey = mp.apiKey, model = mp.model)
+    is ModelProvider.LocalOllama -> LocalOllamaApi(httpClient = client, model = mp.model, baseUrl = mp.baseUrl)
 }
 
 /**
@@ -69,5 +73,9 @@ public fun buildModelProvider(
             apiKey = huggingFaceApiKey,
         )
     }
+    PROVIDER_OLLAMA -> ModelProvider.LocalOllama(
+        // Local server, no credentials — the api keys above are irrelevant here.
+        model = modelRaw?.let(OllamaModel.Companion::fromId) ?: OllamaModel.Default,
+    )
     else -> throw ModelProviderError.UnknownProvider(providerRaw)
 }

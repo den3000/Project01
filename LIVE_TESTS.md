@@ -64,3 +64,14 @@ probe-`HttpClient`.
   - `OllamaLiveTest` — реальный embed, семантическая близость, end-to-end retrieve.
   - `DocsIndexingOllamaLiveTest` — индексация реального корпуса (markdown репо) с сохранением
     JSON-индекса и метаданных; сравнение стратегий чанкинга.
+- **`features:llm`** (нужна локальная Ollama + генеративная модель, по умолчанию `gemma4:26b`;
+  тег переопределяется через `-Dollama.chat.model=<tag>`):
+  - `LocalOllamaApiLiveTest` — генерация через `POST /api/chat` (простой вопрос + system-инструкция).
+  - `LlmWithRagAnswerLiveTest` — «первый RAG-запрос»: **10 контрольных вопросов** по фиктивной базе
+    (Project Zephyr handbook) с индексом vs без индекса, полный пайплайн rag (chunk→embed→index→retrieve).
+    База, вопросы (с зафиксированными ожиданием+источником), сравнение и метрики (retrieval/grounding как
+    доля, порог 8/10) — в самом файле. Два теста:
+    - `…run through Ollama…` — генерация локально (`LocalOllamaApi`, default `gemma4:26b`).
+    - `…run through Gemini…` — генерация через **реальный Gemini** (**жжёт токены**, нужен `GEMINI_API_KEY`,
+      иначе skip); эмбеддинги всё равно локальные.
+    Обоим нужен `ollama pull nomic-embed-text`. Общий probe/модель — в `LlmWithRagLiveSupport`.

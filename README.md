@@ -18,6 +18,8 @@ KMP-проект на Compose Multiplatform (Android, iOS, Desktop/JVM) плюс
 - [features:composeApp](./agenticHubClient/features/composeApp) — Compose-MP демо-UI + iOS-фреймворк
   `ComposeApp`.
 - [features:mcpClient](./agenticHubClient/features/mcpClient) — `McpToolClient` (MCP-сервер как `ToolExecutor`).
+- [features:rag](./agenticHubClient/features/rag) — RAG-ядро: чанкинг (fixed/token/structural),
+  эмбеддинги (`Embedder` + `OllamaEmbedder`), векторный индекс с косинусным поиском, JSON-персист.
 - lifecycle: [command](./agenticHubClient/features/lifecycle/command) (словарь запуска/конфига) ·
   [session](./agenticHubClient/features/lifecycle/session) (MVI-runtime) ·
   [start](./agenticHubClient/features/lifecycle/start) (первоначальный запуск).
@@ -25,7 +27,8 @@ KMP-проект на Compose Multiplatform (Android, iOS, Desktop/JVM) плюс
 **`agenticHubClient/platform/`** — платформенные порты:
 - [logging](./agenticHubClient/platform/logging) · [config](./agenticHubClient/platform/config)
   (API-ключи через BuildKonfig) · [database](./agenticHubClient/platform/database) (Room-KMP) ·
-  [fileSystem](./agenticHubClient/platform/fileSystem) · [greeting](./agenticHubClient/platform/greeting)
+  [fileSystem](./agenticHubClient/platform/fileSystem) · [network](./agenticHubClient/platform/network)
+  (общий `HttpClient`) · [greeting](./agenticHubClient/platform/greeting)
   (демо-домен).
 
 **`agenticHubClient/apps/`** — приложения:
@@ -75,6 +78,8 @@ openmeteo-mcp и cliJvmApp.
 - MCP-серверы: `./gradlew :playground:openmeteo-mcp:test :playground:localfs-mcp:test`
 - Планировщик: `./gradlew :scheduling:test`
 - iOS/Android доменных таргетов: `compileKotlinIosArm64` соответствующих KMP-модулей (features/platform).
+- **Live-тесты** (бьют по реальному сервису, напр. локальной Ollama) — opt-in, класс `*LiveTest`,
+  флаг `-PliveTests`; механизм — [LIVE_TESTS.md](./LIVE_TESTS.md).
 
 ---
 
