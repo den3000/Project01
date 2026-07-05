@@ -26,6 +26,11 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.agenticHubClient.platform.logging)
 
+            // RagContextMapper (retrieved chunks → grounding Message) is production
+            // glue for RAG-answering; ScoredChunk leaks through its public signature
+            // → api(features:rag). No cycle: features:rag does NOT depend on llm.
+            api(projects.agenticHubClient.features.rag)
+
             // Domain core (LLM API + DTOs). The ktor engine is intentionally
             // absent — callers inject an HttpClient, so the HttpClient type
             // leaks through public *Api constructors via api(); coroutines
@@ -46,12 +51,11 @@ kotlin {
             // JVM-only live tests hitting a real local Ollama: platform:network gives the
             // shared HttpClient (Java engine + ContentNegotiation) via networkModule; junit
             // for the org.junit.Assume skip when Ollama isn't running (mirrors features:rag).
+            // features:rag comes transitively via commonMain api (RagContextMapper).
             implementation(projects.agenticHubClient.platform.network)
             implementation(libs.junit)
-            // Test-only: the RAG-comparison live test wires the full retrieval pipeline
-            // (chunk → embed → index → retrieve) and feeds it into LocalOllamaApi. No cycle —
-            // features:rag does NOT depend on features:llm; the seam lives here, in test scope.
-            implementation(projects.agenticHubClient.features.rag)
+            // platform:config exposes BuildKonfig — the Gemini live test reads GEMINI_API_KEY.
+            implementation(projects.agenticHubClient.platform.config)
         }
     }
 }

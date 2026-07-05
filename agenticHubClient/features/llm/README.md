@@ -22,7 +22,10 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
 
 ## Зависимости
 - `api(ktor.client.core)` + `api(kotlinx.coroutinesCore)` (протекают через публичные `*Api`),
-  `implementation(platform:logging)` + `implementation(koin.core)` (для di). Лист в доменном слое (`agent`→`llm`).
+  `implementation(platform:logging)` + `implementation(koin.core)` (для di).
+- `api(features:rag)` — `RagContextMapper.ragChunksToContextMessage(List<ScoredChunk>)` (сборка
+  grounding-промпта для RAG-ответа) торчит `ScoredChunk` в публичной сигнатуре. Цикла нет: `features:rag`
+  не зависит от llm. `jvmTest` дополнительно тянет `platform:config` (BuildKonfig для Gemini live-теста).
 
 ## Тесты
 `./gradlew :agenticHubClient:features:llm:jvmTest` — `*ApiTest` (gemini/openrouter/huggingface/ollama,

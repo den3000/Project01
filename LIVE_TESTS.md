@@ -67,6 +67,8 @@ probe-`HttpClient`.
 - **`features:llm`** (нужна локальная Ollama + генеративная модель, по умолчанию `gemma4:26b`;
   тег переопределяется через `-Dollama.chat.model=<tag>`):
   - `LocalOllamaApiLiveTest` — генерация через `POST /api/chat` (простой вопрос + system-инструкция).
-  - `RagAnswerLiveTest` — «первый RAG-запрос»: тот же вопрос с индексом vs без индекса, полный
-    пайплайн rag (chunk→embed→index→retrieve) + `LocalOllamaApi`. Дополнительно нужен
-    `ollama pull nomic-embed-text` (эмбеддер).
+  - `LlmWithRagOllamaAnswerLiveTest` — «первый RAG-запрос» с ЛОКАЛЬНОЙ моделью: тот же вопрос с индексом
+    vs без индекса, полный пайплайн rag (chunk→embed→index→retrieve) + `LocalOllamaApi`. Дополнительно
+    нужен `ollama pull nomic-embed-text` (эмбеддер). Общий каркас сравнения — `LlmWithRagLiveSupport`.
+  - `LlmWithRagGeminiAnswerLiveTest` — то же сравнение, но генерация через **реальный Gemini** (эмбеддинги
+    всё равно локальные). **Жжёт токены**; нужен `GEMINI_API_KEY` (иначе skip).
