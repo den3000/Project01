@@ -45,9 +45,12 @@ public class ModelReranker(
 
     private companion object {
         const val SCORE_INSTRUCTION =
-            "You are a relevance grader. Given a question and a passage, output how well the " +
-                "passage ANSWERS the question as a single number between 0 and 1 (1 = directly " +
-                "answers, 0 = irrelevant). Reply with ONLY the number."
+            "You are a relevance grader for retrieval. Given a question and a passage, output how " +
+                "well the passage ANSWERS the question as a single number between 0 and 1. Score " +
+                "close to 1 ONLY if the passage states the specific answer the question asks for " +
+                "(a concrete value, number, date, day, or name). Score close to 0 if the passage " +
+                "is merely on the same topic — or only says where the answer is defined — WITHOUT " +
+                "stating it. Reply with ONLY the number."
 
         // First bare number in the reply (e.g. "0.85", "1", "0"); coerced into [0,1] by the caller.
         val NUMBER = Regex("""\d+(?:\.\d+)?""")
