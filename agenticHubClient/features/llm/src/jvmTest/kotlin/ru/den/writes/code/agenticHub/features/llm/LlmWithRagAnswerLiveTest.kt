@@ -7,67 +7,78 @@ import ru.den.writes.code.agenticHub.BuildKonfig
 import ru.den.writes.code.agenticHub.features.llm.di.llmModule
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.features.rag.Retriever
+import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
 import ru.den.writes.code.agenticHub.features.rag.di.ragModule
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
 import ru.den.writes.code.agenticHub.platform.network.di.networkModule
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-// Opt-in live tests (see LIVE_TESTS.md): excluded unless `-PliveTests`. The baseline RAG-answer
-// comparison — the 10 [CONTROL_QUESTIONS] answered WITH the retrieved index vs WITHOUT it — run
-// through two generative providers. BOTH need local Ollama up: retrieval always embeds via
-// `nomic-embed-text` (`ollama pull nomic-embed-text`). The Ollama variant also generates locally
-// (default gemma4:26b, -Dollama.chat.model=<tag>); the Gemini variant generates via the REAL
-// Gemini API (BURNS TOKENS, needs GEMINI_API_KEY, else skip). Shared corpus/metrics live in
-// RagLiveFixtures; the reranked counterpart is LlmWithRagRerankerAnswerLiveTest.
+// Opt-in live tests (see LIVE_TESTS.md): excluded unless `-PliveTests`. The plain-RAG baseline (no
+// second stage) over the 10 [CONTROL_QUESTIONS], run as a 2×2 grid to make the point vivid:
+//   - SMALL_HANDBOOK (clean, each answer alone in its section) → top-3 retrieval pins at 10/10;
+//   - BIG_HANDBOOK   (each answer buried under decoys)         → tight top-1 pins at 1/10.
+// Both across two providers (Ollama-local and the REAL Gemini API). BOTH need local Ollama up:
+// retrieval always embeds via `nomic-embed-text` (`ollama pull nomic-embed-text`). The Gemini rows
+// BURN TOKENS and need `GEMINI_API_KEY` (else skip). The 1/10 is a *retrieval* failure the reranker
+// path recovers — see LlmWithRagRerankerAnswerLiveTest. Shared corpus/metrics live in RagLiveFixtures.
 class LlmWithRagAnswerLiveTest {
 
     private val koin = koinApplication { modules(llmModule, ragModule, networkModule) }.koin
 
     @Test
-    fun `when control questions run through Ollama with the index vs without - then both modes answer and RAG is grounded`() =
+    fun `when the small handbook runs through Ollama - then grounding pins at all ten`() =
         liveOllamaTest(koin) {
-            // given
-            val llmApi = koin.get<LlmApi> { parametersOf(ModelProvider.LocalOllama(model = liveChatModel())) }
-
-            // when / then
-            assertRagComparison(llmApi, label = "ollama ${liveChatModel().id}")
+            assertRagComparison(ollamaApi(), SMALL_HANDBOOK, topK = 3, pinnedGrounded = 10, label = "small · ollama ${liveChatModel().id}")
         }
 
     @Test
-    fun `when control questions run through Gemini with the index vs without - then both modes answer and RAG is grounded`() {
+    fun `when the small handbook runs through Gemini - then grounding pins at all ten`() {
         assumeTrue("GEMINI_API_KEY not set — skipping Gemini live test", BuildKonfig.GEMINI_API_KEY.isNotBlank())
         liveOllamaTest(koin) {
-            // given
-            val llmApi = koin.get<LlmApi> {
-                parametersOf(ModelProvider.Gemini(model = GeminiModel.Default, apiKey = BuildKonfig.GEMINI_API_KEY))
-            }
+            assertRagComparison(geminiApi(), SMALL_HANDBOOK, topK = 3, pinnedGrounded = 10, label = "small · gemini ${GeminiModel.Default.id}")
+        }
+    }
 
-            // when / then
-            assertRagComparison(llmApi, label = "gemini ${GeminiModel.Default.id}")
+    @Test
+    fun `when the big handbook runs through Ollama - then grounding collapses to one`() =
+        liveOllamaTest(koin) {
+            assertRagComparison(ollamaApi(), BIG_HANDBOOK, topK = 1, pinnedGrounded = 1, label = "big · ollama ${liveChatModel().id}")
+        }
+
+    @Test
+    fun `when the big handbook runs through Gemini - then grounding collapses to one`() {
+        assumeTrue("GEMINI_API_KEY not set — skipping Gemini live test", BuildKonfig.GEMINI_API_KEY.isNotBlank())
+        liveOllamaTest(koin) {
+            assertRagComparison(geminiApi(), BIG_HANDBOOK, topK = 1, pinnedGrounded = 1, label = "big · gemini ${GeminiModel.Default.id}")
         }
     }
 
     /**
-     * The baseline comparison, provider-agnostic: build the index end-to-end from the graph
-     * (real `OllamaEmbedder` via ragModule), then for every [CONTROL_QUESTIONS] entry answer
-     * WITH the retrieved context and WITHOUT it through [llmApi]. Asserts only truthfulness
-     * (both modes actually reply); retrieval and grounding are LOGGED, not asserted — with the
-     * noisy handbook this plain top-K baseline scores below 10/10, and that shortfall is the
-     * point (LlmWithRagRerankerAnswerLiveTest is where the strict bar lives). Call inside
-     * [liveOllamaTest].
+     * Plain-RAG baseline, provider-agnostic: build the index from [handbook] end-to-end (real
+     * `OllamaEmbedder` via ragModule), then for every [CONTROL_QUESTIONS] entry answer WITH the
+     * top-[topK] retrieved context and WITHOUT it through [llmApi]. Asserts truthfulness (both modes
+     * reply) and PINS grounding at [pinnedGrounded] — the 2×2 grid's whole point is that the pin is
+     * 10 on the clean handbook and 1 on the noisy one, with no reranking in between. Retrieval is
+     * deterministic (same embeddings), so the pins are stable; the per-question detail is logged.
+     * Call inside [liveOllamaTest].
      */
-    private suspend fun assertRagComparison(llmApi: LlmApi, label: String) {
-        val index = koin.get<IndexingPipeline> { parametersOf(StructuralChunking()) }.index(listOf(BIG_HANDBOOK))
+    private suspend fun assertRagComparison(
+        llmApi: LlmApi,
+        handbook: SourceDocument,
+        topK: Int,
+        pinnedGrounded: Int,
+        label: String,
+    ) {
+        val index = koin.get<IndexingPipeline> { parametersOf(StructuralChunking()) }.index(listOf(handbook))
         val retriever = koin.get<Retriever> { parametersOf(index) }
         val params = GenerationParams(temperature = 0.0, maxTokens = 200, thinkingBudget = 0)
 
         val outcomes = CONTROL_QUESTIONS.map { cq ->
-            // Tight top-1: on the noisy handbook a single decoy is enough to evict the answer, so
-            // this plain retrieval logs below 10/10 — the shortfall the reranker path recovers.
-            val chunks = retriever.retrieve(cq.question, topK = 1)
+            val chunks = retriever.retrieve(cq.question, topK = topK)
             Outcome(
                 question = cq,
                 chunks = chunks,
@@ -84,11 +95,16 @@ class LlmWithRagAnswerLiveTest {
             assertTrue(!o.withoutRag.text.isNullOrBlank(), "bare answer empty for \"${o.question.question}\"")
         }
 
-        // RAG quality as proportions (see LIVE_TESTS.md): retrieval hit = expected source among
-        // retrieved chunks; grounding hit = RAG answer carries the expected fact. Logged as the
-        // baseline to beat — not asserted (the noisy handbook makes this plain top-K miss some).
         val retrievalHits = outcomes.count { it.retrievalHit() }
         val groundedHits = outcomes.count { it.groundedHit() }
         logComparison(label, outcomes, retrievalHits, groundedHits)
+
+        assertEquals(pinnedGrounded, groundedHits, "grounding $groundedHits/${outcomes.size} != pinned $pinnedGrounded ($label)")
     }
+
+    private fun ollamaApi(): LlmApi =
+        koin.get { parametersOf(ModelProvider.LocalOllama(model = liveChatModel())) }
+
+    private fun geminiApi(): LlmApi =
+        koin.get { parametersOf(ModelProvider.Gemini(model = GeminiModel.Default, apiKey = BuildKonfig.GEMINI_API_KEY)) }
 }
