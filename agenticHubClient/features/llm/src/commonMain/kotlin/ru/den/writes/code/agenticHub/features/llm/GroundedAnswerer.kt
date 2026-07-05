@@ -7,7 +7,8 @@ import ru.den.writes.code.agenticHub.features.rag.indexing.ScoredChunk
  * just hoping the prompt holds. If there are no chunks, or the best chunk's score is below
  * [relevanceThreshold], it returns a "don't know, please clarify" answer WITHOUT calling the model
  * (cheap and truly enforced). Above the threshold it asks the model for a cited JSON answer via
- * [groundedAnswerPrompt] and parses it with [parseGroundedAnswer].
+ * [groundedAnswerPrompt], parses it with [parseGroundedAnswer], and re-anchors every citation to the
+ * real chunk it was quoted from via [groundedIn] (dropping any quote the corpus doesn't contain).
  *
  * [relevanceThreshold] is compared against whatever score the chunks carry — cosine from the
  * [Retriever][ru.den.writes.code.agenticHub.features.rag.Retriever], or a reranker's 0..1 relevance —
@@ -24,7 +25,7 @@ public class GroundedAnswerer(
             return GroundedAnswer(answer = DONT_KNOW, citations = emptyList(), isKnown = false)
         }
         val reply = llmApi.send(groundedAnswerPrompt(question, chunks), params)
-        return parseGroundedAnswer(reply.text.orEmpty())
+        return parseGroundedAnswer(reply.text.orEmpty()).groundedIn(chunks)
     }
 
     private companion object {

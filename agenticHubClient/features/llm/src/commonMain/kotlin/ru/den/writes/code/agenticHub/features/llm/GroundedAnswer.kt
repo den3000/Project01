@@ -87,6 +87,30 @@ public fun parseGroundedAnswer(reply: String): GroundedAnswer {
     }
 }
 
+/**
+ * Anchor an answer's citations to reality: for each citation find the retrieved chunk whose text
+ * actually contains the quote (whitespace-insensitive, verbatim), and rewrite its
+ * source/section/chunkId from that chunk's real metadata — so provenance comes from the corpus, not
+ * from whatever the model claimed. Citations whose quote appears in NO chunk are dropped as
+ * hallucinated. The model supplies the answer and the quote; the code decides where it came from.
+ */
+public fun GroundedAnswer.groundedIn(chunks: List<ScoredChunk>): GroundedAnswer {
+    val verified = citations.mapNotNull { c ->
+        val quote = normalizeWhitespace(c.quote)
+        val match = chunks.firstOrNull { quote.isNotBlank() && normalizeWhitespace(it.chunk.text).contains(quote) }
+        match?.let {
+            val m = it.chunk.metadata
+            c.copy(source = m.source, section = m.section, chunkId = m.chunkId)
+        }
+    }
+    return copy(citations = verified)
+}
+
+private fun normalizeWhitespace(text: String): String =
+    text.lowercase().replace(WHITESPACE, " ").trim()
+
+private val WHITESPACE = Regex("\\s+")
+
 private fun notKnown(reply: String): GroundedAnswer =
     GroundedAnswer(
         answer = reply.ifBlank { "I don't know based on the available context. Could you clarify or rephrase?" },
