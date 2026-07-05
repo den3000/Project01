@@ -12,6 +12,8 @@ import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderFake
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexStore
 import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
 import ru.den.writes.code.agenticHub.features.rag.knowledgeDoc
+import ru.den.writes.code.agenticHub.features.rag.rerank.LexicalReranker
+import ru.den.writes.code.agenticHub.features.rag.rerank.Reranker
 import ru.den.writes.code.agenticHub.features.rag.sampleIndex
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemTestModule
 import ru.den.writes.code.agenticHub.testutils.IgnoreIos
@@ -65,5 +67,14 @@ class RagModuleTest {
 
         // then
         assertIs<EmbedderFake>(actual)
+    }
+
+    @Test
+    fun `when graph resolves reranker - then it is the offline lexical one`() {
+        // given - when
+        val actual = koin.get<Reranker>()
+
+        // then
+        assertIs<LexicalReranker>(actual)
     }
 }
