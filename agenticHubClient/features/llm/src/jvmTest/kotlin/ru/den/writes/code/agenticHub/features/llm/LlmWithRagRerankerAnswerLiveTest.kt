@@ -87,13 +87,17 @@ class LlmWithRagRerankerAnswerLiveTest {
     }
 
     private companion object {
-        // Baseline window: the plain top-K a naive RAG turn would feed the model.
-        const val TOP_K = 3
+        // Baseline window: the plain top-K a naive RAG turn would feed the model. Deliberately
+        // tight (top-1) — with the noisy handbook a single decoy outranking the real section by
+        // cosine is enough to hand the model the wrong chunk and miss the fact.
+        const val TOP_K = 1
 
-        // Reranked path: over-retrieve a wider pool, then reranker keeps the best TOP_K_AFTER —
-        // same count the baseline feeds, so the comparison isolates *which* chunks, not how many.
-        const val TOP_N = 8
-        const val TOP_K_AFTER = 3
+        // Reranked path: over-retrieve a wide pool (the real section survives here even when decoys
+        // outscore it — with three "secret"-themed decoys the answer can sit well past top-10), then
+        // reranker keeps the best TOP_K_AFTER — the SAME count the baseline feeds, so the comparison
+        // isolates *which* chunk, not how many.
+        const val TOP_N = 15
+        const val TOP_K_AFTER = 1
 
         // Cutoff for "this passage doesn't answer the question" (model score in [0,1]).
         const val RERANK_THRESHOLD = 0.5

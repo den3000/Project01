@@ -51,13 +51,14 @@ internal fun logComparison(label: String, outcomes: List<Outcome>, retrievalHits
 // between the RAG and no-RAG answers is unambiguous. One H2 section per fact;
 // StructuralChunking maps each `## Heading` to a chunk's metadata.section.
 //
-// Each authoritative "…Policy/Windows/Rotation/…" section that CARRIES an answer is shadowed
-// by a sibling section that shares its vocabulary (same nouns the question uses) but states NO
-// number — the "topically similar yet non-answering" noise from the theory. By cosine those
-// siblings sit right next to the real section, so a small top-K often retrieves the noise and
-// pushes the answer out of the window: the baseline (topK=3, no rerank) drops below 10/10.
-// Over-retrieving a wider top-N and reranking by "does this passage actually answer?" (a
-// CrossEncoder reads passage+question jointly, which cosine cannot) pulls the answer back — see
+// Every authoritative section that CARRIES an answer is drowned in non-answering noise of two
+// kinds: a topical sibling (same nouns, no number — "topically similar yet non-answering" from
+// the theory) and a question-mirroring sibling that echoes the very phrasing of the question
+// ("how long / how often / minimum … required") while still stating NO number. By cosine those
+// decoys sit at or above the real section, so a tight top-1 retrieval routinely hands the model
+// a decoy and the answer slips out of the window — the baseline drops below 10/10. Over-retrieving
+// a wider top-N and reranking by "does this passage actually answer?" (a CrossEncoder reads
+// passage+question jointly, which cosine cannot) pulls the real section back — see
 // LlmWithRagRerankerAnswerLiveTest.
 internal val HANDBOOK = SourceDocument(
     source = "handbook/zephyr.md",
@@ -142,6 +143,47 @@ internal val HANDBOOK = SourceDocument(
         ## Support Process
         Production support triages incoming tickets, tags them by severity, and routes each
         ticket to the owning team. An acknowledged ticket gets status updates until resolved.
+
+        ## Merge Requirements
+        Before a Project Zephyr merge request can be merged it must pass the required checks and
+        gather the necessary approvals from reviewers. The exact bar is enforced by branch
+        protection, not by convention.
+
+        ## Production Deployment
+        Whether a production deployment is allowed on a given day for Project Zephyr depends on the
+        deployment calendar and any active change freeze. Check the calendar before you ship.
+
+        ## Rotation Schedule
+        How long each Project Zephyr on-call rotation lasts is defined in the rotation schedule and
+        can vary by team. The scheduling tool is the source of truth for handoff timing.
+
+        ## Response Times
+        The first-response time for a SEV-1 incident is tracked against the incident SLA. Response
+        timers start the moment the incident is declared and stop at first human acknowledgement.
+
+        ## Branch Lifetime
+        The maximum lifetime of a feature branch before it must be merged is governed by the
+        trunk-based policy — long-lived branches are discouraged and flagged by tooling.
+
+        ## Secret Rotation
+        How often secrets are rotated in Project Zephyr is set by the security policy and enforced
+        by Vault. Rotation is automated so engineers never handle raw credentials.
+
+        ## Log Retention
+        How long application logs are retained in Project Zephyr is defined by the data-retention
+        policy and may differ between environments. Retention is enforced by the log store.
+
+        ## Shipping Cadence
+        The release cadence for Project Zephyr — how often a new release is shipped — follows the
+        team roadmap and the CalVer tags. Releases go out on a regular schedule.
+
+        ## Coverage Gate
+        The minimum line coverage required to merge in Project Zephyr is enforced by the CI coverage
+        gate on the changed modules. Merges that lower coverage are blocked automatically.
+
+        ## Acknowledgement SLA
+        Within how long production support must acknowledge a ticket is defined by the support SLA
+        and tracked per ticket. The clock starts when the ticket is filed.
     """.trimIndent(),
 )
 

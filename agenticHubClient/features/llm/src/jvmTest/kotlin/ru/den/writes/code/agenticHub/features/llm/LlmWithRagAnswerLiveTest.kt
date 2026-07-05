@@ -65,7 +65,9 @@ class LlmWithRagAnswerLiveTest {
         val params = GenerationParams(temperature = 0.0, maxTokens = 200, thinkingBudget = 0)
 
         val outcomes = CONTROL_QUESTIONS.map { cq ->
-            val chunks = retriever.retrieve(cq.question, topK = 3)
+            // Tight top-1: on the noisy handbook a single decoy is enough to evict the answer, so
+            // this plain retrieval logs below 10/10 — the shortfall the reranker path recovers.
+            val chunks = retriever.retrieve(cq.question, topK = 1)
             Outcome(
                 question = cq,
                 chunks = chunks,
