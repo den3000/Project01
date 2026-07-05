@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 // (default gemma4:26b, -Dollama.chat.model=<tag>); the Gemini variant generates via the REAL
 // Gemini API (BURNS TOKENS, needs GEMINI_API_KEY, else skip). Shared probe/model helpers live in
 // LlmWithRagLiveSupport; the comparison + control set are file-local below.
-class LlmWithRagGeminiAnswerLiveTest {
+class LlmWithRagAnswerLiveTest {
 
     private val koin = koinApplication { modules(llmModule, ragModule, networkModule) }.koin
 
