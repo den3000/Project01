@@ -1,14 +1,15 @@
 # :agenticHubClient:features:rag — RAG-ядро (индексация и поиск)
 
 KMP-модуль: локальный пайплайн Retrieval-Augmented Generation — нарезка документов на чанки,
-эмбеддинги, векторный индекс с косинусным поиском и персист индекса. Доменное ядро с конструкторным
-DI и чистыми функциями; сеть/эмбеддер инжектится снаружи, так что ядро остаётся портируемым и
-тестируется на фейках без сети.
+эмбеддинги, векторный индекс с косинусным поиском, второй этап (реранкинг/фильтрация найденного) и
+персист индекса. Доменное ядро с конструкторным DI и чистыми функциями; сеть/эмбеддер инжектится
+снаружи, так что ядро остаётся портируемым и тестируется на фейках без сети.
 
 ## Публичный API
 
 Раскладка по пакетам: `chunking/` (модель + стратегии + сравнение), `embedding/` (`Embedder`/косинус/
-фейк), `indexing/` (индекс + пайплайн + персист); `Retriever` и `di/` — в корне модуля.
+фейк), `indexing/` (индекс + пайплайн + персист), `rerank/` (второй этап после поиска); `Retriever` и
+`di/` — в корне модуля.
 
 - **Модель** (`chunking/`): `SourceDocument(source,title,text)` → вход пайплайна; `Chunk(text,metadata)` +
   `ChunkMetadata(source,title,section,chunkId)` (`@Serializable`; метаданные едут на каждый чанк для
@@ -31,10 +32,16 @@ DI и чистыми функциями; сеть/эмбеддер инжект�
   сортировка). `cosineSimilarity` — `internal` (ранжирует только `VectorIndex.search`, наружу не отдаётся).
 - **Пайплайн**: `IndexingPipeline(chunking, embedder).index(docs)` → `VectorIndex`;
   `Retriever(embedder, index).retrieve(query, topK)` → `List<ScoredChunk>`.
+- **Реранк** (`rerank/`, второй этап после поиска — пере-скор кандидатов + отсечение по порогу +
+  topK-after): `Reranker` (fun interface, `suspend rerank(query, candidates)`) + `LexicalReranker(
+  threshold, topKAfter)` — оффлайн-реализация на перекрытии терминов запрос↔чанк (другой сигнал, чем
+  retrieval-косинус: отсекает «похожий-но-не-отвечающий» шум). Модельный CrossEncoder — в `features:llm`
+  (`ModelReranker`, ему нужен `LlmApi`; rag на llm не зависит).
 - **Персист**: `IndexStore(fs).save(index, path)` / `load(path)` — индекс как один JSON-документ через
   `LocalFileSystem` (absent → `null`).
 - **`di/`**: приватный `sharedRagModule` держит общие для прод и теста factory —
-  `IndexingPipeline` (на `ChunkingStrategy`) и `Retriever` (на `VectorIndex`); оба публичных модуля
+  `IndexingPipeline` (на `ChunkingStrategy`), `Retriever` (на `VectorIndex`) и `Reranker`
+  (→ `LexicalReranker`, оффлайн-сигнал безопасен в обоих графах); оба публичных модуля
   подключают его через `includes(...)` (без дублирования). `ragModule` = `sharedRagModule` +
   `single { IndexStore }` + `single<Embedder> { OllamaEmbedder(get()) }` (`HttpClient` — из
   `networkModule`/`platform:network`). `ragTestModule` = `sharedRagModule` + `factory { IndexStore }` +

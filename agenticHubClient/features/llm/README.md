@@ -12,6 +12,10 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
   (`POST /api/chat`, без ключа, `baseUrl` настраивается); эмбеддинги живут в `features:rag`.
 - `Tool.kt` — `ToolDefinition`/`ToolCall`/`fun interface ToolExecutor` (нейтральные tool-типы) +
   `McpToolRouter.kt` (generic над `ToolExecutor`: объединяет несколько executor'ов, роутит по имени).
+- RAG-обвязка над `features:rag`: `RagContextMapper.ragChunksToContextMessage(List<ScoredChunk>)`
+  (grounding-промпт из найденных чанков); `QueryRewriter` (fun interface + `Identity` + `ModelQueryRewriter`
+  — перефраз запроса перед retrieval); `ModelReranker` — модельный CrossEncoder-`Reranker` (реализует
+  rag-интерфейс через per-candidate скоринг «отвечает ли пассаж на запрос» + порог + topK-after).
 - `pricing/ModelPricing.kt` — `ModelPricing`/`PricingRegistry` (**single source of truth по ценам**).
 - `LlmFactories.kt` — `buildLlmApi`/`buildModelProvider`(+`ModelProviderError`).
 - `di/`: `llmModule` — `factory<LlmApi> { (mp: ModelProvider) -> buildLlmApi(mp, get()) }` (`ModelProvider`
@@ -32,9 +36,11 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
   (gemini/openrouter/huggingface/ollama, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`,
   `LlmFactoriesTest`, `OllamaChatDtoTest`; live-тесты (`*LiveTest`) исключены центральным гейтом.
 - Live (`-PliveTests`, `jvmTest`): `LocalOllamaApiLiveTest` (генерация в локальную Ollama),
-  `LlmWithRagAnswerLiveTest` (día-22 RAG-сравнение с индексом/без на 10 контрольных вопросах — два
+  `LlmWithRagAnswerLiveTest` (baseline RAG-сравнение с индексом/без на 10 контрольных вопросах — два
   теста: Ollama и **реальный Gemini**; Gemini жжёт токены и требует `GEMINI_API_KEY`, ретривел всегда
-  через локальную Ollama). Механизм — [LIVE_TESTS.md](../../../LIVE_TESTS.md).
+  через локальную Ollama) и `LlmWithRagRerankerAnswerLiveTest` (те же 10 вопросов: plain top-K vs
+  rewrite+CrossEncoder-реранк — второй этап поднимает grounding; rewrite/rerank на той же локальной
+  Ollama). Общий корпус/метрики — `RagLiveFixtures`. Механизм — [LIVE_TESTS.md](../../../LIVE_TESTS.md).
 
 ## Грабли
 - **Ktor engine — `Java`, не CIO** (CIO рвёт длинные thinking-ответы Gemini). Движок задаёт апп.
