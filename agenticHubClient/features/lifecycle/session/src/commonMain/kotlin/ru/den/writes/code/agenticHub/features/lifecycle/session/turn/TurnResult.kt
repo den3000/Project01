@@ -5,6 +5,7 @@ import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.rag.indexing.ScoredChunk
 
 /**
  * The outcome of one turn, as computed by `TurnEngine` WITHOUT any direct I/O.
@@ -42,6 +43,8 @@ public sealed interface TurnResult {
         val judgeModelId: String? = null,
         /** Tool calls the agent ran this turn (empty for a plain turn). */
         val executedToolCalls: List<ExecutedToolCall> = emptyList(),
+        /** RAG chunks retrieved and injected this turn (empty when RAG is off). */
+        val retrieval: List<ScoredChunk> = emptyList(),
     ) : TurnResult
 
     /** The turn failed (provider error or empty response). [reason] is the message. */

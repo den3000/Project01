@@ -59,4 +59,5 @@ private fun UiLine.toPlainView(): PlainView = when (this) {
     is UiLine.Error -> ErrorPlainView(reason)
     is UiLine.Notice -> NoticePlainView(text)
     is UiLine.MCPLine -> McpPlainView(calls, modelId)
+    is UiLine.RagLine -> RagPlainView(chunks)
 }

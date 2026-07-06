@@ -61,7 +61,7 @@ public fun buildSessionViewModel(
     val schedules = (cliArgs as? StartCommand.RunChat)?.config?.schedules.orEmpty()
     val schedulerEnabled = schedules.isNotEmpty()
     val engine = TurnEngine(
-        cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor,
+        cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor, ragControl,
     )
 
     val actions = mutableMapOf<String, ScheduleAction>()
