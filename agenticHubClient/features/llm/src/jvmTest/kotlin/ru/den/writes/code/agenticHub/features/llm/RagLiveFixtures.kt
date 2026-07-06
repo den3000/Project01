@@ -22,6 +22,7 @@ internal data class Outcome(
     val chunks: List<ScoredChunk>,
     val withRag: LlmResult,
     val withoutRag: LlmResult,
+    val citations: List<Citation> = emptyList(),
 )
 
 // retrieval hit = the expected source section is among the retrieved chunks.
@@ -44,6 +45,9 @@ internal fun logComparison(label: String, outcomes: List<Outcome>, retrievalHits
         println("  retrieval $r  top=${top?.chunk?.metadata?.section} (score=%.3f) · grounded $g".format(top?.score ?: 0.0))
         println("  no-RAG : ${o.withoutRag.text?.trim()?.replace("\n", " ")}")
         println("  + RAG  : ${o.withRag.text?.trim()?.replace("\n", " ")}")
+        o.citations.forEach { c ->
+            println("  cite   : [${c.source} › ${c.section} #${c.chunkId}] \"${c.quote.replace("\n", " ")}\"")
+        }
     }
 }
 
