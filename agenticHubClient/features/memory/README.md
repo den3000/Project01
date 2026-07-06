@@ -8,6 +8,8 @@ KMP-модуль, фундамент памяти (ниже `features:agent` в 
 - **Домен памяти**: `Profile` (`ProfileSection`/`ProfileData`/`parseProfileData`/`renderProfileData`),
   `MemoryLayer` (`composePreamble`/`composeSystem`), `MemoryMode`, `MemoryModels` (`RuleEntry`/
   `TaskNotes`), `TaskState` (`TaskStage` clarification→…→done + `TaskStateMachine` + `TaskBinding`).
+  `TaskNotes.goal`/`notes` задаются из REPL (`/task goal "<text>"` / `/task note "<text>"`) и
+  рендерятся в `MemoryLayer` каждый ход — держат цель диалога и уточнения.
 - **Компакция/контекст**: `HistoryCompressor` (rolling-summary, чистый) + `evenDown`;
   `ContextStrategy` (full/window/summary; `Summary` оборачивает `HistoryCompressor`) + `TurnContext`/
   `ContextStrategyKind`; `StickyFacts`/`FactsExtractor`.

@@ -39,12 +39,16 @@ KMP-модуль: локальный пайплайн Retrieval-Augmented Genera
   (`ModelReranker`, ему нужен `LlmApi`; rag на llm не зависит).
 - **Персист**: `IndexStore(fs).save(index, path)` / `load(path)` — индекс как один JSON-документ через
   `LocalFileSystem` (absent → `null`).
+- **`RagIndexer(embedder, indexStore)`**: `suspend index(document, path, chunking): Int` — «собери индекс
+  и запиши сюда» (chunk + embed + save), число чанков. Тонкая обёртка над `IndexingPipeline` для
+  admin-команды `-rag add <name> src <file>` (cliJvmApp пишет в `~/.project01-cli/rag/<name>.json`,
+  грузит обратно `/rag <name>`).
 - **`di/`**: приватный `sharedRagModule` держит общие для прод и теста factory —
   `IndexingPipeline` (на `ChunkingStrategy`), `Retriever` (на `VectorIndex`) и `Reranker`
   (→ `LexicalReranker`, оффлайн-сигнал безопасен в обоих графах); оба публичных модуля
   подключают его через `includes(...)` (без дублирования). `ragModule` = `sharedRagModule` +
   `single { IndexStore }` + `single<Embedder> { OllamaEmbedder(get()) }` (`HttpClient` — из
-  `networkModule`/`platform:network`). `ragTestModule` = `sharedRagModule` + `factory { IndexStore }` +
+  `networkModule`/`platform:network`) + `single { RagIndexer }`. `ragTestModule` = `sharedRagModule` + `factory { IndexStore }` +
   `factory<Embedder> { EmbedderFake() }` (offline, перекрывает Ollama). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
