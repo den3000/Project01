@@ -1,8 +1,11 @@
 package ru.den.writes.code.agenticHub.features.llm
 
+import org.junit.Assume.assumeTrue
 import org.koin.core.parameter.parametersOf
 import org.koin.dsl.koinApplication
+import ru.den.writes.code.agenticHub.BuildKonfig
 import ru.den.writes.code.agenticHub.features.llm.di.llmModule
+import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.features.rag.Retriever
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
 import ru.den.writes.code.agenticHub.features.rag.di.ragModule
@@ -18,11 +21,11 @@ import kotlin.test.assertTrue
 // the window, but rewriting the query and reranking a wider pool with a CrossEncoder ("does this
 // passage answer the question?") pulls it back (grounding 1/10 → 10/10). Answers go through
 // [GroundedAnswerer], so each logged turn also carries its source + verbatim quote (the `cite` line):
-// the baseline cites non-answering decoys, the reranked path cites the real section. Runs entirely on
-// local Ollama (`ollama pull nomic-embed-text` + a chat tag) — free. Ollama-only on purpose: the
-// per-candidate numeric rerank score and the JSON grounded answer are structured-output tasks that
-// gemini-2.5-flash returns empty for under these tight params, so a Gemini row here never produced a
-// result (the cross-provider comparison lives in LlmWithRagAnswerLiveTest instead).
+// the baseline cites non-answering decoys, the reranked path cites the real section. Retrieval always
+// embeds via local Ollama (`ollama pull nomic-embed-text`). Two rows by who does rewrite+rerank+answer:
+//   - Ollama — the same local chat model; free and offline-of-the-cloud;
+//   - Gemini — the REAL Gemini API: BURNS TOKENS (a model call per candidate × question), needs
+//     `GEMINI_API_KEY`, else skip.
 class LlmWithRagRerankerAnswerLiveTest {
 
     private val koin = koinApplication { modules(llmModule, ragModule, networkModule) }.koin
@@ -36,6 +39,20 @@ class LlmWithRagRerankerAnswerLiveTest {
             // when / then
             assertRerankerLiftsGrounding(llmApi, label = "ollama ${liveChatModel().id}")
         }
+
+    @Test
+    fun `when reranked through Gemini - then rewrite plus rerank lifts grounding`() {
+        assumeTrue("GEMINI_API_KEY not set — skipping Gemini live test", BuildKonfig.GEMINI_API_KEY.isNotBlank())
+        liveOllamaTest(koin) {
+            // given — Gemini drives QueryRewriter + ModelReranker + GroundedAnswerer; embeddings stay local
+            val llmApi = koin.get<LlmApi> {
+                parametersOf(ModelProvider.Gemini(model = GeminiModel.Default, apiKey = BuildKonfig.GEMINI_API_KEY))
+            }
+
+            // when / then
+            assertRerankerLiftsGrounding(llmApi, label = "gemini ${GeminiModel.Default.id}")
+        }
+    }
 
     /**
      * Answer every [CONTROL_QUESTIONS] entry twice off the same index: once the plain way (retrieve
