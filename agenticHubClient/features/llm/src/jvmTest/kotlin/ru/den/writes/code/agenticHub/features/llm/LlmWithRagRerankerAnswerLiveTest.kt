@@ -105,6 +105,7 @@ class LlmWithRagRerankerAnswerLiveTest {
             withRag = LlmResult(text = ans.answer),
             withoutRag = LlmResult(text = ""),
             citations = ans.citations,
+            isKnown = ans.isKnown,
         )
 
     private companion object {

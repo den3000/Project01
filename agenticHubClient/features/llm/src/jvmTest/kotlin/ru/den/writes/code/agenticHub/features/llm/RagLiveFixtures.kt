@@ -23,6 +23,8 @@ internal data class Outcome(
     val withRag: LlmResult,
     val withoutRag: LlmResult,
     val citations: List<Citation> = emptyList(),
+    // null when the turn isn't a GroundedAnswerer answer (plain-RAG tests) — then no `known` is logged.
+    val isKnown: Boolean? = null,
 )
 
 // retrieval hit = the expected source section is among the retrieved chunks.
@@ -40,9 +42,10 @@ internal fun logComparison(label: String, outcomes: List<Outcome>, retrievalHits
         val top = o.chunks.firstOrNull()
         val r = if (o.retrievalHit()) "✓" else "✗"
         val g = if (o.groundedHit()) "✓" else "✗"
+        val knownMark = o.isKnown?.let { " · known ${if (it) "✓" else "✗"}" } ?: ""
         println("\n[Q${i + 1}] ${o.question.question}")
         println("  expect source=${o.question.expectedSection} · answer∋${o.question.expectAnyOf}")
-        println("  retrieval $r  top=${top?.chunk?.metadata?.section} (score=%.3f) · grounded $g".format(top?.score ?: 0.0))
+        println("  retrieval $r  top=${top?.chunk?.metadata?.section} (score=%.3f) · grounded $g$knownMark".format(top?.score ?: 0.0))
         println("  no-RAG : ${o.withoutRag.text?.trim()?.replace("\n", " ")}")
         println("  + RAG  : ${o.withRag.text?.trim()?.replace("\n", " ")}")
         o.citations.forEach { c ->
