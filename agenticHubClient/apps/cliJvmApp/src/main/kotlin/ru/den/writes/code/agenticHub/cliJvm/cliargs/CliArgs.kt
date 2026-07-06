@@ -30,13 +30,16 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.ONESHOT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PAUSE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROFILE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROMPT
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.ADD
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROVIDER
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.RAG
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.RESUME
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.REUSE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.RULE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SCHEDULE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SESSION
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SHOW
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SRC
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STAGES
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STOP_SEQUENCE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STRATEGY
@@ -185,6 +188,13 @@ private fun buildCatalog(): List<ArgSpec> = buildList {
             usage = "spawn an MCP server and offer its tools to the model (repeatable, one per server)",
         ),
     )
+
+    // ---- rag ----
+    // `-rag add <name> src <file>` (startup-only): index a source file into a named
+    // vector index under RAG_ROOT. In-session `/rag <name>` (load) is added separately.
+    add(top(RAG, setOf(FLAG), excludes = setOf(ONESHOT), usage = "add <name> src <file> = index a file for retrieval"))
+    add(sub(ADD, listOf(RAG), value = req(ValueKind.Name), usage = "name to store the index under"))
+    add(sub(SRC, listOf(RAG), value = req(ValueKind.Path), usage = "source file to index"))
 
     // ---- scheduling ----
     addAll(scheduleControls())

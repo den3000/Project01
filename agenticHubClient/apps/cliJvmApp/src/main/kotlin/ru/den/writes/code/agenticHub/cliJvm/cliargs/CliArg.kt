@@ -80,6 +80,11 @@ enum class CliArg(val title: String) {
     SUMMARIZE_EVERY("summarizeEvery"),
     INFLATE("inflate"),
 
+    // rag
+    RAG("rag"),
+    ADD("add"),
+    SRC("src"),
+
     // tools
     MCP_SERVER("mcpServer"),
 

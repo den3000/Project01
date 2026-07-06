@@ -29,6 +29,9 @@ kotlin {
             api(projects.agenticHubClient.features.lifecycle.command)
             api(projects.agenticHubClient.platform.database)
             implementation(projects.agenticHubClient.features.memory)
+            // -rag add <name> src <file>: StartExecutor drives RagIndexer to build and
+            // persist a vector index; RAG_ROOT lives here next to MEMORY_ROOT.
+            implementation(projects.agenticHubClient.features.rag)
             // Direct dep: startModule injects LocalFileSystem into StartExecutor/AdminOps
             // (was transitive through memory); homeDirectory() builds MEMORY_ROOT.
             implementation(projects.agenticHubClient.platform.fileSystem)

@@ -25,6 +25,9 @@ public sealed interface StartCommand {
     /** Read or write the on-disk memory files, then exit (no LLM, no session). */
     data class MemoryOp(val action: MemoryAction) : StartCommand
 
+    /** Index the file at [sourcePath] into a RAG index saved under [name], then exit. */
+    data class RagAdd(val name: String, val sourcePath: String) : StartCommand
+
     /** Common shape of the LLM-talking commands — generation knobs + provider. */
     sealed interface SessionInitialState : StartCommand {
         val prompt: String

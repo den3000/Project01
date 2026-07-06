@@ -16,6 +16,7 @@ import ru.den.writes.code.agenticHub.features.lifecycle.start.di.startModule
 import ru.den.writes.code.agenticHub.features.llm.di.llmModule
 import ru.den.writes.code.agenticHub.features.mcpclient.di.mcpClientModule
 import ru.den.writes.code.agenticHub.features.memory.di.memoryModule
+import ru.den.writes.code.agenticHub.features.rag.di.ragModule
 import ru.den.writes.code.agenticHub.platform.database.di.databaseModule
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.network.di.networkModule
@@ -40,6 +41,7 @@ suspend fun main(args: Array<String>) {
             memoryModule,
             agentModule,
             mcpClientModule,
+            ragModule,
             startModule,
             sessionModule,
         )

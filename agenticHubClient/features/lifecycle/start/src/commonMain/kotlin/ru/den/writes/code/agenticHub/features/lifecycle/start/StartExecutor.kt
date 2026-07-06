@@ -1,6 +1,10 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.start
 
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
+import ru.den.writes.code.agenticHub.features.memory.isValidProfileName
+import ru.den.writes.code.agenticHub.features.rag.RagIndexer
+import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
+import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.homeDirectory
@@ -14,6 +18,12 @@ import ru.den.writes.code.agenticHub.platform.logging.logErr
 val MEMORY_ROOT: String = "${homeDirectory()}/.project01-cli/memory"
 
 /**
+ * Root of the on-disk RAG indices. Each `-rag add <name> …` writes `<name>.json`
+ * here; `/rag <name>` in a session loads it back. Sits next to [MEMORY_ROOT].
+ */
+val RAG_ROOT: String = "${homeDirectory()}/.project01-cli/rag"
+
+/**
  * Runs a parsed [StartCommand] against the runtime — the "how" to the parser's
  * "what". Admin commands (list / clean / inflate / memory) run through [AdminOps]
  * (features:viewModel) and their notices are printed here on the tagged stream;
@@ -23,6 +33,7 @@ val MEMORY_ROOT: String = "${homeDirectory()}/.project01-cli/memory"
 public class StartExecutor(
     private val db: AppDatabase,
     private val fs: LocalFileSystem,
+    private val ragIndexer: RagIndexer? = null,
 ) {
     private val ops = AdminOps(db, fs)
 
@@ -32,7 +43,31 @@ public class StartExecutor(
         is StartCommand.CleanSession -> { ops.cleanSession(command.sessionId).print(); null }
         is StartCommand.InflateSession -> { ops.inflateSession(command).print(); null }
         is StartCommand.MemoryOp -> { ops.handleMemoryCommand(command.action, MEMORY_ROOT).print(); null }
+        is StartCommand.RagAdd -> { handleRagAdd(command); null }
         is StartCommand.SessionInitialState -> command
+    }
+
+    /**
+     * Index [RagAdd.sourcePath] into `RAG_ROOT/<name>.json` with structural chunking +
+     * the graph's embedder (Ollama). Validates the name (same shape as a profile name),
+     * reads the file through the fs port, and prints a tagged status line. Missing
+     * indexer (no RAG in the graph) or missing file yields an error notice, no throw.
+     */
+    private suspend fun handleRagAdd(command: StartCommand.RagAdd) {
+        val indexer = ragIndexer ?: run { logErr("[rag] indexing is unavailable in this build"); return }
+        if (!isValidProfileName(command.name)) {
+            logErr("[rag] invalid name '${command.name}' (alphanumeric / '_' / '-', up to 64 chars)")
+            return
+        }
+        val text = fs.readText(command.sourcePath) ?: run {
+            logErr("[rag] no file at '${command.sourcePath}'")
+            return
+        }
+        val name = command.sourcePath.substringAfterLast('/')
+        fs.mkdirs(RAG_ROOT)
+        val path = "$RAG_ROOT/${command.name}.json"
+        val chunks = indexer.index(SourceDocument(source = name, title = name, text = text), path, StructuralChunking())
+        println("[rag] indexed '${command.name}' ($chunks chunk(s)) → $path")
     }
 }
 
