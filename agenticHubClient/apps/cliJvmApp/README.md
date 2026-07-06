@@ -242,19 +242,23 @@ stateless), так что multi-turn контекст сохраняется; о
 Мини-чат с RAG: сохранить знания в векторный индекс и искать в них контекст на каждом ходу.
 
 - **Индексация (startup, одноразово)**: `-rag add <name> src <file>` — прочитать файл, разбить
-  `StructuralChunking` (по markdown-заголовкам), сэмбеддить `OllamaEmbedder` и сохранить индекс в
-  `~/.project01-cli/rag/<name>.json`. **Нужна локальная Ollama** (`ollama serve`, модель
-  `nomic-embed-text`).
-- **Загрузка (в сессии)**: `/rag <name>` подгружает индекс и вооружает поиск; `/rag off` отцепляет;
-  bare `/rag` — статус.
+  `StructuralChunking` (по markdown-заголовкам), сэмбеддить и сохранить индекс в
+  `~/.project01-cli/rag/<name>.json`.
+- **Выбор эмбеддера**: `embedder <ollama|gemini>` (на `-rag add` и на `/rag`). По умолчанию — **gemini**,
+  если явно указан `-agent provider gemini`, иначе **ollama**. `ollama` — локально/бесплатно (`ollama
+  serve`, `nomic-embed-text`); `gemini` — облако (жжёт квоту, ключ `GEMINI_API_KEY`). **Индекс и запрос
+  обязаны быть на одном эмбеддере** — иначе поиск вернёт шум.
+- **Загрузка (в сессии)**: `/rag <name> [embedder <…>]` подгружает индекс и вооружает поиск; `/rag off`
+  отцепляет; bare `/rag` — статус (показывает активный эмбеддер).
 - **На каждом ходу** при активном индексе: top-K чанков по запросу вставляются grounding-контекстом
   (история диалога и слой памяти сохраняются), а под ответом печатаются источники —
   `[rag] sources:` со строками `[source › section #id] score=…` (в TUI — колонка `rag │`).
 
 ```
-cliJvmApp -rag add zephyr src ~/docs/handbook.md      # индексация
+cliJvmApp -rag add zephyr src ~/docs/handbook.md                     # ollama (по умолчанию)
+cliJvmApp -rag add zephyr src ~/docs/handbook.md embedder gemini     # gemini-эмбеддер
 cliJvmApp -prompt "..." -session demo -agent main mode system
-> /rag zephyr
+> /rag zephyr                 # тем же эмбеддером, что строили индекс
 > /task goal собрать политику code review
 > How many approvals are required?
 ```
