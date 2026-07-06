@@ -4,6 +4,8 @@ import kotlinx.coroutines.coroutineScope
 import org.koin.core.Koin
 import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.features.lifecycle.start.MEMORY_ROOT
+import ru.den.writes.code.agenticHub.features.lifecycle.start.RAG_ROOT
+import ru.den.writes.code.agenticHub.features.lifecycle.session.RagControl
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.toGenerationParams
 import ru.den.writes.code.agenticHub.features.lifecycle.session.startSchedulerLoops
 import ru.den.writes.code.agenticHub.cliJvm.commandMappers.resolveMemoryProvider
@@ -144,11 +146,12 @@ internal suspend fun runSessionInternal(
     toolExecutor: ToolExecutor? = null,
     sessionMapper: CliArgToSessionCommandMapper,
 ) {
+    val ragControl = RagControl(indexStore = koin.get(), embedder = koin.get(), ragRoot = RAG_ROOT)
     val assembly = koin.get<SessionAssembly> {
         parametersOf(
             SessionAssemblyArgs(
                 cliArgs, llmApi, historyStore, strategy, memory,
-                routedAgents, routedJudges, toolDefs, toolExecutor,
+                routedAgents, routedJudges, toolDefs, toolExecutor, ragControl,
             ),
         )
     }

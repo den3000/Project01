@@ -14,6 +14,8 @@ private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
 
 private const val NO_SCHEDULER = "[schedule] no scheduler in this session — launch with -schedule … to enable"
 
+private const val NO_RAG = "[rag] RAG is unavailable in this session"
+
 /**
  * Executes a REPL branch- / memory-management command and RETURNS the status
  * line(s) instead of printing them. The DB work (and disk work for memory) is
@@ -32,6 +34,7 @@ public class CommandRunner(
     private val memory: MemoryProvider?,
     private val strategy: ContextStrategy,
     private val scheduler: SchedulerControl? = null,
+    private val ragControl: RagControl? = null,
 ) {
     suspend fun run(command: SessionCommand): List<String> = buildList {
         when (command) {
@@ -294,6 +297,9 @@ public class CommandRunner(
                 if (ctl == null) add(NO_SCHEDULER)
                 else add("[schedule] cancelled ${ctl.cancelAll()} task(s) — schedule stopped")
             }
+            is SessionCommand.LoadRag -> add(ragControl?.load(command.name) ?: NO_RAG)
+            SessionCommand.RagOff -> add(ragControl?.off() ?: NO_RAG)
+            SessionCommand.RagStatus -> add(ragControl?.status() ?: NO_RAG)
         }
     }
 

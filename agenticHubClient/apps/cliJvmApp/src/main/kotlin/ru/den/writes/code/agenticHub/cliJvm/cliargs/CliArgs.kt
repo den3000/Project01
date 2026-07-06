@@ -26,6 +26,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MEMORY
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MODE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MODEL
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.NOTE
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.OFF
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.ONESHOT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PAUSE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROFILE
@@ -190,11 +191,13 @@ private fun buildCatalog(): List<ArgSpec> = buildList {
     )
 
     // ---- rag ----
-    // `-rag add <name> src <file>` (startup-only): index a source file into a named
-    // vector index under RAG_ROOT. In-session `/rag <name>` (load) is added separately.
-    add(top(RAG, setOf(FLAG), excludes = setOf(ONESHOT), usage = "add <name> src <file> = index a file for retrieval"))
+    // `-rag add <name> src <file>` (startup): index a source file into a named vector
+    // index under RAG_ROOT (value only on the FLAG front via the add/src subs).
+    // `/rag <name>` (in-session): load that index; `/rag off` detaches; bare `/rag` = status.
+    add(top(RAG, setOf(FLAG, CMD), value = opt(ValueKind.Name), valueSurfaces = setOf(CMD), excludes = setOf(ONESHOT), usage = "add <name> src <file> = index a file · /rag <name> = load · /rag off"))
     add(sub(ADD, listOf(RAG), value = req(ValueKind.Name), usage = "name to store the index under"))
     add(sub(SRC, listOf(RAG), value = req(ValueKind.Path), usage = "source file to index"))
+    add(sub(OFF, listOf(RAG), usage = "detach the active index (/rag off)"))
 
     // ---- scheduling ----
     addAll(scheduleControls())

@@ -84,6 +84,7 @@ enum class CliArg(val title: String) {
     RAG("rag"),
     ADD("add"),
     SRC("src"),
+    OFF("off"),
 
     // tools
     MCP_SERVER("mcpServer"),

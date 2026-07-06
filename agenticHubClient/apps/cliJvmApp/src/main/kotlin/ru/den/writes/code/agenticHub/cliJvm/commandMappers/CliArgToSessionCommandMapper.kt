@@ -15,9 +15,11 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.GOAL
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MEMORY
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MODE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.NOTE
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.OFF
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PAUSE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROFILE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROMPT
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.RAG
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.RESUME
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.RULE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SCHEDULE
@@ -68,7 +70,14 @@ internal class CliArgToSessionCommandMapper(private val parser: CliArgsParser) {
         RULE -> rule(c)
         TASK -> task(c)
         SCHEDULE -> schedule(c)
+        RAG -> rag(c)
         else -> null // session/strategy/inflate/mcp/reuse/exit/help — not in-session commands
+    }
+
+    /** `/rag <name>` load · `/rag off` detach · bare `/rag` status. */
+    private fun rag(c: ParsedArg): SessionCommand {
+        c.sub(OFF)?.let { return SessionCommand.RagOff }
+        return c.value?.let(SessionCommand::LoadRag) ?: SessionCommand.RagStatus
     }
 
     private fun branch(c: ParsedArg): SessionCommand? {

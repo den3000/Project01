@@ -329,6 +329,13 @@ public sealed interface SessionCommand : UiIntent {
     data class CancelSchedule(val id: String) : SessionCommand
     /** Cancel every active scheduled task (`/schedule clear`) — stops the schedule. */
     data object ClearSchedules : SessionCommand
+
+    /** Load the saved RAG index [name] and arm retrieval for later turns (`/rag <name>`). */
+    data class LoadRag(val name: String) : SessionCommand
+    /** Detach the active RAG index (`/rag off`). */
+    data object RagOff : SessionCommand
+    /** Report the active RAG index (`/rag`). */
+    data object RagStatus : SessionCommand
 }
 
 /**
