@@ -76,7 +76,13 @@ probe-`HttpClient`.
     (иначе skip). Корпус/вопросы/метрики — в `RagLiveFixtures`.
   - `LlmWithRagRerankerAnswerLiveTest` — те же 10 вопросов на `BIG_HANDBOOK` двумя путями: plain top-K vs
     query-rewrite → over-retrieve top-N → `ModelReranker` (CrossEncoder) → top-K-after. Ассерт
-    относительный: reranked grounding не ниже baseline и `>= n - MAX_MISSES` (замер: 1/10 → 10/10). Два
-    теста по провайдеру rewrite/rerank/ответа: `…through Ollama…` (бесплатно) и `…through Gemini…`
-    (**жжёт токены** — вызов модели на каждый кандидат, нужен `GEMINI_API_KEY`).
+    относительный: reranked не ниже baseline и `>= n - MAX_MISSES` (замер: 1/10 → 10/10). Ответ идёт через
+    `GroundedAnswerer`, поэтому в выводе на каждый вопрос печатается строка `cite` (источник + дословная
+    цитата): baseline цитирует **decoy** (grounded ✗), reranked — реальную секцию (grounded ✓). Два теста
+    по провайдеру rewrite/rerank/ответа: `…through Ollama…` (бесплатно) и `…through Gemini…` (**жжёт
+    токены** — вызов модели на каждый кандидат, нужен `GEMINI_API_KEY`).
+  - `LlmWithRagCitationsAnswerLiveTest` — анти-галлюцинации на `SMALL_HANDBOOK` через `GroundedAnswerer`:
+    каждый из 10 ответов обязан быть `known`, нести ≥1 цитату, и цитата должна **дословно** встречаться в
+    найденном чанке (провенанс переписывается из реальных метаданных). Второй тест — офф-топик вопрос →
+    гейт по порогу отдаёт «не знаю, уточните». Ollama-локально, бесплатно.
     Всем нужен `ollama pull nomic-embed-text`. Общий probe/модель — в `LlmWithRagLiveSupport`.

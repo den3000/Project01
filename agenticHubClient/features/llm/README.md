@@ -16,6 +16,12 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
   (grounding-промпт из найденных чанков); `QueryRewriter` (fun interface + `Identity` + `ModelQueryRewriter`
   — перефраз запроса перед retrieval); `ModelReranker` — модельный CrossEncoder-`Reranker` (реализует
   rag-интерфейс через per-candidate скоринг «отвечает ли пассаж на запрос» + порог + topK-after).
+- Grounded-ответ (обязательные источники + цитаты + анти-галлюцинация): `GroundedAnswer(answer,
+  citations[source,section,chunkId,quote], isKnown)`; `groundedAnswerPrompt` (строгий JSON-контракт:
+  ответ ТОЛЬКО из контекста, дословная цитата на источник, `known=false`+уточнение если ответа нет);
+  `parseGroundedAnswer` (терпит fenced/prose, битый JSON → safe not-known); `GroundedAnswer.groundedIn(
+  chunks)` — переписывает провенанс из реальных чанков и режет галлюцинированные цитаты; `GroundedAnswerer`
+  — оркестратор с **code-гейтом** «релевантность < порога → не знаю без вызова модели».
 - `pricing/ModelPricing.kt` — `ModelPricing`/`PricingRegistry` (**single source of truth по ценам**).
 - `LlmFactories.kt` — `buildLlmApi`/`buildModelProvider`(+`ModelProviderError`).
 - `di/`: `llmModule` — `factory<LlmApi> { (mp: ModelProvider) -> buildLlmApi(mp, get()) }` (`ModelProvider`
@@ -39,9 +45,12 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
   `LlmWithRagAnswerLiveTest` (baseline без реранка, сетка 2×2 с пином grounding: `SMALL_HANDBOOK` top-3
   → 10/10, `BIG_HANDBOOK` top-1 → 1/10, каждое через Ollama и **реальный Gemini**) и
   `LlmWithRagRerankerAnswerLiveTest` (те же 10 вопросов на `BIG_HANDBOOK`: plain top-K vs
-  rewrite+CrossEncoder-реранк поднимает 1/10 → 10/10; варианты через Ollama и Gemini). Gemini жжёт
-  токены и требует `GEMINI_API_KEY`; ретривел всегда через локальную Ollama. Общий корпус/метрики —
-  `RagLiveFixtures`. Механизм — [LIVE_TESTS.md](../../../LIVE_TESTS.md).
+  rewrite+CrossEncoder-реранк поднимает 1/10 → 10/10; ответ через `GroundedAnswerer` — в выводе
+  source+дословная цитата, baseline цитирует decoy; Ollama и Gemini) и
+  `LlmWithRagCitationsAnswerLiveTest` (`GroundedAnswerer` на `SMALL_HANDBOOK`: каждый ответ known +
+  цитата дословно из чанка + факт; офф-топик → гейт «не знаю»). Gemini жжёт токены и требует
+  `GEMINI_API_KEY`; ретривел всегда через локальную Ollama. Общий корпус/метрики — `RagLiveFixtures`.
+  Механизм — [LIVE_TESTS.md](../../../LIVE_TESTS.md).
 
 ## Грабли
 - **Ktor engine — `Java`, не CIO** (CIO рвёт длинные thinking-ответы Gemini). Движок задаёт апп.
