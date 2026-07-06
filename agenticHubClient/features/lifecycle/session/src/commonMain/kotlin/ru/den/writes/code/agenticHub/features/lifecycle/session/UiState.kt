@@ -8,6 +8,7 @@ import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderKind
 import ru.den.writes.code.agenticHub.features.rag.indexing.ScoredChunk
 import kotlin.math.roundToInt
 
@@ -361,8 +362,11 @@ public sealed interface SessionCommand : UiIntent {
     /** Cancel every active scheduled task (`/schedule clear`) — stops the schedule. */
     data object ClearSchedules : SessionCommand
 
-    /** Load the saved RAG index [name] and arm retrieval for later turns (`/rag <name>`). */
-    data class LoadRag(val name: String) : SessionCommand
+    /**
+     * Load the saved RAG index [name] and arm retrieval for later turns (`/rag <name>`).
+     * [embedder] overrides the session default when set (`/rag <name> embedder <…>`).
+     */
+    data class LoadRag(val name: String, val embedder: EmbedderKind? = null) : SessionCommand
     /** Detach the active RAG index (`/rag off`). */
     data object RagOff : SessionCommand
     /** Report the active RAG index (`/rag`). */

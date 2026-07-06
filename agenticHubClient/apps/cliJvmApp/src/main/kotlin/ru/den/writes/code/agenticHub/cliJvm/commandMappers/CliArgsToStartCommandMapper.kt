@@ -183,6 +183,7 @@ internal class CliArgsToStartCommandMapper(
                 judgeAgents = judgeAgents,
                 mcpServers = controls.filter { it.arg == MCP_SERVER }.mapNotNull { it.value },
                 schedules = scheduleSpecs(controls),
+                ragEmbedder = embedderKind(null, explicitGeminiProvider(controls)),
             ),
         )
     }

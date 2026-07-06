@@ -297,7 +297,7 @@ public class CommandRunner(
                 if (ctl == null) add(NO_SCHEDULER)
                 else add("[schedule] cancelled ${ctl.cancelAll()} task(s) — schedule stopped")
             }
-            is SessionCommand.LoadRag -> add(ragControl?.load(command.name) ?: NO_RAG)
+            is SessionCommand.LoadRag -> add(ragControl?.load(command.name, command.embedder) ?: NO_RAG)
             SessionCommand.RagOff -> add(ragControl?.off() ?: NO_RAG)
             SessionCommand.RagStatus -> add(ragControl?.status() ?: NO_RAG)
         }

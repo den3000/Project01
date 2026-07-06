@@ -4,6 +4,7 @@ import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.features.agent.StageAgentSpec
 import ru.den.writes.code.agenticHub.features.agent.StageJudgeSpec
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderKind
 
 /**
  * The session-lifetime configuration a chat starts with — everything the runtime
@@ -32,4 +33,6 @@ public data class SessionConfig(
     val judgeAgents: List<StageJudgeSpec>,
     val mcpServers: List<String> = emptyList(),
     val schedules: List<ScheduleSpec> = emptyList(),
+    /** Default embedder for `/rag` in this session (gemini when the provider is explicit gemini, else ollama). */
+    val ragEmbedder: EmbedderKind = EmbedderKind.OLLAMA,
 )

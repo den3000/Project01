@@ -6,6 +6,7 @@ import org.koin.core.parameter.parametersOf
 import ru.den.writes.code.agenticHub.features.lifecycle.start.MEMORY_ROOT
 import ru.den.writes.code.agenticHub.features.lifecycle.start.RAG_ROOT
 import ru.den.writes.code.agenticHub.features.lifecycle.session.RagControl
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderKind
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.toGenerationParams
 import ru.den.writes.code.agenticHub.features.lifecycle.session.startSchedulerLoops
 import ru.den.writes.code.agenticHub.cliJvm.commandMappers.resolveMemoryProvider
@@ -146,7 +147,10 @@ internal suspend fun runSessionInternal(
     toolExecutor: ToolExecutor? = null,
     sessionMapper: CliArgToSessionCommandMapper,
 ) {
-    val ragControl = RagControl(indexStore = koin.get(), embedder = koin.get(), ragRoot = RAG_ROOT)
+    val ragEmbedder = (cliArgs as? StartCommand.RunChat)?.config?.ragEmbedder ?: EmbedderKind.OLLAMA
+    val ragControl = RagControl(
+        indexStore = koin.get(), embedderSelector = koin.get(), ragRoot = RAG_ROOT, defaultKind = ragEmbedder,
+    )
     val assembly = koin.get<SessionAssembly> {
         parametersOf(
             SessionAssemblyArgs(

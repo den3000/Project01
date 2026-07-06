@@ -9,6 +9,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.BRANCH
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CLEAR
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONSTRAINTS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONTEXT
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EMBEDDER
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EVERY
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.FORMAT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.GOAL
@@ -35,6 +36,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.Surface
 import ru.den.writes.code.agenticHub.features.lifecycle.command.ScheduleSpec
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderKind
 
 /**
  * Maps a typed REPL line onto an in-session [SessionCommand] by parsing it against
@@ -74,10 +76,18 @@ internal class CliArgToSessionCommandMapper(private val parser: CliArgsParser) {
         else -> null // session/strategy/inflate/mcp/reuse/exit/help — not in-session commands
     }
 
-    /** `/rag <name>` load · `/rag off` detach · bare `/rag` status. */
+    /** `/rag <name> [embedder <ollama|gemini>]` load · `/rag off` detach · bare `/rag` status. */
     private fun rag(c: ParsedArg): SessionCommand {
         c.sub(OFF)?.let { return SessionCommand.RagOff }
-        return c.value?.let(SessionCommand::LoadRag) ?: SessionCommand.RagStatus
+        return c.value?.let { SessionCommand.LoadRag(it, embedderKind(c.sub(EMBEDDER)?.value)) }
+            ?: SessionCommand.RagStatus
+    }
+
+    /** `embedder <ollama|gemini>` sub → kind, or null (= use the session default). */
+    private fun embedderKind(raw: String?): EmbedderKind? = when (raw) {
+        "gemini" -> EmbedderKind.GEMINI
+        "ollama" -> EmbedderKind.OLLAMA
+        else -> null
     }
 
     private fun branch(c: ParsedArg): SessionCommand? {
