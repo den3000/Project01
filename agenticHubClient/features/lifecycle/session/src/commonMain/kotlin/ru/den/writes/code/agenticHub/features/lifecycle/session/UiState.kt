@@ -8,6 +8,9 @@ import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderKind
+import ru.den.writes.code.agenticHub.features.rag.indexing.ScoredChunk
+import kotlin.math.roundToInt
 
 /**
  * Immutable UI state for one running session. Observed by a renderer (PlainView /
@@ -196,6 +199,13 @@ public sealed interface UiLine {
      * `mcp │ …` column; PlainView prints the lines to stdout.
      */
     data class MCPLine(val calls: List<ExecutedToolCall>, val modelId: String) : UiLine
+
+    /**
+     * The RAG chunks retrieved for a turn, shown under the reply as the answer's
+     * sources. Emitted only when RAG is active and the retrieval was non-empty.
+     * The TUI shows it as a `rag │ …` column; PlainView prints it to stderr.
+     */
+    data class RagLine(val chunks: List<ScoredChunk>) : UiLine
 }
 
 /**
@@ -210,6 +220,28 @@ public fun mcpToolLines(calls: List<ExecutedToolCall>, modelId: String): List<St
     }
     add("model: $modelId")
     calls.lastOrNull()?.let { add("prompt: ${it.output}") }
+}
+
+/**
+ * The retrieved chunks as `[source › section #id] score=…` lines under a `[rag]
+ * sources:` header — the "always show the sources" half of a RAG answer. Shared
+ * text for both renderers (plain to stderr, TUI as a `rag │` column).
+ */
+public fun ragSourceLines(chunks: List<ScoredChunk>): List<String> = buildList {
+    add("[rag] sources:")
+    for (c in chunks) {
+        val m = c.chunk.metadata
+        val section = m.section?.let { " › $it" } ?: ""
+        add("  [${m.source}$section #${m.chunkId}] score=${formatScore(c.score)}")
+    }
+}
+
+/** A retrieval score as a fixed two-decimal string (`0.83`), no platform formatter. */
+private fun formatScore(score: Double): String {
+    val scaled = (score * 100).roundToInt()
+    val sign = if (scaled < 0) "-" else ""
+    val abs = if (scaled < 0) -scaled else scaled
+    return "$sign${abs / 100}.${(abs % 100).toString().padStart(2, '0')}"
 }
 
 /**
@@ -307,6 +339,8 @@ public sealed interface SessionCommand : UiIntent {
     data class SetTask(val taskId: String) : SessionCommand
     /** Append a note to the currently-active task. */
     data class AppendTaskNote(val note: String) : SessionCommand
+    /** Set the goal of the currently-active task. */
+    data class SetTaskGoal(val text: String) : SessionCommand
     /** Pause the active task — hold its stage; auto-advance is suppressed. */
     data object PauseTask : SessionCommand
     /** Resume the active task — clear the pause flag; auto-advance resumes. */
@@ -327,6 +361,16 @@ public sealed interface SessionCommand : UiIntent {
     data class CancelSchedule(val id: String) : SessionCommand
     /** Cancel every active scheduled task (`/schedule clear`) — stops the schedule. */
     data object ClearSchedules : SessionCommand
+
+    /**
+     * Load the saved RAG index [name] and arm retrieval for later turns (`/rag <name>`).
+     * [embedder] overrides the session default when set (`/rag <name> embedder <…>`).
+     */
+    data class LoadRag(val name: String, val embedder: EmbedderKind? = null) : SessionCommand
+    /** Detach the active RAG index (`/rag off`). */
+    data object RagOff : SessionCommand
+    /** Report the active RAG index (`/rag`). */
+    data object RagStatus : SessionCommand
 }
 
 /**

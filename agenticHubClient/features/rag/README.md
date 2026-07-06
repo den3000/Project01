@@ -25,9 +25,13 @@ KMP-модуль: локальный пайплайн Retrieval-Augmented Genera
     `section = null`.
   - `ChunkingComparison.compare(doc, strategies)` → `ChunkingComparisonReport` (+ `render()`) —
     сравнение стратегий по размерным метрикам.
-- **Embeddings/поиск**: `Embedder` (fun interface, `suspend embed(List<String>)`) + реализация
+- **Embeddings/поиск**: `Embedder` (fun interface, `suspend embed(List<String>)`) + реализации
   `OllamaEmbedder(httpClient, model="nomic-embed-text", baseUrl="http://localhost:11434")` — батч
-  `POST /api/embed` к локальной Ollama; `EmbedderFake` (`internal`) — детерминированный для тестов.
+  `POST /api/embed` к локальной Ollama; `GeminiEmbedder(httpClient, apiKey, model="gemini-embedding-001")`
+  — батч `POST :batchEmbedContents` к облаку (**API-ключ — просто аргумент конструктора**, rag НЕ
+  зависит от features:llm); `EmbedderFake` (`internal`) — детерминированный для тестов.
+  `EmbedderKind` (`ollama`/`gemini`) + `EmbedderSelector` (fun interface) — выбор бэкенда; конкретные
+  эмбеддеры с креденшелами строит composition root (cliJvmApp), rag остаётся без ключей.
   `IndexedChunk`/`ScoredChunk`/`VectorIndex.search(query, topK)` (brute-force косинус, стабильная
   сортировка). `cosineSimilarity` — `internal` (ранжирует только `VectorIndex.search`, наружу не отдаётся).
 - **Пайплайн**: `IndexingPipeline(chunking, embedder).index(docs)` → `VectorIndex`;
@@ -39,12 +43,17 @@ KMP-модуль: локальный пайплайн Retrieval-Augmented Genera
   (`ModelReranker`, ему нужен `LlmApi`; rag на llm не зависит).
 - **Персист**: `IndexStore(fs).save(index, path)` / `load(path)` — индекс как один JSON-документ через
   `LocalFileSystem` (absent → `null`).
+- **`RagIndexer(indexStore)`**: `suspend index(document, path, chunking, embedder): Int` — «собери индекс
+  и запиши сюда» (chunk + embed + save), число чанков. `embedder` — параметр вызова (caller выбирает
+  ollama/gemini по `-rag add … embedder <…>`). Тонкая обёртка над `IndexingPipeline` для admin-команды
+  `-rag add <name> src <file>` (cliJvmApp пишет в `~/.project01-cli/rag/<name>.json`, грузит обратно
+  `/rag <name>`). **Индекс и запрос обязаны быть на одном эмбеддере** — векторы разных моделей несравнимы.
 - **`di/`**: приватный `sharedRagModule` держит общие для прод и теста factory —
   `IndexingPipeline` (на `ChunkingStrategy`), `Retriever` (на `VectorIndex`) и `Reranker`
   (→ `LexicalReranker`, оффлайн-сигнал безопасен в обоих графах); оба публичных модуля
   подключают его через `includes(...)` (без дублирования). `ragModule` = `sharedRagModule` +
   `single { IndexStore }` + `single<Embedder> { OllamaEmbedder(get()) }` (`HttpClient` — из
-  `networkModule`/`platform:network`). `ragTestModule` = `sharedRagModule` + `factory { IndexStore }` +
+  `networkModule`/`platform:network`) + `single { RagIndexer }`. `ragTestModule` = `sharedRagModule` + `factory { IndexStore }` +
   `factory<Embedder> { EmbedderFake() }` (offline, перекрывает Ollama). Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости

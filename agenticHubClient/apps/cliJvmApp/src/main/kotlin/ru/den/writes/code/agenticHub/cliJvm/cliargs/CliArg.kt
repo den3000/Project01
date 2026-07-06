@@ -55,6 +55,7 @@ enum class CliArg(val title: String) {
     PAUSE("pause"),
     RESUME("resume"),
     NOTE("note"),
+    GOAL("goal"),
 
     // profile sections
     STYLE("style"),
@@ -78,6 +79,13 @@ enum class CliArg(val title: String) {
     KEEP_LAST("keepLast"),
     SUMMARIZE_EVERY("summarizeEvery"),
     INFLATE("inflate"),
+
+    // rag
+    RAG("rag"),
+    ADD("add"),
+    SRC("src"),
+    OFF("off"),
+    EMBEDDER("embedder"),
 
     // tools
     MCP_SERVER("mcpServer"),

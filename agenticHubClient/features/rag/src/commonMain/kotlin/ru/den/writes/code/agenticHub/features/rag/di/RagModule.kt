@@ -2,6 +2,7 @@ package ru.den.writes.code.agenticHub.features.rag.di
 
 import org.koin.core.module.Module
 import org.koin.dsl.module
+import ru.den.writes.code.agenticHub.features.rag.RagIndexer
 import ru.den.writes.code.agenticHub.features.rag.Retriever
 import ru.den.writes.code.agenticHub.features.rag.chunking.ChunkingStrategy
 import ru.den.writes.code.agenticHub.features.rag.embedding.Embedder
@@ -43,6 +44,7 @@ public val ragModule: Module = module {
     includes(sharedRagModule)
     single { IndexStore(fs = get()) }
     single<Embedder> { OllamaEmbedder(httpClient = get()) }
+    single { RagIndexer(indexStore = get()) }
 }
 
 /**

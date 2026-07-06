@@ -76,11 +76,13 @@ probe-`HttpClient`.
     (иначе skip). Корпус/вопросы/метрики — в `RagLiveFixtures`.
   - `LlmWithRagRerankerAnswerLiveTest` — те же 10 вопросов на `BIG_HANDBOOK` двумя путями: plain top-K vs
     query-rewrite → over-retrieve top-N → `ModelReranker` (CrossEncoder) → top-K-after. Ассерт
-    относительный: reranked не ниже baseline и `>= n - MAX_MISSES` (замер: 1/10 → 10/10). Ответ идёт через
-    `GroundedAnswerer`, поэтому в выводе на каждый вопрос печатается строка `cite` (источник + дословная
-    цитата): baseline цитирует **decoy** (grounded ✗), reranked — реальную секцию (grounded ✓). Два теста
-    по провайдеру rewrite/rerank/ответа: `…through Ollama…` (бесплатно) и `…through Gemini…` (**жжёт
-    токены** — вызов модели на каждый кандидат, нужен `GEMINI_API_KEY`).
+    относительный: reranked не ниже baseline и `>= n - MAX_MISSES` (замер: Ollama 1/10 → 10/10; Gemini →
+    9/10 — один компаундный вопрос уходит в отказ). Ответ идёт через `GroundedAnswerer`, поэтому на каждый
+    вопрос печатаются маркеры `retrieval`/`grounded`/`known` (✓/✗) и строка `cite` (источник + дословная
+    цитата): baseline цитирует **decoy** (`grounded ✗` при `known ✓` и `cite`), reranked — реальную секцию
+    (`grounded ✓`). Маркеры мерят «нашли / ответ с фактом / ответил ли», а галлюцинацию ловит сверка
+    `+ RAG` ↔ `cite`, а не маркеры. Два теста по провайдеру rewrite/rerank/ответа: `…through Ollama…`
+    (бесплатно) и `…through Gemini…` (**жжёт токены** — вызов модели на каждый кандидат, нужен `GEMINI_API_KEY`).
   - `LlmWithRagCitationsAnswerLiveTest` — анти-галлюцинации на `SMALL_HANDBOOK` через `GroundedAnswerer`:
     каждый из 10 ответов обязан быть `known`, нести ≥1 цитату, и цитата должна **дословно** встречаться в
     найденном чанке (провенанс переписывается из реальных метаданных). Второй тест — офф-топик вопрос →

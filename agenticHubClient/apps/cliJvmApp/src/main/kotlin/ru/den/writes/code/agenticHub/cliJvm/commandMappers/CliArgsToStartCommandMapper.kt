@@ -7,6 +7,7 @@ import ru.den.writes.code.agenticHub.features.agent.StageAgentSpec
 import ru.den.writes.code.agenticHub.features.agent.StageJudgeSpec
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArgsParser
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.ADD
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.AFTER
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.AGENT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.ARGS
@@ -27,7 +28,10 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MODE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.ONESHOT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROFILE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROMPT
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROVIDER
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.RAG
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SESSION
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SRC
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STAGES
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STOP_SEQUENCE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STRATEGY
@@ -36,6 +40,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TASK
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TEMPERATURE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONSTRAINTS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONTEXT
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EMBEDDER
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.FORMAT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.NOTE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PAUSE
@@ -59,6 +64,7 @@ import ru.den.writes.code.agenticHub.features.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.memory.TaskBinding
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderKind
 
 /**
  * The outcome of [CliArgsToStartCommandMapper.parse]: a mapped [StartCommand], or a
@@ -177,6 +183,7 @@ internal class CliArgsToStartCommandMapper(
                 judgeAgents = judgeAgents,
                 mcpServers = controls.filter { it.arg == MCP_SERVER }.mapNotNull { it.value },
                 schedules = scheduleSpecs(controls),
+                ragEmbedder = embedderKind(null, explicitGeminiProvider(controls)),
             ),
         )
     }
@@ -275,6 +282,7 @@ internal class CliArgsToStartCommandMapper(
         controls.last(PROFILE)?.let { return StartCommand.MemoryOp(profileAction(it)) }
         controls.last(RULE)?.let { return StartCommand.MemoryOp(ruleAction(it)) }
         controls.last(TASK)?.let { return StartCommand.MemoryOp(taskAction(it)) }
+        controls.last(RAG)?.let { return ragAdd(it, controls) }
         bailMissing("-prompt")
     }
 
@@ -336,6 +344,28 @@ internal class CliArgsToStartCommandMapper(
             t.subs.isEmpty() -> MemoryAction.SetTask(id)
             else -> gap("task ${t.subs.first().arg.title}")
         }
+    }
+
+    /**
+     * `-rag add <name> src <file> [embedder <ollama|gemini>]` → index the file under a
+     * name (admin, no session). The embedder is the explicit `embedder` sub, else
+     * gemini when `-agent provider gemini` was set explicitly, else ollama.
+     */
+    private fun ragAdd(c: ParsedArg, controls: List<ParsedArg>): StartCommand {
+        val name = c.subValue(ADD) ?: bailMissing("-rag", "needs add <name>")
+        val src = c.subValue(SRC) ?: bailMissing("-rag add", "needs src <file>")
+        return StartCommand.RagAdd(name, src, embedderKind(c.subValue(EMBEDDER), explicitGeminiProvider(controls)))
+    }
+
+    /** True iff `-agent provider gemini` was passed explicitly (the default provider is gemini too). */
+    private fun explicitGeminiProvider(controls: List<ParsedArg>): Boolean =
+        controls.any { it.arg == AGENT && it.subValue(PROVIDER) == "gemini" }
+
+    /** Resolve the embedder: explicit `embedder <…>` wins, else gemini when the provider is explicit gemini, else ollama. */
+    private fun embedderKind(explicit: String?, providerGemini: Boolean): EmbedderKind = when (explicit) {
+        "gemini" -> EmbedderKind.GEMINI
+        "ollama" -> EmbedderKind.OLLAMA
+        else -> if (providerGemini) EmbedderKind.GEMINI else EmbedderKind.OLLAMA
     }
 
     private fun section(arg: CliArg): ProfileSection = ProfileSection.byKeyword(arg.title)!!

@@ -30,6 +30,8 @@ kotlin {
             api(projects.agenticHubClient.features.lifecycle.command)
             api(projects.agenticHubClient.features.memory)
             api(projects.agenticHubClient.features.agent)
+            // RagControl (load a saved index) + turn-time retrieval/context injection.
+            implementation(projects.agenticHubClient.features.rag)
             implementation(projects.agenticHubClient.platform.logging)
             implementation(projects.scheduling)
             implementation(libs.kotlinx.coroutinesCore)

@@ -14,6 +14,8 @@ private val BRANCH_NAME_REGEX = Regex("^[a-zA-Z0-9_-]+$")
 
 private const val NO_SCHEDULER = "[schedule] no scheduler in this session — launch with -schedule … to enable"
 
+private const val NO_RAG = "[rag] RAG is unavailable in this session"
+
 /**
  * Executes a REPL branch- / memory-management command and RETURNS the status
  * line(s) instead of printing them. The DB work (and disk work for memory) is
@@ -32,6 +34,7 @@ public class CommandRunner(
     private val memory: MemoryProvider?,
     private val strategy: ContextStrategy,
     private val scheduler: SchedulerControl? = null,
+    private val ragControl: RagControl? = null,
 ) {
     suspend fun run(command: SessionCommand): List<String> = buildList {
         when (command) {
@@ -232,6 +235,20 @@ public class CommandRunner(
                     }
                 }
             }
+            is SessionCommand.SetTaskGoal -> withMemory { mem ->
+                val active = mem.activeTaskId()
+                when {
+                    active == null ->
+                        add("[memory] /task goal needs an active task — set one with /task <id>")
+                    command.text.isBlank() ->
+                        add("[memory] /task goal needs the goal text")
+                    else -> {
+                        val task = mem.store.loadTask(active) ?: TaskNotes(active, stage = TaskStage.INITIAL)
+                        mem.store.saveTask(task.copy(goal = command.text))
+                        add("[memory] goal set for task '$active'")
+                    }
+                }
+            }
             SessionCommand.PauseTask -> withMemory { mem -> togglePause(mem, paused = true) }
             SessionCommand.ResumeTask -> withMemory { mem -> togglePause(mem, paused = false) }
             is SessionCommand.DeleteTask -> withMemory { mem ->
@@ -280,6 +297,9 @@ public class CommandRunner(
                 if (ctl == null) add(NO_SCHEDULER)
                 else add("[schedule] cancelled ${ctl.cancelAll()} task(s) — schedule stopped")
             }
+            is SessionCommand.LoadRag -> add(ragControl?.load(command.name, command.embedder) ?: NO_RAG)
+            SessionCommand.RagOff -> add(ragControl?.off() ?: NO_RAG)
+            SessionCommand.RagStatus -> add(ragControl?.status() ?: NO_RAG)
         }
     }
 

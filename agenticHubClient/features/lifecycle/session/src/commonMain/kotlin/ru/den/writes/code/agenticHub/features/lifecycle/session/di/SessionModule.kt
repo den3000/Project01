@@ -5,6 +5,7 @@ import org.koin.dsl.module
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.session.RagControl
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionAssembly
 import ru.den.writes.code.agenticHub.features.lifecycle.session.buildSessionViewModel
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
@@ -30,6 +31,7 @@ public data class SessionAssemblyArgs(
     val routedJudges: List<RoutedJudge>,
     val toolDefs: List<ToolDefinition> = emptyList(),
     val toolExecutor: ToolExecutor? = null,
+    val ragControl: RagControl? = null,
 )
 
 /** Koin module assembling the per-session MVI stack from a [SessionAssemblyArgs]. */
@@ -45,6 +47,7 @@ public val sessionModule: Module = module {
             routedJudges = a.routedJudges,
             toolDefs = a.toolDefs,
             toolExecutor = a.toolExecutor,
+            ragControl = a.ragControl,
         )
     }
 }

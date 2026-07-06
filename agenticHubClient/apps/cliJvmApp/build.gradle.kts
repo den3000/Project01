@@ -15,6 +15,8 @@ dependencies {
     // Routed* agents) — partly transitive through :session api, made explicit here.
     implementation(projects.agenticHubClient.features.llm)
     implementation(projects.agenticHubClient.features.agent)
+    // ragModule for the composition root's startKoin(...) list (RAG indexing + retrieval).
+    implementation(projects.agenticHubClient.features.rag)
     implementation(projects.agenticHubClient.platform.config)
     implementation(projects.agenticHubClient.platform.database)
     // fileSystemModule for the composition root's startKoin(...) list.

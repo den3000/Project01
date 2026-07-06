@@ -55,12 +55,13 @@ public fun buildSessionViewModel(
     routedJudges: List<RoutedJudge>,
     toolDefs: List<ToolDefinition> = emptyList(),
     toolExecutor: ToolExecutor? = null,
+    ragControl: RagControl? = null,
 ): SessionAssembly {
     val multiAgent = routedAgents.isNotEmpty()
     val schedules = (cliArgs as? StartCommand.RunChat)?.config?.schedules.orEmpty()
     val schedulerEnabled = schedules.isNotEmpty()
     val engine = TurnEngine(
-        cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor,
+        cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor, ragControl,
     )
 
     val actions = mutableMapOf<String, ScheduleAction>()
@@ -72,7 +73,7 @@ public fun buildSessionViewModel(
     }
     val control = scheduler?.let { SchedulerControl(it, actions) }
 
-    val commandRunner = CommandRunner(historyStore, memory, strategy, control)
+    val commandRunner = CommandRunner(historyStore, memory, strategy, control, ragControl)
     val viewModel = SessionViewModel(
         cliArgs, engine, commandRunner, historyStore, memory, strategy, multiAgent,
         schedulerEnabled = schedulerEnabled,

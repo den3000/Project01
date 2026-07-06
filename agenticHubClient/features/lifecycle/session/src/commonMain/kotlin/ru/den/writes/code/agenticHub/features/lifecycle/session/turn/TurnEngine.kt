@@ -5,6 +5,8 @@ import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.session.RagControl
+import ru.den.writes.code.agenticHub.features.llm.ragChunksToContextMessage
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.agent.AgentConfig
@@ -53,6 +55,12 @@ public class TurnEngine(
      */
     private val toolDefs: List<ToolDefinition> = emptyList(),
     private val toolExecutor: ToolExecutor? = null,
+    /**
+     * Active RAG index for the session (armed by `/rag <name>`). When present, each
+     * turn retrieves top-K chunks for the prompt and injects them as grounding
+     * context; null / no active index → no retrieval, byte-identical to before.
+     */
+    private val ragControl: RagControl? = null,
 ) {
     /**
      * The default agent: this engine's model surface + generation knobs, no
@@ -102,7 +110,13 @@ public class TurnEngine(
         // routed agent, so TurnContext keeps the default model id.
         historyStore?.let { strategy.onTurn(TurnContext(it, llmApi, prompt, cliArgs.modelProvider.modelId)) }
         val userTurn = Message(role = Role.USER, text = prompt)
-        val baseContext = historyStore?.let { strategy.planContext(it.messages) } ?: emptyList()
+        // RAG: retrieve top-K chunks for this prompt and inject them as a grounding
+        // SYSTEM turn ABOVE the planned history. No active index / empty hit → no
+        // injection, and `retrieval` stays empty (the view shows no sources).
+        val active = ragControl?.active
+        val retrieval = active?.retriever?.retrieve(prompt, active.topK).orEmpty()
+        val ragContext = if (retrieval.isEmpty()) emptyList() else listOf(ragChunksToContextMessage(retrieval))
+        val baseContext = ragContext + (historyStore?.let { strategy.planContext(it.messages) } ?: emptyList())
         // Memory layer (profile / rules / current task) sits ABOVE the history
         // tail so it stays stable across turns. Empty when no MemoryProvider —
         // byte-identical to the no-memory path.
@@ -148,6 +162,7 @@ public class TurnEngine(
             verdict = verdict,
             judgeModelId = judge?.modelId,
             executedToolCalls = outcome.executedToolCalls,
+            retrieval = retrieval,
         )
     }
 

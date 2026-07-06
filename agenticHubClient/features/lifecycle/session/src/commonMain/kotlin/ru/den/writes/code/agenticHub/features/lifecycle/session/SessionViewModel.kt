@@ -146,6 +146,7 @@ public class SessionViewModel(
     private fun TurnResult.Ok.toLines(): List<UiLine> = buildList {
         if (executedToolCalls.isNotEmpty()) add(UiLine.MCPLine(executedToolCalls, modelId))
         add(UiLine.Assistant(reply, if (multiAgent) AgentRef(profileName, modelId) else null))
+        if (retrieval.isNotEmpty()) add(UiLine.RagLine(retrieval))
         add(UiLine.Turn(usage, modelId, durationMs, session))
         if (!verdict.passed) add(UiLine.Judge(judgeModelId, verdict.violations))
         if (stageAdvance != StageAdvance.None) add(UiLine.Stage(stageAdvance))

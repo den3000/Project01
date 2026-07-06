@@ -125,6 +125,7 @@ private fun UiLine.toTuiView(): TuiView? = when (this) {
     is UiLine.Error -> ErrorTuiView(reason)
     is UiLine.Notice -> NoticeTuiView(text)
     is UiLine.MCPLine -> McpTuiView(calls, modelId)
+    is UiLine.RagLine -> RagTuiView(chunks)
     // The final summary is dropped here — the live stats panel already shows the totals.
     is UiLine.Summary -> null
 }
