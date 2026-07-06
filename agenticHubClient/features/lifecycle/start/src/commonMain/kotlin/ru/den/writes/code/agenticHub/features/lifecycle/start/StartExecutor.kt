@@ -5,6 +5,7 @@ import ru.den.writes.code.agenticHub.features.memory.isValidProfileName
 import ru.den.writes.code.agenticHub.features.rag.RagIndexer
 import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderSelector
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.homeDirectory
@@ -34,6 +35,7 @@ public class StartExecutor(
     private val db: AppDatabase,
     private val fs: LocalFileSystem,
     private val ragIndexer: RagIndexer? = null,
+    private val embedderSelector: EmbedderSelector? = null,
 ) {
     private val ops = AdminOps(db, fs)
 
@@ -55,6 +57,7 @@ public class StartExecutor(
      */
     private suspend fun handleRagAdd(command: StartCommand.RagAdd) {
         val indexer = ragIndexer ?: run { logErr("[rag] indexing is unavailable in this build"); return }
+        val selector = embedderSelector ?: run { logErr("[rag] indexing is unavailable in this build"); return }
         if (!isValidProfileName(command.name)) {
             logErr("[rag] invalid name '${command.name}' (alphanumeric / '_' / '-', up to 64 chars)")
             return
@@ -66,8 +69,9 @@ public class StartExecutor(
         val name = command.sourcePath.substringAfterLast('/')
         fs.mkdirs(RAG_ROOT)
         val path = "$RAG_ROOT/${command.name}.json"
-        val chunks = indexer.index(SourceDocument(source = name, title = name, text = text), path, StructuralChunking())
-        println("[rag] indexed '${command.name}' ($chunks chunk(s)) → $path")
+        val embedder = selector.select(command.embedder)
+        val chunks = indexer.index(SourceDocument(source = name, title = name, text = text), path, StructuralChunking(), embedder)
+        println("[rag] indexed '${command.name}' ($chunks chunk(s), ${command.embedder.name.lowercase()}) → $path")
     }
 }
 

@@ -10,5 +10,5 @@ import ru.den.writes.code.agenticHub.features.lifecycle.start.StartExecutor
  * all from the graph → single.
  */
 val startModule: Module = module {
-    single { StartExecutor(db = get(), fs = get(), ragIndexer = get()) }
+    single { StartExecutor(db = get(), fs = get(), ragIndexer = get(), embedderSelector = get()) }
 }

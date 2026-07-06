@@ -44,7 +44,7 @@ public val ragModule: Module = module {
     includes(sharedRagModule)
     single { IndexStore(fs = get()) }
     single<Embedder> { OllamaEmbedder(httpClient = get()) }
-    single { RagIndexer(embedder = get(), indexStore = get()) }
+    single { RagIndexer(indexStore = get()) }
 }
 
 /**

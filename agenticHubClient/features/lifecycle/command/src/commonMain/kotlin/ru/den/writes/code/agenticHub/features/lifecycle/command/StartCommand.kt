@@ -1,6 +1,7 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.command
 
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderKind
 
 /**
  * The domain layer — WHAT the CLI was asked to do, decoupled from HOW the args
@@ -25,8 +26,11 @@ public sealed interface StartCommand {
     /** Read or write the on-disk memory files, then exit (no LLM, no session). */
     data class MemoryOp(val action: MemoryAction) : StartCommand
 
-    /** Index the file at [sourcePath] into a RAG index saved under [name], then exit. */
-    data class RagAdd(val name: String, val sourcePath: String) : StartCommand
+    /**
+     * Index the file at [sourcePath] into a RAG index saved under [name] using
+     * [embedder] (Ollama or Gemini), then exit.
+     */
+    data class RagAdd(val name: String, val sourcePath: String, val embedder: EmbedderKind) : StartCommand
 
     /** Common shape of the LLM-talking commands — generation knobs + provider. */
     sealed interface SessionInitialState : StartCommand {

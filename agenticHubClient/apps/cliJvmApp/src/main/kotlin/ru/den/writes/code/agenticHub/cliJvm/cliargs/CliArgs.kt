@@ -9,6 +9,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CHUNK_CHARS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CLEAR
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONSTRAINTS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONTEXT
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EMBEDDER
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.END_SEQUENCE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EVERY
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EXIT
@@ -198,6 +199,7 @@ private fun buildCatalog(): List<ArgSpec> = buildList {
     add(sub(ADD, listOf(RAG), value = req(ValueKind.Name), usage = "name to store the index under"))
     add(sub(SRC, listOf(RAG), value = req(ValueKind.Path), usage = "source file to index"))
     add(sub(OFF, listOf(RAG), usage = "detach the active index (/rag off)"))
+    add(sub(EMBEDDER, listOf(RAG), value = req(ValueKind.OneOf(setOf("ollama", "gemini"))), usage = "embedder backend (default: gemini if provider gemini, else ollama)"))
 
     // ---- scheduling ----
     addAll(scheduleControls())
