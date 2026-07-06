@@ -307,6 +307,8 @@ public sealed interface SessionCommand : UiIntent {
     data class SetTask(val taskId: String) : SessionCommand
     /** Append a note to the currently-active task. */
     data class AppendTaskNote(val note: String) : SessionCommand
+    /** Set the goal of the currently-active task. */
+    data class SetTaskGoal(val text: String) : SessionCommand
     /** Pause the active task — hold its stage; auto-advance is suppressed. */
     data object PauseTask : SessionCommand
     /** Resume the active task — clear the pause flag; auto-advance resumes. */

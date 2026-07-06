@@ -15,6 +15,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EXIT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.FEED_FILE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.FEED_INSTRUCTION
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.FORMAT
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.GOAL
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.HELP
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.INFLATE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.JUDGE
@@ -152,6 +153,7 @@ private fun buildCatalog(): List<ArgSpec> = buildList {
                 sub(PAUSE, listOf(TASK), usage = "hold the active task's stage"),
                 sub(RESUME, listOf(TASK), usage = "resume the task"),
                 sub(NOTE, listOf(TASK), value = req(ValueKind.Text), usage = "append a note"),
+                sub(GOAL, listOf(TASK), value = req(ValueKind.Text), usage = "set the active task's goal"),
             ),
         ),
     )

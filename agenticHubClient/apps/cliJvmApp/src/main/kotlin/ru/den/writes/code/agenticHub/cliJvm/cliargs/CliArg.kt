@@ -55,6 +55,7 @@ enum class CliArg(val title: String) {
     PAUSE("pause"),
     RESUME("resume"),
     NOTE("note"),
+    GOAL("goal"),
 
     // profile sections
     STYLE("style"),

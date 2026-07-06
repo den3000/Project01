@@ -11,6 +11,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONSTRAINTS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONTEXT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EVERY
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.FORMAT
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.GOAL
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MEMORY
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MODE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.NOTE
@@ -137,6 +138,7 @@ internal class CliArgToSessionCommandMapper(private val parser: CliArgsParser) {
         c.sub(PAUSE)?.let { return SessionCommand.PauseTask }
         c.sub(RESUME)?.let { return SessionCommand.ResumeTask }
         c.sub(NOTE)?.let { return SessionCommand.AppendTaskNote(it.value.orEmpty()) }
+        c.sub(GOAL)?.let { return SessionCommand.SetTaskGoal(it.value.orEmpty()) }
         return SessionCommand.SetTask(c.value.orEmpty())
     }
 

@@ -232,6 +232,20 @@ public class CommandRunner(
                     }
                 }
             }
+            is SessionCommand.SetTaskGoal -> withMemory { mem ->
+                val active = mem.activeTaskId()
+                when {
+                    active == null ->
+                        add("[memory] /task goal needs an active task — set one with /task <id>")
+                    command.text.isBlank() ->
+                        add("[memory] /task goal needs the goal text")
+                    else -> {
+                        val task = mem.store.loadTask(active) ?: TaskNotes(active, stage = TaskStage.INITIAL)
+                        mem.store.saveTask(task.copy(goal = command.text))
+                        add("[memory] goal set for task '$active'")
+                    }
+                }
+            }
             SessionCommand.PauseTask -> withMemory { mem -> togglePause(mem, paused = true) }
             SessionCommand.ResumeTask -> withMemory { mem -> togglePause(mem, paused = false) }
             is SessionCommand.DeleteTask -> withMemory { mem ->
