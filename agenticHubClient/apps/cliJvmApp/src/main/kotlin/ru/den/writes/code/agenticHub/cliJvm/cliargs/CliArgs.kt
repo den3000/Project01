@@ -229,7 +229,7 @@ private fun profileSections(): List<ArgSpec> = listOf(STYLE, FORMAT, CONSTRAINTS
 private fun agentEntity(): List<ArgSpec> = entity(
     AGENT, setOf(FLAG, CMD),
     extras = listOf(
-        sub(PROVIDER, listOf(AGENT), value = req(ValueKind.OneOf(setOf("gemini", "openrouter", "huggingface"))), usage = "llm provider"),
+        sub(PROVIDER, listOf(AGENT), value = req(ValueKind.OneOf(setOf("gemini", "openrouter", "huggingface", "ollama"))), usage = "llm provider"),
         sub(MODEL, listOf(AGENT), value = req(ValueKind.Text), usage = "model id"),
         sub(MAX_TOKENS, listOf(AGENT), value = req(ValueKind.IntRange(1)), usage = "output cap"),
         sub(TEMPERATURE, listOf(AGENT), value = req(ValueKind.Decimal(0.0, 2.0)), usage = "sampling temperature"),

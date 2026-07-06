@@ -10,6 +10,7 @@ import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.ModelProviderError
 import ru.den.writes.code.agenticHub.features.llm.PROVIDER_GEMINI
 import ru.den.writes.code.agenticHub.features.llm.PROVIDER_HUGGINGFACE
+import ru.den.writes.code.agenticHub.features.llm.PROVIDER_OLLAMA
 import ru.den.writes.code.agenticHub.features.llm.PROVIDER_OPENROUTER
 import ru.den.writes.code.agenticHub.features.llm.buildModelProvider
 
@@ -42,7 +43,7 @@ internal class ModelProviderFactory(private val keys: ApiKeys) {
         } catch (e: ModelProviderError.UnknownProvider) {
             bailInvalid(
                 "-provider", e.providerRaw,
-                "one of: $PROVIDER_GEMINI, $PROVIDER_OPENROUTER, $PROVIDER_HUGGINGFACE",
+                "one of: $PROVIDER_GEMINI, $PROVIDER_OPENROUTER, $PROVIDER_HUGGINGFACE, $PROVIDER_OLLAMA",
             )
         }
 }

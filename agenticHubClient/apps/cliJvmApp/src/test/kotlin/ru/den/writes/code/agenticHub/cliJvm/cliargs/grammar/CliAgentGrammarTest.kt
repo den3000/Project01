@@ -136,7 +136,7 @@ class CliAgentGrammarTest {
         )
         assertMatchParserError("$cmd x temperature 9".toArgsList(), ParseError.BadValue(TEMPERATURE, "9", "a number in 0.0..2.0"), parser)
         assertMatchParserError("$cmd x stages foo..bar".toArgsList(), ParseError.BadValue(STAGES, "foo..bar", "a stage range like clarification..planning"), parser)
-        assertMatchParserError("$cmd x provider bogus".toArgsList(), ParseError.BadValue(PROVIDER, "bogus", "one of: gemini, openrouter, huggingface"), parser)
+        assertMatchParserError("$cmd x provider bogus".toArgsList(), ParseError.BadValue(PROVIDER, "bogus", "one of: gemini, openrouter, huggingface, ollama"), parser)
         assertMatchParserError("$cmd x stages execution..planning".toArgsList(), ParseError.BadValue(STAGES, "execution..planning", "a stage range with from no later than to"), parser)
         assertMatchParserError("$cmd x maxTokens abc".toArgsList(), ParseError.BadValue(MAX_TOKENS, "abc", "an integer"), parser)
         assertMatchParserError("-provider gemini".toArgsList(), ParseError.WrongSurface("provider", FLAG), parser)
