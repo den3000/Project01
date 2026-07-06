@@ -45,8 +45,8 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
   `LlmWithRagAnswerLiveTest` (baseline без реранка, сетка 2×2 с пином grounding: `SMALL_HANDBOOK` top-3
   → 10/10, `BIG_HANDBOOK` top-1 → 1/10, каждое через Ollama и **реальный Gemini**) и
   `LlmWithRagRerankerAnswerLiveTest` (те же 10 вопросов на `BIG_HANDBOOK`: plain top-K vs
-  rewrite+CrossEncoder-реранк поднимает 1/10 → 10/10; grounding- и цитирующие строки через `GroundedAnswerer`
-  — Ollama и Gemini) и
+  rewrite+CrossEncoder-реранк поднимает 1/10 → 10/10; ответ через `GroundedAnswerer` — в выводе
+  source+дословная цитата, baseline цитирует decoy; Ollama и Gemini) и
   `LlmWithRagCitationsAnswerLiveTest` (`GroundedAnswerer` на `SMALL_HANDBOOK`: каждый ответ known +
   цитата дословно из чанка + факт; офф-топик → гейт «не знаю»). Gemini жжёт токены и требует
   `GEMINI_API_KEY`; ретривел всегда через локальную Ollama. Общий корпус/метрики — `RagLiveFixtures`.
