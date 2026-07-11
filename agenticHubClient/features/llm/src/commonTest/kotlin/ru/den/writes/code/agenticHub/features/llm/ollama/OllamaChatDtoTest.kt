@@ -56,6 +56,34 @@ class OllamaChatDtoTest {
         assertFalse("options" in actual, "null options must be omitted, was: $actual")
     }
 
+    @Test
+    fun `when num_ctx top_p and seed are set - then they use Ollama snake_case keys on the wire`() {
+        // given
+        val request = request(options = OllamaOptions(numCtx = 8192, topP = 0.9, seed = 42))
+
+        // when
+        val actual = wireJson.encodeToString(request)
+
+        // then
+        assertTrue("\"num_ctx\":8192" in actual, "num_ctx must be on the wire, was: $actual")
+        assertTrue("\"top_p\":0.9" in actual, "top_p must be on the wire, was: $actual")
+        assertTrue("\"seed\":42" in actual, "seed must be on the wire, was: $actual")
+    }
+
+    @Test
+    fun `when num_ctx top_p and seed are null - then they are omitted`() {
+        // given — only temperature set, the new knobs left at their null default
+        val request = request(options = OllamaOptions(temperature = 0.0))
+
+        // when
+        val actual = wireJson.encodeToString(request)
+
+        // then
+        assertFalse("num_ctx" in actual, "null num_ctx must be omitted, was: $actual")
+        assertFalse("top_p" in actual, "null top_p must be omitted, was: $actual")
+        assertFalse("seed" in actual, "null seed must be omitted, was: $actual")
+    }
+
     private fun request(
         stream: Boolean = false,
         think: Boolean? = null,

@@ -37,14 +37,18 @@ internal data class OllamaChatRequest(
 internal data class OllamaMessage(val role: String, val content: String)
 
 /**
- * Generation knobs. Ollama names the token cap `num_predict` (not `max_tokens`).
- * All-null → the request omits `options` entirely and Ollama uses model defaults.
+ * Generation knobs. Ollama names the token cap `num_predict` (not `max_tokens`)
+ * and the context window `num_ctx`. All-null → the request omits `options`
+ * entirely and Ollama uses model defaults.
  */
 @Serializable
 internal data class OllamaOptions(
     val temperature: Double? = null,
     @SerialName("num_predict") val numPredict: Int? = null,
     val stop: List<String>? = null,
+    @SerialName("num_ctx") val numCtx: Int? = null,
+    @SerialName("top_p") val topP: Double? = null,
+    val seed: Int? = null,
 )
 
 /**
