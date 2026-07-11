@@ -9,6 +9,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CHUNK_CHARS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CLEAR
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONSTRAINTS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONTEXT
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONTEXT_WINDOW
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EMBEDDER
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.END_SEQUENCE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EVERY
@@ -39,6 +40,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.RESUME
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.REUSE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.RULE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SCHEDULE
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SEED
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SESSION
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SHOW
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SRC
@@ -51,6 +53,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SWITCH
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TASK
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TEMPERATURE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TOOL
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TOP_P
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TUI
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.Surface.CMD
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.Surface.FLAG
@@ -233,6 +236,9 @@ private fun agentEntity(): List<ArgSpec> = entity(
         sub(MODEL, listOf(AGENT), value = req(ValueKind.Text), usage = "model id"),
         sub(MAX_TOKENS, listOf(AGENT), value = req(ValueKind.IntRange(1)), usage = "output cap"),
         sub(TEMPERATURE, listOf(AGENT), value = req(ValueKind.Decimal(0.0, 2.0)), usage = "sampling temperature"),
+        sub(TOP_P, listOf(AGENT), value = req(ValueKind.Decimal(0.0, 1.0)), usage = "nucleus-sampling cutoff"),
+        sub(SEED, listOf(AGENT), value = req(ValueKind.IntRange(0)), usage = "sampling seed (reproducible)"),
+        sub(CONTEXT_WINDOW, listOf(AGENT), value = req(ValueKind.IntRange(1)), usage = "context window (num_ctx)"),
         sub(STOP_SEQUENCE, listOf(AGENT), value = req(ValueKind.Text), usage = "stop sequence"),
         sub(END_SEQUENCE, listOf(AGENT), value = req(ValueKind.Text), usage = "end sequence"),
         sub(PROFILE, listOf(AGENT), value = req(ValueKind.Name), usage = "bind a profile to this agent"),

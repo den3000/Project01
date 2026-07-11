@@ -202,4 +202,7 @@ public fun StartCommand.SessionInitialState.toGenerationParams(): GenerationPara
         stopSequences = stopSequences,
         endSequence = endSequence,
         temperature = temperature,
+        topP = topP,
+        seed = seed,
+        contextWindow = contextWindow,
     )
