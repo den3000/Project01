@@ -5,7 +5,8 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
 инжектится снаружи (движок в апп-модуле), так что ядро остаётся портируемым.
 
 ## Публичный API
-- `LlmApi` + нейтральные `Message`/`Role`/`GenerationParams`(вкл. `thinkingBudget`)/`Usage`/
+- `LlmApi` + нейтральные `Message`/`Role`/`GenerationParams`(вкл. `thinkingBudget`, `topP`/`seed`/
+  `contextWindow` — Ollama-only, облачные провайдеры их игнорируют)/`Usage`/
   `LlmResult` (`LlmApi.kt`); `ModelProvider` (sealed-дискриминатор, `ModelProvider.kt`).
 - Провайдеры `gemini|openrouter|huggingface|ollama/` — `*Api` (реализация `LlmApi`) + `*Dto` + `*Model`
   (typed каталог + `Custom`). `ollama/LocalOllamaApi` — генеративный chat к локальной Ollama
@@ -66,7 +67,8 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
 - **HF Router** маршрутизирует между провайдерами — цены в `ModelPricing.kt` для HF *приближения*;
   503 при cold start → одна retry с `Retry-After`. Каталог: `https://router.huggingface.co/v1/models`.
 - **flash-lite TPM 4M** — боттлнек нагрузочных прогонов (rate-limit раньше переполнения контекста).
-- **Ollama**: токен-кап зовётся `num_predict` (не `max_tokens`), `temperature`/`stop` — внутри `options`;
+- **Ollama**: токен-кап зовётся `num_predict` (не `max_tokens`), context window — `num_ctx`;
+  `temperature`/`top_p`/`seed`/`stop`/`num_ctx` — внутри `options`;
   теги (`OllamaModel`) зависят от локально спуленных моделей → основной путь `Custom`, не `Known`. В
   `PricingRegistry` не заводим (локально бесплатно; lookup→null).
 - **Ollama `stream` без дефолта — намеренно**: при `encodeDefaults=false` (наш JSON) поле, равное
