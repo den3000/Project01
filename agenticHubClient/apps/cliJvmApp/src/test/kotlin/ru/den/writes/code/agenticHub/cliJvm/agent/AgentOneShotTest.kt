@@ -71,6 +71,9 @@ class AgentOneShotTest {
             stopSequences = listOf("STOP"),
             endSequence = "[END]",
             temperature = 0.5,
+            topP = 0.9,
+            seed = 42,
+            contextWindow = 8192,
             modelProvider = dummyGeminiProvider(GeminiModel.Known.Gemini25Flash),
         )
 
@@ -83,6 +86,9 @@ class AgentOneShotTest {
             stopSequences = listOf("STOP"),
             endSequence = "[END]",
             temperature = 0.5,
+            topP = 0.9,
+            seed = 42,
+            contextWindow = 8192,
         )
         assertEquals(expected, fakeApiScript.calls.single().params)
     }

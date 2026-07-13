@@ -39,6 +39,9 @@ public sealed interface StartCommand {
         val stopSequences: List<String>?
         val endSequence: String?
         val temperature: Double?
+        val topP: Double?
+        val seed: Int?
+        val contextWindow: Int?
         val modelProvider: ModelProvider
     }
 
@@ -53,6 +56,9 @@ public sealed interface StartCommand {
         override val stopSequences: List<String>?,
         override val endSequence: String?,
         override val temperature: Double?,
+        override val topP: Double? = null,
+        override val seed: Int? = null,
+        override val contextWindow: Int? = null,
         override val modelProvider: ModelProvider,
         val config: SessionConfig,
     ) : SessionInitialState
@@ -64,6 +70,9 @@ public sealed interface StartCommand {
         override val stopSequences: List<String>?,
         override val endSequence: String?,
         override val temperature: Double?,
+        override val topP: Double? = null,
+        override val seed: Int? = null,
+        override val contextWindow: Int? = null,
         override val modelProvider: ModelProvider,
     ) : SessionInitialState
 }

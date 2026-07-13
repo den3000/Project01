@@ -120,22 +120,25 @@ stateless), так что multi-turn контекст сохраняется; о
 **без** саб-опций `stages`/`judge` — это «primary» (агент по умолчанию):
 
 ```
--agent [<name>] provider <gemini|openrouter|huggingface> model <id>
-       maxTokens <int> temperature <0..2> stopSequence "<words>" endSequence "<text>"
+-agent [<name>] provider <gemini|openrouter|huggingface|ollama> model <id>
+       maxTokens <int> temperature <0..2> topP <0..1> seed <int> contextWindow <int>
+       stopSequence "<words>" endSequence "<text>"
        profile <name> mode <none|system|preamble> stages <from..to> judge
 ```
 
-- `provider` — какой API звать (по умолчанию `gemini`); `model` — id модели (неизвестный id
-  заворачивается в `Custom` и шлётся как есть).
+- `provider` — какой API звать (по умолчанию `gemini`; `ollama` = локальная модель без ключа);
+  `model` — id модели (неизвестный id заворачивается в `Custom` и шлётся как есть).
 - `maxTokens` — потолок output-токенов; `temperature` — `0.0..2.0`.
+- `topP` (`0.0..1.0`), `seed` (воспроизводимость при `temperature 0`), `contextWindow` (`num_ctx`)
+  — только для `provider ollama`; облачные провайдеры их игнорируют.
 - `stopSequence "<words>"` — слова через пробел, каждое = своя стоп-последовательность
   (Gemini — максимум 5).
 - `endSequence "<text>"` — просьба завершить ответ этой строкой (опускается в системную
   инструкцию; best-effort).
 - `profile`/`mode`/`stages`/`judge` — слой памяти и маршрутизация (см. ниже).
 
-`maxTokens`/`temperature`/`stopSequence`/`endSequence`/`provider`/`profile` сохраняются между
-итерациями REPL — между ходами меняется только промпт.
+`maxTokens`/`temperature`/`topP`/`seed`/`contextWindow`/`stopSequence`/`endSequence`/`provider`/
+`profile` сохраняются между итерациями REPL — между ходами меняется только промпт.
 
 ### Контекст-стратегии — `-strategy`
 

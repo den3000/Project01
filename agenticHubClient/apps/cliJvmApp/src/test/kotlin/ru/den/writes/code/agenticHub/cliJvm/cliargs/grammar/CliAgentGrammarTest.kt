@@ -2,6 +2,7 @@ package ru.den.writes.code.agenticHub.cliJvm.cliargs.grammar
 
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.AGENT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CLEAR
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONTEXT_WINDOW
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.END_SEQUENCE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.JUDGE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MAX_TOKENS
@@ -9,10 +10,12 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MODE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MODEL
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROFILE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROVIDER
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SEED
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SHOW
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STAGES
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STOP_SEQUENCE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TEMPERATURE
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TOP_P
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.ExpectedControl
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.ParseError
@@ -71,12 +74,15 @@ class CliAgentGrammarTest {
             parser,
         )
         assertMatchParserCmd(
-            "$cmd $name maxTokens 200 temperature 0.7 stopSequence \"</end>\" endSequence \"###\"",
+            "$cmd $name maxTokens 200 temperature 0.7 topP 0.9 seed 42 contextWindow 8192 stopSequence \"</end>\" endSequence \"###\"",
             ExpectedControl(
                 surface = sfc, arg = cli, value = name,
                 subs = listOf(
                     sub(cli, MAX_TOKENS, value = "200"),
                     sub(cli, TEMPERATURE, value = "0.7"),
+                    sub(cli, TOP_P, value = "0.9"),
+                    sub(cli, SEED, value = "42"),
+                    sub(cli, CONTEXT_WINDOW, value = "8192"),
                     sub(cli, STOP_SEQUENCE, value = "</end>"),
                     sub(cli, END_SEQUENCE, value = "###"),
                 ),
@@ -122,12 +128,15 @@ class CliAgentGrammarTest {
             parser,
         )
         assertMatchParserFlag(
-            "$cmd $name maxTokens 200 temperature 0.7 stopSequence \"</end>\" endSequence \"###\"".toArgsList(),
+            "$cmd $name maxTokens 200 temperature 0.7 topP 0.9 seed 42 contextWindow 8192 stopSequence \"</end>\" endSequence \"###\"".toArgsList(),
             top(
                 cli, sfc, value = name,
                 subs = listOf(
                     sub(cli, MAX_TOKENS, value = "200"),
                     sub(cli, TEMPERATURE, value = "0.7"),
+                    sub(cli, TOP_P, value = "0.9"),
+                    sub(cli, SEED, value = "42"),
+                    sub(cli, CONTEXT_WINDOW, value = "8192"),
                     sub(cli, STOP_SEQUENCE, value = "</end>"),
                     sub(cli, END_SEQUENCE, value = "###"),
                 ),
@@ -135,6 +144,8 @@ class CliAgentGrammarTest {
             parser,
         )
         assertMatchParserError("$cmd x temperature 9".toArgsList(), ParseError.BadValue(TEMPERATURE, "9", "a number in 0.0..2.0"), parser)
+        assertMatchParserError("$cmd x topP 2".toArgsList(), ParseError.BadValue(TOP_P, "2", "a number in 0.0..1.0"), parser)
+        assertMatchParserError("$cmd x contextWindow abc".toArgsList(), ParseError.BadValue(CONTEXT_WINDOW, "abc", "an integer"), parser)
         assertMatchParserError("$cmd x stages foo..bar".toArgsList(), ParseError.BadValue(STAGES, "foo..bar", "a stage range like clarification..planning"), parser)
         assertMatchParserError("$cmd x provider bogus".toArgsList(), ParseError.BadValue(PROVIDER, "bogus", "one of: gemini, openrouter, huggingface, ollama"), parser)
         assertMatchParserError("$cmd x stages execution..planning".toArgsList(), ParseError.BadValue(STAGES, "execution..planning", "a stage range with from no later than to"), parser)

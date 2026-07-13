@@ -14,6 +14,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.ARGS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.BY_LINE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CHUNK_CHARS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CLEAR
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONTEXT_WINDOW
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.END_SEQUENCE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EVERY
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.FEED_FILE
@@ -36,8 +37,10 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STAGES
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STOP_SEQUENCE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.STRATEGY
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SUMMARIZE_EVERY
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.SEED
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TASK
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TEMPERATURE
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.TOP_P
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONSTRAINTS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONTEXT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.EMBEDDER
@@ -143,6 +146,9 @@ internal class CliArgsToStartCommandMapper(
                 stopSequences = stopSequences(primary),
                 endSequence = primary?.subValue(END_SEQUENCE),
                 temperature = primary?.subValue(TEMPERATURE)?.toDouble(),
+                topP = primary?.subValue(TOP_P)?.toDouble(),
+                seed = primary?.subValue(SEED)?.toInt(),
+                contextWindow = primary?.subValue(CONTEXT_WINDOW)?.toInt(),
                 modelProvider = modelProviderFactory.buildProvider(primary),
             )
         }
@@ -164,6 +170,9 @@ internal class CliArgsToStartCommandMapper(
             stopSequences = stopSequences(primary),
             endSequence = primary?.subValue(END_SEQUENCE),
             temperature = primary?.subValue(TEMPERATURE)?.toDouble(),
+            topP = primary?.subValue(TOP_P)?.toDouble(),
+            seed = primary?.subValue(SEED)?.toInt(),
+            contextWindow = primary?.subValue(CONTEXT_WINDOW)?.toInt(),
             modelProvider = modelProviderFactory.buildProvider(primary),
             config = SessionConfig(
                 session = controls.last(SESSION)?.value,

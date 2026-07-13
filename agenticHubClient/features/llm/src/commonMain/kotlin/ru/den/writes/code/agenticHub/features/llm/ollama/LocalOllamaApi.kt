@@ -81,11 +81,18 @@ public class LocalOllamaApi(
 
 /** Fold the neutral params into Ollama's nested `options`; null when nothing is set. */
 private fun GenerationParams.toOllamaOptions(): OllamaOptions? {
-    if (temperature == null && maxTokens == null && stopSequences == null) return null
+    if (temperature == null && maxTokens == null && stopSequences == null &&
+        contextWindow == null && topP == null && seed == null
+    ) {
+        return null
+    }
     return OllamaOptions(
         temperature = temperature,
         numPredict = maxTokens,
         stop = stopSequences,
+        numCtx = contextWindow,
+        topP = topP,
+        seed = seed,
     )
 }
 

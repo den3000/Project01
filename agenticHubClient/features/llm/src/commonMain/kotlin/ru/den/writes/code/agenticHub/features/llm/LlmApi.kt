@@ -97,6 +97,24 @@ data class GenerationParams(
     val endSequence: String? = null,
     val temperature: Double? = null,
     /**
+     * Nucleus-sampling cutoff (0.0..1.0): the model samples from the smallest set
+     * of tokens whose cumulative probability reaches [topP]. null = provider
+     * default. Currently only the local Ollama provider reads it (`top_p`).
+     */
+    val topP: Double? = null,
+    /**
+     * RNG seed for sampling — a fixed value makes generation reproducible (same
+     * prompt + [seed] + [temperature] → same output), useful for stable eval.
+     * null = provider default (nondeterministic). Ollama-only (`seed`).
+     */
+    val seed: Int? = null,
+    /**
+     * Context-window size in tokens the model keeps in working memory (Ollama
+     * `num_ctx`). Tuning it trades memory/latency against how much prompt+history
+     * fits. null = model default. Ollama-only; cloud models have a fixed window.
+     */
+    val contextWindow: Int? = null,
+    /**
      * Gemini thinking budget — tokens the model may spend reasoning before the
      * visible answer. null = leave the provider default (thinking on); 0 =
      * disable thinking on Gemini 2.5 Flash so the whole [maxTokens] goes to the
