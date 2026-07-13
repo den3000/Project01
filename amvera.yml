@@ -11,8 +11,8 @@ build:
   # Путь относительно корня репозитория, без ведущего слэша.
   dockerfile: deploy/amvera/Dockerfile
 run:
-  # Порт, который слушает Ollama внутри контейнера; Amvera проксирует на него
-  # публичный домен (80/443). Произвольные TCP наружу нельзя — только HTTP(S).
-  containerPort: 11434
+  # Ollama слушает 80 (OLLAMA_HOST=0.0.0.0:80). Amvera по умолчанию: домен → servicePort 80
+  # → containerPort 80, поэтому кастомные порты не нужны. Наружу — только HTTP(S).
+  containerPort: 80
   # Постоянный том: модели ($OLLAMA_MODELS=/data/models) переживают пересборки.
   persistenceMount: /data
