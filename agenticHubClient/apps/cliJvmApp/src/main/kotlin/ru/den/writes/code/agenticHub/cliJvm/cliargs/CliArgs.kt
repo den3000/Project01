@@ -19,6 +19,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.FEED_INSTRUCTION
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.FORMAT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.GOAL
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.HELP
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.HOST
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.INFLATE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.JUDGE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.KEEP_LAST
@@ -234,6 +235,7 @@ private fun agentEntity(): List<ArgSpec> = entity(
     extras = listOf(
         sub(PROVIDER, listOf(AGENT), value = req(ValueKind.OneOf(setOf("gemini", "openrouter", "huggingface", "ollama"))), usage = "llm provider"),
         sub(MODEL, listOf(AGENT), value = req(ValueKind.Text), usage = "model id"),
+        sub(HOST, listOf(AGENT), value = req(ValueKind.Text), usage = "ollama server url (remote host)"),
         sub(MAX_TOKENS, listOf(AGENT), value = req(ValueKind.IntRange(1)), usage = "output cap"),
         sub(TEMPERATURE, listOf(AGENT), value = req(ValueKind.Decimal(0.0, 2.0)), usage = "sampling temperature"),
         sub(TOP_P, listOf(AGENT), value = req(ValueKind.Decimal(0.0, 1.0)), usage = "nucleus-sampling cutoff"),

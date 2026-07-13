@@ -1,5 +1,6 @@
 package ru.den.writes.code.agenticHub.cliJvm
 
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.HOST
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MODEL
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.PROVIDER
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.ParsedArg
@@ -37,6 +38,7 @@ internal class ModelProviderFactory(private val keys: ApiKeys) {
                 agent?.subValue(PROVIDER) ?: PROVIDER_GEMINI,
                 agent?.subValue(MODEL),
                 keys.gemini, keys.openRouter, keys.huggingFace,
+                ollamaBaseUrl = agent?.subValue(HOST),
             )
         } catch (e: ModelProviderError.MissingApiKey) {
             bailMissing(e.keyName, "set ${e.keyName} in local.properties or as an env var")
