@@ -51,6 +51,7 @@ public fun buildModelProvider(
     geminiApiKey: String,
     openRouterApiKey: String,
     huggingFaceApiKey: String,
+    ollamaBaseUrl: String? = null,
 ): ModelProvider = when (providerRaw) {
     PROVIDER_GEMINI -> {
         if (geminiApiKey.isBlank()) throw ModelProviderError.MissingApiKey("GEMINI_API_KEY")
@@ -73,9 +74,13 @@ public fun buildModelProvider(
             apiKey = huggingFaceApiKey,
         )
     }
-    PROVIDER_OLLAMA -> ModelProvider.LocalOllama(
-        // Local server, no credentials — the api keys above are irrelevant here.
-        model = modelRaw?.let(OllamaModel.Companion::fromId) ?: OllamaModel.Default,
-    )
+    PROVIDER_OLLAMA -> {
+        // Local (or self-hosted remote) server, no credentials — the api keys above are
+        // irrelevant here. [ollamaBaseUrl] points the client at a remote Ollama when set
+        // (e.g. a private service on a VPS); null keeps the localhost default.
+        val model = modelRaw?.let(OllamaModel.Companion::fromId) ?: OllamaModel.Default
+        if (ollamaBaseUrl != null) ModelProvider.LocalOllama(model = model, baseUrl = ollamaBaseUrl)
+        else ModelProvider.LocalOllama(model = model)
+    }
     else -> throw ModelProviderError.UnknownProvider(providerRaw)
 }

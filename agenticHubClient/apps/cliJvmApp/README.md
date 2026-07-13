@@ -120,7 +120,7 @@ stateless), так что multi-turn контекст сохраняется; о
 **без** саб-опций `stages`/`judge` — это «primary» (агент по умолчанию):
 
 ```
--agent [<name>] provider <gemini|openrouter|huggingface|ollama> model <id>
+-agent [<name>] provider <gemini|openrouter|huggingface|ollama> model <id> host <url>
        maxTokens <int> temperature <0..2> topP <0..1> seed <int> contextWindow <int>
        stopSequence "<words>" endSequence "<text>"
        profile <name> mode <none|system|preamble> stages <from..to> judge
@@ -128,6 +128,9 @@ stateless), так что multi-turn контекст сохраняется; о
 
 - `provider` — какой API звать (по умолчанию `gemini`; `ollama` = локальная модель без ключа);
   `model` — id модели (неизвестный id заворачивается в `Custom` и шлётся как есть).
+- `host <url>` — адрес Ollama-сервера (только для `provider ollama`; по умолчанию
+  `http://localhost:11434`). Указывает клиента на удалённый приватный сервис (напр. на VPS/Amvera:
+  `host https://<проект>.<user>.amvera.io`). Деплой — [deploy/amvera/](../../../deploy/amvera/README.md).
 - `maxTokens` — потолок output-токенов; `temperature` — `0.0..2.0`.
 - `topP` (`0.0..1.0`), `seed` (воспроизводимость при `temperature 0`), `contextWindow` (`num_ctx`)
   — только для `provider ollama`; облачные провайдеры их игнорируют.

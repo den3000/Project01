@@ -4,6 +4,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.AGENT
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CLEAR
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.CONTEXT_WINDOW
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.END_SEQUENCE
+import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.HOST
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.JUDGE
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MAX_TOKENS
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArg.MODE
@@ -55,12 +56,13 @@ class CliAgentGrammarTest {
         assertMatchParserCmd("$cmd show", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, SHOW))), parser)
         assertMatchParserCmd("$cmd clear $name", ExpectedControl(surface = sfc, arg = cli, subs = listOf(sub(cli, CLEAR, value = name))), parser)
         assertMatchParserCmd(
-            "$cmd $name provider gemini model gemini-2.5-pro profile coder mode system stages execution..done",
+            "$cmd $name provider ollama model qwen2.5:1.5b host http://ollama.local profile coder mode system stages execution..done",
             ExpectedControl(
                 surface = sfc, arg = cli, value = name,
                 subs = listOf(
-                    sub(cli, PROVIDER, value = "gemini"),
-                    sub(cli, MODEL, value = "gemini-2.5-pro"),
+                    sub(cli, PROVIDER, value = "ollama"),
+                    sub(cli, MODEL, value = "qwen2.5:1.5b"),
+                    sub(cli, HOST, value = "http://ollama.local"),
                     sub(cli, PROFILE, value = "coder"),
                     sub(cli, MODE, value = "system"),
                     sub(cli, STAGES, value = "execution..done"),
@@ -109,12 +111,13 @@ class CliAgentGrammarTest {
         assertMatchParserFlag("$cmd show".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, SHOW))), parser)
         assertMatchParserFlag("$cmd clear $name".toArgsList(), top(cli, sfc, subs = listOf(sub(cli, CLEAR, value = name))), parser)
         assertMatchParserFlag(
-            "$cmd $name provider gemini model gemini-2.5-pro profile coder mode system stages execution..done".toArgsList(),
+            "$cmd $name provider ollama model qwen2.5:1.5b host http://ollama.local profile coder mode system stages execution..done".toArgsList(),
             top(
                 cli, sfc, value = name,
                 subs = listOf(
-                    sub(cli, PROVIDER, value = "gemini"),
-                    sub(cli, MODEL, value = "gemini-2.5-pro"),
+                    sub(cli, PROVIDER, value = "ollama"),
+                    sub(cli, MODEL, value = "qwen2.5:1.5b"),
+                    sub(cli, HOST, value = "http://ollama.local"),
                     sub(cli, PROFILE, value = "coder"),
                     sub(cli, MODE, value = "system"),
                     sub(cli, STAGES, value = "execution..done"),

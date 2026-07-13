@@ -66,6 +66,7 @@ enum class CliArg(val title: String) {
     // agent configuration sub-options
     PROVIDER("provider"),
     MODEL("model"),
+    HOST("host"),
     MAX_TOKENS("maxTokens"),
     TEMPERATURE("temperature"),
     TOP_P("topP"),

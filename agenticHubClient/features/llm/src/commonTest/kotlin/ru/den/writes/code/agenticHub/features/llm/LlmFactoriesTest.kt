@@ -33,12 +33,39 @@ class LlmFactoriesTest {
         assertEquals(tag, actual.modelId)
     }
 
-    private fun buildModelProviderWithBlankKeys(provider: String, modelRaw: String?): ModelProvider =
+    @Test
+    fun `when buildModelProvider ollama is given a host - then the endpoint targets the remote server`() {
+        // given
+        val host = "https://ollama.example.amvera.io"
+
+        // when
+        val actual = buildModelProviderWithBlankKeys(PROVIDER_OLLAMA, modelRaw = null, ollamaBaseUrl = host)
+
+        // then
+        assertIs<ModelProvider.LocalOllama>(actual)
+        assertEquals("$host/api/chat", actual.endpoint)
+    }
+
+    @Test
+    fun `when buildModelProvider ollama is given no host - then the endpoint stays local`() {
+        // given / when
+        val actual = buildModelProviderWithBlankKeys(PROVIDER_OLLAMA, modelRaw = null, ollamaBaseUrl = null)
+
+        // then
+        assertEquals("http://localhost:11434/api/chat", actual.endpoint)
+    }
+
+    private fun buildModelProviderWithBlankKeys(
+        provider: String,
+        modelRaw: String?,
+        ollamaBaseUrl: String? = null,
+    ): ModelProvider =
         buildModelProvider(
             providerRaw = provider,
             modelRaw = modelRaw,
             geminiApiKey = "",
             openRouterApiKey = "",
             huggingFaceApiKey = "",
+            ollamaBaseUrl = ollamaBaseUrl,
         )
 }
