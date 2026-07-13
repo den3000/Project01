@@ -1,11 +1,14 @@
 # Конфиг Amvera для приватного Ollama-сервиса.
-# Amvera ищет amvera.yml в КОРНЕ репозитория — скопируйте этот файл в корень
-# (или задайте эквивалент в панели Amvera). docker-compose.yml НЕ поддерживается.
+# ДОЛЖЕН лежать в КОРНЕ репозитория — иначе Amvera его не читает и ищет Dockerfile
+# в дефолтных местах (Dockerfile, docker/, deploy/, deployment/, amvera/), не находит
+# наш deploy/amvera/Dockerfile и падает (kaniko печатает --help, exit 1).
+# docker-compose.yml НЕ поддерживается.
 meta:
   environment: docker
   toolchain:
     name: docker
 build:
+  # Путь относительно корня репозитория, без ведущего слэша.
   dockerfile: deploy/amvera/Dockerfile
 run:
   # Порт, который слушает Ollama внутри контейнера; Amvera проксирует на него

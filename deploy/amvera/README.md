@@ -10,7 +10,7 @@ HTTPS-домену; клиентом выступает CLI из [cliJvmApp](../
 | Файл | Роль |
 |---|---|
 | [`Dockerfile`](Dockerfile) | образ `ollama/ollama` + встроенный entrypoint (serve → pull модели в `/data/models` → foreground) + env-лимиты |
-| [`amvera.yml`](amvera.yml) | конфиг Amvera: `containerPort 11434`, `persistenceMount /data`, путь к Dockerfile |
+| [`../../amvera.yml`](../../amvera.yml) | конфиг Amvera **в КОРНЕ репо** (иначе не читается): `containerPort 11434`, `persistenceMount /data`, путь к Dockerfile |
 
 ## Ограничения Amvera (важно)
 
@@ -27,8 +27,9 @@ HTTPS-домену; клиентом выступает CLI из [cliJvmApp](../
 ## Деплой (панель Amvera)
 
 1. Создайте проект типа **Docker**, подключите этот git-репозиторий (или загрузите).
-2. Конфиг: скопируйте [`amvera.yml`](amvera.yml) в **корень репозитория** (Amvera ищет его там) —
-   или задайте эквивалент в UI: Dockerfile `deploy/amvera/Dockerfile`, порт `11434`, том `/data`.
+2. Конфиг [`amvera.yml`](../../amvera.yml) **уже лежит в корне репо** — Amvera читает его оттуда,
+   копировать/настраивать в UI ничего не нужно. (Если убрать его из корня — Amvera не найдёт
+   `deploy/amvera/Dockerfile` и сборка упадёт: kaniko напечатает `--help` и выйдет с кодом 1.)
 3. Тариф — **Стандартный** (2.5 ГБ RAM). На меньшем поменяйте модель в `Dockerfile`
    (`OLLAMA_PULL_MODEL=qwen2.5:0.5b`).
 4. Соберите и запустите. **Первый старт качает модель** (~1 ГБ) — это медленно; последующие быстрые
