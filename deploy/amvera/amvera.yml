@@ -1,0 +1,15 @@
+# Конфиг Amvera для приватного Ollama-сервиса.
+# Amvera ищет amvera.yml в КОРНЕ репозитория — скопируйте этот файл в корень
+# (или задайте эквивалент в панели Amvera). docker-compose.yml НЕ поддерживается.
+meta:
+  environment: docker
+  toolchain:
+    name: docker
+build:
+  dockerfile: deploy/amvera/Dockerfile
+run:
+  # Порт, который слушает Ollama внутри контейнера; Amvera проксирует на него
+  # публичный домен (80/443). Произвольные TCP наружу нельзя — только HTTP(S).
+  containerPort: 11434
+  # Постоянный том: модели ($OLLAMA_MODELS=/data/models) переживают пересборки.
+  persistenceMount: /data
