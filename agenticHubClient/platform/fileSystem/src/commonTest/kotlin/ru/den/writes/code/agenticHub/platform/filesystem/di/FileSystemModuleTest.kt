@@ -5,6 +5,7 @@ import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
@@ -69,5 +70,58 @@ class FileSystemModuleTest {
         assertTrue(removed)
         assertNull(fs.readText("/root/x.md"))
         assertEquals(emptyList(), fs.listFileNames("/root"))
+    }
+
+    @Test
+    fun `when path holds files - then isDirectory is true`() {
+        // given
+        val fs = koin.get<LocalFileSystem>()
+        fs.writeText("/repo/README.md", "root")
+
+        // then
+        assertTrue(fs.isDirectory("/repo"))
+    }
+
+    @Test
+    fun `when path is a regular file - then isDirectory is false`() {
+        // given
+        val fs = koin.get<LocalFileSystem>()
+        fs.writeText("/repo/README.md", "root")
+
+        // then
+        assertFalse(fs.isDirectory("/repo/README.md"))
+    }
+
+    @Test
+    fun `when path is absent - then isDirectory is false`() {
+        // given
+        val fs = koin.get<LocalFileSystem>()
+
+        // then
+        assertFalse(fs.isDirectory("/nope"))
+    }
+
+    @Test
+    fun `when walkFiles on nested tree - then returns relative paths recursively`() {
+        // given
+        val fs = koin.get<LocalFileSystem>()
+        fs.writeText("/repo/README.md", "root")
+        fs.writeText("/repo/docs/a.md", "a")
+        fs.writeText("/repo/docs/sub/b.md", "b")
+
+        // when
+        val files = fs.walkFiles("/repo").sorted()
+
+        // then
+        assertEquals(listOf("README.md", "docs/a.md", "docs/sub/b.md"), files)
+    }
+
+    @Test
+    fun `when walkFiles on absent dir - then empty`() {
+        // given
+        val fs = koin.get<LocalFileSystem>()
+
+        // then
+        assertEquals(emptyList(), fs.walkFiles("/nope"))
     }
 }

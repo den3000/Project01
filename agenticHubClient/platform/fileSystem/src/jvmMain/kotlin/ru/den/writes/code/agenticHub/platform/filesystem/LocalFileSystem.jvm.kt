@@ -21,4 +21,15 @@ internal class JvmLocalFileSystem : LocalFileSystem {
 
     override fun listFileNames(dir: String): List<String> =
         File(dir).listFiles()?.filter { it.isFile }?.map { it.name } ?: emptyList()
+
+    override fun isDirectory(path: String): Boolean = File(path).isDirectory
+
+    override fun walkFiles(dir: String): List<String> {
+        val root = File(dir)
+        if (!root.isDirectory) return emptyList()
+        return root.walkTopDown()
+            .filter { it.isFile }
+            .map { it.relativeTo(root).invariantSeparatorsPath }
+            .toList()
+    }
 }
