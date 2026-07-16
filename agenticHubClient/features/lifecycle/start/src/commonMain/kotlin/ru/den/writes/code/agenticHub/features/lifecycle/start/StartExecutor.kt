@@ -3,6 +3,7 @@ package ru.den.writes.code.agenticHub.features.lifecycle.start
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.memory.isValidProfileName
 import ru.den.writes.code.agenticHub.features.rag.RagIndexer
+import ru.den.writes.code.agenticHub.features.rag.markdownCorpus
 import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
 import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderSelector
@@ -51,9 +52,11 @@ public class StartExecutor(
 
     /**
      * Index [RagAdd.sourcePath] into `RAG_ROOT/<name>.json` with structural chunking +
-     * the graph's embedder (Ollama). Validates the name (same shape as a profile name),
-     * reads the file through the fs port, and prints a tagged status line. Missing
-     * indexer (no RAG in the graph) or missing file yields an error notice, no throw.
+     * the graph's embedder (Ollama). Validates the name (same shape as a profile name).
+     * A **directory** source is walked for its markdown corpus (README + docs tree);
+     * a **file** source is indexed as one document. Reads through the fs port and prints
+     * a tagged status line. Missing indexer (no RAG in the graph), a missing path, or an
+     * empty markdown corpus yields an error notice, no throw.
      */
     private suspend fun handleRagAdd(command: StartCommand.RagAdd) {
         val indexer = ragIndexer ?: run { logErr("[rag] indexing is unavailable in this build"); return }
@@ -62,16 +65,29 @@ public class StartExecutor(
             logErr("[rag] invalid name '${command.name}' (alphanumeric / '_' / '-', up to 64 chars)")
             return
         }
-        val text = fs.readText(command.sourcePath) ?: run {
-            logErr("[rag] no file at '${command.sourcePath}'")
-            return
-        }
-        val name = command.sourcePath.substringAfterLast('/')
         fs.mkdirs(RAG_ROOT)
         val path = "$RAG_ROOT/${command.name}.json"
         val embedder = selector.select(command.embedder)
+        val backend = command.embedder.name.lowercase()
+
+        if (fs.isDirectory(command.sourcePath)) {
+            val docs = markdownCorpus(fs, command.sourcePath)
+            if (docs.isEmpty()) {
+                logErr("[rag] no markdown (.md) files under '${command.sourcePath}'")
+                return
+            }
+            val chunks = indexer.index(docs, path, StructuralChunking(), embedder)
+            println("[rag] indexed '${command.name}' (${docs.size} doc(s), $chunks chunk(s), $backend) → $path")
+            return
+        }
+
+        val text = fs.readText(command.sourcePath) ?: run {
+            logErr("[rag] no file or directory at '${command.sourcePath}'")
+            return
+        }
+        val name = command.sourcePath.substringAfterLast('/')
         val chunks = indexer.index(SourceDocument(source = name, title = name, text = text), path, StructuralChunking(), embedder)
-        println("[rag] indexed '${command.name}' ($chunks chunk(s), ${command.embedder.name.lowercase()}) → $path")
+        println("[rag] indexed '${command.name}' ($chunks chunk(s), $backend) → $path")
     }
 }
 

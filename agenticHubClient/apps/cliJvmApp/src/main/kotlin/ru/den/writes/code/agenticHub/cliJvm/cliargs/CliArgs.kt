@@ -196,12 +196,13 @@ private fun buildCatalog(): List<ArgSpec> = buildList {
     )
 
     // ---- rag ----
-    // `-rag add <name> src <file>` (startup): index a source file into a named vector
-    // index under RAG_ROOT (value only on the FLAG front via the add/src subs).
+    // `-rag add <name> src <path>` (startup): index a source file — or every .md under
+    // a directory — into a named vector index under RAG_ROOT (value only on the FLAG
+    // front via the add/src subs).
     // `/rag <name>` (in-session): load that index; `/rag off` detaches; bare `/rag` = status.
-    add(top(RAG, setOf(FLAG, CMD), value = opt(ValueKind.Name), valueSurfaces = setOf(CMD), excludes = setOf(ONESHOT), usage = "add <name> src <file> = index a file · /rag <name> = load · /rag off"))
+    add(top(RAG, setOf(FLAG, CMD), value = opt(ValueKind.Name), valueSurfaces = setOf(CMD), excludes = setOf(ONESHOT), usage = "add <name> src <path> = index a file or dir · /rag <name> = load · /rag off"))
     add(sub(ADD, listOf(RAG), value = req(ValueKind.Name), usage = "name to store the index under"))
-    add(sub(SRC, listOf(RAG), value = req(ValueKind.Path), usage = "source file to index"))
+    add(sub(SRC, listOf(RAG), value = req(ValueKind.Path), usage = "source file or directory to index"))
     add(sub(OFF, listOf(RAG), usage = "detach the active index (/rag off)"))
     add(sub(EMBEDDER, listOf(RAG), value = req(ValueKind.OneOf(setOf("ollama", "gemini"))), usage = "embedder backend (default: gemini if provider gemini, else ollama)"))
 
