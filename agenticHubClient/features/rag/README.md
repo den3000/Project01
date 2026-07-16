@@ -43,11 +43,17 @@ KMP-модуль: локальный пайплайн Retrieval-Augmented Genera
   (`ModelReranker`, ему нужен `LlmApi`; rag на llm не зависит).
 - **Персист**: `IndexStore(fs).save(index, path)` / `load(path)` — индекс как один JSON-документ через
   `LocalFileSystem` (absent → `null`).
-- **`RagIndexer(indexStore)`**: `suspend index(document, path, chunking, embedder): Int` — «собери индекс
-  и запиши сюда» (chunk + embed + save), число чанков. `embedder` — параметр вызова (caller выбирает
-  ollama/gemini по `-rag add … embedder <…>`). Тонкая обёртка над `IndexingPipeline` для admin-команды
-  `-rag add <name> src <file>` (cliJvmApp пишет в `~/.project01-cli/rag/<name>.json`, грузит обратно
-  `/rag <name>`). **Индекс и запрос обязаны быть на одном эмбеддере** — векторы разных моделей несравнимы.
+- **`RagIndexer(indexStore)`**: `suspend index(document | documents, path, chunking, embedder): Int` —
+  «собери индекс и запиши сюда» (chunk + embed + save), число чанков. Overload на один `SourceDocument`
+  и на `List<SourceDocument>` (корпус — один batched прогон `IndexingPipeline`). `embedder` — параметр
+  вызова (caller выбирает ollama/gemini по `-rag add … embedder <…>`). Обёртка над `IndexingPipeline`
+  для admin-команды `-rag add <name> src <path>` (cliJvmApp пишет в `~/.project01-cli/rag/<name>.json`,
+  грузит обратно `/rag <name>`). **Индекс и запрос обязаны быть на одном эмбеддере** — векторы разных
+  моделей несравнимы.
+- **`markdownCorpus(fs, root)`**: обходит директорию (`LocalFileSystem.walkFiles`) и собирает по
+  `SourceDocument` на каждый `.md`, срезая шум (`build/`, `.git/`, `.gradle/`, `.idea/`, `.claude/`,
+  `node_modules/`); `source` = путь относительно корня. Так `-rag add <name> src <dir>` индексирует
+  целое дерево доков (README + docs) в один индекс — источник для «ассистента по проекту».
 - **`di/`**: приватный `sharedRagModule` держит общие для прод и теста factory —
   `IndexingPipeline` (на `ChunkingStrategy`), `Retriever` (на `VectorIndex`) и `Reranker`
   (→ `LexicalReranker`, оффлайн-сигнал безопасен в обоих графах); оба публичных модуля

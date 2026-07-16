@@ -36,7 +36,8 @@ iOS-bundle-id остались на `project01` (это идентификато
   [androidApp](agenticHubClient/apps/androidApp/README.md) ·
   [desktopApp](agenticHubClient/apps/desktopApp/README.md) · iosApp (Xcode-проект)
 - **playground**: [cliTui](playground/cliTui/README.md) ·
-  [openmeteo-mcp](playground/openmeteo-mcp/README.md) · [localfs-mcp](playground/localfs-mcp/README.md)
+  [openmeteo-mcp](playground/openmeteo-mcp/README.md) · [localfs-mcp](playground/localfs-mcp/README.md) ·
+  [git-mcp](playground/git-mcp/README.md)
 - **[scheduling](scheduling/README.md)** — ядро планировщика.
 - **testUtils** (`agenticHubClient/testUtils`) — кросс-каттинг тест-утилиты (`@IgnoreIos` — expect/actual,
   на iOS = `kotlin.test.Ignore`; JVM/Android — no-op), `commonTest`-зависимость. Фейки тут НЕ живут.
