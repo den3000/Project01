@@ -50,10 +50,12 @@ KMP-модуль: локальный пайплайн Retrieval-Augmented Genera
   для admin-команды `-rag add <name> src <path>` (cliJvmApp пишет в `~/.project01-cli/rag/<name>.json`,
   грузит обратно `/rag <name>`). **Индекс и запрос обязаны быть на одном эмбеддере** — векторы разных
   моделей несравнимы.
-- **`markdownCorpus(fs, root)`**: обходит директорию (`LocalFileSystem.walkFiles`) и собирает по
-  `SourceDocument` на каждый `.md`, срезая шум (`build/`, `.git/`, `.gradle/`, `.idea/`, `.claude/`,
-  `node_modules/`); `source` = путь относительно корня. Так `-rag add <name> src <dir>` индексирует
-  целое дерево доков (README + docs) в один индекс — источник для «ассистента по проекту».
+- **`sourceCorpus(fs, root, extensions = SOURCE_EXTENSIONS)`**: обходит директорию
+  (`LocalFileSystem.walkFiles`) и собирает по `SourceDocument` на каждый файл с нужным расширением
+  (дефолт — `md`/`kt`/`kts`: **документация И код**), срезая шум (`build/`, `.git/`, `.gradle/`,
+  `.idea/`, `.claude/`, `node_modules/`); `source` = путь относительно корня. Так
+  `-rag add <name> src <dir>` индексирует целый проект в один индекс. В паре с
+  `ByExtensionChunking` каждый формат режется по-своему.
 - **`di/`**: приватный `sharedRagModule` держит общие для прод и теста factory —
   `IndexingPipeline` (на `ChunkingStrategy`), `Retriever` (на `VectorIndex`) и `Reranker`
   (→ `LexicalReranker`, оффлайн-сигнал безопасен в обоих графах); оба публичных модуля

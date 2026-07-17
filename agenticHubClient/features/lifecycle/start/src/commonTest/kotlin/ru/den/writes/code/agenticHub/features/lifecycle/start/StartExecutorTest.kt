@@ -69,7 +69,7 @@ class StartExecutorTest {
     }
 
     @Test
-    fun `when rag add targets a directory - then every markdown file lands in one index`() = runTest {
+    fun `when rag add targets a directory - then docs and code land in one index`() = runTest {
         TestDb().use { harness ->
             // given — one fake fs shared by the source docs, the executor and the index store
             val koin = koinApplication {
@@ -84,22 +84,54 @@ class StartExecutorTest {
                 RagIndexer(store),
                 EmbedderSelector { embedder },
             )
-            fs.writeText("/docs/README.md", "# Overview\nthe project readme")
-            fs.writeText("/docs/PLANS/plan.md", "# Plan\nthe roadmap")
-            fs.writeText("/docs/Main.kt", "// not markdown")
+            fs.writeText("/proj/README.md", "# Overview\nthe project readme")
+            fs.writeText("/proj/PLANS/plan.md", "# Plan\nthe roadmap")
+            fs.writeText("/proj/src/Task.kt", "data class Task(val id: Int)")
+            fs.writeText("/proj/gradle.properties", "not indexable")
 
             // when
             val result = executor.execute(
-                StartCommand.RagAdd(name = "proj", sourcePath = "/docs", embedder = EmbedderKind.OLLAMA),
+                StartCommand.RagAdd(name = "proj", sourcePath = "/proj", embedder = EmbedderKind.OLLAMA),
             )
 
-            // then — admin command yields null, both .md files (not the .kt) are indexed
+            // then — admin command yields null; docs and code indexed, config file skipped
             assertNull(result)
             val index = store.load("$RAG_ROOT/proj.json")!!
             assertEquals(
-                setOf("README.md", "PLANS/plan.md"),
+                setOf("README.md", "PLANS/plan.md", "src/Task.kt"),
                 index.chunks.map { it.chunk.metadata.source }.toSet(),
             )
+        }
+    }
+
+    @Test
+    fun `when rag add targets a directory - then markdown keeps sections and code does not`() = runTest {
+        TestDb().use { harness ->
+            // given
+            val koin = koinApplication {
+                modules(databaseTestModule(harness.db), fileSystemTestModule, ragTestModule)
+            }.koin
+            val fs = koin.get<LocalFileSystem>()
+            val store = IndexStore(fs)
+            val embedder = koin.get<Embedder>()
+            val executor = StartExecutor(
+                koin.get<AppDatabase>(),
+                fs,
+                RagIndexer(store),
+                EmbedderSelector { embedder },
+            )
+            fs.writeText("/proj/README.md", "# Overview\nthe project readme")
+            fs.writeText("/proj/src/Task.kt", "data class Task(val id: Int)")
+
+            // when — each format is cut its own way by ByExtensionChunking
+            executor.execute(
+                StartCommand.RagAdd(name = "proj", sourcePath = "/proj", embedder = EmbedderKind.OLLAMA),
+            )
+            val chunks = store.load("$RAG_ROOT/proj.json")!!.chunks.map { it.chunk.metadata }
+
+            // then — the heading became a section; the Kotlin file is structure-blind
+            assertEquals(listOf("Overview"), chunks.filter { it.source == "README.md" }.map { it.section })
+            assertEquals(listOf(null), chunks.filter { it.source == "src/Task.kt" }.map { it.section })
         }
     }
 }

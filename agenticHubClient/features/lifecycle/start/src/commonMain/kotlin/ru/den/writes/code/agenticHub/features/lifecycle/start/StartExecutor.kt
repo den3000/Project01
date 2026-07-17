@@ -3,9 +3,12 @@ package ru.den.writes.code.agenticHub.features.lifecycle.start
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.memory.isValidProfileName
 import ru.den.writes.code.agenticHub.features.rag.RagIndexer
-import ru.den.writes.code.agenticHub.features.rag.markdownCorpus
+import ru.den.writes.code.agenticHub.features.rag.sourceCorpus
+import ru.den.writes.code.agenticHub.features.rag.chunking.ByExtensionChunking
+import ru.den.writes.code.agenticHub.features.rag.chunking.ChunkingStrategy
 import ru.den.writes.code.agenticHub.features.rag.chunking.SourceDocument
 import ru.den.writes.code.agenticHub.features.rag.chunking.StructuralChunking
+import ru.den.writes.code.agenticHub.features.rag.chunking.TokenChunking
 import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderSelector
 import ru.den.writes.code.agenticHub.platform.database.AppDatabase
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
@@ -24,6 +27,16 @@ val MEMORY_ROOT: String = "${homeDirectory()}/.project01-cli/memory"
  * here; `/rag <name>` in a session loads it back. Sits next to [MEMORY_ROOT].
  */
 val RAG_ROOT: String = "${homeDirectory()}/.project01-cli/rag"
+
+/**
+ * How `-rag add` cuts a project corpus: markdown by its headings (sections survive as
+ * chunk metadata), everything else — Kotlin sources — by token windows, since code
+ * carries no `#` headings and would otherwise land in a single chunk per file.
+ */
+private fun projectChunking(): ChunkingStrategy = ByExtensionChunking(
+    default = TokenChunking(tokensPerChunk = 200, overlap = 40),
+    byExtension = mapOf("md" to StructuralChunking()),
+)
 
 /**
  * Runs a parsed [StartCommand] against the runtime — the "how" to the parser's
@@ -51,12 +64,12 @@ public class StartExecutor(
     }
 
     /**
-     * Index [RagAdd.sourcePath] into `RAG_ROOT/<name>.json` with structural chunking +
-     * the graph's embedder (Ollama). Validates the name (same shape as a profile name).
-     * A **directory** source is walked for its markdown corpus (README + docs tree);
+     * Index [RagAdd.sourcePath] into `RAG_ROOT/<name>.json` with [projectChunking] + the
+     * graph's embedder (Ollama). Validates the name (same shape as a profile name).
+     * A **directory** source is walked for its project corpus (docs *and* Kotlin code);
      * a **file** source is indexed as one document. Reads through the fs port and prints
      * a tagged status line. Missing indexer (no RAG in the graph), a missing path, or an
-     * empty markdown corpus yields an error notice, no throw.
+     * empty corpus yields an error notice, no throw.
      */
     private suspend fun handleRagAdd(command: StartCommand.RagAdd) {
         val indexer = ragIndexer ?: run { logErr("[rag] indexing is unavailable in this build"); return }
@@ -71,12 +84,12 @@ public class StartExecutor(
         val backend = command.embedder.name.lowercase()
 
         if (fs.isDirectory(command.sourcePath)) {
-            val docs = markdownCorpus(fs, command.sourcePath)
+            val docs = sourceCorpus(fs, command.sourcePath)
             if (docs.isEmpty()) {
-                logErr("[rag] no markdown (.md) files under '${command.sourcePath}'")
+                logErr("[rag] nothing indexable under '${command.sourcePath}' (.md / .kt / .kts)")
                 return
             }
-            val chunks = indexer.index(docs, path, StructuralChunking(), embedder)
+            val chunks = indexer.index(docs, path, projectChunking(), embedder)
             println("[rag] indexed '${command.name}' (${docs.size} doc(s), $chunks chunk(s), $backend) → $path")
             return
         }
@@ -86,7 +99,7 @@ public class StartExecutor(
             return
         }
         val name = command.sourcePath.substringAfterLast('/')
-        val chunks = indexer.index(SourceDocument(source = name, title = name, text = text), path, StructuralChunking(), embedder)
+        val chunks = indexer.index(SourceDocument(source = name, title = name, text = text), path, projectChunking(), embedder)
         println("[rag] indexed '${command.name}' ($chunks chunk(s), $backend) → $path")
     }
 }
