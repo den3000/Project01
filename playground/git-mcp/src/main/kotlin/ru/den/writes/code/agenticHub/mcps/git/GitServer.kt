@@ -12,20 +12,44 @@ import kotlinx.coroutines.Job
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
- * Runs the git MCP server over stdio for the repository at [repoRoot]. Exposes three
+ * Runs the git MCP server over stdio for the repository at [repoRoot]. Exposes four
  * read-only tools so an assistant can ground itself in the project's live VCS state:
- * `current_branch`, `list_files` (optionally under a subdir) and `diff` (working-tree
- * or staged). stdout is the JSON-RPC channel — every diagnostic goes to stderr so it
- * can't corrupt the protocol stream. Blocks until the client disconnects (stdin closes).
+ * `current_branch`, `list_files` (optionally under a subdir), `changed_files` and `diff`
+ * (a base…head range, or the working tree). [defaultBase] pre-sets the range's base — a
+ * PR pipeline passes the base commit once, and the model then calls `diff`/`changed_files`
+ * with no arguments. stdout is the JSON-RPC channel — every diagnostic goes to stderr so
+ * it can't corrupt the protocol stream. Blocks until the client disconnects (stdin closes).
  */
-suspend fun runGitServer(repoRoot: String) {
-    val repo = GitRepo(repoRoot, ProcessCommandRunner())
+/**
+ * The optional `base`/`head` refs shared by `diff` and `changed_files`. Both default to
+ * the server's configured range, so a well-behaved caller omits them entirely.
+ */
+private fun rangeProperties(): JsonObject = buildJsonObject {
+    put(
+        "base",
+        buildJsonObject {
+            put("type", "string")
+            put("description", "Ref to compare against. Omit to use the review's configured base.")
+        },
+    )
+    put(
+        "head",
+        buildJsonObject {
+            put("type", "string")
+            put("description", "Ref being reviewed. Omit for HEAD.")
+        },
+    )
+}
+
+suspend fun runGitServer(repoRoot: String, defaultBase: String? = null) {
+    val repo = GitRepo(repoRoot, ProcessCommandRunner(), defaultBase)
 
     val server = Server(
         serverInfo = Implementation(name = "git-mcp", version = "0.1.0"),
@@ -63,28 +87,44 @@ suspend fun runGitServer(repoRoot: String) {
     }
 
     server.addTool(
+        name = "changed_files",
+        description = "List the files changed in the code under review, one path per line. " +
+            "Call with no arguments — the review's base commit is already configured.",
+        inputSchema = ToolSchema(properties = rangeProperties(), required = emptyList()),
+    ) { request ->
+        val base = request.arguments?.get("base")?.jsonPrimitive?.content
+        val head = request.arguments?.get("head")?.jsonPrimitive?.content
+        CallToolResult(content = listOf(TextContent(repo.changedFiles(base, head))))
+    }
+
+    server.addTool(
         name = "diff",
-        description = "Show the git diff of the project repository. Pass staged=true for the staged (index) diff.",
+        description = "Show the diff of the code under review. Call with no arguments — the review's " +
+            "base commit is already configured. Pass staged=true for the staged (index) diff instead.",
         inputSchema = ToolSchema(
             properties = buildJsonObject {
+                rangeProperties().forEach { (name, schema) -> put(name, schema) }
                 put(
                     "staged",
                     buildJsonObject {
                         put("type", "boolean")
-                        put("description", "Show the staged diff instead of the working-tree diff.")
+                        put("description", "Show the staged diff instead. Ignored when a base is in play.")
                     },
                 )
             },
             required = emptyList(),
         ),
     ) { request ->
+        val base = request.arguments?.get("base")?.jsonPrimitive?.content
+        val head = request.arguments?.get("head")?.jsonPrimitive?.content
         val staged = request.arguments?.get("staged")?.jsonPrimitive?.booleanOrNull ?: false
-        CallToolResult(content = listOf(TextContent(repo.diff(staged))))
+        CallToolResult(content = listOf(TextContent(repo.diff(base, head, staged))))
     }
 
     System.err.println(
-        "[git-mcp] git MCP server ready on stdio for repo '$repoRoot' " +
-            "(tools: current_branch, list_files, diff)",
+        "[git-mcp] git MCP server ready on stdio for repo '$repoRoot'" +
+            (defaultBase?.let { " (base: $it)" } ?: "") +
+            " (tools: current_branch, list_files, changed_files, diff)",
     )
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),
