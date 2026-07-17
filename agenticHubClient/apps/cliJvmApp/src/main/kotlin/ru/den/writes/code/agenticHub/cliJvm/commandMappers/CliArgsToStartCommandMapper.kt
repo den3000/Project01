@@ -193,6 +193,7 @@ internal class CliArgsToStartCommandMapper(
                 mcpServers = controls.filter { it.arg == MCP_SERVER }.mapNotNull { it.value },
                 schedules = scheduleSpecs(controls),
                 ragEmbedder = embedderKind(null, explicitGeminiProvider(controls)),
+                ragPreload = controls.last(RAG)?.value,
             ),
         )
     }
@@ -291,7 +292,9 @@ internal class CliArgsToStartCommandMapper(
         controls.last(PROFILE)?.let { return StartCommand.MemoryOp(profileAction(it)) }
         controls.last(RULE)?.let { return StartCommand.MemoryOp(ruleAction(it)) }
         controls.last(TASK)?.let { return StartCommand.MemoryOp(taskAction(it)) }
-        controls.last(RAG)?.let { return ragAdd(it, controls) }
+        // `-rag add …` is an admin command (build an index and exit); bare `-rag <name>`
+        // is a session preload and only means something with a prompt → falls through.
+        controls.last(RAG)?.let { if (it.sub(ADD) != null) return ragAdd(it, controls) }
         bailMissing("-prompt")
     }
 

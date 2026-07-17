@@ -196,11 +196,12 @@ private fun buildCatalog(): List<ArgSpec> = buildList {
     )
 
     // ---- rag ----
-    // `-rag add <name> src <path>` (startup): index a source file — or every .md under
-    // a directory — into a named vector index under RAG_ROOT (value only on the FLAG
-    // front via the add/src subs).
+    // `-rag add <name> src <path>` (startup): index a source file — or a whole project
+    // tree (docs + code) — into a named vector index under RAG_ROOT.
+    // `-rag <name>` (startup): preload that index into the session, active from the very
+    // first turn — the only headless path (`/rag` needs an interactive stdin line).
     // `/rag <name>` (in-session): load that index; `/rag off` detaches; bare `/rag` = status.
-    add(top(RAG, setOf(FLAG, CMD), value = opt(ValueKind.Name), valueSurfaces = setOf(CMD), excludes = setOf(ONESHOT), usage = "add <name> src <path> = index a file or dir · /rag <name> = load · /rag off"))
+    add(top(RAG, setOf(FLAG, CMD), value = opt(ValueKind.Name), excludes = setOf(ONESHOT), usage = "add <name> src <path> = index · -rag/<rag> <name> = load · /rag off"))
     add(sub(ADD, listOf(RAG), value = req(ValueKind.Name), usage = "name to store the index under"))
     add(sub(SRC, listOf(RAG), value = req(ValueKind.Path), usage = "source file or directory to index"))
     add(sub(OFF, listOf(RAG), usage = "detach the active index (/rag off)"))
