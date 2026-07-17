@@ -20,8 +20,17 @@ import ru.den.writes.code.agenticHub.features.rag.indexing.IndexingPipeline
 public class RagIndexer(
     private val indexStore: IndexStore,
 ) {
-    public suspend fun index(document: SourceDocument, path: String, chunking: ChunkingStrategy, embedder: Embedder): Int {
-        val index = IndexingPipeline(chunking, embedder).index(listOf(document))
+    public suspend fun index(document: SourceDocument, path: String, chunking: ChunkingStrategy, embedder: Embedder): Int =
+        index(listOf(document), path, chunking, embedder)
+
+    /**
+     * Multi-document variant: chunk + embed the whole [documents] corpus (one
+     * batched pipeline run) into a single [VectorIndex] persisted to [path]. Backs
+     * `-rag add <name> src <dir>`, where a docs tree becomes one named index.
+     * Returns the total chunk count across all documents.
+     */
+    public suspend fun index(documents: List<SourceDocument>, path: String, chunking: ChunkingStrategy, embedder: Embedder): Int {
+        val index = IndexingPipeline(chunking, embedder).index(documents)
         indexStore.save(index, path)
         return index.chunks.size
     }

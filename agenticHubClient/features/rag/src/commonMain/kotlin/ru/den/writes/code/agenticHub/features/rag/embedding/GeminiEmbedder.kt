@@ -14,6 +14,9 @@ import ru.den.writes.code.agenticHub.platform.logging.logWarn
 
 private const val API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
+/** `batchEmbedContents` rejects (400) more than 100 requests per call — window at this. */
+private const val MAX_BATCH = 100
+
 @Serializable
 internal data class GeminiEmbedPart(val text: String)
 
@@ -34,8 +37,9 @@ internal data class GeminiBatchEmbedResponse(val embeddings: List<GeminiEmbeddin
 
 /**
  * [Embedder] backed by Gemini's embeddings endpoint
- * (`POST /v1beta/models/<model>:batchEmbedContents`, batched). One HTTP call embeds
- * all [texts]; the returned list is positionally aligned with the input. The
+ * (`POST /v1beta/models/<model>:batchEmbedContents`, batched). [texts] are embedded in
+ * windows of [MAX_BATCH] (the endpoint caps a batch at 100 requests) and the results
+ * concatenated, so the returned list stays positionally aligned with the input. The
  * [apiKey] is a plain constructor argument (appended as `?key=`) — rag stays free of
  * any features:llm dependency; the credential is the caller's to supply. The
  * [httpClient] is injected (engine + `ContentNegotiation(Json)` from
@@ -52,7 +56,11 @@ public class GeminiEmbedder(
 ) : Embedder {
     override suspend fun embed(texts: List<String>): List<List<Float>> {
         if (texts.isEmpty()) return emptyList()
+        return texts.chunked(MAX_BATCH).flatMap { embedBatch(it) }
+    }
 
+    /** Embed a single ≤[MAX_BATCH] window in one `batchEmbedContents` call. */
+    private suspend fun embedBatch(texts: List<String>): List<List<Float>> {
         val modelPath = "models/$model"
         val response = httpClient.post("$API_BASE/$modelPath:batchEmbedContents") {
             url { parameters.append("key", apiKey) }

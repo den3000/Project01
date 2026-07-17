@@ -24,4 +24,14 @@ public interface LocalFileSystem {
 
     /** Names of the regular files directly in [dir] (empty if [dir] is absent). */
     public fun listFileNames(dir: String): List<String>
+
+    /** `true` if [path] exists and is a directory (not a regular file). */
+    public fun isDirectory(path: String): Boolean
+
+    /**
+     * Relative paths (from [dir], `/`-separated) of every regular file under [dir],
+     * recursively. Empty if [dir] is absent or not a directory. Callers filter by
+     * extension / prune noise segments themselves.
+     */
+    public fun walkFiles(dir: String): List<String>
 }

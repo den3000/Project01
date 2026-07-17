@@ -293,6 +293,24 @@ cliJvmApp -prompt "Узнай погоду в Москве, добавь её в
 # → ~/.project01-localfs/documents/moscow.md
 ```
 
+**Ассистент разработчика по проекту** — связка RAG (доки проекта) + [`git-mcp`](../../../playground/git-mcp/README.md)
+(живое git-состояние). Сначала индексируем дерево доков (`-rag add` по директории — все `.md`), затем
+поднимаем сессию с загруженным индексом и git-инструментами. Путь к репо — вторым словом команды
+сервера (`-mcpServer` бьётся по whitespace):
+
+```bash
+GIT=$(pwd)/../../../playground/git-mcp/build/install/git-mcp/bin/git-mcp
+REPO=/path/to/target-project
+cliJvmApp -rag add projdocs src "$REPO" embedder ollama   # шаг 1: индекс доков (все .md рекурсивно)
+cliJvmApp -rag projdocs -mcpServer "$GIT $REPO"           # шаг 2: chat-сессия ассистента
+# > Какие модули в проекте и на какой я ветке?
+# ответ grounded по докам (`[rag] sources` под ним) + `current_branch` через git-mcp
+```
+
+`-rag <name>` и `-mcpServer` — **Chat-only** (исключают one-shot `-prompt`): это интерактивная
+сессия, вопросы вводятся в приглашении. Вызов git-инструмента моделью требует провайдера с function
+calling (**Gemini**); RAG-контекст подмешивается на любом провайдере (в т.ч. локальной Ollama).
+
 ### Планировщик — `-schedule`
 
 `-schedule` ставит фоновые задачи поверх ядра [`:scheduling`](../scheduling/README.md). Повторяемый —

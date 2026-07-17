@@ -32,4 +32,14 @@ internal class LocalFileSystemFake : LocalFileSystem {
             .filter { it.startsWith(prefix) && '/' !in it.removePrefix(prefix) }
             .map { it.removePrefix(prefix) }
     }
+
+    override fun isDirectory(path: String): Boolean =
+        path in dirs || files.keys.any { it.startsWith("$path/") }
+
+    override fun walkFiles(dir: String): List<String> {
+        val prefix = "$dir/"
+        return files.keys
+            .filter { it.startsWith(prefix) }
+            .map { it.removePrefix(prefix) }
+    }
 }
