@@ -35,4 +35,9 @@ public data class SessionConfig(
     val schedules: List<ScheduleSpec> = emptyList(),
     /** Default embedder for `/rag` in this session (gemini when the provider is explicit gemini, else ollama). */
     val ragEmbedder: EmbedderKind = EmbedderKind.OLLAMA,
+    /**
+     * Name of a RAG index to load before the first turn (`-rag <name>`), so retrieval is
+     * active for the opening prompt too. `null` = no index until an in-session `/rag`.
+     */
+    val ragPreload: String? = null,
 )

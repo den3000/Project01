@@ -15,8 +15,17 @@ fun interface CommandRunner {
  * shells out through [runner]; arg construction and output shaping live here so they can
  * be exercised offline (see GitToolsTest). Never mutates the repo — only `rev-parse`,
  * `ls-files`, `diff`.
+ *
+ * [defaultBase] is the branch point a review compares against (a PR's base). When set,
+ * [diff] and [changedFiles] describe that range unless a call overrides it, so a caller
+ * that already knows the base — a CI pipeline — configures it once and the model needs
+ * no ref argument at all. Unset, they fall back to the working tree.
  */
-class GitRepo(private val root: String, private val runner: CommandRunner) {
+class GitRepo(
+    private val root: String,
+    private val runner: CommandRunner,
+    private val defaultBase: String? = null,
+) {
 
     /** Current branch name, or a detached-HEAD notice when not on a branch. */
     fun currentBranch(): String {
@@ -30,12 +39,42 @@ class GitRepo(private val root: String, private val runner: CommandRunner) {
         return runner.run(args).trim().ifEmpty { "(no tracked files)" }
     }
 
-    /** Working-tree diff, or the staged (index) diff when [staged]; empty → a clear notice. */
-    fun diff(staged: Boolean): String {
-        val args = git("diff").let { if (staged) it + "--staged" else it }
-        return runner.run(args).ifBlank {
-            if (staged) "(no staged changes)" else "(no unstaged changes)"
+    /**
+     * The diff: over the [base]…[head] range when a base is given (or [defaultBase] is
+     * set), else the working tree — or the staged (index) diff when [staged]. Empty
+     * output becomes a clear notice.
+     */
+    fun diff(base: String? = null, head: String? = null, staged: Boolean = false): String {
+        val range = rangeOf(base, head)
+        val args = when {
+            range != null -> git("diff", range)
+            staged -> git("diff", "--staged")
+            else -> git("diff")
         }
+        return runner.run(args).ifBlank { emptyNotice(range, staged, "changes") }
+    }
+
+    /** The changed files (one path per line) over the same range [diff] describes. */
+    fun changedFiles(base: String? = null, head: String? = null): String {
+        val range = rangeOf(base, head)
+        val args = if (range != null) git("diff", "--name-only", range) else git("diff", "--name-only")
+        return runner.run(args).trim().ifEmpty { emptyNotice(range, staged = false, what = "changed files") }
+    }
+
+    /**
+     * `<base>...<head>` — three dots: what [head] changed *since it forked from* [base],
+     * ignoring what landed on the base meanwhile. That is what reviewing a PR means.
+     * `null` when no base is known (neither the call nor [defaultBase] supplies one).
+     */
+    private fun rangeOf(base: String?, head: String?): String? {
+        val from = base?.takeIf { it.isNotBlank() } ?: defaultBase?.takeIf { it.isNotBlank() } ?: return null
+        return "$from...${head?.takeIf { it.isNotBlank() } ?: "HEAD"}"
+    }
+
+    private fun emptyNotice(range: String?, staged: Boolean, what: String): String = when {
+        range != null -> "(no $what in $range)"
+        staged -> "(no staged $what)"
+        else -> "(no unstaged $what)"
     }
 
     /** `git -C <root> <sub…>` — every command is scoped to [root], never the cwd. */

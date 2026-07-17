@@ -23,6 +23,12 @@ KMP-модуль: локальный пайплайн Retrieval-Augmented Genera
   - `StructuralChunking` — по markdown-заголовкам (ATX `#`..`######`): один чанк на раздел, имя
     раздела → `section`, заголовок остаётся в тексте чанка; преамбула до первого заголовка →
     `section = null`.
+  - `ByExtensionChunking(default, byExtension)` — **роутер**: выбирает стратегию по расширению
+    `document.source` (после последнего `/`, lowercase; неизвестное/без расширения → `default`).
+    Нужен для корпуса «доки + код»: `IndexingPipeline` держит ОДНУ стратегию на корпус, но
+    `chunk()` получает документ, поэтому роутер сам является стратегией — пайплайн не меняется.
+    Так `-rag add` режет `.md` по заголовкам, а `.kt` — окнами `TokenChunking` (у кода нет `#`,
+    иначе файл лёг бы одним чанком).
   - `ChunkingComparison.compare(doc, strategies)` → `ChunkingComparisonReport` (+ `render()`) —
     сравнение стратегий по размерным метрикам.
 - **Embeddings/поиск**: `Embedder` (fun interface, `suspend embed(List<String>)`) + реализации
@@ -48,12 +54,14 @@ KMP-модуль: локальный пайплайн Retrieval-Augmented Genera
   и на `List<SourceDocument>` (корпус — один batched прогон `IndexingPipeline`). `embedder` — параметр
   вызова (caller выбирает ollama/gemini по `-rag add … embedder <…>`). Обёртка над `IndexingPipeline`
   для admin-команды `-rag add <name> src <path>` (cliJvmApp пишет в `~/.project01-cli/rag/<name>.json`,
-  грузит обратно `/rag <name>`). **Индекс и запрос обязаны быть на одном эмбеддере** — векторы разных
-  моделей несравнимы.
-- **`markdownCorpus(fs, root)`**: обходит директорию (`LocalFileSystem.walkFiles`) и собирает по
-  `SourceDocument` на каждый `.md`, срезая шум (`build/`, `.git/`, `.gradle/`, `.idea/`, `.claude/`,
-  `node_modules/`); `source` = путь относительно корня. Так `-rag add <name> src <dir>` индексирует
-  целое дерево доков (README + docs) в один индекс — источник для «ассистента по проекту».
+  грузит обратно `-rag <name>` на старте или `/rag <name>` в сессии). **Индекс и запрос обязаны быть
+  на одном эмбеддере** — векторы разных моделей несравнимы.
+- **`sourceCorpus(fs, root, extensions = SOURCE_EXTENSIONS)`**: обходит директорию
+  (`LocalFileSystem.walkFiles`) и собирает по `SourceDocument` на каждый файл с нужным расширением
+  (дефолт — `md`/`kt`/`kts`: **документация И код**), срезая шум (`build/`, `.git/`, `.gradle/`,
+  `.idea/`, `.claude/`, `node_modules/`); `source` = путь относительно корня. Так
+  `-rag add <name> src <dir>` индексирует целый проект в один индекс. В паре с
+  `ByExtensionChunking` каждый формат режется по-своему.
 - **`di/`**: приватный `sharedRagModule` держит общие для прод и теста factory —
   `IndexingPipeline` (на `ChunkingStrategy`), `Retriever` (на `VectorIndex`) и `Reranker`
   (→ `LexicalReranker`, оффлайн-сигнал безопасен в обоих графах); оба публичных модуля

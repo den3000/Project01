@@ -151,6 +151,11 @@ internal suspend fun runSessionInternal(
     val ragControl = RagControl(
         indexStore = koin.get(), embedderSelector = koin.get(), ragRoot = RAG_ROOT, defaultKind = ragEmbedder,
     )
+    // `-rag <name>`: load before the session runs, so the opening prompt already retrieves.
+    // The in-session `/rag` can only fire after the first turn — this is the headless path.
+    (cliArgs as? StartCommand.RunChat)?.config?.ragPreload?.let {
+        System.err.println(ragControl.load(it))
+    }
     val assembly = koin.get<SessionAssembly> {
         parametersOf(
             SessionAssemblyArgs(
