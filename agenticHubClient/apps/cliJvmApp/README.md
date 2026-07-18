@@ -448,6 +448,45 @@ $BIN \
 $BIN -session
 ```
 
+### Ассистент поддержки продукта (CTT)
+
+Собирается из готовых кирпичей без новой грамматики: RAG-корпус документации + профиль-персона +
+MCP-сервер поверх JSON-фикстуры тикетов/пользователей + `-task <id>` в момент запуска. Пример
+живёт в [`demo/ctt-support/`](../../../demo/ctt-support/) (см. его README).
+
+Из корня репозитория:
+
+```bash
+bash demo/ctt-support/setup.sh   # installDist + индексация RAG + профиль + правила + tasks
+
+CLI=./agenticHubClient/apps/cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp
+SUPP=./playground/support-mcp/build/install/support-mcp/bin/support-mcp
+DEMO=./demo/ctt-support
+
+"$CLI" \
+  -prompt "Здравствуйте, чем могу помочь?" \
+  -task TICKET-4412 \
+  -rag ctt-support \
+  -agent provider gemini profile support mode system \
+  -mcpServer "$SUPP $DEMO"
+```
+
+Что где играет:
+
+- `-rag ctt-support` — preload индекса, собранного `setup.sh` из `demo/ctt-support/docs/`; каждый ход
+  подтягивает top-K чанков документации в SYSTEM.
+- `-agent … profile support mode system` — включает memory-слой `system` и активирует профиль
+  `support` (persona/format/constraints/context, залитый `setup.sh`).
+- `-task TICKET-4412` — активная задача; в SYSTEM попадает блок `[Current Task] (TICKET-4412)` +
+  `Goal` из `~/.project01-cli/memory/tasks/TICKET-4412.md`. Правило профиля обязывает первым же ходом
+  позвать `get_ticket` через MCP и подтянуть клиента через `get_user`.
+- `-mcpServer "$SUPP $DEMO"` — support-mcp (см.
+  [playground/support-mcp](../../../playground/support-mcp/README.md)) читает `users.json`/`tickets.json`
+  из `$DEMO` и отдаёт tools `list_tickets`, `get_ticket`, `search_tickets`, `get_user`.
+
+Поменяйте id тикета на 4415/4418/4420/4423/4425. Без `-task` получится FAQ-чат по документации без
+привязки к конкретному тикету.
+
 ## Как устроен парсинг (cliargs)
 
 Раньше разбор стартовых флагов и разбор `/`-команд были два независимых «месива» из констант,
