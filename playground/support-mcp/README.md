@@ -1,27 +1,45 @@
-# :playground:support-mcp — support MCP-сервер (read-only, поверх JSON)
+# :playground:support-mcp — support MCP-сервер (read-write, поверх JSON)
 
-Standalone **MCP-сервер** по stdio: отдаёт ассистенту read-only-доступ к фикстуре пользователей и
-тикетов поддержки. На **Kotlin MCP SDK** (`io.modelcontextprotocol:kotlin-sdk`). Пакет
+Standalone **MCP-сервер** по stdio: система записи тикетов и справочник пользователей для
+чата-ассистента поддержки CTT. На **Kotlin MCP SDK** (`io.modelcontextprotocol:kotlin-sdk`). Пакет
 `ru.den.writes.code.agenticHub.mcps.support`, gradle-модуль `:playground:support-mcp`. Не зависит на
 доменные/LLM-модули.
 
-Спавнится MCP-клиентом подпроцессом. Аргумент: **первый — путь к папке** с `users.json` и
-`tickets.json` (по умолчанию — рабочая директория процесса). `main()` крутит сервер до отключения
-клиента (stdin закрылся). stdout — JSON-RPC; диагностика — в stderr.
+Спавнится MCP-клиентом подпроцессом. Аргументы: **первый — путь к папке** с `users.json` и
+`tickets.json` (по умолчанию — рабочая директория процесса); **`--dev`** (опц., любая позиция) —
+запуск разработчика: дополнительно открывает мутатор `set_ticket_status`. `main()` крутит сервер до
+отключения клиента. stdout — JSON-RPC; диагностика — в stderr.
 
-## Инструменты (все read-only)
+## Инструменты
 
-- **`list_tickets`** `{}` — все тикеты (`id [status, priority] subject (customer USER-*)`),
-  свежеобновлённые сверху.
-- **`get_ticket`** `{ "id": string }` — полный тикет: subject, description, status, priority,
-  customer, created/updated, комментарии. Неизвестный id → внятная пометка `(no ticket <id>)`.
-- **`search_tickets`** `{ "query": string }` — тикеты, у которых query — подстрока (case-insensitive)
-  subject или description. Тот же формат, что у `list_tickets`.
-- **`get_user`** `{ "id": string }` — full user (name, email, tariff, product, since). Неизвестный
-  id → `(no user <id>)`.
+Read (всегда):
 
-Данные читаются с диска **при каждом вызове** — фикстура маленькая, парсинг тонкий, зато файлы
-можно править между тиками без рестарта сервера.
+- **`find_user`** `{ "name": string }` — пользователи по имени (регистронезависимо, подстрока). Пусто
+  = собеседник не зарегистрирован → ассистент вежливо отказывает. Основа «гость vs зарегистрированный».
+- **`get_user`** `{ "id": string }` — полный клиент (name, email, tariff, product, since).
+- **`list_user_tickets`** `{ "customerId": string }` — тикеты клиента (для повторного визита).
+- **`search_tickets`** `{ "query": string }` — по ВСЕМ тикетам вкл. `resolved` (переиспользование
+  готовых решений между пользователями).
+- **`get_ticket`** `{ "id": string }` — полный тикет: status, priority, resolution, comments.
+- **`list_tickets`** `{}` — все тикеты, свежеобновлённые сверху.
+
+Write:
+
+- **`create_ticket`** `{ "customerId", "subject", "description" }` — эскалация: новый тикет
+  `status=new` (id `TICKET-<max+1>`), append+persist, возвращает id. Доступен всегда; для
+  незарегистрированного `customerId` — отказ.
+- **`set_ticket_status`** `{ "ticketId", "status", "resolution" }` — **только при `--dev`**: статус
+  (`new`/`in_progress`/`resolved`/`wontfix`) + resolution + комментарий. Неизвестный id/статус →
+  пометка.
+
+Данные читаются с диска **при каждом вызове** (кэша нет) — правка `tickets.json`/`users.json` (или
+запись от `create_ticket`/`set_ticket_status`) видна следующему вызову без рестарта.
+
+## Гейт разработчика — запуск, а не токен
+
+Право менять статус тикета даёт **флаг запуска сервера `--dev`**, а не строка в чате: без него
+`set_ticket_status` вообще не регистрируется (`tools/list` его не покажет). «Кто разработчик» решает
+конфиг запуска — в реальном деплое это аутентификация фронтенда. Так секрет не течёт через модель.
 
 ## Запуск
 
@@ -29,68 +47,56 @@ Standalone **MCP-сервер** по stdio: отдаёт ассистенту re
 ./gradlew :playground:support-mcp:installDist
 BIN=./playground/support-mcp/build/install/support-mcp/bin/support-mcp
 DATA=./demo/ctt-support
-$BIN "$DATA"
+$BIN "$DATA"            # пользовательский сервер (read + create_ticket)
+$BIN "$DATA" --dev      # серверный режим разработчика (+ set_ticket_status)
 ```
 
-Подключение к ассистенту (cliJvmApp): аргументы идут словами в команде сервера, т.к. `-mcpServer`
-бьётся по whitespace:
-
-```bash
-cliJvmApp -mcpServer "$BIN $DATA" \
-  -prompt "…" -task TICKET-4412 -rag ctt-support \
-  -agent provider gemini profile support mode system
-```
-
-Готовый рецепт с профилем/правилами/RAG — в [`demo/ctt-support/`](../../demo/ctt-support/).
-Инструменты обнаруживаются клиентом автоматически (`listTools`) — код клиента не меняется.
+Готовые ролевые запуски (профили, RAG, стадии, судья) — обёртки
+[`demo/ctt-support/run-support.sh` / `run-dev.sh`](../../demo/ctt-support/). Инструменты
+обнаруживаются клиентом автоматически (`listTools`).
 
 ## Формат фикстуры
 
-Ожидаемые поля (лишние — игнорируются, `ignoreUnknownKeys = true`):
+Лишние поля игнорируются (`ignoreUnknownKeys`), `status`/`resolution` необязательны при чтении
+(`status` по умолчанию `new`):
 
 ```json
 // users.json
-[{"id":"USER-101","name":"…","email":"…","tariff":"business",
-  "product":"CTT","since":"2024-06-15"}]
+[{"id":"USER-101","name":"…","email":"…","tariff":"business","product":"CTT","since":"2024-06-15"}]
 
 // tickets.json
-[{"id":"TICKET-4412","subject":"…","description":"…",
-  "status":"open","priority":"high",
-  "createdAt":"2026-07-10T09:12:00Z","updatedAt":"2026-07-16T14:20:00Z",
-  "customerId":"USER-102",
-  "comments":[{"author":"USER-102","at":"2026-07-10T09:12:00Z","text":"…"}]}]
+[{"id":"TICKET-4415","subject":"…","description":"…","status":"resolved","priority":"normal",
+  "createdAt":"…","updatedAt":"…","customerId":"USER-103",
+  "resolution":"…","comments":[{"author":"developer","at":"…","text":"status → resolved"}]}]
 ```
 
-`status`/`priority` — строки, без enum-валидации. Смысловой словарь описан в
-[demo/ctt-support/README.md](../../demo/ctt-support/README.md).
+Смысловой словарь статусов — [demo/ctt-support/README.md](../../demo/ctt-support/README.md).
 
 ## Раскладка
 
-Всё под `src/main/kotlin/ru/den/writes/code/agenticHub/mcps/support/`: `main.kt` (путь к данным из
-args → `runSupportServer`), `SupportServer.kt` (регистрация инструментов + transport),
-`SupportRepo.kt` (`Loader`-порт, `SupportRepo` — чтение/поиск и форматирование ответов,
-`FileLoader` — реальный `File.readText`).
+`src/main/kotlin/…/mcps/support/`: `main.kt` (dataRoot + `--dev` из argv → `runSupportServer`),
+`SupportServer.kt` (регистрация инструментов + transport), `SupportRepo.kt` (`Store`-порт,
+`SupportRepo` — поиск/создание/смена статуса и форматирование, `FileStore` — реальный File IO,
+таймстемп инъектируется).
 
 ## Тесты
 
-`./gradlew :playground:support-mcp:test` — offline: логика поиска, сортировки и формовки вывода на
-фейковом `Loader` (`SupportRepoTest`), без файловой системы. Живой путь — прогоном бинаря (JSON-RPC
-`initialize` → `tools/call get_ticket {"id":"TICKET-4412"}`).
+`./gradlew :playground:support-mcp:test` — offline на in-memory `Store`: `SupportRepoTest` (поиск,
+роли, resolution), `SupportRepoWriteTest` (createTicket append + id, setTicketStatus happy/отказы).
+Живой путь — прогоном бинаря (`initialize` → `tools/call`).
 
 ## Зависимости
 
-`mcp-kotlin-sdk` + `serialization-json` (схемы инструментов и парсинг фикстуры) + `coroutines`.
-Ktor НЕ нужен — stdio на `kotlinx-io`.
+`mcp-kotlin-sdk` + `serialization-json` (схемы + фикстура) + `coroutines`. Ktor НЕ нужен — stdio на
+`kotlinx-io`.
 
 ## Грабли
 
-- **Read-only по замыслу** — сервер не пишет, обновление тикетов не поддерживается. Для демо этого
-  достаточно.
-- **Путь к данным — первый arg**; забыли → сервер смотрит на cwd (директорию клиента), а не на
-  папку с `users.json`/`tickets.json` — и первый же `get_ticket` вернёт исключение при чтении.
-- Файлы читаются на каждый вызов — это не проблема на фикстуре в десятки килобайт, но не тащите
-  туда большие каталоги без кэша.
-- `kotlin-logging` может напечатать строку инициализации **в stdout** до JSON-RPC — наш клиент это
-  терпит, строгий парсер stdout может споткнуться (общая черта всех playground-серверов).
+- **Путь к данным — первый позиционный arg**; забыли → сервер смотрит на cwd клиента, первый же
+  `find_user`/`get_ticket` бросит исключение при чтении.
+- **`set_ticket_status` есть только с `--dev`** — в пользовательском запуске его нет by design.
+- Файлы читаются на каждый вызов — норм на фикстуре в десятки КБ, не тащите туда большие каталоги.
+- `kotlin-logging` может печатать строку инициализации **в stdout** до JSON-RPC — наш клиент терпит,
+  строгий парсер споткнётся (общая черта playground-серверов).
 - `addTool`-handler — extension-лямбда `ClientConnection.(CallToolRequest)`; `createSession` +
-  `onClose`-latch держит сервер живым; диагностика строго в stderr (stdout — только JSON-RPC).
+  `onClose`-latch держит сервер живым; диагностика строго в stderr.
