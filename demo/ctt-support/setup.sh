@@ -42,7 +42,7 @@ cp "$DEMO_DIR"/docs/*.md "$CORPUS/docs/"
 
 copy_ctt() {  # copy_ctt <относительный путь в CTT> <назначение в CORPUS>
   local src="$CTT_REPO/$1" dst="$CORPUS/$2"
-  if [ -f "$src" ]; then mkdir -p "$(dirname "$dst")"; cp "$src" "$dst"; echo "  + ctt/$2"; fi
+  if [ -f "$src" ]; then mkdir -p "$(dirname "$dst")"; cp "$src" "$dst"; echo "  + $2"; fi
 }
 
 if [ -d "$CTT_REPO" ]; then
