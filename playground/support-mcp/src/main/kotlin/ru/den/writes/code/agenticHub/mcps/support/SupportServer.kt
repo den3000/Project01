@@ -18,15 +18,15 @@ import kotlinx.serialization.json.put
 
 /**
  * Runs the support MCP server over stdio for the users/tickets fixture rooted at
- * [dataRoot]. Exposes four read-only tools an assistant needs to answer a support
- * conversation: `list_tickets`, `get_ticket`, `search_tickets`, `get_user`. The active
- * ticket id is normally in the assistant's [Current Task] block — the profile is
- * expected to prompt a `get_ticket` on the first turn. stdout is the JSON-RPC channel;
+ * [dataRoot]. Read tools (`find_user`, `get_user`, `list_user_tickets`, `search_tickets`,
+ * `get_ticket`, `list_tickets`) plus escalation `create_ticket` are always available. The
+ * developer-only mutator `set_ticket_status` is registered **only when [devMode]** — the
+ * launch config, not a chat token, is the access gate. stdout is the JSON-RPC channel;
  * every diagnostic goes to stderr so it can't corrupt the protocol stream. Blocks until
  * the client disconnects (stdin closes).
  */
-suspend fun runSupportServer(dataRoot: String) {
-    val repo = SupportRepo(FileLoader(dataRoot))
+suspend fun runSupportServer(dataRoot: String, devMode: Boolean = false) {
+    val repo = SupportRepo(FileStore(dataRoot))
 
     val server = Server(
         serverInfo = Implementation(name = "support-mcp", version = "0.1.0"),
@@ -149,9 +149,90 @@ suspend fun runSupportServer(dataRoot: String) {
         CallToolResult(content = listOf(TextContent(repo.listUserTickets(customerId))))
     }
 
+    server.addTool(
+        name = "create_ticket",
+        description = "Escalate to the dev team: open a new ticket for a registered customer when the " +
+            "problem can't be solved from the docs. Returns the new ticket id to quote back to the user.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "customerId",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Customer id the ticket is for, e.g. 'USER-102' (from find_user).")
+                    },
+                )
+                put(
+                    "subject",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Short one-line summary of the problem.")
+                    },
+                )
+                put(
+                    "description",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Full problem description, including what was already tried.")
+                    },
+                )
+            },
+            required = listOf("customerId", "subject", "description"),
+        ),
+    ) { request ->
+        val customerId = request.arguments?.get("customerId")?.jsonPrimitive?.content.orEmpty()
+        val subject = request.arguments?.get("subject")?.jsonPrimitive?.content.orEmpty()
+        val description = request.arguments?.get("description")?.jsonPrimitive?.content.orEmpty()
+        CallToolResult(content = listOf(TextContent(repo.createTicket(customerId, subject, description))))
+    }
+
+    if (devMode) {
+        server.addTool(
+            name = "set_ticket_status",
+            description = "Developer-only: set a ticket's status and record the resolution. Status is one " +
+                "of new, in_progress, resolved, wontfix. Always include a resolution (the solution, or why " +
+                "it won't be fixed).",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    put(
+                        "ticketId",
+                        buildJsonObject {
+                            put("type", "string")
+                            put("description", "Ticket id to update, e.g. 'TICKET-4412'.")
+                        },
+                    )
+                    put(
+                        "status",
+                        buildJsonObject {
+                            put("type", "string")
+                            put("description", "One of: new, in_progress, resolved, wontfix.")
+                        },
+                    )
+                    put(
+                        "resolution",
+                        buildJsonObject {
+                            put("type", "string")
+                            put("description", "The solution to give the user, or the reason it won't be fixed.")
+                        },
+                    )
+                },
+                required = listOf("ticketId", "status", "resolution"),
+            ),
+        ) { request ->
+            val ticketId = request.arguments?.get("ticketId")?.jsonPrimitive?.content.orEmpty()
+            val status = request.arguments?.get("status")?.jsonPrimitive?.content.orEmpty()
+            val resolution = request.arguments?.get("resolution")?.jsonPrimitive?.content.orEmpty()
+            CallToolResult(content = listOf(TextContent(repo.setTicketStatus(ticketId, status, resolution))))
+        }
+    }
+
+    val toolList = buildList {
+        addAll(listOf("list_tickets", "get_ticket", "search_tickets", "get_user", "find_user", "list_user_tickets", "create_ticket"))
+        if (devMode) add("set_ticket_status")
+    }.joinToString(", ")
     System.err.println(
-        "[support-mcp] support MCP server ready on stdio for data root '$dataRoot' " +
-            "(tools: list_tickets, get_ticket, search_tickets, get_user, find_user, list_user_tickets)",
+        "[support-mcp] support MCP server ready on stdio for data root '$dataRoot'" +
+            (if (devMode) " [dev]" else "") + " (tools: $toolList)",
     )
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),

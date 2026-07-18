@@ -4,14 +4,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** In-memory map of file name → JSON string; no real file I/O. */
-private class FakeLoader(private val files: Map<String, String>) : Loader {
+/** In-memory file name → text map; no real file I/O. Records the last read and last write. */
+private class FakeStore(files: Map<String, String>) : Store {
+    private val files = files.toMutableMap()
     var lastName: String? = null
         private set
 
     override fun read(name: String): String {
         lastName = name
         return files[name] ?: error("no fixture for '$name'")
+    }
+
+    override fun write(name: String, text: String) {
+        files[name] = text
     }
 }
 
@@ -82,7 +87,7 @@ class SupportRepoTest {
     @Test
     fun `when ticket exists - then getTicket returns full record with header and description`() {
         // given
-        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to TICKETS_JSON))
 
         // when
         val text = SupportRepo(loader).getTicket("TICKET-4412")
@@ -102,7 +107,7 @@ class SupportRepoTest {
     @Test
     fun `when ticket has no comments - then Comments section is omitted`() {
         // given
-        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to TICKETS_JSON))
 
         // when
         val text = SupportRepo(loader).getTicket("TICKET-4420")
@@ -114,7 +119,7 @@ class SupportRepoTest {
     @Test
     fun `when ticket id is unknown - then getTicket returns a clear notice`() {
         // given
-        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to TICKETS_JSON))
 
         // when - then
         assertEquals("(no ticket TICKET-9999)", SupportRepo(loader).getTicket("TICKET-9999"))
@@ -125,7 +130,7 @@ class SupportRepoTest {
     @Test
     fun `when tickets present - then listTickets returns one summary line per ticket sorted by updatedAt desc`() {
         // given — TICKET-4412 updated 2026-07-16, TICKET-4420 updated 2026-07-15
-        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to TICKETS_JSON))
 
         // when
         val text = SupportRepo(loader).listTickets()
@@ -141,7 +146,7 @@ class SupportRepoTest {
     @Test
     fun `when tickets file is an empty array - then listTickets returns a clear notice`() {
         // given
-        val loader = FakeLoader(mapOf("tickets.json" to "[]"))
+        val loader = FakeStore(mapOf("tickets.json" to "[]"))
 
         // when - then
         assertEquals("(no tickets)", SupportRepo(loader).listTickets())
@@ -152,7 +157,7 @@ class SupportRepoTest {
     @Test
     fun `when query matches a subject substring - then searchTickets returns that summary`() {
         // given
-        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to TICKETS_JSON))
 
         // when
         val text = SupportRepo(loader).searchTickets("аврору")
@@ -166,7 +171,7 @@ class SupportRepoTest {
     @Test
     fun `when query matches a description substring - then searchTickets returns it`() {
         // given
-        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to TICKETS_JSON))
 
         // when
         val text = SupportRepo(loader).searchTickets("POST")
@@ -178,7 +183,7 @@ class SupportRepoTest {
     @Test
     fun `when nothing matches - then searchTickets returns a clear notice with the query`() {
         // given
-        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to TICKETS_JSON))
 
         // when - then
         assertEquals(
@@ -192,7 +197,7 @@ class SupportRepoTest {
     @Test
     fun `when user exists - then getUser returns full record`() {
         // given
-        val loader = FakeLoader(mapOf("users.json" to USERS_JSON))
+        val loader = FakeStore(mapOf("users.json" to USERS_JSON))
 
         // when
         val text = SupportRepo(loader).getUser("USER-102")
@@ -210,7 +215,7 @@ class SupportRepoTest {
     @Test
     fun `when user id is unknown - then getUser returns a clear notice`() {
         // given
-        val loader = FakeLoader(mapOf("users.json" to USERS_JSON))
+        val loader = FakeStore(mapOf("users.json" to USERS_JSON))
 
         // when - then
         assertEquals("(no user USER-999)", SupportRepo(loader).getUser("USER-999"))
@@ -221,7 +226,7 @@ class SupportRepoTest {
     @Test
     fun `when name matches several users - then findUser lists every match`() {
         // given — both users are named Иван
-        val loader = FakeLoader(mapOf("users.json" to USERS_JSON))
+        val loader = FakeStore(mapOf("users.json" to USERS_JSON))
 
         // when
         val text = SupportRepo(loader).findUser("иван")
@@ -236,7 +241,7 @@ class SupportRepoTest {
     @Test
     fun `when name matches one user by surname - then findUser returns just that user`() {
         // given
-        val loader = FakeLoader(mapOf("users.json" to USERS_JSON))
+        val loader = FakeStore(mapOf("users.json" to USERS_JSON))
 
         // when
         val text = SupportRepo(loader).findUser("Петров")
@@ -248,7 +253,7 @@ class SupportRepoTest {
     @Test
     fun `when name matches nobody - then findUser returns a clear notice`() {
         // given — a guest: not in the registry
-        val loader = FakeLoader(mapOf("users.json" to USERS_JSON))
+        val loader = FakeStore(mapOf("users.json" to USERS_JSON))
 
         // when - then
         assertEquals("(no such user matching 'Пётр Незнакомцев')", SupportRepo(loader).findUser("Пётр Незнакомцев"))
@@ -257,7 +262,7 @@ class SupportRepoTest {
     @Test
     fun `when name is blank - then findUser returns a clear notice`() {
         // given
-        val loader = FakeLoader(mapOf("users.json" to USERS_JSON))
+        val loader = FakeStore(mapOf("users.json" to USERS_JSON))
 
         // when - then
         assertEquals("(no such user)", SupportRepo(loader).findUser("   "))
@@ -268,7 +273,7 @@ class SupportRepoTest {
     @Test
     fun `when customer has tickets - then listUserTickets lists their summaries`() {
         // given — TICKET-4412 belongs to USER-102
-        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to TICKETS_JSON))
 
         // when
         val text = SupportRepo(loader).listUserTickets("USER-102")
@@ -281,7 +286,7 @@ class SupportRepoTest {
     @Test
     fun `when customer has no tickets - then listUserTickets returns a clear notice`() {
         // given
-        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to TICKETS_JSON))
 
         // when - then
         assertEquals("(no tickets for USER-777)", SupportRepo(loader).listUserTickets("USER-777"))
@@ -292,7 +297,7 @@ class SupportRepoTest {
     @Test
     fun `when ticket is resolved - then getTicket shows the resolution line`() {
         // given
-        val loader = FakeLoader(mapOf("tickets.json" to RESOLVED_TICKET_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to RESOLVED_TICKET_JSON))
 
         // when
         val text = SupportRepo(loader).getTicket("TICKET-5000")
@@ -305,7 +310,7 @@ class SupportRepoTest {
     @Test
     fun `when ticket has no resolution - then getTicket omits the resolution line`() {
         // given — the base fixture tickets carry no resolution
-        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+        val loader = FakeStore(mapOf("tickets.json" to TICKETS_JSON))
 
         // when
         val text = SupportRepo(loader).getTicket("TICKET-4412")
@@ -324,7 +329,7 @@ class SupportRepoTest {
              "priority":"low","createdAt":"2026-01-01","updatedAt":"2026-01-01",
              "customerId":"USER-1","extraFieldFromFuture":"ignore me"}
         ]"""
-        val loader = FakeLoader(mapOf("tickets.json" to withExtra))
+        val loader = FakeStore(mapOf("tickets.json" to withExtra))
 
         // when - then
         assertTrue(SupportRepo(loader).getTicket("TICKET-1").startsWith("Ticket TICKET-1"))

@@ -4,12 +4,14 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * Reads one named text resource — the impure edge of the server. The Loader factoring
- * keeps [SupportRepo] free of file I/O so its tools/arg-building/formatting are unit-tested
- * with a fake loader. Production impl is [FileLoader].
+ * Reads and writes one named text resource — the impure edge of the server. The Store
+ * factoring keeps [SupportRepo] free of file I/O so its logic (lookups, formatting, ticket
+ * creation and status changes) is unit-tested against an in-memory map. Production impl is
+ * [FileStore]; reads and writes both hit `<root>/<name>`.
  */
-fun interface Loader {
+interface Store {
     fun read(name: String): String
+    fun write(name: String, text: String)
 }
 
 @Serializable
@@ -44,13 +46,19 @@ data class SupportTicket(
 )
 
 /**
- * Read-only surface over a users/tickets fixture, backing the MCP tools. Every call hits
- * [loader] again (no cache) so an operator can edit the JSON files between calls without
- * restarting the server — the fixture is small enough that the parse cost is invisible.
- * Never mutates: the demo doesn't need write-back and the extra surface would need
- * concurrency guards we don't have.
+ * Surface over a users/tickets fixture, backing the MCP tools. Reads hit [store] again on
+ * every call (no cache) so a hand-edit — or a write from a previous call — is visible
+ * immediately; the fixture is small enough that the parse cost is invisible. Writes
+ * (createTicket / setTicketStatus) rewrite the whole tickets file. Single-threaded by the
+ * MCP tool loop, so no concurrency guard.
+ *
+ * [now] supplies the timestamp stamped onto new tickets/comments; injected so tests are
+ * deterministic. Defaults to the wall clock.
  */
-class SupportRepo(private val loader: Loader) {
+class SupportRepo(
+    private val store: Store,
+    private val now: () -> String = { java.time.Instant.now().toString() },
+) {
 
     /** Every ticket, id + subject + status + priority + customerId, sorted by updatedAt desc. */
     fun listTickets(): String {
@@ -68,7 +76,8 @@ class SupportRepo(private val loader: Loader) {
 
     /**
      * Tickets whose subject OR description contains [query] as a case-insensitive
-     * substring. Empty query returns the same summary as [listTickets] would.
+     * substring — resolved ones included, so the assistant can reuse an existing solution.
+     * Empty query returns the same summary as [listTickets] would.
      */
     fun searchTickets(query: String): String {
         val q = query.trim()
@@ -111,11 +120,63 @@ class SupportRepo(private val loader: Loader) {
         return tickets.joinToString("\n") { formatTicketSummary(it) }
     }
 
+    /**
+     * Escalation: append a new `new` ticket for [customerId] and persist. The id is
+     * `TICKET-<max+1>` over the existing numeric suffixes. Returns the created id (so the
+     * assistant can quote it) or a notice when the customer is unknown.
+     */
+    fun createTicket(customerId: String, subject: String, description: String): String {
+        val tickets = readTickets()
+        if (readUsers().none { it.id == customerId }) return "(no user $customerId)"
+        val stamp = now()
+        val ticket = SupportTicket(
+            id = nextTicketId(tickets),
+            subject = subject,
+            description = description,
+            status = "new",
+            priority = "normal",
+            createdAt = stamp,
+            updatedAt = stamp,
+            customerId = customerId,
+        )
+        writeTickets(tickets + ticket)
+        return "Created ${ticket.id} (status new) for $customerId"
+    }
+
+    /**
+     * Developer action: set [id]'s [status] and [resolution], append a note, and persist.
+     * Rejects an unknown id or a status outside [TICKET_STATUSES]. The caller (dev launch)
+     * is the access gate — this method assumes the session is already authorized.
+     */
+    fun setTicketStatus(id: String, status: String, resolution: String): String {
+        if (status !in TICKET_STATUSES) return "(invalid status '$status'; use one of ${TICKET_STATUSES.joinToString(", ")})"
+        val tickets = readTickets()
+        val target = tickets.firstOrNull { it.id == id } ?: return "(no ticket $id)"
+        val stamp = now()
+        val updated = target.copy(
+            status = status,
+            resolution = resolution.ifBlank { target.resolution },
+            updatedAt = stamp,
+            comments = target.comments + TicketComment("developer", stamp, "status → $status"),
+        )
+        writeTickets(tickets.map { if (it.id == id) updated else it })
+        return "Ticket $id → $status"
+    }
+
+    private fun nextTicketId(tickets: List<SupportTicket>): String {
+        val maxNum = tickets.mapNotNull { it.id.substringAfterLast('-').toIntOrNull() }.maxOrNull() ?: 0
+        return "TICKET-${maxNum + 1}"
+    }
+
     private fun readTickets(): List<SupportTicket> =
-        JSON.decodeFromString(TICKETS_SERIALIZER, loader.read(TICKETS_FILE))
+        JSON.decodeFromString(TICKETS_SERIALIZER, store.read(TICKETS_FILE))
 
     private fun readUsers(): List<SupportUser> =
-        JSON.decodeFromString(USERS_SERIALIZER, loader.read(USERS_FILE))
+        JSON.decodeFromString(USERS_SERIALIZER, store.read(USERS_FILE))
+
+    private fun writeTickets(tickets: List<SupportTicket>) {
+        store.write(TICKETS_FILE, PRETTY_JSON.encodeToString(TICKETS_SERIALIZER, tickets))
+    }
 
     private fun formatTicketSummary(t: SupportTicket): String =
         "${t.id} [${t.status}, ${t.priority}] ${t.subject} (customer ${t.customerId})"
@@ -156,17 +217,26 @@ class SupportRepo(private val loader: Loader) {
     companion object {
         const val TICKETS_FILE = "tickets.json"
         const val USERS_FILE = "users.json"
+
+        /** The statuses [setTicketStatus] accepts. */
+        val TICKET_STATUSES = listOf("new", "in_progress", "resolved", "wontfix")
+
         private val JSON = Json { ignoreUnknownKeys = true }
+        private val PRETTY_JSON = Json { prettyPrint = true; encodeDefaults = true }
         private val TICKETS_SERIALIZER = kotlinx.serialization.builtins.ListSerializer(SupportTicket.serializer())
         private val USERS_SERIALIZER = kotlinx.serialization.builtins.ListSerializer(SupportUser.serializer())
     }
 }
 
 /**
- * Production [Loader]: reads `<root>/<name>` from disk on every call. The impure edge —
- * unwrapped so tests can swap it for an in-memory map.
+ * Production [Store]: reads and writes `<root>/<name>` on disk. The impure edge — unwrapped
+ * so tests can swap it for an in-memory map.
  */
-class FileLoader(private val root: String) : Loader {
+class FileStore(private val root: String) : Store {
     override fun read(name: String): String =
         java.io.File(root, name).readText(Charsets.UTF_8)
+
+    override fun write(name: String, text: String) {
+        java.io.File(root, name).writeText(text, Charsets.UTF_8)
+    }
 }
