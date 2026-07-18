@@ -34,11 +34,12 @@ data class SupportTicket(
     val id: String,
     val subject: String,
     val description: String,
-    val status: String,
+    val status: String = "new",
     val priority: String,
     val createdAt: String,
     val updatedAt: String,
     val customerId: String,
+    val resolution: String? = null,
     val comments: List<TicketComment> = emptyList(),
 )
 
@@ -88,6 +89,28 @@ class SupportRepo(private val loader: Loader) {
         return formatUserFull(user)
     }
 
+    /**
+     * Registered users whose name contains [name] as a case-insensitive substring — the
+     * gate between "guest" and "registered" for the assistant. A blank query, or no match,
+     * returns a clear notice so the assistant can refuse politely rather than invent a user.
+     */
+    fun findUser(name: String): String {
+        val q = name.trim()
+        if (q.isEmpty()) return "(no such user)"
+        val matches = readUsers().filter { it.name.contains(q, ignoreCase = true) }
+        if (matches.isEmpty()) return "(no such user matching '$name')"
+        return matches.joinToString("\n") { formatUserSummary(it) }
+    }
+
+    /** Tickets belonging to one customer (id + status + subject), newest first; notice when none. */
+    fun listUserTickets(customerId: String): String {
+        val tickets = readTickets()
+            .filter { it.customerId == customerId }
+            .sortedByDescending { it.updatedAt }
+        if (tickets.isEmpty()) return "(no tickets for $customerId)"
+        return tickets.joinToString("\n") { formatTicketSummary(it) }
+    }
+
     private fun readTickets(): List<SupportTicket> =
         JSON.decodeFromString(TICKETS_SERIALIZER, loader.read(TICKETS_FILE))
 
@@ -105,6 +128,7 @@ class SupportRepo(private val loader: Loader) {
         appendLine("Customer: ${t.customerId}")
         appendLine("Created: ${t.createdAt}")
         appendLine("Updated: ${t.updatedAt}")
+        t.resolution?.takeIf { it.isNotBlank() }?.let { appendLine("Resolution: $it") }
         appendLine()
         appendLine("Description:")
         appendLine(t.description)
@@ -116,6 +140,9 @@ class SupportRepo(private val loader: Loader) {
             }
         }
     }.trimEnd()
+
+    private fun formatUserSummary(u: SupportUser): String =
+        "${u.id} ${u.name} <${u.email}> (tariff ${u.tariff})"
 
     private fun formatUserFull(u: SupportUser): String = buildString {
         appendLine("User ${u.id}")

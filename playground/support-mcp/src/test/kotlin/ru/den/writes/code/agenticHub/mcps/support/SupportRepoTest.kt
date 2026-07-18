@@ -50,6 +50,29 @@ private const val USERS_JSON = """[
         "tariff": "team",
         "product": "CTT",
         "since": "2024-11-01"
+    },
+    {
+        "id": "USER-108",
+        "name": "Иван Сидоров",
+        "email": "sidorov@example.org",
+        "tariff": "free",
+        "product": "CTT",
+        "since": "2025-03-04"
+    }
+]"""
+
+/** A single resolved ticket carrying a resolution — for the getTicket-resolution test. */
+private const val RESOLVED_TICKET_JSON = """[
+    {
+        "id": "TICKET-5000",
+        "subject": "Эмулятор не видит сервер",
+        "description": "Offline на Android-эмуляторе.",
+        "status": "resolved",
+        "priority": "normal",
+        "createdAt": "2026-06-01T10:00:00Z",
+        "updatedAt": "2026-06-02T10:00:00Z",
+        "customerId": "USER-108",
+        "resolution": "Эмулятор ходит на 10.0.2.2; SERVER_IP оставить пустым."
     }
 ]"""
 
@@ -191,6 +214,104 @@ class SupportRepoTest {
 
         // when - then
         assertEquals("(no user USER-999)", SupportRepo(loader).getUser("USER-999"))
+    }
+    //endregion
+
+    //region find_user — guest vs registered
+    @Test
+    fun `when name matches several users - then findUser lists every match`() {
+        // given — both users are named Иван
+        val loader = FakeLoader(mapOf("users.json" to USERS_JSON))
+
+        // when
+        val text = SupportRepo(loader).findUser("иван")
+
+        // then — case-insensitive, one summary line per match
+        val lines = text.lines()
+        assertEquals(2, lines.size, "expected two matches: $text")
+        assertTrue(lines.any { it.startsWith("USER-102 Иван Петров") })
+        assertTrue(lines.any { it.startsWith("USER-108 Иван Сидоров") })
+    }
+
+    @Test
+    fun `when name matches one user by surname - then findUser returns just that user`() {
+        // given
+        val loader = FakeLoader(mapOf("users.json" to USERS_JSON))
+
+        // when
+        val text = SupportRepo(loader).findUser("Петров")
+
+        // then
+        assertEquals("USER-102 Иван Петров <ivan@example.org> (tariff team)", text)
+    }
+
+    @Test
+    fun `when name matches nobody - then findUser returns a clear notice`() {
+        // given — a guest: not in the registry
+        val loader = FakeLoader(mapOf("users.json" to USERS_JSON))
+
+        // when - then
+        assertEquals("(no such user matching 'Пётр Незнакомцев')", SupportRepo(loader).findUser("Пётр Незнакомцев"))
+    }
+
+    @Test
+    fun `when name is blank - then findUser returns a clear notice`() {
+        // given
+        val loader = FakeLoader(mapOf("users.json" to USERS_JSON))
+
+        // when - then
+        assertEquals("(no such user)", SupportRepo(loader).findUser("   "))
+    }
+    //endregion
+
+    //region list_user_tickets — return visit
+    @Test
+    fun `when customer has tickets - then listUserTickets lists their summaries`() {
+        // given — TICKET-4412 belongs to USER-102
+        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+
+        // when
+        val text = SupportRepo(loader).listUserTickets("USER-102")
+
+        // then
+        assertEquals(1, text.lines().size, "expected one ticket: $text")
+        assertTrue(text.startsWith("TICKET-4412 [open, high]"), "wrong ticket: $text")
+    }
+
+    @Test
+    fun `when customer has no tickets - then listUserTickets returns a clear notice`() {
+        // given
+        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+
+        // when - then
+        assertEquals("(no tickets for USER-777)", SupportRepo(loader).listUserTickets("USER-777"))
+    }
+    //endregion
+
+    //region resolution
+    @Test
+    fun `when ticket is resolved - then getTicket shows the resolution line`() {
+        // given
+        val loader = FakeLoader(mapOf("tickets.json" to RESOLVED_TICKET_JSON))
+
+        // when
+        val text = SupportRepo(loader).getTicket("TICKET-5000")
+
+        // then
+        assertTrue("Status: resolved" in text, text)
+        assertTrue("Resolution: Эмулятор ходит на 10.0.2.2" in text, text)
+    }
+
+    @Test
+    fun `when ticket has no resolution - then getTicket omits the resolution line`() {
+        // given — the base fixture tickets carry no resolution
+        val loader = FakeLoader(mapOf("tickets.json" to TICKETS_JSON))
+
+        // when
+        val text = SupportRepo(loader).getTicket("TICKET-4412")
+
+        // then
+        assertTrue("Resolution:" !in text, "resolution line leaked: $text")
     }
     //endregion
 

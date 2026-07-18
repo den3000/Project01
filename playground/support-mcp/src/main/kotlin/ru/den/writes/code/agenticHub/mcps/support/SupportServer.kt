@@ -107,9 +107,51 @@ suspend fun runSupportServer(dataRoot: String) {
         CallToolResult(content = listOf(TextContent(repo.getUser(id))))
     }
 
+    server.addTool(
+        name = "find_user",
+        description = "Look up registered users by name (case-insensitive substring). Use it to tell a " +
+            "registered customer from a guest: an empty result means the person is not a registered user.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "name",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Full or partial customer name, e.g. 'Иван' or 'Петров'.")
+                    },
+                )
+            },
+            required = listOf("name"),
+        ),
+    ) { request ->
+        val name = request.arguments?.get("name")?.jsonPrimitive?.content.orEmpty()
+        CallToolResult(content = listOf(TextContent(repo.findUser(name))))
+    }
+
+    server.addTool(
+        name = "list_user_tickets",
+        description = "List all tickets belonging to one customer by their user id (id, status, subject). " +
+            "Use it on a return visit to report the status of the customer's existing tickets.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "customerId",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Customer id, e.g. 'USER-102' (from find_user or a ticket's Customer field).")
+                    },
+                )
+            },
+            required = listOf("customerId"),
+        ),
+    ) { request ->
+        val customerId = request.arguments?.get("customerId")?.jsonPrimitive?.content.orEmpty()
+        CallToolResult(content = listOf(TextContent(repo.listUserTickets(customerId))))
+    }
+
     System.err.println(
         "[support-mcp] support MCP server ready on stdio for data root '$dataRoot' " +
-            "(tools: list_tickets, get_ticket, search_tickets, get_user)",
+            "(tools: list_tickets, get_ticket, search_tickets, get_user, find_user, list_user_tickets)",
     )
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),
