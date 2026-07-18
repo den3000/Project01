@@ -3,71 +3,82 @@
     "id": "TICKET-4412",
     "subject": "Не вижу задачи после установки на Аврору",
     "description": "Установил приложение на устройство с Авророй, вошёл — список задач пустой. На эмуляторе Android те же задачи видны нормально. Индикатор бэкенда красный (Offline).",
-    "status": "open",
+    "status": "new",
     "priority": "high",
     "createdAt": "2026-07-10T09:12:00Z",
     "updatedAt": "2026-07-16T14:20:00Z",
     "customerId": "USER-102",
+    "resolution": null,
     "comments": [
-      {"author": "USER-102", "at": "2026-07-10T09:12:00Z", "text": "Пересборка приложения не помогла."},
-      {"author": "support", "at": "2026-07-11T08:00:00Z", "text": "Уточните, задан ли SERVER_IP в local.properties и в одной ли Wi-Fi сети устройство с ноутбуком."}
+      {"author": "USER-102", "at": "2026-07-10T09:12:00Z", "text": "Пересборка приложения не помогла."}
     ]
   },
   {
     "id": "TICKET-4415",
-    "subject": "Приложение не подключается к серверу",
+    "subject": "Приложение не подключается к серверу на эмуляторе",
     "description": "На Android-эмуляторе плашка «Сервер недоступен (Offline)». Сервер запустил через :server:run, в браузере на маке http://localhost:8080/ отвечает.",
-    "status": "open",
+    "status": "resolved",
     "priority": "normal",
-    "createdAt": "2026-07-12T15:30:00Z",
-    "updatedAt": "2026-07-14T10:05:00Z",
+    "createdAt": "2026-07-05T15:30:00Z",
+    "updatedAt": "2026-07-08T10:05:00Z",
     "customerId": "USER-103",
-    "comments": []
+    "resolution": "На Android-эмуляторе адрес хоста — 10.0.2.2, а не localhost. SERVER_IP оставить пустым (не задавать), тогда клиент сам стучится на http://10.0.2.2:8080. Для реального устройства — задать SERVER_IP = IP компьютера в одной Wi-Fi.",
+    "comments": [
+      {"author": "developer", "at": "2026-07-08T10:05:00Z", "text": "status → resolved"}
+    ]
   },
   {
     "id": "TICKET-4418",
     "subject": "Как войти в аккаунт",
-    "description": "Не могу найти экран входа. Где регистрация, куда вводить пароль? У меня несколько устройств, хочу везде видеть свои задачи.",
-    "status": "open",
+    "description": "Не могу найти экран входа. Где регистрация, куда вводить пароль? Хочу на всех устройствах видеть свои задачи.",
+    "status": "resolved",
     "priority": "normal",
-    "createdAt": "2026-07-13T11:00:00Z",
-    "updatedAt": "2026-07-13T11:00:00Z",
+    "createdAt": "2026-07-06T11:00:00Z",
+    "updatedAt": "2026-07-07T09:00:00Z",
     "customerId": "USER-101",
-    "comments": []
+    "resolution": "В CTT нет аккаунтов и авторизации — это осознанное свойство версии. Экрана входа нет, приложение сразу открывает общий список задач. Синхронизация между устройствами — через общий сервер в одной сети, а не через личный аккаунт.",
+    "comments": [
+      {"author": "developer", "at": "2026-07-07T09:00:00Z", "text": "status → resolved"}
+    ]
   },
   {
     "id": "TICKET-4420",
     "subject": "Задача не обновляется",
-    "description": "Открываю задачу, меняю title, сохраняю — на сервере остаётся старая версия. GET /api/tasks возвращает прежний title. Попробовал повторить POST с тем же id — тоже не помогает.",
-    "status": "pending",
+    "description": "Открываю задачу, меняю title, сохраняю — на сервере остаётся старая версия. GET /api/tasks возвращает прежний title. Повтор POST с тем же id тоже не помогает.",
+    "status": "in_progress",
     "priority": "normal",
     "createdAt": "2026-07-14T10:00:00Z",
     "updatedAt": "2026-07-15T09:00:00Z",
     "customerId": "USER-104",
+    "resolution": null,
     "comments": [
       {"author": "support", "at": "2026-07-15T09:00:00Z", "text": "Что именно вы кладёте в тело POST? Пришлите пример JSON."}
     ]
   },
   {
     "id": "TICKET-4423",
-    "subject": "Не открывается диалог смены приоритета",
+    "subject": "Не открывается диалог смены приоритета на Авроре",
     "description": "Тап по индикатору приоритета в карточке задачи ничего не делает на устройстве с Авророй. На Android тот же жест открывает выбор LOW/MEDIUM/HIGH.",
-    "status": "open",
+    "status": "wontfix",
     "priority": "low",
     "createdAt": "2026-07-15T12:00:00Z",
-    "updatedAt": "2026-07-15T12:00:00Z",
+    "updatedAt": "2026-07-16T08:00:00Z",
     "customerId": "USER-105",
-    "comments": []
+    "resolution": "Диалог опирался на Modal Bottom Sheet, который в текущем форке Compose для Авроры не работает (нет MainUIDispatcher в Skiko-порте). В приложении он уже заменён на выпадающий список — пользуйтесь им. Отдельно чинить BottomSheet не будем до фикса в форке.",
+    "comments": [
+      {"author": "developer", "at": "2026-07-16T08:00:00Z", "text": "status → wontfix"}
+    ]
   },
   {
     "id": "TICKET-4425",
     "subject": "Как собрать RPM под Аврору",
     "description": "Есть Aurora SDK, устройство доступно по SSH. Хочу собрать RPM и запустить на телефоне. С чего начать, какие команды Gradle нужны?",
-    "status": "open",
+    "status": "new",
     "priority": "normal",
     "createdAt": "2026-07-16T08:00:00Z",
     "updatedAt": "2026-07-17T10:00:00Z",
     "customerId": "USER-101",
+    "resolution": null,
     "comments": [
       {"author": "USER-101", "at": "2026-07-16T08:00:00Z", "text": "SDK установлен, симулятор работает."}
     ]
