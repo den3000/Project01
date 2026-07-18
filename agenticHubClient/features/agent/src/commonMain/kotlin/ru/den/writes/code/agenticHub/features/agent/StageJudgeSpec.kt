@@ -13,3 +13,10 @@ public data class StageJudgeSpec(
     val binding: TaskBinding,
     val provider: ModelProvider,
 )
+
+/**
+ * Holder wrapping the judge spec list for Koin injection — same reason as
+ * [StageAgentSpecs]: a bare `List` param collides with the factory's `List<RoutedJudge>`
+ * return type, so the specs travel wrapped in a distinct type.
+ */
+public data class StageJudgeSpecs(val value: List<StageJudgeSpec>)

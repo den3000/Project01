@@ -14,3 +14,11 @@ public data class StageAgentSpec(
     val provider: ModelProvider,
     val profileName: String?,
 )
+
+/**
+ * Holder wrapping the stage-agent spec list for Koin injection. A bare `List` passed as a
+ * `parametersOf(...)` value collides with the factory's `List<RoutedAgent>` return type —
+ * Koin resolves the injected `List` as the result and skips the factory entirely — so the
+ * specs travel wrapped in a distinct type. See [ru.den.writes.code.agenticHub.features.agent.di.agentModule].
+ */
+public data class StageAgentSpecs(val value: List<StageAgentSpec>)
