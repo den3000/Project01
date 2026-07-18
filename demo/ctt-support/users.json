@@ -1,0 +1,42 @@
+[
+  {
+    "id": "USER-101",
+    "name": "Мария Соколова",
+    "email": "maria.sokolova@example.org",
+    "tariff": "business",
+    "product": "CTT",
+    "since": "2024-06-15"
+  },
+  {
+    "id": "USER-102",
+    "name": "Иван Петров",
+    "email": "ivan.petrov@example.org",
+    "tariff": "team",
+    "product": "CTT",
+    "since": "2024-11-01"
+  },
+  {
+    "id": "USER-103",
+    "name": "Ксения Иванова",
+    "email": "ksenia.ivanova@example.org",
+    "tariff": "free",
+    "product": "CTT",
+    "since": "2025-02-20"
+  },
+  {
+    "id": "USER-104",
+    "name": "Дмитрий Соколов",
+    "email": "dmitry.sokolov@example.org",
+    "tariff": "business",
+    "product": "CTT",
+    "since": "2024-09-05"
+  },
+  {
+    "id": "USER-105",
+    "name": "Ольга Романова",
+    "email": "olga.romanova@example.org",
+    "tariff": "team",
+    "product": "CTT",
+    "since": "2025-01-12"
+  }
+]
