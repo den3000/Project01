@@ -3,6 +3,7 @@ package ru.den.writes.code.agenticHub.cliJvm
 import kotlinx.coroutines.coroutineScope
 import org.koin.core.Koin
 import org.koin.core.parameter.parametersOf
+import org.koin.core.qualifier.named
 import ru.den.writes.code.agenticHub.features.lifecycle.start.MEMORY_ROOT
 import ru.den.writes.code.agenticHub.features.lifecycle.start.RAG_ROOT
 import ru.den.writes.code.agenticHub.features.lifecycle.session.RagControl
@@ -16,6 +17,10 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionAssembly
 import ru.den.writes.code.agenticHub.features.lifecycle.session.di.SessionAssemblyArgs
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
+import ru.den.writes.code.agenticHub.features.agent.StageAgentSpecs
+import ru.den.writes.code.agenticHub.features.agent.StageJudgeSpecs
+import ru.den.writes.code.agenticHub.features.agent.di.ROUTED_AGENTS
+import ru.den.writes.code.agenticHub.features.agent.di.ROUTED_JUDGES
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.PromptSourceIntents
 import ru.den.writes.code.agenticHub.features.lifecycle.session.PromptSource
 import ru.den.writes.code.agenticHub.features.llm.McpToolRouter
@@ -55,9 +60,9 @@ internal suspend fun runSession(
     val strategy: ContextStrategy = initialState.contextStrategy()
     val memory: MemoryProvider? = initialState.resolveMemoryProvider(koin, MEMORY_ROOT)
     val routedAgents: List<RoutedAgent> =
-        koin.get { parametersOf(chat?.config?.stageAgents.orEmpty(), initialState.toGenerationParams()) }
+        koin.get(named(ROUTED_AGENTS)) { parametersOf(StageAgentSpecs(chat?.config?.stageAgents.orEmpty()), initialState.toGenerationParams()) }
     val routedJudges: List<RoutedJudge> =
-        koin.get { parametersOf(chat?.config?.judgeAgents.orEmpty()) }
+        koin.get(named(ROUTED_JUDGES)) { parametersOf(StageJudgeSpecs(chat?.config?.judgeAgents.orEmpty())) }
     val mcpClients: List<McpToolClient> = buildMcpToolClients(koin, chat).onEach { it.connect() }
     val router: McpToolRouter? = buildToolRouter(mcpClients, chat)
     val toolDefs = router?.toolDefs.orEmpty()

@@ -12,6 +12,7 @@ import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.ToolCall
+import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
 import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
 import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
@@ -151,6 +152,30 @@ class AgentResponderTest {
         assertEquals(listOf(ToolCall("current_weather", args)), resent[resent.size - 2].toolCalls)
         assertEquals("current_weather", resent.last().toolResultFor)
         assertEquals("Paris: 18C", resent.last().text)
+    }
+
+    @Test
+    fun `when tools are offered per call - then a config-less responder still runs them`() = runTest {
+        // given — a stage agent has no tools in its config; the host offers them per call
+        val args = buildJsonObject { put("id", "TICKET-1") }
+        val script = FakeLlmScript().apply {
+            queue(LlmResult(text = null, toolCalls = listOf(ToolCall("get_ticket", args))))
+            queueText("Ticket TICKET-1 is resolved.")
+        }
+        val api = scriptedApi(script)
+        val executor = RecordingExecutor("Ticket TICKET-1: resolved")
+        val toolDefs = listOf(ToolDefinition("get_ticket", "fetch a ticket", buildJsonObject { }))
+
+        // when — config carries no tools/executor; both arrive via respond(...)
+        val outcome = responder(api).respond(
+            emptyList(), emptyList(), Message(Role.USER, "status of TICKET-1?"),
+            toolDefs = toolDefs, toolExecutor = executor,
+        )
+
+        // then — the per-call executor ran and its tools reached the request
+        assertEquals(listOf(ToolCall("get_ticket", args)), executor.calls)
+        assertEquals("Ticket TICKET-1 is resolved.", outcome.result.text)
+        assertEquals(toolDefs, script.calls.first().params.tools)
     }
 
     @Test

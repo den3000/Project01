@@ -38,5 +38,10 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutinesTest)
         }
+        jvmTest.dependencies {
+            // A real (never-called) HttpClient to resolve the agentModule graph; the Java
+            // engine is JVM-only, so this DI test lives in jvmTest.
+            implementation(libs.ktor.client.java)
+        }
     }
 }

@@ -448,6 +448,52 @@ $BIN \
 $BIN -session
 ```
 
+### Ассистент поддержки продукта (CTT)
+
+Собирается из готовых кирпичей без новой грамматики: RAG по докам+коду + профиль-персона + FSM из 5
+стадий с судьёй + read-write MCP-сервер тикетов/пользователей. Тикет здесь — **выход** (эскалация),
+а вход — пользователь+проблема, выясняемые в диалоге. Пример живёт в
+[`demo/ctt-support/`](../../../demo/ctt-support/) (см. его README — там роли, сценарии, обёртки).
+
+```bash
+bash demo/ctt-support/setup.sh       # installDist + индексация RAG (доки+код) + профили + правила
+bash demo/ctt-support/run-support.sh # чат поддержки (роль пользователя)
+bash demo/ctt-support/run-dev.sh     # консоль разработчика (смена статусов тикетов)
+```
+
+Обёртки прячут многоагентный запуск. Под капотом `run-support.sh`:
+
+```bash
+cp "$DEMO/case-template.md" ~/.project01-cli/memory/tasks/ctt-case.md   # сброс кейса в clarification
+"$CLI" \
+  -prompt "Здравствуйте! Опишите, пожалуйста, вашу проблему (и как вас зовут)." \
+  -task ctt-case -rag ctt-support \
+  -agent provider gemini mode system \
+  -agent support provider gemini profile support stages clarification..done \
+  -agent judge   provider gemini stages clarification..done judge \
+  -mcpServer "$SUPP $DEMO"
+```
+
+Что где играет:
+
+- **Три `-agent`** — это требование грамматики для пары «агент + судья»: пустой primary несёт
+  `mode system` (и служит fallback), `support` со `stages clarification..done` отвечает и правит
+  стадии маркером `[[stage:<next>]]`, `judge` со `stages … judge` гейтит переход (ответ, нарушивший
+  constraints, не персистится и стадию не двигает).
+- `-task ctt-case` — активная задача из шаблона `case-template.md` (стадия `clarification`); в SYSTEM
+  рендерится `[Current Task]` с текущей стадией и allowed-next. Обёртка кладёт свежий файл перед
+  запуском, поэтому startup `-task` (который сам файл не создаёт) его находит.
+- `-rag ctt-support` — индекс из `setup.sh`: наши FAQ-доки **+ отобранный код CTT**; каждый ход
+  подтягивает top-K чанков в SYSTEM.
+- `-mcpServer "$SUPP $DEMO"` — support-mcp (см.
+  [playground/support-mcp](../../../playground/support-mcp/README.md)): `find_user`, `get_user`,
+  `list_user_tickets`, `search_tickets`, `get_ticket`, `list_tickets`, `create_ticket`. Запуск
+  разработчика (`run-dev.sh`) добавляет `--dev` → инструмент `set_ticket_status`.
+
+Роли и сценарии (гость → отказ; известное решение → переиспользование; новая проблема → эскалация;
+разработчик → смена статуса; возврат → статус тикета) — в
+[demo/ctt-support/README.md](../../../demo/ctt-support/README.md). Судья удваивает вызовы LLM на ход.
+
 ## Как устроен парсинг (cliargs)
 
 Раньше разбор стартовых флагов и разбор `/`-команд были два независимых «месива» из констант,
