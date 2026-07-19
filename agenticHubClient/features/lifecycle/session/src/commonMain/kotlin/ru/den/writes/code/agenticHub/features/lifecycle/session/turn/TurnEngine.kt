@@ -68,14 +68,13 @@ public class TurnEngine(
      * when there's no task / stage) — an empty list reproduces single-agent
      * behaviour exactly.
      */
+    // Tools are offered per call in [turn] (see [AgentResponder.respond]) so they reach
+    // the routed stage agent that actually answers, not just this fallback — hence no
+    // tools baked into its config here.
     private val fallbackAgent = RoutedAgent(
         binding = TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
         responder = AgentResponder(
-            AgentConfig(
-                llmApi = llmApi,
-                params = cliArgs.toGenerationParams().copy(tools = toolDefs.ifEmpty { null }),
-                toolExecutor = toolExecutor,
-            ),
+            AgentConfig(llmApi = llmApi, params = cliArgs.toGenerationParams()),
         ),
         profileName = null,
         modelId = cliArgs.modelProvider.modelId,
@@ -122,7 +121,13 @@ public class TurnEngine(
         // byte-identical to the no-memory path.
         val memoryLayer = memory?.memoryLayerFor(agent.profileName) ?: emptyList()
         val (outcome, duration) = measureTimedValue {
-            agent.responder.respond(baseContext = baseContext, memoryLayer = memoryLayer, userTurn = userTurn)
+            agent.responder.respond(
+                baseContext = baseContext,
+                memoryLayer = memoryLayer,
+                userTurn = userTurn,
+                toolDefs = toolDefs.ifEmpty { null },
+                toolExecutor = toolExecutor,
+            )
         }
         val result = outcome.result
 

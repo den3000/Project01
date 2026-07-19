@@ -4,6 +4,8 @@ import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.ToolCall
+import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
+import ru.den.writes.code.agenticHub.features.llm.ToolExecutor
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import ru.den.writes.code.agenticHub.features.memory.TaskStateMachine
 
@@ -52,18 +54,28 @@ data class ExecutedToolCall(
  * responder never touches roles.
  */
 class AgentResponder(private val config: AgentConfig) {
+    /**
+     * [toolDefs] / [toolExecutor] are the session's tools, offered per call so the
+     * SAME set reaches whichever agent answers (the host picks it per stage) — a
+     * stage agent isn't built with its own tools. When given they override the
+     * config's; when null the config's are used. Both absent → a single tool-less
+     * call, byte-identical to the pre-tools path.
+     */
     suspend fun respond(
         baseContext: List<Message>,
         memoryLayer: List<Message>,
         userTurn: Message,
+        toolDefs: List<ToolDefinition>? = null,
+        toolExecutor: ToolExecutor? = null,
     ): TurnOutcome {
-        val executor = config.toolExecutor
+        val executor = toolExecutor ?: config.toolExecutor
+        val params = if (toolDefs != null) config.params.copy(tools = toolDefs) else config.params
         val wire = (memoryLayer + baseContext + userTurn).toMutableList()
         val executed = mutableListOf<ExecutedToolCall>()
 
         // No executor → single call, byte-identical to the pre-tools path.
         repeat(MAX_TOOL_ROUNDS) {
-            val result = config.llmApi.send(messages = wire, params = config.params)
+            val result = config.llmApi.send(messages = wire, params = params)
             if (executor == null || result.error != null || result.toolCalls.isEmpty()) {
                 return outcome(result, executed)
             }
@@ -77,7 +89,7 @@ class AgentResponder(private val config: AgentConfig) {
             }
         }
         // Round budget spent — make one last call and take whatever comes back.
-        return outcome(config.llmApi.send(messages = wire, params = config.params), executed)
+        return outcome(config.llmApi.send(messages = wire, params = params), executed)
     }
 
     private fun outcome(result: LlmResult, executed: List<ExecutedToolCall>): TurnOutcome =
