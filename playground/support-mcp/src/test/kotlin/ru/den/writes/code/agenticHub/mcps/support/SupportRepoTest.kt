@@ -191,6 +191,31 @@ class SupportRepoTest {
             SupportRepo(loader).searchTickets("квантовая гравитация"),
         )
     }
+
+    @Test
+    fun `when a natural-language query shares only words - then searchTickets still matches`() {
+        // given — the whole phrase is nowhere a substring; individual words are
+        val loader = FakeStore(mapOf("tickets.json" to RESOLVED_TICKET_JSON))
+
+        // when
+        val text = SupportRepo(loader).searchTickets("не подключается сервер на эмуляторе")
+
+        // then — matched via words «сервер»/«эмулятор» over subject+description
+        assertTrue(text.startsWith("TICKET-5000"), "expected a word-level match: $text")
+    }
+
+    @Test
+    fun `when a word hits only the resolution text - then searchTickets still matches`() {
+        // given — the reuse case: query words live only in a resolved ticket's solution
+        // («оставить»/«пустым» appear in the resolution, not the subject or description)
+        val loader = FakeStore(mapOf("tickets.json" to RESOLVED_TICKET_JSON))
+
+        // when
+        val text = SupportRepo(loader).searchTickets("SERVER_IP оставить пустым")
+
+        // then
+        assertTrue(text.startsWith("TICKET-5000"), "expected a resolution match: $text")
+    }
     //endregion
 
     //region get_user

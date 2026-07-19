@@ -75,21 +75,38 @@ class SupportRepo(
     }
 
     /**
-     * Tickets whose subject OR description contains [query] as a case-insensitive
-     * substring — resolved ones included, so the assistant can reuse an existing solution.
-     * Empty query returns the same summary as [listTickets] would.
+     * Tickets relevant to [query], searched over subject + description + resolution
+     * (resolved ones included, so the assistant can reuse an existing solution). The
+     * query is split into words (≥ 3 chars); a ticket matches if it contains ANY of them,
+     * ranked by how many distinct words hit — a natural-language query ("не подключается к
+     * серверу на эмуляторе") finds the ticket even though the whole phrase is nowhere a
+     * substring. A query with only short words falls back to whole-string contains. Empty
+     * query → same summary as [listTickets].
      */
     fun searchTickets(query: String): String {
         val q = query.trim()
-        val tickets = readTickets().let { all ->
-            if (q.isEmpty()) all else all.filter {
-                it.subject.contains(q, ignoreCase = true) ||
-                    it.description.contains(q, ignoreCase = true)
-            }
-        }.sortedByDescending { it.updatedAt }
-        if (tickets.isEmpty()) return "(no tickets match '$query')"
-        return tickets.joinToString("\n") { formatTicketSummary(it) }
+        val all = readTickets()
+        // Split on whitespace, then trim edge punctuation. NOT \W+: Java's \w is
+        // ASCII-only, so \W would treat every Cyrillic letter as a separator.
+        val words = q.lowercase().split(Regex("\\s+"))
+            .map { it.trim { c -> !c.isLetterOrDigit() } }
+            .filter { it.length >= 3 }
+        val matched: List<SupportTicket> = when {
+            q.isEmpty() -> all.sortedByDescending { it.updatedAt }
+            words.isEmpty() ->
+                all.filter { haystack(it).contains(q, ignoreCase = true) }.sortedByDescending { it.updatedAt }
+            else -> all
+                .map { it to words.count { w -> haystack(it).lowercase().contains(w) } }
+                .filter { it.second > 0 }
+                .sortedWith(compareByDescending<Pair<SupportTicket, Int>> { it.second }.thenByDescending { it.first.updatedAt })
+                .map { it.first }
+        }
+        if (matched.isEmpty()) return "(no tickets match '$query')"
+        return matched.joinToString("\n") { formatTicketSummary(it) }
     }
+
+    private fun haystack(t: SupportTicket): String =
+        "${t.subject} ${t.description} ${t.resolution ?: ""}"
 
     /** Full user record; a clear notice when the id is unknown. */
     fun getUser(id: String): String {
