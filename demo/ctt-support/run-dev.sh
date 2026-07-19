@@ -24,10 +24,11 @@ mkdir -p "$TASKS"
 cp "$DEMO_DIR/dev-case-template.md" "$TASKS/dev-case.md"   # сброс кейса в clarification
 
 exec "$CLI" \
+  -tui \
   -prompt "Консоль разработчика. Назовите тикет и решение." \
   -task dev-case \
   -rag ctt-support \
   -agent provider gemini mode system \
   -agent developer provider gemini profile developer stages clarification..done \
-  -agent judge     provider gemini stages clarification..done judge \
+  -agent judge     provider gemini stages execution..done judge \
   -mcpServer "$SUPP $DEMO_DIR --dev"

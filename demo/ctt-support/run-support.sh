@@ -22,10 +22,11 @@ mkdir -p "$TASKS"
 cp "$DEMO_DIR/case-template.md" "$TASKS/ctt-case.md"   # сброс кейса в clarification
 
 exec "$CLI" \
+  -tui \
   -prompt "Здравствуйте! Опишите, пожалуйста, вашу проблему (и как вас зовут)." \
   -task ctt-case \
   -rag ctt-support \
   -agent provider gemini mode system \
   -agent support provider gemini profile support stages clarification..done \
-  -agent judge   provider gemini stages clarification..done judge \
+  -agent judge   provider gemini stages execution..done judge \
   -mcpServer "$SUPP $DEMO_DIR"
