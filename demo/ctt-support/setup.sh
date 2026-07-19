@@ -15,6 +15,12 @@
 #
 set -euo pipefail
 
+# Форсим UTF-8: без него (частый случай на macOS, когда Terminal не экспортирует LANG)
+# bash под `set -u` спотыкается о многобайтные символы рядом с $переменными, а JVM
+# читает кириллицу в -profile-аргументах в неверной кодировке.
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+export LANG="${LANG:-en_US.UTF-8}"
+
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 DEMO_DIR="$REPO_ROOT/demo/ctt-support"
 CLI="$REPO_ROOT/agenticHubClient/apps/cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp"
@@ -22,12 +28,12 @@ CLI="$REPO_ROOT/agenticHubClient/apps/cliJvmApp/build/install/cliJvmApp/bin/cliJ
 CTT_REPO="${CTT_REPO:-$HOME/Documents/AuroraProjects/CorporateTaskTracker/CorporateTaskTracker}"
 CORPUS="$HOME/.project01-cli/corpus/ctt-support"
 
-echo "[setup] gradle installDist (cliJvmApp + support-mcp)…"
+echo "[setup] gradle installDist (cliJvmApp + support-mcp)..."
 ( cd "$REPO_ROOT" && ./gradlew \
     :agenticHubClient:apps:cliJvmApp:installDist \
     :playground:support-mcp:installDist --console=plain )
 
-echo "[setup] проверка JSON-фикстуры…"
+echo "[setup] проверка JSON-фикстуры..."
 if command -v jq >/dev/null 2>&1; then
   jq empty "$DEMO_DIR/users.json"
   jq empty "$DEMO_DIR/tickets.json"
@@ -35,7 +41,7 @@ else
   echo "  (jq не найден — пропускаю строгую проверку JSON)"
 fi
 
-echo "[setup] собираю курируемый корпус в $CORPUS…"
+echo "[setup] собираю курируемый корпус в $CORPUS..."
 rm -rf "$CORPUS"
 mkdir -p "$CORPUS/docs"
 cp "$DEMO_DIR"/docs/*.md "$CORPUS/docs/"
@@ -46,7 +52,7 @@ copy_ctt() {  # copy_ctt <относительный путь в CTT> <назн�
 }
 
 if [ -d "$CTT_REPO" ]; then
-  echo "[setup] подмешиваю код CTT из $CTT_REPO…"
+  echo "[setup] подмешиваю код CTT из $CTT_REPO..."
   copy_ctt "README.md"                 "ctt/README.md"
   copy_ctt "AGENTS.md"                 "ctt/AGENTS.md"
   copy_ctt "NETWORK_CONFIG_README.md"  "ctt/NETWORK_CONFIG_README.md"
@@ -62,10 +68,10 @@ else
   echo "[setup] ВНИМАНИЕ: CTT_REPO не найден ($CTT_REPO) — корпус только из наших доков."
 fi
 
-echo "[setup] индексирую RAG-корпус 'ctt-support' (embedder=gemini)…"
+echo "[setup] индексирую RAG-корпус 'ctt-support' (embedder=gemini)..."
 "$CLI" -rag add ctt-support src "$CORPUS" embedder gemini
 
-echo "[setup] профиль support (сброс + секции)…"
+echo "[setup] профиль support (сброс + секции)..."
 "$CLI" -profile clear support || true
 "$CLI" -profile support style   "Отвечай кратко, по-русски, дружелюбно."
 "$CLI" -profile support style   "Если ответ содержит шаги — оформляй нумерованным списком."
@@ -81,7 +87,7 @@ echo "[setup] профиль support (сброс + секции)…"
 "$CLI" -profile support context "Стадия validation/done: убедись, что пользователь получил решение или номер тикета, затем заверши."
 "$CLI" -profile support context "Когда стадия завершена — заканчивай ответ строкой [[stage:<next>]], выбирая одну из allowed-next стадий."
 
-echo "[setup] профиль developer (сброс + секции)…"
+echo "[setup] профиль developer (сброс + секции)..."
 "$CLI" -profile clear developer || true
 "$CLI" -profile developer style "Кратко, по-деловому, по-русски."
 "$CLI" -profile developer constraints "Меняй статус тикета только с внятным resolution: либо текст решения, либо причина wontfix. Пустой resolution недопустим."
@@ -89,7 +95,7 @@ echo "[setup] профиль developer (сброс + секции)…"
 "$CLI" -profile developer context "Ты — консоль разработчика CTT. Доступен инструмент set_ticket_status (статусы new/in_progress/resolved/wontfix)."
 "$CLI" -profile developer context "Стадии: clarification — уточни какой тикет и какое решение; planning — подтверди формулировку resolution; execution — примени set_ticket_status; validation/done — подтверди результат. Продвигай стадии строкой [[stage:<next>]]."
 
-echo "[setup] правила (сброс + добавление)…"
+echo "[setup] правила (сброс + добавление)..."
 "$CLI" -rule clear || true
 "$CLI" -rule "Незарегистрированному пользователю (нет в find_user) — вежливый отказ, без выдумывания данных."
 "$CLI" -rule "Не строй догадок о фичах, которых нет в документации. Авторизации в CTT нет — так и говори."
