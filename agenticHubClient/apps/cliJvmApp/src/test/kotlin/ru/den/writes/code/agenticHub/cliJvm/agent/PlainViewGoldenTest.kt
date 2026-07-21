@@ -226,6 +226,47 @@ class PlainViewGoldenTest {
     }
 
     @Test
+    fun `when the judge passes a turn - then stderr reports the clean verdict`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — a judge that objects to nothing
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+                    saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
+                    addRule("Kotlin only, no Spring")
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fake = scriptedApi(FakeLlmScript().apply { queueText("Ktor it is.") })
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
+
+                // when
+                val out = runPlain(
+                    goldenChat("hi", "demo"), fake, store, intents(),
+                    memory = memory,
+                    routedJudges = listOf(
+                        RoutedJudge(
+                            TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
+                            InvariantChecker { InvariantVerdict.CLEAN },
+                            modelId = "judge-model",
+                        ),
+                    ),
+                )
+
+                // then — the pass is stated, so a working judge is visible in the transcript
+                val expectedStderr = buildString {
+                    appendLine("[task] resuming 't' — stage planning")
+                    appendLine("[invariant] clean — no objection to this turn")
+                    appendLine(
+                        "[session-summary] turns=1  prompt=10  output=5  total=15  " +
+                            "cost=0.00000 USD  (current model has no pricing entry)",
+                    )
+                }
+                assertEquals(expectedStderr, out.stderr)
+            }
+        }
+    }
+
+    @Test
     fun `when a branch command runs after a turn - then it reports the fork to stderr`() = runTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin

@@ -149,7 +149,9 @@ public class SessionViewModel(
         add(UiLine.Assistant(reply, if (multiAgent) AgentRef(profileName, modelId) else null))
         if (retrieval.isNotEmpty()) add(UiLine.RagLine(retrieval))
         add(UiLine.Turn(usage, modelId, durationMs, session))
-        if (judge is JudgeOutcome.Retried || judge is JudgeOutcome.Blocked) add(UiLine.Judge(judgeModelId, judge))
+        // Everything the judge did is reported, including a clean pass — a silent
+        // transcript can't tell "checked, no objection" from "never ran".
+        if (judge != JudgeOutcome.NotRun) add(UiLine.Judge(judgeModelId, judge))
         if (stageAdvance != StageAdvance.None) add(UiLine.Stage(stageAdvance))
     }
 

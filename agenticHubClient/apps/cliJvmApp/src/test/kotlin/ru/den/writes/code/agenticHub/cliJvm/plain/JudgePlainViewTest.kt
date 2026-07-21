@@ -48,8 +48,12 @@ class JudgePlainViewTest {
     }
 
     @Test
-    fun `when the judge found nothing - then nothing on stderr`() {
-        assertTrue(JudgePlainView(JudgeOutcome.Clean).stderr().isEmpty())
+    fun `when the judge found nothing - then it says so instead of staying silent`() {
+        // given - when - then — silence would be indistinguishable from a judge that never ran
+        assertEquals(
+            listOf("[invariant] clean — no objection to this turn"),
+            JudgePlainView(JudgeOutcome.Clean).stderr(),
+        )
     }
 
     @Test

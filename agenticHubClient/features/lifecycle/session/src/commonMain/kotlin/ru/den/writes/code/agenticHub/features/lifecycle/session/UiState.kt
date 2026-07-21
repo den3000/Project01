@@ -229,11 +229,17 @@ public fun mcpToolLines(calls: List<ExecutedToolCall>, modelId: String): List<St
  * consequence is stated in exactly one place: it used to be hard-coded in each
  * view, which was survivable only while a breach always meant the same thing.
  *
- * Clean and not-run turns render nothing at all.
+ * A clean verdict says so out loud. Silence used to cover two very different
+ * cases — "the judge read this turn and had no objection" and "no judge ran at
+ * all" — and from the transcript they were indistinguishable, which is no way to
+ * tell whether enforcement is even switched on. Only [JudgeOutcome.NotRun] is
+ * silent now, and that one is genuinely nothing to report: no judge covers the
+ * stage.
  */
 public fun judgeLines(outcome: JudgeOutcome): List<String> {
     val (violations, trailer) = when (outcome) {
-        JudgeOutcome.NotRun, JudgeOutcome.Clean -> return emptyList()
+        JudgeOutcome.NotRun -> return emptyList()
+        JudgeOutcome.Clean -> return listOf("[invariant] clean — no objection to this turn")
         is JudgeOutcome.Retried ->
             outcome.first.violations to "[invariant] first reply withdrawn; the answer above is the agent's rewrite"
         is JudgeOutcome.Blocked ->

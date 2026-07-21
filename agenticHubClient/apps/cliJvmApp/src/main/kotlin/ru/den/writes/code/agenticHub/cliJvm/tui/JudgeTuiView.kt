@@ -1,6 +1,7 @@
 package ru.den.writes.code.agenticHub.cliJvm.tui
 
 import com.github.ajalt.mordant.terminal.Terminal
+import com.varabyte.kotter.foundation.text.green
 import com.varabyte.kotter.foundation.text.magenta
 import com.varabyte.kotter.foundation.text.red
 import com.varabyte.kotter.foundation.text.textLine
@@ -23,8 +24,15 @@ internal data class JudgeTuiView(
         if (breaches.isEmpty()) return
         val tag = "[[AGENT: ${judgeModelId ?: "?"}]]"
         val tagRows = wrapWords("judge", tag, width).size
+        // A clean pass is reported too, so the colour has to carry the difference —
+        // a green "no objection" must not read as the red of a refused turn.
+        val clean = outcome == JudgeOutcome.Clean
         wrapWords("judge", "$tag\n\n" + breaches.joinToString("\n"), width).forEachIndexed { i, l ->
-            if (i < tagRows) magenta { textLine(l) } else red { textLine(l) }
+            when {
+                i < tagRows -> magenta { textLine(l) }
+                clean -> green { textLine(l) }
+                else -> red { textLine(l) }
+            }
         }
     }
 }
