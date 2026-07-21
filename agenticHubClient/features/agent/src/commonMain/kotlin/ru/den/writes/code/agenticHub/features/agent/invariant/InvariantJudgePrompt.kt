@@ -5,7 +5,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import ru.den.writes.code.agenticHub.features.memory.RuleEntry
 
 /**
  * Pure helpers for the invariant-judge call — kept apart from the
@@ -17,38 +16,37 @@ internal object InvariantJudgePrompt {
     const val JUDGE_MAX_TOKENS: Int = 1024
 
     /**
-     * Build the single USER turn that asks the judge to audit [reply] against
+     * Build the single USER turn that asks the judge to audit [input] against
      * the invariants. The judge runs as an INDEPENDENT pass: it sees only this
-     * prompt — the invariants and the reply — never the chat history, so it
-     * isn't pulled by the same conversational pressure that may have produced
-     * a violation.
+     * prompt — never the chat history, so it isn't pulled by the same
+     * conversational pressure that may have produced a violation.
      *
-     * Two checks in one verdict: (1) does [reply] violate any global [rules] or
-     * the answering agent's [constraints]; (2) do those [constraints]
-     * themselves contradict the [rules] (a misconfiguration, reported as a
+     * Two checks in one verdict: (1) does the reply violate any global rule or
+     * any of the answering agent's constraints; (2) do those constraints
+     * themselves contradict the rules (a misconfiguration, reported as a
      * violation too).
      */
-    fun buildJudgePrompt(reply: String, rules: List<RuleEntry>, constraints: List<String>): String = buildString {
+    fun buildJudgePrompt(input: JudgeInput): String = buildString {
         appendLine("You are an INVARIANT AUDITOR. You do not help, write, or continue the work.")
         appendLine("Your only job: decide whether the assistant reply below breaks any invariant.")
         appendLine()
         appendLine("Global invariants (rules) — must never be violated:")
-        if (rules.isEmpty()) {
+        if (input.rules.isEmpty()) {
             appendLine("(none)")
         } else {
-            rules.forEach { appendLine("- [${it.id}] ${it.text.replace("\n", " ").trim()}") }
+            input.rules.forEach { appendLine("- [${it.id}] ${it.text.replace("\n", " ").trim()}") }
         }
         appendLine()
         appendLine("Active agent constraints (also binding for this reply):")
-        if (constraints.isEmpty()) {
+        if (input.constraints.isEmpty()) {
             appendLine("(none)")
         } else {
-            constraints.forEach { appendLine("- ${it.trim()}") }
+            input.constraints.forEach { appendLine("- ${it.trim()}") }
         }
         appendLine()
         appendLine("Assistant reply to audit:")
         appendLine("\"\"\"")
-        appendLine(reply)
+        appendLine(input.assistantReply)
         appendLine("\"\"\"")
         appendLine()
         appendLine("Check BOTH:")

@@ -4,7 +4,6 @@ import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
-import ru.den.writes.code.agenticHub.features.memory.RuleEntry
 import ru.den.writes.code.agenticHub.platform.logging.logWarn
 
 /**
@@ -31,16 +30,12 @@ class LlmInvariantJudge(
         thinkingBudget = 0,
     ),
 ) : InvariantChecker {
-    override suspend fun check(
-        assistantReply: String,
-        rules: List<RuleEntry>,
-        constraints: List<String>,
-    ): InvariantVerdict {
+    override suspend fun check(input: JudgeInput): InvariantVerdict {
         // Nothing to enforce → no wire call, no overhead tokens.
-        if (rules.isEmpty() && constraints.isEmpty()) return InvariantVerdict.CLEAN
+        if (input.rules.isEmpty() && input.constraints.isEmpty()) return InvariantVerdict.CLEAN
         val result = llmApi.send(
             messages = listOf(
-                Message(Role.USER, InvariantJudgePrompt.buildJudgePrompt(assistantReply, rules, constraints)),
+                Message(Role.USER, InvariantJudgePrompt.buildJudgePrompt(input)),
             ),
             params = params,
         )

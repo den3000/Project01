@@ -12,6 +12,7 @@ import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.agent.AgentConfig
 import ru.den.writes.code.agenticHub.features.agent.AgentResponder
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
+import ru.den.writes.code.agenticHub.features.agent.invariant.JudgeInput
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.Message
@@ -142,7 +143,13 @@ public class TurnEngine(
         val mem = memory
         val judge = if (mem != null) stage?.let(::judgeFor) else null
         val verdict = if (judge != null && mem != null) {
-            judge.checker.check(text, mem.store.listRules(), mem.constraintsForAgent(agent.profileName))
+            judge.checker.check(
+                JudgeInput(
+                    assistantReply = text,
+                    rules = mem.store.listRules(),
+                    constraints = mem.constraintsForAgent(agent.profileName),
+                ),
+            )
         } else {
             InvariantVerdict.CLEAN
         }

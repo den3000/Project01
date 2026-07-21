@@ -126,7 +126,7 @@ class AgentJudgeTest {
                 var calls = 0
                 val narrowJudge = RoutedJudge(
                     TaskBinding(TaskStage.CLARIFICATION, TaskStage.PLANNING),
-                    InvariantChecker { _, _, _ ->
+                    InvariantChecker {
                         calls++
                         InvariantVerdict(passed = false, violations = listOf(InvariantViolation("001", "x")))
                     },
@@ -154,7 +154,7 @@ class AgentJudgeTest {
 
     private val violatingJudge = RoutedJudge(
         TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
-        InvariantChecker { _, _, _ ->
+        InvariantChecker {
             InvariantVerdict(passed = false, violations = listOf(InvariantViolation("001", "proposes Spring")))
         },
         modelId = "test-judge",
@@ -162,7 +162,7 @@ class AgentJudgeTest {
 
     private val cleanJudge = RoutedJudge(
         TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
-        InvariantChecker { _, _, _ -> InvariantVerdict.CLEAN },
+        InvariantChecker { InvariantVerdict.CLEAN },
         modelId = "test-judge",
     )
 
