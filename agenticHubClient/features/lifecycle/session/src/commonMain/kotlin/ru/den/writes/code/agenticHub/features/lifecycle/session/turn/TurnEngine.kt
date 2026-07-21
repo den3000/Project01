@@ -12,7 +12,10 @@ import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.agent.AgentConfig
 import ru.den.writes.code.agenticHub.features.agent.AgentResponder
+import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 import ru.den.writes.code.agenticHub.features.agent.ToolCallLog
+import ru.den.writes.code.agenticHub.features.llm.Usage
+import ru.den.writes.code.agenticHub.features.rag.indexing.ScoredChunk
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.agent.invariant.JudgeInput
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
@@ -129,82 +132,162 @@ public class TurnEngine(
         // tail so it stays stable across turns. Empty when no MemoryProvider —
         // byte-identical to the no-memory path.
         val memoryLayer = memory?.memoryLayerFor(agent.profileName) ?: emptyList()
-        val (outcome, duration) = measureTimedValue {
-            agent.responder.respond(
-                baseContext = baseContext,
-                memoryLayer = memoryLayer,
-                userTurn = userTurn,
-                toolDefs = toolDefs.ifEmpty { null },
-                toolExecutor = toolExecutor,
-            )
-        }
-        val result = outcome.result
-
-        result.error?.let { return TurnResult.Failed(it) }
-        val text = result.text ?: return TurnResult.Failed("empty response with no usage")
-
-        // Independent invariant judge (per-stage): resolve the judge spanning
-        // the active stage and run it. A breach suppresses the turn — the reply
-        // still reaches the view, but it is NOT persisted (so the violation
-        // doesn't poison later context) and the task stage is held. No judge /
-        // no memory / no stage → CLEAN, identical to before.
         val mem = memory
         val judge = if (mem != null) stage?.let(::judgeFor) else null
-        // Recorded before the verdict and regardless of it: a tool that ran has already
-        // had its effect, and hiding it from the next turn's judge would make a real
-        // ticket look invented.
-        toolCallLog.record(outcome.executedToolCalls)
 
-        val verdict = if (judge != null && mem != null) {
-            // One profile read, sliced into what the judge may enforce (constraints)
-            // and what only informs its reading (format / style) — `context` stays out
-            // by construction, it tells the agent how to work, not what is forbidden.
-            val profile = mem.profileDataForAgent(agent.profileName)
-            judge.checker.check(
-                JudgeInput(
-                    assistantReply = text,
-                    userMessage = prompt,
-                    toolCalls = toolCallLog.calls,
-                    droppedToolCalls = toolCallLog.dropped,
-                    rules = mem.store.listRules(),
-                    constraints = profile?.items(ProfileSection.CONSTRAINTS).orEmpty(),
-                    format = profile?.items(ProfileSection.FORMAT).orEmpty(),
-                    style = profile?.items(ProfileSection.STYLE).orEmpty(),
-                    stage = stage,
-                ),
+        // The attempt loop. A flagged reply is not thrown away silently: the agent is
+        // handed the objections and rewrites, and only a second breach blocks the turn.
+        // Dropping it outright taught the agent nothing — it lost the turn and repeated
+        // the same answer next time — while a false positive cost the user their work.
+        // Everything above the loop (compaction, retrieval, the memory layer) is
+        // per-turn, not per-attempt, and stays out of it.
+        var attemptContext = baseContext
+        var attemptTurn = userTurn
+        var firstVerdict: InvariantVerdict? = null
+        var lastText = ""
+        var totalUsage: Usage? = null
+        var totalDuration = 0L
+        val allToolCalls = mutableListOf<ExecutedToolCall>()
+
+        repeat(MAX_JUDGE_ATTEMPTS) { attempt ->
+            val (outcome, duration) = measureTimedValue {
+                agent.responder.respond(
+                    baseContext = attemptContext,
+                    memoryLayer = memoryLayer,
+                    userTurn = attemptTurn,
+                    toolDefs = toolDefs.ifEmpty { null },
+                    toolExecutor = toolExecutor,
+                )
+            }
+            val result = outcome.result
+            totalUsage = totalUsage plus result.usage
+            totalDuration += duration.inWholeMilliseconds
+            allToolCalls += outcome.executedToolCalls
+            // Recorded before the verdict and regardless of it: a tool that ran has
+            // already had its effect, and hiding it from the next turn's judge would
+            // make a real ticket look invented.
+            toolCallLog.record(outcome.executedToolCalls)
+
+            val text = result.text
+            if (result.error != null || text == null) {
+                // A retry that fails on the wire must not cost the turn its first answer:
+                // fall back to blocking on what the judge already said, which is exactly
+                // the behaviour before retries existed.
+                val failedFirst = firstVerdict ?: return TurnResult.Failed(
+                    result.error ?: "empty response with no usage",
+                )
+                return blockedTurn(
+                    lastText, agent, modelId, judge, failedFirst,
+                    totalUsage, totalDuration, allToolCalls, retrieval,
+                )
+            }
+            lastText = text
+
+            val verdict = judgeVerdict(judge, mem, agent, text, prompt, stage)
+            if (verdict.passed) {
+                historyStore?.append(userTurn)
+                historyStore?.append(
+                    Message(role = Role.ASSISTANT, text = text),
+                    usage = totalUsage,
+                    modelId = modelId,
+                )
+                return TurnResult.Ok(
+                    reply = text,
+                    modelId = modelId,
+                    profileName = agent.profileName,
+                    usage = totalUsage,
+                    durationMs = totalDuration,
+                    session = historyStore?.stats?.snapshot(),
+                    stageAdvance = advanceTaskStage(outcome.proposedStage),
+                    judge = when {
+                        judge == null -> JudgeOutcome.NotRun
+                        firstVerdict != null -> JudgeOutcome.Retried(firstVerdict)
+                        else -> JudgeOutcome.Clean
+                    },
+                    judgeModelId = judge?.modelId,
+                    executedToolCalls = allToolCalls.toList(),
+                    retrieval = retrieval,
+                )
+            }
+
+            if (attempt == MAX_JUDGE_ATTEMPTS - 1) {
+                return blockedTurn(
+                    text, agent, modelId, judge, verdict,
+                    totalUsage, totalDuration, allToolCalls, retrieval,
+                )
+            }
+            // Set up the rewrite. The rejected reply joins the context so the agent can
+            // see what it wrote, and the objections become the new user turn: the wire
+            // reads as ask → answer → auditor objected → rewrite. Feeding the critique
+            // as SYSTEM would tear it away from the reply (providers lift SYSTEM into
+            // their own slot), and replacing the user turn outright would delete the
+            // question, which lives nowhere else until the turn is persisted.
+            firstVerdict = verdict
+            attemptContext = attemptContext + attemptTurn + Message(
+                role = Role.ASSISTANT,
+                text = TaskStateMachine.stripStageSignal(text),
             )
-        } else {
-            InvariantVerdict.CLEAN
+            attemptTurn = Message(role = Role.USER, text = judgeFeedback(verdict))
         }
-        val judgeOutcome = when {
-            judge == null -> JudgeOutcome.NotRun
-            verdict.passed -> JudgeOutcome.Clean
-            else -> JudgeOutcome.Blocked(verdict)
-        }
-        if (verdict.passed) {
-            historyStore?.append(userTurn)
-            historyStore?.append(
-                Message(role = Role.ASSISTANT, text = text),
-                usage = result.usage,
-                modelId = modelId,
-            )
-        }
-        // A breach holds the stage by proposing null to the FSM.
-        val stageAdvance = advanceTaskStage(if (verdict.passed) outcome.proposedStage else null)
-        return TurnResult.Ok(
-            reply = text,
-            modelId = modelId,
-            profileName = agent.profileName,
-            usage = result.usage,
-            durationMs = duration.inWholeMilliseconds,
-            session = historyStore?.stats?.snapshot(),
-            stageAdvance = stageAdvance,
-            judge = judgeOutcome,
-            judgeModelId = judge?.modelId,
-            executedToolCalls = outcome.executedToolCalls,
-            retrieval = retrieval,
+        error("unreachable: the attempt loop always returns")
+    }
+
+    /** Ask the judge covering this stage; no judge or no memory means nothing to enforce. */
+    private suspend fun judgeVerdict(
+        judge: RoutedJudge?,
+        mem: MemoryProvider?,
+        agent: RoutedAgent,
+        text: String,
+        prompt: String,
+        stage: TaskStage?,
+    ): InvariantVerdict {
+        if (judge == null || mem == null) return InvariantVerdict.CLEAN
+        // One profile read, sliced into what the judge may enforce (constraints) and
+        // what only informs its reading (format / style) — `context` stays out by
+        // construction, it tells the agent how to work, not what is forbidden.
+        val profile = mem.profileDataForAgent(agent.profileName)
+        return judge.checker.check(
+            JudgeInput(
+                assistantReply = text,
+                userMessage = prompt,
+                toolCalls = toolCallLog.calls,
+                droppedToolCalls = toolCallLog.dropped,
+                rules = mem.store.listRules(),
+                constraints = profile?.items(ProfileSection.CONSTRAINTS).orEmpty(),
+                format = profile?.items(ProfileSection.FORMAT).orEmpty(),
+                style = profile?.items(ProfileSection.STYLE).orEmpty(),
+                stage = stage,
+            ),
         )
     }
+
+    /**
+     * The turn every attempt failed: the last reply is shown but not persisted, so
+     * the breach can't poison later context, and the stage is held.
+     */
+    private fun blockedTurn(
+        reply: String,
+        agent: RoutedAgent,
+        modelId: String,
+        judge: RoutedJudge?,
+        verdict: InvariantVerdict,
+        usage: Usage?,
+        durationMs: Long,
+        toolCalls: List<ExecutedToolCall>,
+        retrieval: List<ScoredChunk>,
+    ): TurnResult.Ok = TurnResult.Ok(
+        reply = reply,
+        modelId = modelId,
+        profileName = agent.profileName,
+        usage = usage,
+        durationMs = durationMs,
+        session = historyStore?.stats?.snapshot(),
+        stageAdvance = advanceTaskStage(null),
+        judge = JudgeOutcome.Blocked(verdict),
+        judgeModelId = judge?.modelId,
+        executedToolCalls = toolCalls.toList(),
+        retrieval = retrieval,
+    )
 
     /**
      * Apply the model's [proposed] stage move to the active task, returning
@@ -227,6 +310,52 @@ public class TurnEngine(
         mem.store.saveTask(task.copy(stage = proposed))
         return StageAdvance.Advanced(from, proposed)
     }
+}
+
+/**
+ * Attempts a turn gets past the judge: the answer, then one rewrite.
+ *
+ * Two rather than more because a judge that rejected the same work twice is
+ * unlikely to be talked round by a third pass, and every attempt is paid for in
+ * tokens and latency the user is waiting through.
+ */
+private const val MAX_JUDGE_ATTEMPTS = 2
+
+/**
+ * The critique handed back to the agent — what was objected to, and what to do
+ * with the objection.
+ *
+ * The last paragraph exists because both breaches observed live were false
+ * positives. Without it a rewrite obediently strips out correct facts to appease
+ * an objection that was wrong, which is worse than the original reply.
+ */
+private fun judgeFeedback(verdict: InvariantVerdict): String = buildString {
+    appendLine("[invariant-auditor] An independent auditor rejected your previous reply.")
+    appendLine("Rewrite it so it honours every invariant. Do not apologise and do not mention")
+    appendLine("this message — produce the corrected reply only.")
+    appendLine()
+    appendLine("Objections:")
+    verdict.violations.forEach { appendLine("- [${it.ruleId ?: "constraint"}] ${it.explanation}") }
+    appendLine()
+    appendLine("Change only what the objections name; keep everything that was already correct.")
+    append("If an objection is factually wrong — it claims you invented something the tool ")
+    append("results actually returned, say — state that in one short sentence and keep the fact.")
+}
+
+/**
+ * Add up what two attempts cost. Both were really billed, and the turn counter
+ * only ticks once, so the pair reads as "one exchange, the tokens of two calls".
+ * Kept private rather than put on [Usage]: one caller, one meaning.
+ */
+private infix fun Usage?.plus(other: Usage?): Usage? {
+    if (this == null) return other
+    if (other == null) return this
+    return Usage(
+        promptTokens = promptTokens + other.promptTokens,
+        outputTokens = outputTokens + other.outputTokens,
+        thoughtsTokens = thoughtsTokens + other.thoughtsTokens,
+        totalTokens = totalTokens + other.totalTokens,
+    )
 }
 
 /**
