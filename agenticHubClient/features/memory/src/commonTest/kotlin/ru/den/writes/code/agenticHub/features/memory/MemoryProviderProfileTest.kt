@@ -76,6 +76,60 @@ class MemoryProviderProfileTest {
         }
     }
 
+    @Test
+    fun `when profileDataForAgent gets a pinned name - then that profile comes back whole`() {
+        withFakeMemoryRoot { root, fs ->
+            // given — the pinned profile carries two different sections
+            val store = FileMemoryStore(root, fs).apply {
+                addNamedProfileItem("planner", ProfileSection.STYLE, "plan carefully")
+                addNamedProfileItem("planner", ProfileSection.CONSTRAINTS, "no frameworks")
+                addNamedProfileItem("coder", ProfileSection.STYLE, "write code")
+            }
+            val provider = MemoryProvider(store, MemoryMode.PREAMBLE, initialProfileName = "coder")
+
+            // when
+            val actual = provider.profileDataForAgent("planner")
+
+            // then — every section of the pinned profile, none of the active one
+            assertEquals(listOf("plan carefully"), actual?.items(ProfileSection.STYLE))
+            assertEquals(listOf("no frameworks"), actual?.items(ProfileSection.CONSTRAINTS))
+        }
+    }
+
+    @Test
+    fun `when profileDataForAgent gets null - then the session active profile is used`() {
+        withFakeMemoryRoot { root, fs ->
+            // given
+            val store = FileMemoryStore(root, fs).apply {
+                addNamedProfileItem("coder", ProfileSection.STYLE, "write code")
+            }
+            val provider = MemoryProvider(store, MemoryMode.PREAMBLE, initialProfileName = "coder")
+
+            // when
+            val actual = provider.profileDataForAgent(null)
+
+            // then
+            assertEquals(listOf("write code"), actual?.items(ProfileSection.STYLE))
+        }
+    }
+
+    @Test
+    fun `when the pinned profile does not exist - then the unnamed profile is the fallback`() {
+        withFakeMemoryRoot { root, fs ->
+            // given — nothing named "ghost" was ever created
+            val store = FileMemoryStore(root, fs).apply {
+                addProfileItem(ProfileSection.STYLE, "house style")
+            }
+            val provider = MemoryProvider(store, MemoryMode.PREAMBLE)
+
+            // when
+            val actual = provider.profileDataForAgent("ghost")
+
+            // then
+            assertEquals(listOf("house style"), actual?.items(ProfileSection.STYLE))
+        }
+    }
+
     private inline fun withFakeMemoryRoot(block: (root: String, fs: LocalFileSystem) -> Unit) {
         val fs = koinApplication { modules(fileSystemTestModule) }.koin.get<LocalFileSystem>()
         block("/mem", fs)
