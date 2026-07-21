@@ -5,6 +5,9 @@
 # смене статусов даёт сам факт этого запуска — «кто разработчик» решает конфиг, а не
 # токен в чате (в реальном деплое — аутентификация фронтенда).
 #
+# `-prompt` — первая реплика РАЗРАБОТЧИКА (Role.USER), не инструкция ассистенту:
+# что консоль умеет, сказано в секции `context` профиля developer (см. setup.sh).
+#
 # Перед запуском сбрасывает кейс dev-case в стадию clarification.
 # Требует предварительного `bash demo/ctt-support/setup.sh`.
 #
@@ -25,10 +28,10 @@ cp "$DEMO_DIR/dev-case-template.md" "$TASKS/dev-case.md"   # сброс кейс
 
 exec "$CLI" \
   -tui \
-  -prompt "Консоль разработчика. Назовите тикет и решение." \
+  -prompt "Привет, нужно закрыть тикет." \
   -task dev-case \
   -rag ctt-support \
   -agent provider gemini mode system \
-  -agent developer provider gemini profile developer stages clarification..done \
-  -agent judge     provider gemini stages execution..done judge \
+  -agent developer   provider gemini profile developer stages clarification..done \
+  -agent rules-judge provider gemini stages clarification..done judge \
   -mcpServer "$SUPP $DEMO_DIR --dev"
