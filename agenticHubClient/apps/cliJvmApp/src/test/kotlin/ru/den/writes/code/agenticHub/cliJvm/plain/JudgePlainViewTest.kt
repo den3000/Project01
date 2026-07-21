@@ -36,12 +36,14 @@ class JudgePlainViewTest {
         // given — the first answer was withdrawn, the shown reply is the rewrite
         val view = JudgePlainView(JudgeOutcome.Retried(breached))
 
-        // when - then — the user is entitled to know the first answer was pulled
+        // when - then — the trailer must name whose text the objections are about, or they
+        // read as a complaint against the reply on screen, which in fact passed
         assertEquals(
             listOf(
                 "[invariant] violated 001: proposes Spring",
                 "[invariant] violated constraint: off topic",
-                "[invariant] first reply withdrawn; the answer above is the agent's rewrite",
+                "[invariant] objections above are about the WITHDRAWN first reply; " +
+                    "the answer shown is the agent's rewrite, which passed",
             ),
             view.stderr(),
         )
