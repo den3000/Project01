@@ -1,5 +1,6 @@
 package ru.den.writes.code.agenticHub.features.agent.invariant
 
+import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 import ru.den.writes.code.agenticHub.features.memory.RuleEntry
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
 
@@ -22,8 +23,14 @@ import ru.den.writes.code.agenticHub.features.memory.TaskStage
  *    requested shape for a defect. Making them binding would repeat the failure
  *    this whole design exists to fix — a reply that legitimately cited no
  *    document would be blocked by a `format` bullet about naming documents.
- *  - **Untrusted material** — [assistantReply] and [userMessage]. Written by
- *    the user or the model, fenced in the prompt, never read as instructions.
+ *  - **Untrusted material** — [assistantReply], [userMessage] and [toolCalls].
+ *    Written by the user or the model, fenced in the prompt, never read as
+ *    instructions. Tool output belongs here too: a support ticket's description
+ *    is customer-written, stored, and handed back by a search tool.
+ *
+ * [toolCalls] is what actually ran this session, oldest first, and [droppedToolCalls]
+ * says how many older ones the window lost — the prompt states the number rather
+ * than truncating silently, since a missing call reads as a step never taken.
  *
  * What is deliberately NOT here matters as much: the chat history stays out, so
  * the judge isn't subject to the conversational pressure that may have produced
@@ -39,6 +46,8 @@ import ru.den.writes.code.agenticHub.features.memory.TaskStage
 data class JudgeInput(
     val assistantReply: String,
     val userMessage: String = "",
+    val toolCalls: List<ExecutedToolCall> = emptyList(),
+    val droppedToolCalls: Int = 0,
     val rules: List<RuleEntry> = emptyList(),
     val constraints: List<String> = emptyList(),
     val format: List<String> = emptyList(),

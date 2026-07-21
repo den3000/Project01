@@ -12,6 +12,7 @@ import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.agent.AgentConfig
 import ru.den.writes.code.agenticHub.features.agent.AgentResponder
+import ru.den.writes.code.agenticHub.features.agent.ToolCallLog
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.agent.invariant.JudgeInput
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
@@ -63,6 +64,12 @@ public class TurnEngine(
      * context; null / no active index → no retrieval, byte-identical to before.
      */
     private val ragControl: RagControl? = null,
+    /**
+     * Session-wide record of what the tools actually did — the judge's evidence.
+     * Injected rather than owned so its eviction rule stays testable on its own;
+     * the default is the ordinary per-session log.
+     */
+    private val toolCallLog: ToolCallLog = ToolCallLog(),
 ) {
     /**
      * The default agent: this engine's model surface + generation knobs, no
@@ -143,6 +150,11 @@ public class TurnEngine(
         // no memory / no stage → CLEAN, identical to before.
         val mem = memory
         val judge = if (mem != null) stage?.let(::judgeFor) else null
+        // Recorded before the verdict and regardless of it: a tool that ran has already
+        // had its effect, and hiding it from the next turn's judge would make a real
+        // ticket look invented.
+        toolCallLog.record(outcome.executedToolCalls)
+
         val verdict = if (judge != null && mem != null) {
             // One profile read, sliced into what the judge may enforce (constraints)
             // and what only informs its reading (format / style) — `context` stays out
@@ -152,6 +164,8 @@ public class TurnEngine(
                 JudgeInput(
                     assistantReply = text,
                     userMessage = prompt,
+                    toolCalls = toolCallLog.calls,
+                    droppedToolCalls = toolCallLog.dropped,
                     rules = mem.store.listRules(),
                     constraints = profile?.items(ProfileSection.CONSTRAINTS).orEmpty(),
                     format = profile?.items(ProfileSection.FORMAT).orEmpty(),

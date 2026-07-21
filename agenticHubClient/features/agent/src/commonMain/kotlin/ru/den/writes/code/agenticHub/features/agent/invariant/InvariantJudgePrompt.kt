@@ -18,9 +18,16 @@ internal object InvariantJudgePrompt {
     /** Tags fencing untrusted material. XML-ish because they are unambiguous and trivial to neutralise. */
     private const val REPLY_TAG = "assistant_reply"
     private const val MESSAGE_TAG = "user_message"
+    private const val TOOLS_TAG = "tool_calls"
 
     /** Any delimiter tag, opening or closing, in whatever case — what [sanitizeUntrusted] defuses. */
-    private val UNTRUSTED_TAG = Regex("""<(/?)($REPLY_TAG|$MESSAGE_TAG)>""", RegexOption.IGNORE_CASE)
+    private val UNTRUSTED_TAG =
+        Regex("""<(/?)($REPLY_TAG|$MESSAGE_TAG|$TOOLS_TAG)>""", RegexOption.IGNORE_CASE)
+
+    /** Per-call evidence budget — enough to ground a claim, not to reprint the payload. */
+    private const val MAX_ARG_CHARS = 200
+    private const val MAX_ANSWER_CHARS = 600
+    private const val MAX_ANSWER_LINES = 8
 
     /**
      * Build the single USER turn that asks the judge to audit [input] against
@@ -73,6 +80,10 @@ internal object InvariantJudgePrompt {
         appendLine(sanitizeUntrusted(input.userMessage))
         appendLine("</$MESSAGE_TAG>")
         appendLine()
+        appendLine("<$TOOLS_TAG>")
+        appendLine(renderToolCalls(input))
+        appendLine("</$TOOLS_TAG>")
+        appendLine()
         appendLine("<$REPLY_TAG>")
         appendLine(sanitizeUntrusted(input.assistantReply))
         appendLine("</$REPLY_TAG>")
@@ -80,8 +91,11 @@ internal object InvariantJudgePrompt {
         appendLine("=== WHAT TO CHECK ===")
         appendLine("1. Does the reply propose or endorse anything that breaks a rule or a constraint?")
         appendLine(
-            "   Judge against the evidence: a fact the user stated in <$MESSAGE_TAG> is GROUNDED — " +
-                "repeating it back is not invention.",
+            "   Judge against the evidence: a fact the user stated in <$MESSAGE_TAG>, or a fact " +
+                "returned in <$TOOLS_TAG>, is GROUNDED — repeating it back is not invention. A step " +
+                "the calls show was taken HAS been taken, even if it happened on an earlier turn and " +
+                "the reply does not mention it. A claim matching no listed call is ungrounded, however " +
+                "confidently the reply narrates it.",
         )
         appendLine("2. Does any constraint itself contradict a rule? (report it too)")
         appendLine("Deviations in stage, format or style are NOT violations.")
@@ -91,6 +105,44 @@ internal object InvariantJudgePrompt {
         appendLine("""{"passed": <true|false>, "violations": [{"ruleId": "<rule id or null>", "explanation": "<short reason>"}]}""")
         append("""If nothing is violated: {"passed": true, "violations": []}.""")
     }
+
+    /**
+     * The executed calls as evidence: `name(args) → answer`, oldest first, with
+     * whatever the window lost stated up front.
+     *
+     * The answer is clipped in TWO dimensions on purpose. By characters alone a
+     * multi-hit answer gets cut mid-line; by lines alone a single huge record
+     * (a whole ticket, a file dump) sails through. A ticket search answers one
+     * line per hit, and clipping to the first line — the obvious cheap choice —
+     * would leave the judge believing exactly one ticket matched.
+     *
+     * Arguments are clipped too but never dropped: "searched for X" is only
+     * grounded by a call that searched for X. What they are not is a payload
+     * store — `create_ticket` carries a whole description, and the judge needs
+     * the shape of the call, not its body.
+     */
+    private fun renderToolCalls(input: JudgeInput): String = buildString {
+        if (input.droppedToolCalls > 0) appendLine("(${input.droppedToolCalls} earlier call(s) omitted)")
+        if (input.toolCalls.isEmpty()) {
+            append("(none — this session has called no tools at all)")
+            return@buildString
+        }
+        input.toolCalls.forEachIndexed { index, executed ->
+            val args = sanitizeUntrusted(executed.call.arguments.toString()).clip(MAX_ARG_CHARS)
+            appendLine("[${index + 1}] ${executed.call.name} $args")
+            appendLine("  → ${sanitizeUntrusted(executed.output).clipAnswer()}")
+        }
+    }
+
+    /** Clip an answer by lines first, then by characters — see [renderToolCalls]. */
+    private fun String.clipAnswer(): String {
+        val lines = trim().lineSequence().toList()
+        val kept = lines.take(MAX_ANSWER_LINES).joinToString("\n  ")
+        val lineNote = if (lines.size > MAX_ANSWER_LINES) "\n  … (+${lines.size - MAX_ANSWER_LINES} line(s) omitted)" else ""
+        return kept.clip(MAX_ANSWER_CHARS) + lineNote
+    }
+
+    private fun String.clip(limit: Int): String = if (length <= limit) this else take(limit) + "…"
 
     /**
      * Defuse a fence-break: the tags that delimit untrusted material are turned
