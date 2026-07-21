@@ -99,14 +99,6 @@ public class MemoryProvider(
         ?.let(store::loadNamedProfile)
         ?: store.loadProfileData()
 
-    /**
-     * The `constraints` bullets of the profile [agentProfile] speaks with. The
-     * invariant judge takes these alongside the global rules so it audits the
-     * answering agent's own persona-local constraints too. Empty when that
-     * profile has none.
-     */
-    fun constraintsForAgent(agentProfile: String?): List<String> =
-        profileDataForAgent(agentProfile)?.items(ProfileSection.CONSTRAINTS).orEmpty()
 
     /**
      * Render the current memory state as a multi-line block for `/memory`

@@ -11,6 +11,10 @@ import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import org.koin.dsl.koinApplication
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
+import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantChecker
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
+import ru.den.writes.code.agenticHub.features.agent.invariant.JudgeInput
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.StageAdvance
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
@@ -25,6 +29,7 @@ import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.memory.TaskBinding
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
@@ -187,6 +192,56 @@ class TurnEngineTest {
                 assertEquals("planner", result.profileName)
                 assertEquals(1, plannerScript.calls.size)
                 assertEquals(0, fallbackScript.calls.size)
+            }
+        }
+    }
+
+    @Test
+    fun `when a judge runs - then it gets the user message the stage and the shape sections`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — a profile whose four sections are all populated
+                val memStore = FileMemoryStore(
+                    root.absolutePath,
+                    fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>(),
+                ).apply {
+                    saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
+                    addNamedProfileItem("planner", ProfileSection.CONSTRAINTS, "no guessing")
+                    addNamedProfileItem("planner", ProfileSection.FORMAT, "name the doc file")
+                    addNamedProfileItem("planner", ProfileSection.STYLE, "be brief")
+                    addNamedProfileItem("planner", ProfileSection.CONTEXT, "call find_user first")
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val planner = scriptedApi(FakeLlmScript().apply { queueText("planned") })
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
+                var seen: JudgeInput? = null
+                val engine = TurnEngine(
+                    newChat("hi", "s"), scriptedApi(FakeLlmScript()), store, memory = memory,
+                    routedAgents = listOf(routed(TaskStage.PLANNING, TaskStage.EXECUTION, planner, "planner")),
+                    routedJudges = listOf(
+                        RoutedJudge(
+                            TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
+                            InvariantChecker { seen = it; InvariantVerdict.CLEAN },
+                            modelId = "judge-model",
+                        ),
+                    ),
+                )
+
+                // when
+                engine.turn("my server is down")
+
+                // then — the whole turn reaches the judge, except the section that says how to work
+                assertEquals("my server is down", seen?.userMessage)
+                assertEquals(TaskStage.PLANNING, seen?.stage)
+                assertEquals(listOf("no guessing"), seen?.constraints)
+                assertEquals(listOf("name the doc file"), seen?.format)
+                assertEquals(listOf("be brief"), seen?.style)
+                val everythingTheJudgeGot = listOf(seen?.constraints, seen?.format, seen?.style).flatMap { it.orEmpty() }
+                assertTrue(
+                    everythingTheJudgeGot.none { it.contains("find_user") },
+                    "the profile context section must never reach the judge — it says how to work, not what is forbidden",
+                )
             }
         }
     }

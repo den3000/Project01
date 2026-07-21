@@ -9,6 +9,7 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.RagControl
 import ru.den.writes.code.agenticHub.features.llm.ragChunksToContextMessage
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
+import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.agent.AgentConfig
 import ru.den.writes.code.agenticHub.features.agent.AgentResponder
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
@@ -143,11 +144,19 @@ public class TurnEngine(
         val mem = memory
         val judge = if (mem != null) stage?.let(::judgeFor) else null
         val verdict = if (judge != null && mem != null) {
+            // One profile read, sliced into what the judge may enforce (constraints)
+            // and what only informs its reading (format / style) — `context` stays out
+            // by construction, it tells the agent how to work, not what is forbidden.
+            val profile = mem.profileDataForAgent(agent.profileName)
             judge.checker.check(
                 JudgeInput(
                     assistantReply = text,
+                    userMessage = prompt,
                     rules = mem.store.listRules(),
-                    constraints = mem.constraintsForAgent(agent.profileName),
+                    constraints = profile?.items(ProfileSection.CONSTRAINTS).orEmpty(),
+                    format = profile?.items(ProfileSection.FORMAT).orEmpty(),
+                    style = profile?.items(ProfileSection.STYLE).orEmpty(),
+                    stage = stage,
                 ),
             )
         } else {

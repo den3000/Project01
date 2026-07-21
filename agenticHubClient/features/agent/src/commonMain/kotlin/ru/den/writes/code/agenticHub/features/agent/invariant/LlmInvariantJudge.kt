@@ -31,8 +31,9 @@ class LlmInvariantJudge(
     ),
 ) : InvariantChecker {
     override suspend fun check(input: JudgeInput): InvariantVerdict {
-        // Nothing to enforce → no wire call, no overhead tokens.
-        if (input.rules.isEmpty() && input.constraints.isEmpty()) return InvariantVerdict.CLEAN
+        // Nothing to enforce → no wire call, no overhead tokens. Evidence alone
+        // (a message, a stage, a format bullet) is not something a reply can breach.
+        if (!input.hasInvariants) return InvariantVerdict.CLEAN
         val result = llmApi.send(
             messages = listOf(
                 Message(Role.USER, InvariantJudgePrompt.buildJudgePrompt(input)),
