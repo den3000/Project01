@@ -110,6 +110,15 @@ object TaskStateMachine {
     }
 
     /**
+     * The reply without its stage markers, for showing it back to the model.
+     *
+     * Only used when a rejected reply is quoted into the retry context: left in,
+     * the marker reads to the agent as a stage it already advanced — which it did
+     * not, a breach holds the stage — and the rewrite plans from the wrong phase.
+     */
+    fun stripStageSignal(reply: String): String = STAGE_SIGNAL.replace(reply, "").trimEnd()
+
+    /**
      * `[[stage:<keyword>]]` — case-insensitive, tolerant of inner spaces
      * (`[[ stage : execution ]]`). The keyword is captured as letters only;
      * resolving it to a real stage is [TaskStage.byKeyword]'s job.

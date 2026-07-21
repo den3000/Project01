@@ -29,7 +29,7 @@ class LlmInvariantJudgeTest {
         val api = scriptedApi(apiScript)
 
         // when
-        LlmInvariantJudge(api).check("some reply", rules, constraints = emptyList())
+        LlmInvariantJudge(api).check(JudgeInput("some reply", rules = rules, constraints = emptyList()))
 
         // then — exactly the judge prompt, no history / memory layer
         val sent = apiScript.calls.single().messages
@@ -47,7 +47,7 @@ class LlmInvariantJudgeTest {
         val api = scriptedApi(apiScript)
 
         // when
-        val actual = LlmInvariantJudge(api).check("Use Spring", rules, constraints = emptyList())
+        val actual = LlmInvariantJudge(api).check(JudgeInput("Use Spring", rules = rules, constraints = emptyList()))
 
         // then
         assertFalse(actual.passed)
@@ -61,7 +61,7 @@ class LlmInvariantJudgeTest {
         val api = scriptedApi(apiScript)
 
         // when
-        val actual = LlmInvariantJudge(api).check("anything", rules, constraints = emptyList())
+        val actual = LlmInvariantJudge(api).check(JudgeInput("anything", rules = rules, constraints = emptyList()))
 
         // then
         assertTrue(actual.passed)
@@ -74,7 +74,7 @@ class LlmInvariantJudgeTest {
         val api = scriptedApi(apiScript)
 
         // when
-        val actual = LlmInvariantJudge(api).check("reply", rules = emptyList(), constraints = emptyList())
+        val actual = LlmInvariantJudge(api).check(JudgeInput("reply", rules = emptyList(), constraints = emptyList()))
 
         // then
         assertTrue(actual.passed)
@@ -90,7 +90,8 @@ class LlmInvariantJudgeTest {
         val api = scriptedApi(apiScript)
 
         // when
-        val actual = LlmInvariantJudge(api).check("Use RxJava", rules = emptyList(), constraints = listOf("no RxJava"))
+        val actual = LlmInvariantJudge(api)
+            .check(JudgeInput("Use RxJava", rules = emptyList(), constraints = listOf("no RxJava")))
 
         // then
         assertEquals(1, apiScript.calls.size)
@@ -104,7 +105,7 @@ class LlmInvariantJudgeTest {
         val api = scriptedApi(apiScript)
 
         // when
-        val actual = LlmInvariantJudge(api).check("anything", rules, constraints = emptyList())
+        val actual = LlmInvariantJudge(api).check(JudgeInput("anything", rules = rules, constraints = emptyList()))
 
         // then
         assertTrue(actual.passed)
@@ -117,7 +118,7 @@ class LlmInvariantJudgeTest {
         val api = scriptedApi(apiScript)
 
         // when
-        LlmInvariantJudge(api).check("reply", rules, constraints = emptyList())
+        LlmInvariantJudge(api).check(JudgeInput("reply", rules = rules, constraints = emptyList()))
 
         // then — thinking off so reasoning can't truncate the verdict
         val params = apiScript.calls.single().params

@@ -12,8 +12,27 @@ Memory-домен (профиль/правила/task-FSM/`MemoryLayer`) и ко
 - Per-stage: `RoutedAgent`/`RoutedJudge` + parsed `StageAgentSpec`/`StageJudgeSpec` (+`TaskBinding`)
   + билдеры `buildRoutedAgents(stageAgents, client, params)`/`buildJudges(judgeAgents, client)`
   (`RoutedAgentBuilders.kt`).
-- `invariant/` — `InvariantChecker` + `LlmInvariantJudge` (независимый LLM-вызов, fail-open) +
-  `InvariantJudgePrompt` + `InvariantVerdict`/`InvariantViolation`.
+- `invariant/` — `InvariantChecker` (вход целиком — `JudgeInput`) + `LlmInvariantJudge` (независимый
+  LLM-вызов, fail-open) + `InvariantJudgePrompt` + `InvariantVerdict`/`InvariantViolation`.
+- `ToolCallLog` — сессионное окно выполненных вызовов (ёмкость 12 = `MAX_TOOL_ROUNDS` × 2 попытки),
+  считает вытесненные; инжектится в `TurnEngine`.
+
+### Что видит судья (`JudgeInput`)
+
+Три вида полей, и вид решает, что судья вправе с ними делать:
+
+| Вид | Поля | Правило |
+|---|---|---|
+| **binding** | `rules`, `constraints` | только против них репортится нарушение |
+| **context** | `stage`, `format`, `style` | никогда не нарушение сами по себе — они нужны, чтобы судья не принял требуемую форму за дефект |
+| **untrusted** | `assistantReply`, `userMessage`, `toolCalls` | материал под аудитом: за забором, инструкции внутри игнорируются |
+
+Истории диалога нет by design, секции `context` профиля — тоже (она говорит, КАК работать; судья
+превратил бы совет в инвариант). `hasInvariants` — «есть что нарушать»: пусто → вызова к модели нет.
+
+Вывод инструмента в промпте режется **в двух измерениях** (600 символов И 8 строк): по символам
+рвётся строка, по строкам проходит гигантский дамп, а клип до первой строки убедил бы судью, что
+поиск нашёл ровно одно совпадение. Отброшенное всегда названо числом.
 - Memory-типы, которыми оперирует ход (`MemoryLayer`/`Profile`/`TaskStage`/`TaskBinding`/`RuleEntry`),
   берутся из `features:memory`.
 - `di/`: `agentModule` — `List<RoutedAgent>` по (`stageAgents`, `params`) и `List<RoutedJudge>` по
@@ -38,5 +57,11 @@ Backtick-имена в commonTest **без** `()`/`,` — иначе iOS commonT
   execute` → дописать в wire → снова, до финального текста. FC только Gemini. Tool-обмен эфемерный.
 - **LLM-judge на thinking-модели режет вердикт** — thinking ест тот же `maxTokens` → JSON обрывается
   → fail-open молча пропускает. Лечится `thinkingBudget=0` + малый maxtokens judge.
+- **Вывод инструментов — канал prompt injection.** Текст пользователя попадает в хранилище (тикет
+  создаётся из его слов) и возвращается поиском прямо в промпт судьи. Поэтому недоверенные секции
+  обёрнуты тегами, а `sanitizeUntrusted` обезвреживает теги внутри них. Несущая защита — `passed`
+  вычисляется из `violations.isEmpty()`, полю модели не верят: не «упрощать».
+- **Критерий, пригодный судье, решается по тексту ответа и уликам.** Условие, которого во входе нет
+  («если пользователь не найден…»), судья домысливает — два живых прогона потеряны именно так.
 - **`Role.SYSTEM` инжектится только в wire-list** `TurnEngine.turn()` поверх baseContext (не
   персистится — см. `features:memory`); провайдер сам собирает system-блок.

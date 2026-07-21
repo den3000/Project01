@@ -24,6 +24,7 @@ import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantChecker
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
+import ru.den.writes.code.agenticHub.features.llm.Role
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.memory.TaskBinding
@@ -126,7 +127,7 @@ class AgentJudgeTest {
                 var calls = 0
                 val narrowJudge = RoutedJudge(
                     TaskBinding(TaskStage.CLARIFICATION, TaskStage.PLANNING),
-                    InvariantChecker { _, _, _ ->
+                    InvariantChecker {
                         calls++
                         InvariantVerdict(passed = false, violations = listOf(InvariantViolation("001", "x")))
                     },
@@ -150,11 +151,175 @@ class AgentJudgeTest {
         }
     }
 
+    @Test
+    fun `when the first reply is flagged and the rewrite passes - then the rewrite persists`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — the judge refuses the first answer and accepts the second
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+                    saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
+                    addRule("Kotlin only, no Spring")
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
+                val fakeScript = FakeLlmScript().apply {
+                    queueText("Use Spring Boot.\n[[stage:planning]]")
+                    queueText("Use Ktor instead.\n[[stage:planning]]")
+                }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
+
+                // when
+                runSessionForTest(
+                    newChat(prompt = "build auth", session = "demo"),
+                    fake, store,
+                    promptSource = createStdinPromptSource("/exit\n"),
+                    memory = memory,
+                    routedJudges = listOf(judgeRefusingOnce()),
+                )
+
+                // then — the rewrite is what survives, and the stage moves on it
+                assertEquals(2, fakeScript.calls.size, "the agent must be asked twice")
+                assertEquals(TaskStage.PLANNING, memStore.loadTask("auth")?.stage)
+                assertEquals(2, store.messages.size, "one exchange persists, not two")
+                assertTrue(store.messages.last().text.contains("Ktor"), "the rewrite must be the stored reply")
+            }
+        }
+    }
+
+    @Test
+    fun `when the agent is asked to rewrite - then it sees its rejected reply and the objections`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+                    saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
+                    addRule("Kotlin only, no Spring")
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
+                val fakeScript = FakeLlmScript().apply {
+                    queueText("Use Spring Boot.\n[[stage:planning]]")
+                    queueText("Use Ktor instead.")
+                }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
+
+                // when
+                runSessionForTest(
+                    newChat(prompt = "build auth", session = "demo"),
+                    fake, store,
+                    promptSource = createStdinPromptSource("/exit\n"),
+                    memory = memory,
+                    routedJudges = listOf(judgeRefusingOnce()),
+                )
+
+                // then — the retry wire carries the rejected text and the critique, and the
+                // stage marker is stripped so the agent doesn't think it already advanced
+                val retryWire = fakeScript.calls[1].messages
+                val quotedReply = retryWire.single { it.role == Role.ASSISTANT && it.text.contains("Use Spring Boot.") }
+                assertTrue(
+                    !quotedReply.text.contains("[[stage:"),
+                    "the marker must be stripped, or the agent reads a stage it never reached",
+                )
+                val critique = retryWire.last()
+                assertEquals(Role.USER, critique.role, "the critique must not be a SYSTEM turn")
+                assertTrue(critique.text.contains("proposes Spring"), "the objection must reach the agent")
+                assertTrue(
+                    critique.text.contains("ALREADY run"),
+                    "a rewrite must not re-run tools — a ticket opened by the rejected attempt already exists",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `when both attempts are flagged - then nothing persists and the stage is held`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — an unappeasable judge
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+                    saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
+                    addRule("Kotlin only, no Spring")
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
+                val fakeScript = FakeLlmScript().apply {
+                    queueText("Use Spring Boot.\n[[stage:planning]]")
+                    queueText("Still Spring, sorry.")
+                }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
+
+                // when
+                runSessionForTest(
+                    newChat(prompt = "build auth", session = "demo"),
+                    fake, store,
+                    promptSource = createStdinPromptSource("/exit\n"),
+                    memory = memory,
+                    routedJudges = listOf(violatingJudge),
+                )
+
+                // then — two attempts, then the pre-retry behaviour: dropped and held
+                assertEquals(2, fakeScript.calls.size)
+                assertEquals(TaskStage.CLARIFICATION, memStore.loadTask("auth")?.stage)
+                assertTrue(store.messages.isEmpty(), "a twice-flagged turn must not be persisted")
+            }
+        }
+    }
+
+    @Test
+    fun `when the rewrite call fails - then the turn degrades to blocked instead of erroring`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — only one scripted answer, so the retry hits an empty queue
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+                    saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
+                    addRule("Kotlin only, no Spring")
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
+                val fakeScript = FakeLlmScript().apply { queueText("Use Spring Boot.") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
+
+                // when
+                runSessionForTest(
+                    newChat(prompt = "build auth", session = "demo"),
+                    fake, store,
+                    promptSource = createStdinPromptSource("/exit\n"),
+                    memory = memory,
+                    routedJudges = listOf(violatingJudge),
+                )
+
+                // then — a wire failure on the retry must not cost more than the breach already did
+                assertEquals(TaskStage.CLARIFICATION, memStore.loadTask("auth")?.stage)
+                assertTrue(store.messages.isEmpty())
+            }
+        }
+    }
+
     //region helpers
+
+    /** Refuses the first reply it sees, waves through everything after. */
+    private fun judgeRefusingOnce(): RoutedJudge {
+        var seen = 0
+        return RoutedJudge(
+            TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
+            InvariantChecker {
+                if (seen++ == 0) {
+                    InvariantVerdict(passed = false, violations = listOf(InvariantViolation("001", "proposes Spring")))
+                } else {
+                    InvariantVerdict.CLEAN
+                }
+            },
+            modelId = "test-judge",
+        )
+    }
 
     private val violatingJudge = RoutedJudge(
         TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
-        InvariantChecker { _, _, _ ->
+        InvariantChecker {
             InvariantVerdict(passed = false, violations = listOf(InvariantViolation("001", "proposes Spring")))
         },
         modelId = "test-judge",
@@ -162,7 +327,7 @@ class AgentJudgeTest {
 
     private val cleanJudge = RoutedJudge(
         TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
-        InvariantChecker { _, _, _ -> InvariantVerdict.CLEAN },
+        InvariantChecker { InvariantVerdict.CLEAN },
         modelId = "test-judge",
     )
 

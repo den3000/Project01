@@ -25,11 +25,9 @@ public sealed interface TurnResult {
      * [durationMs] is the measured call time; [session] is the running-total
      * snapshot at this turn (null in OneShot — no history to accumulate into,
      * so the footer prints no `session:` line); [stageAdvance] is what
-     * happened to the task FSM; [verdict] is the per-stage invariant judge's
-     * verdict — [InvariantVerdict.CLEAN] unless a judge flagged a breach, in
-     * which case the turn was shown but NOT persisted and the stage was held;
-     * [judgeModelId] is the model of the judge that ran (null when none did) —
-     * the TUI tags the breach block with it.
+     * happened to the task FSM; [judge] is what the per-stage invariant judge
+     * did — see [JudgeOutcome]; [judgeModelId] is the model of the judge that
+     * ran (null when none did) — the TUI tags the breach block with it.
      */
     data class Ok(
         val reply: String,
@@ -39,7 +37,7 @@ public sealed interface TurnResult {
         val durationMs: Long,
         val session: SessionStatsSnapshot?,
         val stageAdvance: StageAdvance,
-        val verdict: InvariantVerdict = InvariantVerdict.CLEAN,
+        val judge: JudgeOutcome = JudgeOutcome.NotRun,
         val judgeModelId: String? = null,
         /** Tool calls the agent ran this turn (empty for a plain turn). */
         val executedToolCalls: List<ExecutedToolCall> = emptyList(),
@@ -74,6 +72,36 @@ public fun SessionStats.snapshot(): SessionStatsSnapshot = SessionStatsSnapshot(
     totalTokens = totalTokens,
     costUsd = totalCostUsd,
 )
+
+/**
+ * What the invariant judge did with this turn — the vocabulary a view needs to
+ * say what happened, rather than assuming one fixed consequence.
+ *
+ * A bare verdict could not express this: a breach used to mean exactly one
+ * thing, "the turn was dropped", and both views hard-coded that sentence. Once
+ * a flagged reply can be rewritten, that sentence is a lie half the time.
+ */
+public sealed interface JudgeOutcome {
+    /** No judge covered this stage, or there is no task to route on. */
+    public data object NotRun : JudgeOutcome
+
+    /** The judge ran and found nothing. */
+    public data object Clean : JudgeOutcome
+
+    /**
+     * The first reply breached [first]; the agent was given the objections and
+     * its rewrite satisfied the judge. The turn stands on the rewrite — the
+     * objections are still shown, because the user is entitled to know the
+     * first answer was withdrawn.
+     */
+    public data class Retried(val first: InvariantVerdict) : JudgeOutcome
+
+    /**
+     * Every attempt breached; [final] is the last verdict. The reply is shown
+     * but not persisted, and the task stage is held.
+     */
+    public data class Blocked(val final: InvariantVerdict) : JudgeOutcome
+}
 
 /**
  * What the turn engine did with the model's `[[stage:<next>]]` signal — for a

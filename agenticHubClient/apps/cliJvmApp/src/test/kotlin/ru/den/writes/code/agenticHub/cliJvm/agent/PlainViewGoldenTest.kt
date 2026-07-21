@@ -16,6 +16,10 @@ import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.IntentSource
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
+import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantChecker
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
 import ru.den.writes.code.agenticHub.platform.database.TestDb
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
@@ -40,6 +44,7 @@ import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * The byte-for-byte payoff: drives the production stack (SessionViewModel +
@@ -184,6 +189,84 @@ class PlainViewGoldenTest {
     }
 
     @Test
+    fun `when the judge blocks a turn - then the breach block closes stderr and nothing persists`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — a judge covering the active stage that refuses the reply
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+                    saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
+                    addRule("Kotlin only, no Spring")
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fake = scriptedApi(FakeLlmScript().apply { queueText("Use Spring Boot.") })
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
+
+                // when
+                val out = runPlain(
+                    goldenChat("hi", "demo"), fake, store, intents(),
+                    memory = memory, routedJudges = listOf(refusingJudge),
+                )
+
+                // then — the reply is still shown, the breach block explains what it cost
+                assertTrue(out.stdout.contains("Use Spring Boot."), "a blocked reply is shown, not swallowed")
+                val expectedStderr = buildString {
+                    appendLine("[task] resuming 't' — stage planning")
+                    appendLine("[invariant] violated 001: proposes Spring")
+                    appendLine("[invariant] reply not saved to history; task stage held")
+                    appendLine(
+                        "[session-summary] turns=0  prompt=0  output=0  total=0  " +
+                            "cost=\$0.00  (current model has no pricing entry)",
+                    )
+                }
+                assertEquals(expectedStderr, out.stderr)
+                assertEquals(TaskStage.PLANNING, memStore.loadTask("t")?.stage, "stage must be held")
+            }
+        }
+    }
+
+    @Test
+    fun `when the judge passes a turn - then stderr reports the clean verdict`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — a judge that objects to nothing
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+                    saveTask(TaskNotes("t", stage = TaskStage.PLANNING))
+                    addRule("Kotlin only, no Spring")
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fake = scriptedApi(FakeLlmScript().apply { queueText("Ktor it is.") })
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
+
+                // when
+                val out = runPlain(
+                    goldenChat("hi", "demo"), fake, store, intents(),
+                    memory = memory,
+                    routedJudges = listOf(
+                        RoutedJudge(
+                            TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
+                            InvariantChecker { InvariantVerdict.CLEAN },
+                            modelId = "judge-model",
+                        ),
+                    ),
+                )
+
+                // then — the pass is stated, so a working judge is visible in the transcript
+                val expectedStderr = buildString {
+                    appendLine("[task] resuming 't' — stage planning")
+                    appendLine("[invariant] clean — no objection to this turn")
+                    appendLine(
+                        "[session-summary] turns=1  prompt=10  output=5  total=15  " +
+                            "cost=0.00000 USD  (current model has no pricing entry)",
+                    )
+                }
+                assertEquals(expectedStderr, out.stderr)
+            }
+        }
+    }
+
+    @Test
     fun `when a branch command runs after a turn - then it reports the fork to stderr`() = runTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
@@ -248,9 +331,10 @@ class PlainViewGoldenTest {
         followUp: IntentSource? = null,
         memory: MemoryProvider? = null,
         routedAgents: List<RoutedAgent> = emptyList(),
+        routedJudges: List<RoutedJudge> = emptyList(),
     ): CapturedOutput {
         val multiAgent = routedAgents.isNotEmpty()
-        val engine = TurnEngine(chat, api, store, ContextStrategy.FullHistory, memory, routedAgents)
+        val engine = TurnEngine(chat, api, store, ContextStrategy.FullHistory, memory, routedAgents, routedJudges)
         val runner = CommandRunner(store, memory, ContextStrategy.FullHistory)
         val vm = SessionViewModel(chat, engine, runner, store, memory, ContextStrategy.FullHistory, multiAgent)
         val view = PlainRenderer()
@@ -261,6 +345,14 @@ class PlainViewGoldenTest {
         newChat(prompt, session).copy(
             modelProvider = ModelProvider.Gemini(GeminiModel.Custom("golden-stub"), apiKey = "test-key"),
         )
+
+    private val refusingJudge = RoutedJudge(
+        binding = TaskBinding(TaskStage.CLARIFICATION, TaskStage.DONE),
+        checker = InvariantChecker {
+            InvariantVerdict(passed = false, violations = listOf(InvariantViolation("001", "proposes Spring")))
+        },
+        modelId = "judge-model",
+    )
 
     private fun routedPlanner(api: LlmApi): RoutedAgent = RoutedAgent(
         binding = TaskBinding(TaskStage.PLANNING, TaskStage.EXECUTION),

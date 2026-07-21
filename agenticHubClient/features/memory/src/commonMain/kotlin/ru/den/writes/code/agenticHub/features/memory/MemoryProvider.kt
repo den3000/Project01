@@ -63,11 +63,7 @@ public class MemoryProvider(
      * empty (byte-identical to a no-memory session).
      */
     fun memoryLayerFor(agentProfile: String?): List<Message> {
-        val profile = if (agentProfile != null) {
-            store.loadNamedProfile(agentProfile) ?: store.loadProfileData()
-        } else {
-            activeProfileData()
-        }
+        val profile = profileDataForAgent(agentProfile)
         val rules = store.listRules()
         val task = taskId?.let(store::loadTask)
         return when (mode) {
@@ -75,6 +71,24 @@ public class MemoryProvider(
             MemoryMode.SYSTEM -> MemoryLayer.composeSystem(profile, rules, task)
         }
     }
+
+    /**
+     * The profile an agent pinned to [agentProfile] speaks with: the pinned one
+     * when it exists, else the session's live active profile, else the unnamed
+     * `profile.md`. Null when none of them holds anything.
+     *
+     * The single place that resolution lives. It used to be copied into every
+     * consumer, and consumers now want different slices of the same profile —
+     * the memory layer wants all of it, the invariant judge only some sections —
+     * so a copy per slice would read one profile off disk several times per turn
+     * and drift the moment the fallback chain changes.
+     */
+    fun profileDataForAgent(agentProfile: String?): ProfileData? =
+        if (agentProfile != null) {
+            store.loadNamedProfile(agentProfile) ?: store.loadProfileData()
+        } else {
+            activeProfileData()
+        }
 
     /**
      * Profile data the agent will inject on the next turn — the active
@@ -85,21 +99,6 @@ public class MemoryProvider(
         ?.let(store::loadNamedProfile)
         ?: store.loadProfileData()
 
-    /**
-     * The `constraints` bullets of the profile [agentProfile] speaks with —
-     * the same profile selection [memoryLayerFor] uses (pinned agent profile →
-     * session's active profile → unnamed `profile.md`). The invariant judge
-     * takes these alongside the global rules so it audits the answering agent's
-     * own persona-local constraints too. Empty when that profile has none.
-     */
-    fun constraintsForAgent(agentProfile: String?): List<String> {
-        val profile = if (agentProfile != null) {
-            store.loadNamedProfile(agentProfile) ?: store.loadProfileData()
-        } else {
-            activeProfileData()
-        }
-        return profile?.items(ProfileSection.CONSTRAINTS).orEmpty()
-    }
 
     /**
      * Render the current memory state as a multi-line block for `/memory`

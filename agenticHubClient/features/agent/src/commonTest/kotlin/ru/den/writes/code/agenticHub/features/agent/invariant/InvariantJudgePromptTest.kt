@@ -20,7 +20,7 @@ class InvariantJudgePromptTest {
         val reply = "Use Spring Boot with RxJava"
 
         // when
-        val actual = InvariantJudgePrompt.buildJudgePrompt(reply, rules, constraints)
+        val actual = InvariantJudgePrompt.buildJudgePrompt(JudgeInput(reply, rules = rules, constraints = constraints))
 
         // then
         assertTrue(actual.contains("001"), "rule id missing")
@@ -32,7 +32,9 @@ class InvariantJudgePromptTest {
     @Test
     fun `when buildJudgePrompt with no rules or constraints - then placeholders shown`() {
         // given / when
-        val actual = InvariantJudgePrompt.buildJudgePrompt("hi", emptyList(), emptyList())
+        val actual = InvariantJudgePrompt.buildJudgePrompt(
+            JudgeInput("hi", rules = emptyList(), constraints = emptyList()),
+        )
 
         // then
         assertTrue(actual.contains("(none)"), "empty placeholder missing")
