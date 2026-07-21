@@ -1,10 +1,10 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.session
 
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.JudgeOutcome
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.StageAdvance
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.SessionStatsSnapshot
 import ru.den.writes.code.agenticHub.features.lifecycle.command.ScheduleSpec
 import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
-import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
 import ru.den.writes.code.agenticHub.features.llm.Usage
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.memory.ProfileSection
@@ -160,11 +160,12 @@ public sealed interface UiLine {
     ) : UiLine
 
     /**
-     * An invariant-judge breach: [judgeModelId] is the model that flagged it (the
-     * TUI tags the block with it; PlainView ignores it) and [violations] are the
-     * breaches. Emitted only on a breach (so [violations] is never empty).
+     * An invariant-judge finding: [judgeModelId] is the model that flagged it (the
+     * TUI tags the block with it; PlainView ignores it) and [outcome] says what
+     * followed — a rewrite or a blocked turn. Emitted only when something was
+     * flagged, never for a clean turn.
      */
-    data class Judge(val judgeModelId: String?, val violations: List<InvariantViolation>) : UiLine
+    data class Judge(val judgeModelId: String?, val outcome: JudgeOutcome) : UiLine
 
     /** A task-stage FSM move. Emitted only when the stage changed or a move was rejected. */
     data class Stage(val advance: StageAdvance) : UiLine
@@ -220,6 +221,26 @@ public fun mcpToolLines(calls: List<ExecutedToolCall>, modelId: String): List<St
     }
     add("model: $modelId")
     calls.lastOrNull()?.let { add("prompt: ${it.output}") }
+}
+
+/**
+ * What the judge found, and what it cost the turn — one objection per line, then
+ * a trailer naming the consequence. Shared text for both renderers, so the
+ * consequence is stated in exactly one place: it used to be hard-coded in each
+ * view, which was survivable only while a breach always meant the same thing.
+ *
+ * Clean and not-run turns render nothing at all.
+ */
+public fun judgeLines(outcome: JudgeOutcome): List<String> {
+    val (violations, trailer) = when (outcome) {
+        JudgeOutcome.NotRun, JudgeOutcome.Clean -> return emptyList()
+        is JudgeOutcome.Retried ->
+            outcome.first.violations to "[invariant] first reply withdrawn; the answer above is the agent's rewrite"
+        is JudgeOutcome.Blocked ->
+            outcome.final.violations to "[invariant] reply not saved to history; task stage held"
+    }
+    if (violations.isEmpty()) return emptyList()
+    return violations.map { "[invariant] violated ${it.ruleId ?: "constraint"}: ${it.explanation}" } + trailer
 }
 
 /**

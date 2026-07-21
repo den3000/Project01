@@ -1,19 +1,24 @@
 package ru.den.writes.code.agenticHub.cliJvm.plain
 
+import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.JudgeOutcome
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** The invariant-judge breach lines on stderr. */
+/** The invariant-judge lines on stderr, and the trailer naming what each outcome cost. */
 class JudgePlainViewTest {
 
+    private val breached = InvariantVerdict(
+        passed = false,
+        violations = listOf(InvariantViolation("001", "proposes Spring"), InvariantViolation(null, "off topic")),
+    )
+
     @Test
-    fun `when violations present - then each is listed and the trailer closes`() {
+    fun `when the turn is blocked - then each objection is listed and the held-stage trailer closes`() {
         // given — a numbered rule breach and an unnumbered constraint breach
-        val view = JudgePlainView(
-            listOf(InvariantViolation("001", "proposes Spring"), InvariantViolation(null, "off topic")),
-        )
+        val view = JudgePlainView(JudgeOutcome.Blocked(breached))
 
         // when - then — null ruleId renders as "constraint"
         assertEquals(
@@ -27,7 +32,28 @@ class JudgePlainViewTest {
     }
 
     @Test
-    fun `when no violations - then nothing on stderr`() {
-        assertTrue(JudgePlainView(emptyList()).stderr().isEmpty())
+    fun `when a retry satisfied the judge - then the objections stay but the trailer says rewrite`() {
+        // given — the first answer was withdrawn, the shown reply is the rewrite
+        val view = JudgePlainView(JudgeOutcome.Retried(breached))
+
+        // when - then — the user is entitled to know the first answer was pulled
+        assertEquals(
+            listOf(
+                "[invariant] violated 001: proposes Spring",
+                "[invariant] violated constraint: off topic",
+                "[invariant] first reply withdrawn; the answer above is the agent's rewrite",
+            ),
+            view.stderr(),
+        )
+    }
+
+    @Test
+    fun `when the judge found nothing - then nothing on stderr`() {
+        assertTrue(JudgePlainView(JudgeOutcome.Clean).stderr().isEmpty())
+    }
+
+    @Test
+    fun `when no judge covered the stage - then nothing on stderr`() {
+        assertTrue(JudgePlainView(JudgeOutcome.NotRun).stderr().isEmpty())
     }
 }

@@ -119,7 +119,7 @@ private fun UiLine.toTuiView(): TuiView? = when (this) {
     is UiLine.User -> UserTuiView(text)
     is UiLine.Assistant -> AssistantTuiView(reply, agent)
     is UiLine.Turn -> TurnTuiView(usage, modelId, session)
-    is UiLine.Judge -> JudgeTuiView(judgeModelId, violations)
+    is UiLine.Judge -> JudgeTuiView(judgeModelId, outcome)
     is UiLine.Stage -> StageTuiView(advance)
     is UiLine.State -> StateTuiView(text)
     is UiLine.Error -> ErrorTuiView(reason)

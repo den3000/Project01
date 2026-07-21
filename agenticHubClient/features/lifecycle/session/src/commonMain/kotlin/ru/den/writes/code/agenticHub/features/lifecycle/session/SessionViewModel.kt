@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.update
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.MergedIntentSource
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.IntentSource
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.snapshot
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.JudgeOutcome
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.StageAdvance
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.SessionStatsSnapshot
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnResult
@@ -148,7 +149,7 @@ public class SessionViewModel(
         add(UiLine.Assistant(reply, if (multiAgent) AgentRef(profileName, modelId) else null))
         if (retrieval.isNotEmpty()) add(UiLine.RagLine(retrieval))
         add(UiLine.Turn(usage, modelId, durationMs, session))
-        if (!verdict.passed) add(UiLine.Judge(judgeModelId, verdict.violations))
+        if (judge is JudgeOutcome.Retried || judge is JudgeOutcome.Blocked) add(UiLine.Judge(judgeModelId, judge))
         if (stageAdvance != StageAdvance.None) add(UiLine.Stage(stageAdvance))
     }
 

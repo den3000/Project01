@@ -176,6 +176,11 @@ public class TurnEngine(
         } else {
             InvariantVerdict.CLEAN
         }
+        val judgeOutcome = when {
+            judge == null -> JudgeOutcome.NotRun
+            verdict.passed -> JudgeOutcome.Clean
+            else -> JudgeOutcome.Blocked(verdict)
+        }
         if (verdict.passed) {
             historyStore?.append(userTurn)
             historyStore?.append(
@@ -194,7 +199,7 @@ public class TurnEngine(
             durationMs = duration.inWholeMilliseconds,
             session = historyStore?.stats?.snapshot(),
             stageAdvance = stageAdvance,
-            verdict = verdict,
+            judge = judgeOutcome,
             judgeModelId = judge?.modelId,
             executedToolCalls = outcome.executedToolCalls,
             retrieval = retrieval,
