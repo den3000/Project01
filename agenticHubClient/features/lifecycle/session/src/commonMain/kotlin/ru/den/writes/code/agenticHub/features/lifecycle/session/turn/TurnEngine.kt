@@ -338,8 +338,14 @@ private fun judgeFeedback(verdict: InvariantVerdict): String = buildString {
     verdict.violations.forEach { appendLine("- [${it.ruleId ?: "constraint"}] ${it.explanation}") }
     appendLine()
     appendLine("Change only what the objections name; keep everything that was already correct.")
-    append("If an objection is factually wrong — it claims you invented something the tool ")
-    append("results actually returned, say — state that in one short sentence and keep the fact.")
+    appendLine("If an objection is factually wrong — it claims you invented something the tool")
+    appendLine("results actually returned, say — state that in one short sentence and keep the fact.")
+    appendLine()
+    // The rejected attempt's tools already ran and their effects are real: a ticket it
+    // opened exists. Rewriting is a text edit, and calling them again would duplicate
+    // that effect — a second ticket for one complaint.
+    append("Any tool you already called has ALREADY run and its effect stands — do not call ")
+    append("it again to redo the work. Reuse what the results above returned; rewrite the text only.")
 }
 
 /**

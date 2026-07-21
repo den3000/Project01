@@ -225,6 +225,10 @@ class AgentJudgeTest {
                 val critique = retryWire.last()
                 assertEquals(Role.USER, critique.role, "the critique must not be a SYSTEM turn")
                 assertTrue(critique.text.contains("proposes Spring"), "the objection must reach the agent")
+                assertTrue(
+                    critique.text.contains("ALREADY run"),
+                    "a rewrite must not re-run tools — a ticket opened by the rejected attempt already exists",
+                )
             }
         }
     }
