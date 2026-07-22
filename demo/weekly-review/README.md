@@ -34,20 +34,55 @@
 
 Обе стороны — «часы по активностям» за один диапазон, поэтому LLM сравнивает их напрямую.
 
-## Доступы (creds — только через окружение, в argv не передаются)
+## Доступы (как получить)
 
+Все креды читаются **только из окружения** — в argv и в транскрипт не попадают. Положи их в
+`~/.project01-weekly.env` (или в `.env` рядом со скриптом — оба в `.gitignore`); `review-week.sh` сам
+подхватит файл, если переменные не выставлены в шелле (ручной `export`/`source` имеет приоритет).
+
+Итоговый `~/.project01-weekly.env`:
 ```bash
-export ATIMELOGGER_USERNAME='...'   # логин/пароль аккаунта aTimeLogger (HTTP Basic)
-export ATIMELOGGER_PASSWORD='...'
-export TICKTICK_ACCESS_TOKEN='...'  # OAuth2 access token (см. playground/ticktick-mcp/README.md, scope tasks:read)
-export GEMINI_API_KEY='...'         # если ключ не в local.properties (иначе берётся из BuildKonfig)
-export WEEK_TZ='Europe/Moscow'      # опц.: зона для границ недели (дефолт — зона машины)
+export ATIMELOGGER_USERNAME='<логин aTimeLogger>'
+export ATIMELOGGER_PASSWORD='<пароль aTimeLogger>'
+export TICKTICK_ACCESS_TOKEN='<OAuth2 access token>'
+export GEMINI_API_KEY='<ключ Gemini>'   # можно опустить, если он в local.properties
+export WEEK_TZ='Europe/Moscow'          # опц.: зона для границ недели (дефолт — зона машины)
 ```
+Потом `chmod 600 ~/.project01-weekly.env` — это файл с секретами.
 
-Положи эти строки в `~/.project01-weekly.env` (или в `.env` рядом со скриптом — он в `.gitignore`):
-`review-week.sh` сам их подхватит, если они не выставлены в шелле. Либо просто `export`-ни их в текущем
-терминале (ручное окружение имеет приоритет). TickTick-токен добывается разово по OAuth2 — пошагово в
-[`playground/ticktick-mcp/README.md`](../../playground/ticktick-mcp/README.md).
+### aTimeLogger — логин/пароль (HTTP Basic)
+
+API aTimeLogger v2 авторизуется **теми же логином и паролем, что и аккаунт в приложении** (это твой
+реальный пароль, отдельного токена нет). Впиши их в `ATIMELOGGER_USERNAME`/`ATIMELOGGER_PASSWORD` — сервер
+соберёт из них заголовок `Authorization: Basic …` один раз и никуда не залогирует.
+
+### TickTick — OAuth2 access token
+
+Готового токена в настройках нет — он выдаётся разовым OAuth2-обменом с зарегистрированным приложением:
+
+1. **Зарегистрировать приложение:** https://developer.ticktick.com/manage → создать app → получить
+   **Client ID** и **Client Secret**. В поле **OAuth redirect URL** вписать и **сохранить**
+   `http://localhost:8000/callback` — без зарегистрированного redirect шаг 2 вернёт
+   `invalid_request: At least one redirect_uri must be registered`.
+2. **Авторизоваться (получить `code`):** открыть в браузере (подставив свой `CLIENT_ID`):
+   ```
+   https://ticktick.com/oauth/authorize?client_id=CLIENT_ID&redirect_uri=http://localhost:8000/callback&response_type=code&scope=tasks:read&state=x
+   ```
+   Подтвердить → браузер редиректнёт на `http://localhost:8000/callback?code=XXXX&state=x` (страница не
+   загрузится — это ок; нужен только `code` из адресной строки).
+3. **Обменять `code` на токен** (сразу — код живёт минуты и одноразовый):
+   ```bash
+   curl -s -X POST https://ticktick.com/oauth/token \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "client_id=CLIENT_ID&client_secret=CLIENT_SECRET&code=XXXX&grant_type=authorization_code&redirect_uri=http://localhost:8000/callback"
+   ```
+   В JSON-ответе `access_token` → в `TICKTICK_ACCESS_TOKEN`. Scope `tasks:read` достаточно (сервер только
+   читает), токен живёт ~6 мес. `redirect_uri` должен **буквально совпадать** в шагах 1–3.
+
+### Gemini — ключ модели
+
+Агент ходит в Gemini. Если `GEMINI_API_KEY` уже в `local.properties` (→ BuildKonfig), в env его класть не
+нужно; иначе добавь строку в env-файл (env перекрывает BuildKonfig).
 
 ## Запуск
 
