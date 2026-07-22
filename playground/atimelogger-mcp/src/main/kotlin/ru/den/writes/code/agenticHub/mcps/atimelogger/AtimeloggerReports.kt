@@ -10,11 +10,11 @@ import java.time.ZoneId
  */
 internal class AtimeloggerReports(private val api: AtimeloggerApi) {
 
-    /** Every activity type, one per line (name, and color when set); a notice when there are none. */
+    /** Every activity type, one name per line; a notice when there are none. */
     suspend fun listActivityTypes(): String {
         val types = api.types()
         if (types.isEmpty()) return "(no activity types)"
-        return types.joinToString("\n") { formatActivityType(it) }
+        return types.joinToString("\n") { it.name }
     }
 
     /**
@@ -29,10 +29,6 @@ internal class AtimeloggerReports(private val api: AtimeloggerApi) {
         return formatTimeByActivity(byGuid, nameByGuid)
     }
 }
-
-/** One activity type as `name` (or `name (#color)` when a color is set). */
-internal fun formatActivityType(type: ActivityTypeDto): String =
-    if (type.color != null) "${type.name} (${type.color})" else type.name
 
 /**
  * Sums tracked seconds per activity-type guid over [intervals], clipping each interval to the

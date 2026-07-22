@@ -12,8 +12,8 @@ class AtimeloggerReportsTest {
         // given
         val api = FakeAtimeloggerApi(
             types = listOf(
-                ActivityTypeDto(guid = "g1", name = "Work", color = "#ff0000"),
-                ActivityTypeDto(guid = "g2", name = "Sleep", color = null),
+                ActivityTypeDto(guid = "g1", name = "Work"),
+                ActivityTypeDto(guid = "g2", name = "Sleep"),
             ),
         )
 
@@ -21,7 +21,7 @@ class AtimeloggerReportsTest {
         val actual = AtimeloggerReports(api).listActivityTypes()
 
         // then
-        val expected = "Work (#ff0000)\nSleep"
+        val expected = "Work\nSleep"
         assertEquals(expected, actual)
     }
 

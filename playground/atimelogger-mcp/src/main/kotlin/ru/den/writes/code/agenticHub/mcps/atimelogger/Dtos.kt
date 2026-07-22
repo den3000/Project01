@@ -14,8 +14,7 @@ internal data class TypesResponse(val types: List<ActivityTypeDto> = emptyList()
 @Serializable
 internal data class ActivityTypeDto(
     val guid: String = "",
-    val name: String,
-    val color: String? = null,
+    val name: String = "",
 )
 
 @Serializable
