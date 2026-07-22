@@ -28,12 +28,10 @@ echo "[setup] gradle installDist (cliJvmApp + atimelogger-mcp + ticktick-mcp)...
 echo "[setup] профиль weekly (сброс + секции)..."
 "$CLI" -profile clear weekly || true
 "$CLI" -profile weekly style "Пиши по-русски, кратко и по делу."
-"$CLI" -profile weekly format "Структура ответа: (1) План против факта; (2) Куда ушло время; (3) 3–5 конкретных рекомендаций по продуктивности."
-"$CLI" -profile weekly constraints "Не выдумывай задачи, статусы и числа: любые факты бери только из результатов вызовов review_week и time_by_activity."
-"$CLI" -profile weekly constraints "Не называй задачу выполненной, если review_week не пометил её done или gone."
-"$CLI" -profile weekly context "Ты — ассистент недельного разбора продуктивности. Доступны инструменты: review_week (план недели против факта из TickTick) и time_by_activity (время по типам активностей из aTimeLogger)."
-"$CLI" -profile weekly context "Разбирая неделю: вызови review_week по метке недели и time_by_activity по тем же датам, затем сопоставь план, факт и распределение времени и дай практичные рекомендации."
-"$CLI" -profile weekly context "Учитывай ограничение: задачи, созданные и закрытые внутри недели, в TickTick-части не видны, а gone — «скорее всего сделано». Не выдавай это за точную статистику."
+"$CLI" -profile weekly format "Структура ответа: (1) План против факта по активностям; (2) Куда ушло время; (3) 3–5 конкретных рекомендаций по продуктивности."
+"$CLI" -profile weekly constraints "Не выдумывай активности и числа: бери их только из результатов вызовов week_plan и time_by_activity."
+"$CLI" -profile weekly context "Ты — ассистент недельного разбора продуктивности. Инструменты: week_plan (запланированные часы по активностям из TickTick) и time_by_activity (реально потраченные часы по активностям из aTimeLogger)."
+"$CLI" -profile weekly context "Разбирая неделю: вызови week_plan и time_by_activity за одни и те же даты, затем сопоставь запланированные и фактические часы по активностям (названия в TickTick и aTimeLogger могут отличаться — сопоставляй по смыслу), отметь пере- и недо-выполнение и дай практичные рекомендации."
 
 cat <<EOF
 
@@ -43,6 +41,5 @@ cat <<EOF
   export TICKTICK_ACCESS_TOKEN=...                           # TickTick OAuth2 (см. README)
   export GEMINI_API_KEY=...                                  # если не в local.properties
 
-  bash demo/weekly-review/snapshot-week.sh 2026-07-13 2026-07-20 2026-W29   # в НАЧАЛЕ недели
-  bash demo/weekly-review/review-week.sh  2026-07-13 2026-07-20 2026-W29    # в КОНЦЕ недели
+  bash demo/weekly-review/review-week.sh 2026-07-13 2026-07-20   # план vs факт за неделю
 EOF

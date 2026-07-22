@@ -40,7 +40,7 @@ iOS-bundle-id остались на `project01` (это идентификато
   [git-mcp](playground/git-mcp/README.md) · [support-mcp](playground/support-mcp/README.md) ·
   [atimelogger-mcp](playground/atimelogger-mcp/README.md) · [ticktick-mcp](playground/ticktick-mcp/README.md)
 - **demo**: [ctt-support](demo/ctt-support/README.md) — ассистент поддержки CTT (роли гость/клиент/разработчик, FSM+судья, RAG доки+код, тикеты через support-mcp)
-- **demo**: [weekly-review](demo/weekly-review/README.md) — недельный разбор продуктивности: 2 MCP (atimelogger время + ticktick план/факт) + агент cliJvmApp → рекомендации; «что сделано» через snapshot-diff (официальный API не отдаёт выполненные)
+- **demo**: [weekly-review](demo/weekly-review/README.md) — недельный разбор продуктивности: план (ticktick `week_plan` — часы по тайм-блокам) vs факт (atimelogger `time_by_activity`) → агент cliJvmApp сравнивает по активностям (LLM сам мапит разные названия) и даёт рекомендации; работает вживую
 - **[scheduling](scheduling/README.md)** — ядро планировщика.
 - **testUtils** (`agenticHubClient/testUtils`) — кросс-каттинг тест-утилиты (`@IgnoreIos` — expect/actual,
   на iOS = `kotlin.test.Ignore`; JVM/Android — no-op), `commonTest`-зависимость. Фейки тут НЕ живут.
