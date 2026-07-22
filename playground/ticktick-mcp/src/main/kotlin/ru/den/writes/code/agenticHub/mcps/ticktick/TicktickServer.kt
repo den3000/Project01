@@ -110,7 +110,37 @@ suspend fun runTicktickServer(accessToken: String, snapshotRoot: String) {
         CallToolResult(content = listOf(TextContent(text)))
     }
 
-    System.err.println("[ticktick-mcp] ticktick MCP server ready on stdio (tools: list_projects, snapshot_week)")
+    server.addTool(
+        name = "review_week",
+        description = "Review a week's plan vs actual: load the snapshot named 'label' and check off each " +
+            "planned task by its current status — done (completed), not done (still open), or gone (no longer " +
+            "returned by the API — most likely completed-and-archived, possibly deleted). Run at the END of the " +
+            "week, after snapshot_week ran at its start.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "label",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Snapshot name to review — the same label passed to snapshot_week, e.g. \"2026-W29\".")
+                    },
+                )
+            },
+            required = listOf("label"),
+        ),
+    ) { request ->
+        val label = request.arguments?.get("label")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val text = when (label) {
+            null -> "Error: 'label' is required."
+            else -> runCatching { reports.reviewWeek(label) }
+                .getOrElse { "Error reviewing week '$label': ${it.message}" }
+        }
+        CallToolResult(content = listOf(TextContent(text)))
+    }
+
+    System.err.println(
+        "[ticktick-mcp] ticktick MCP server ready on stdio (tools: list_projects, snapshot_week, review_week)",
+    )
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),
         System.out.asSink().buffered(),

@@ -90,6 +90,58 @@ class TicktickReportsTest {
     }
     //endregion
 
+    //region review_week
+    @Test
+    fun `when planned tasks have mixed outcomes - then reviewWeek reports done not-done and gone`() = runTest {
+        // given — snapshot of 3 planned; t1 completed, t2 still open, t3 vanished (404)
+        val store = InMemorySnapshotStore()
+        store.write(
+            WeekSnapshot(
+                label = "2026-W29",
+                from = WEEK_FROM_MS,
+                to = WEEK_TO_MS,
+                planned = listOf(
+                    PlannedTask(id = "t1", projectId = "p1", title = "Ship release"),
+                    PlannedTask(id = "t2", projectId = "p1", title = "Write docs"),
+                    PlannedTask(id = "t3", projectId = "p2", title = "Review PRs"),
+                ),
+            ),
+        )
+        val api = FakeTicktickApi(
+            tasksById = mapOf(
+                "t1" to task(id = "t1", title = "Ship release", status = 2),
+                "t2" to task(id = "t2", title = "Write docs", status = 0),
+                "t3" to null,
+            ),
+        )
+
+        // when
+        val actual = TicktickReports(api, store).reviewWeek("2026-W29")
+
+        // then
+        assertTrue(
+            actual.startsWith("Week '2026-W29' review: 3 planned — 1 done, 1 not done, 1 gone."),
+            actual,
+        )
+        assertTrue("Ship release (t1)" in actual, actual)
+        assertTrue("Write docs (t2)" in actual, actual)
+        assertTrue("Review PRs (t3)" in actual, actual)
+    }
+
+    @Test
+    fun `when no snapshot for the label - then reviewWeek asks to snapshot first`() = runTest {
+        // given
+        val api = FakeTicktickApi()
+        val store = InMemorySnapshotStore()
+
+        // when
+        val actual = TicktickReports(api, store).reviewWeek("2026-W29")
+
+        // then
+        assertTrue("No snapshot '2026-W29'" in actual, actual)
+    }
+    //endregion
+
     private companion object {
         val WEEK_FROM_MS: Long = Instant.parse("2026-07-13T00:00:00Z").toEpochMilli()
         val WEEK_TO_MS: Long = Instant.parse("2026-07-20T00:00:00Z").toEpochMilli()
@@ -104,14 +156,16 @@ private fun task(
     completedTime: String? = null,
 ): TaskDto = TaskDto(id = id, title = title, dueDate = dueDate, status = status, completedTime = completedTime)
 
-/** In-memory [TicktickApi]: scripted projects and per-project undone tasks, no network. */
+/** In-memory [TicktickApi]: scripted projects, per-project undone tasks, and per-id task fetches (null = 404). */
 private class FakeTicktickApi(
     private val projects: List<ProjectDto> = emptyList(),
     private val dataByProject: Map<String, List<TaskDto>> = emptyMap(),
+    private val tasksById: Map<String, TaskDto?> = emptyMap(),
 ) : TicktickApi {
     override suspend fun projects(): List<ProjectDto> = projects
     override suspend fun projectData(projectId: String): ProjectDataDto =
         ProjectDataDto(tasks = dataByProject[projectId] ?: emptyList())
+    override suspend fun task(projectId: String, taskId: String): TaskDto? = tasksById[taskId]
 }
 
 /** In-memory [SnapshotStore]: label → snapshot map, no file I/O. */

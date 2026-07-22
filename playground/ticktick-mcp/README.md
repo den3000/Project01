@@ -37,6 +37,18 @@ export WEEK_TZ='Europe/Moscow'          # опц.: зона для дат диа
   `to` исключительно), чтобы `review_week` потом сверил «что сделано» (API не отдаёт выполненные).
   **Запускать в НАЧАЛЕ недели.** `label` (напр. `2026-W29`) именует снапшот; дефолт — `<from>_<to>`.
   Даты читаются в зоне `WEEK_TZ`.
+- **`review_week`** `{ "label": "2026-W29" }` → сверка план-vs-факт: по снапшоту `label` перезапрашивает
+  каждую задачу и раскладывает на **done** (`status 2`) / **not done** (`status 0`) / **gone** (404 —
+  скорее всего завершена-и-заархивирована, реже удалена). **Запускать в КОНЦЕ недели** (после
+  `snapshot_week` в начале). `GET /open/v1/project/{projectId}/task/{taskId}`.
+
+## Ограничение snapshot-diff (честно)
+
+Официальный API не отдаёт список выполненных, поэтому «сделано» вычисляется только по снапшоту:
+- задачи, **созданные и закрытые внутри недели** (не попавшие в снапшот начала недели), TickTick-частью
+  не видны — их закрывает вторая половина картины (реальное время из aTimeLogger);
+- **`gone` (404)** не отличает удалённую задачу от завершённо-заархивированной — помечаем как «likely done»;
+- нужен снимок в начале недели — задним числом неснятую неделю не разобрать.
 
 ## Раскладка
 
@@ -45,8 +57,8 @@ export WEEK_TZ='Europe/Moscow'          # опц.: зона для дат диа
 stdio-transport), `TicktickApi.kt` (порт-`interface` I/O) + `HttpTicktickApi.kt` (реальная реализация),
 `TicktickReports.kt` (логика/формат — **факты, модель не зовёт** + чистые `isPlannedInRange`/
 `parseTicktickInstantMillis`/`localDateToEpochMillis`), `SnapshotStore.kt` (порт персистентности
-`SnapshotStore` + `FileSnapshotStore` + модели `WeekSnapshot`/`PlannedTask`), `Dtos.kt` (wire-DTO,
-`ignoreUnknownKeys`).
+`SnapshotStore` + `FileSnapshotStore` + модели `WeekSnapshot`/`PlannedTask`), `WeekReview.kt` (чистые
+`Outcome`/`classifyOutcome`/`buildWeekReview`), `Dtos.kt` (wire-DTO, `ignoreUnknownKeys`).
 
 ## Запуск
 
@@ -63,8 +75,9 @@ LLM-CLI использует его для function calling:
 
 `./gradlew :playground:ticktick-mcp:test` — offline: логика `TicktickReports` на фейках порта и
 снапшот-стора (`TicktickReportsTest`), чистые функции диапазона/дат/формата (`TicktickWeekTest`:
-`isPlannedInRange`/`parseTicktickInstantMillis`/`formatSnapshot`). Живой путь сервера — прогоном бинаря
-с реальным токеном.
+`isPlannedInRange`/`parseTicktickInstantMillis`/`formatSnapshot`), классификация/отчёт
+(`WeekReviewTest`: `classifyOutcome`/`buildWeekReview`). Живой путь сервера — прогоном бинаря с реальным
+токеном.
 
 ## Грабли
 

@@ -11,4 +11,10 @@ internal interface TicktickApi {
 
     /** A project's **undone** tasks and columns (`GET /open/v1/project/{projectId}/data`). */
     suspend fun projectData(projectId: String): ProjectDataDto
+
+    /**
+     * One task by id (`GET /open/v1/project/{projectId}/task/{taskId}`), or null when it's gone
+     * (HTTP 404 — the task was completed-and-archived or deleted, so the API no longer returns it).
+     */
+    suspend fun task(projectId: String, taskId: String): TaskDto?
 }

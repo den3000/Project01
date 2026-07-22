@@ -47,6 +47,21 @@ internal class TicktickReports(
         store.write(snapshot)
         return formatSnapshot(snapshot)
     }
+
+    /**
+     * Reviews the plan snapshotted under [label]: refetches each planned task by id and classifies
+     * it done / not done / gone (see [classifyOutcome]), then renders the plan-vs-actual report.
+     * Run at the END of the week. A missing snapshot yields a hint to run [snapshotWeek] first.
+     */
+    suspend fun reviewWeek(label: String): String {
+        val snapshot = store.read(label)
+            ?: return "No snapshot '$label' — run snapshot_week for this week first."
+        val outcomes = mutableListOf<Pair<PlannedTask, Outcome>>()
+        for (planned in snapshot.planned) {
+            outcomes += planned to classifyOutcome(api.task(planned.projectId, planned.id))
+        }
+        return buildWeekReview(snapshot, outcomes)
+    }
 }
 
 /** One project as `id  name`. The id is what task tools address a project by. */
