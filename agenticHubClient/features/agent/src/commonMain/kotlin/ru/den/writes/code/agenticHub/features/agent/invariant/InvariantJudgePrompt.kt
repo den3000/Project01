@@ -26,8 +26,8 @@ internal object InvariantJudgePrompt {
 
     /** Per-call evidence budget — enough to ground a claim, not to reprint the payload. */
     private const val MAX_ARG_CHARS = 200
-    private const val MAX_ANSWER_CHARS = 600
-    private const val MAX_ANSWER_LINES = 8
+    private const val MAX_ANSWER_CHARS = 3000
+    private const val MAX_ANSWER_LINES = 40
 
     /**
      * Build the single USER turn that asks the judge to audit [input] against
@@ -115,6 +115,14 @@ internal object InvariantJudgePrompt {
      * (a whole ticket, a file dump) sails through. A ticket search answers one
      * line per hit, and clipping to the first line — the obvious cheap choice —
      * would leave the judge believing exactly one ticket matched.
+     *
+     * The line budget is generous (40) because a search over a project answers
+     * one `path:line` locator per hit, and the one a report leans on — the
+     * definition itself, not a mention — often sorts LAST. A tight cap dropped
+     * exactly that locator: a reply citing it read as ungrounded because the
+     * evidence proving it never reached the judge, and an honest turn was
+     * blocked. The judge grounds claims against this list, so the list has to
+     * carry every hit the search returned, not its head.
      *
      * Arguments are clipped too but never dropped: "searched for X" is only
      * grounded by a call that searched for X. What they are not is a payload

@@ -146,7 +146,7 @@ class JudgePromptRenderTest {
     @Test
     fun `when a tool answer exceeds the line cap - then the omission is stated`() {
         // given
-        val flood = (1..20).joinToString("\n") { "line $it" }
+        val flood = (1..60).joinToString("\n") { "line $it" }
         val input = JudgeInput("x", toolCalls = listOf(executed("list_tickets", flood)), rules = rules)
 
         // when
@@ -154,6 +154,26 @@ class JudgePromptRenderTest {
 
         // then — silence here would read as "the tool returned nothing more"
         assertTrue(actual.contains("line(s) omitted"), "the clip must announce itself")
+    }
+
+    @Test
+    fun `when a search returns many locators - then the last one still reaches the judge`() {
+        // given — a project search answers one path:line per hit, and the locator a
+        // report leans on (the definition) sorts last; a tight cap would drop it and
+        // the reply citing it would read as ungrounded.
+        val hits = (1..20).joinToString("\n") { "src/File$it.kt:$it: match $it" } +
+            "\nshared/Constants.kt:3: const val SERVER_PORT = 8080"
+        val input = JudgeInput(
+            assistantReply = "SERVER_PORT is defined at shared/Constants.kt:3.",
+            toolCalls = listOf(executed("search_project_files", hits)),
+            rules = rules,
+        )
+
+        // when
+        val actual = InvariantJudgePrompt.buildJudgePrompt(input)
+
+        // then — the very locator the reply cites must be present as evidence
+        assertTrue(actual.contains("shared/Constants.kt:3"), "the definition locator must survive the clip")
     }
 
     @Test
