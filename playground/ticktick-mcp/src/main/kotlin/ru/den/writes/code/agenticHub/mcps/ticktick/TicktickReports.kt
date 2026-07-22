@@ -25,6 +25,19 @@ internal class TicktickReports(
     }
 
     /**
+     * The week's plan as planned hours per activity: every scheduled (timed) task across all
+     * projects whose start falls in `[fromMs, toMs)`, its `dueDate − startDate` summed by title.
+     * The "plan" half of plan-vs-fact — line it up against aTimeLogger's actual time-by-activity.
+     */
+    suspend fun weekPlan(fromMs: Long, toMs: Long): String {
+        val tasks = mutableListOf<TaskDto>()
+        for (project in api.projects()) {
+            tasks += api.projectData(project.id).tasks
+        }
+        return formatWeekPlan(buildWeekPlan(tasks, fromMs, toMs))
+    }
+
+    /**
      * Snapshots the week's plan under [label]: every undone task across all projects whose dueDate
      * falls in the half-open window `[fromMs, toMs)`. The official API can't list completed tasks,
      * so this captured id set is what [reviewWeek] later checks off to detect what got done.

@@ -62,6 +62,43 @@ suspend fun runTicktickServer(accessToken: String, snapshotRoot: String) {
     }
 
     server.addTool(
+        name = "week_plan",
+        description = "The week's plan as planned hours per activity: sums the duration of every scheduled " +
+            "(timed) task in the range, grouped by title. Pair it with aTimeLogger's time_by_activity to " +
+            "compare plan vs actual. 'from' is the inclusive start date and 'to' the EXCLUSIVE end date (day " +
+            "after the last day), both YYYY-MM-DD. Dates are read in the WEEK_TZ zone.",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "from",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Inclusive start date, YYYY-MM-DD, e.g. \"2026-07-13\".")
+                    },
+                )
+                put(
+                    "to",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Exclusive end date — the day after the last day, YYYY-MM-DD, e.g. \"2026-07-20\".")
+                    },
+                )
+            },
+            required = listOf("from", "to"),
+        ),
+    ) { request ->
+        val from = request.arguments?.get("from")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val to = request.arguments?.get("to")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val text = when {
+            from == null || to == null -> "Error: 'from' and 'to' (YYYY-MM-DD) are required."
+            else -> runCatching {
+                reports.weekPlan(localDateToEpochMillis(from, zone), localDateToEpochMillis(to, zone))
+            }.getOrElse { "Error building week plan for $from..$to: ${it.message}" }
+        }
+        CallToolResult(content = listOf(TextContent(text)))
+    }
+
+    server.addTool(
         name = "snapshot_week",
         description = "Snapshot the plan for a week: save every undone task whose due date falls in " +
             "the range, so review_week can later tell what got done (the API can't list completed tasks). " +
@@ -139,7 +176,8 @@ suspend fun runTicktickServer(accessToken: String, snapshotRoot: String) {
     }
 
     System.err.println(
-        "[ticktick-mcp] ticktick MCP server ready on stdio (tools: list_projects, snapshot_week, review_week)",
+        "[ticktick-mcp] ticktick MCP server ready on stdio " +
+            "(tools: list_projects, week_plan, snapshot_week, review_week)",
     )
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),
