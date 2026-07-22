@@ -27,11 +27,10 @@ bash demo/project-fs/run-usage-report.sh
 | Обёртка | Что делает | Результат |
 |---|---|---|
 | `run-usage-report.sh` | карта сетевого слоя: где определяется адрес сервера, кто потребляет | новый `docs/usage-network.md` |
-| `run-invariants.sh` | сверяет инварианты из `AGENTS.md` с фактическим кодом | новый `docs/invariants-report.md` |
 | `run-adr.sh` | восстанавливает по коду решение о локальном хранении задач | новый `docs/adr-0001-local-persistence.md` |
 | `run-docs-from-diff.sh` | что изменилось в диапазоне веток и как это отразить в доках | **правка** существующих `.md`, видна как `git diff` |
 
-Первые три пишут новый файл, четвёртый правит существующие — это разные умения, и показывать стоит
+Первые два пишут новый файл, третий правит существующие — это разные умения, и показывать стоит
 оба. Порядок в таблице — от предсказуемого к исследовательскому: у `usage-report` ответ заведомо
 лежит в коде, у `adr` его надо вывести, а `docs-from-diff` вправе честно ответить «правки не нужны».
 
@@ -53,8 +52,8 @@ bash demo/project-fs/run-usage-report.sh
 
 | Профиль | Стадии | Сценарии |
 |---|---|---|
-| `fs-explorer` | `clarification..planning` | usage-report, invariants, adr |
-| `fs-reporter` | `execution..done` | usage-report, invariants, adr |
+| `fs-explorer` | `clarification..planning` | usage-report, adr |
+| `fs-reporter` | `execution..done` | usage-report, adr |
 | `fs-surveyor` | `clarification..planning` | docs-from-diff |
 | `fs-editor` | `execution..done` | docs-from-diff |
 

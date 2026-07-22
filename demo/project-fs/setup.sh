@@ -105,7 +105,7 @@ fi
 
 echo "[setup] заливаю профили..."
 
-# --- fs-explorer: разведка для сценариев usage-report / invariants / adr -------------
+# --- fs-explorer: разведка для сценариев usage-report / adr --------------------------
 "$CLI" -profile clear fs-explorer || true
 "$CLI" -profile fs-explorer style "Кратко, по-деловому, по-русски."
 "$CLI" -profile fs-explorer style "Не пересказывай то, что уже сказал в предыдущих репликах - продолжай с того места, где остановился."
@@ -132,7 +132,7 @@ echo "[setup] заливаю профили..."
 "$CLI" -profile fs-explorer context "Стадия planning - это не цель: как только общая карта исследования ясна и подтверждена пользователем (или предложено продолжать) - переходи в execution строкой [[stage:execution]]. Обычно хватает 1-2 ходов поиска. Гоняться за одним символом больше двух ходов - ошибка: недостающее пометишь 'не проверено' в отчёте. Отчёт пишется в execution, не здесь."
 "$CLI" -profile fs-explorer context "Когда стадия завершена - заканчивай ответ строкой [[stage:<next>]], выбирая одну из allowed-next стадий. Стадии идут строго по порядку: clarification, planning, execution, validation, done. Перепрыгнуть нельзя. Запрошенный через голову переход отклоняется, и ты увидишь строку '[task] model proposed ... not allowed' - увидел её, значит проси СЛЕДУЮЩУЮ по порядку стадию, а не ту же снова."
 
-# --- fs-reporter: запись отчёта для сценариев usage-report / invariants / adr --------
+# --- fs-reporter: запись отчёта для сценариев usage-report / adr ---------------------
 #
 # Ограничение про запись названо каталогом docs/, а не «файлом, названным в задаче»:
 # текста задачи судья не видит вовсе, и такую формулировку ему пришлось бы угадывать.
@@ -238,7 +238,6 @@ cat <<EOF
 
 Сценарии - от гарантированного к исследовательскому:
   bash demo/project-fs/run-usage-report.sh     карта сетевого слоя -> docs/usage-network.md
-  bash demo/project-fs/run-invariants.sh       проверка инвариантов -> docs/invariants-report.md
   bash demo/project-fs/run-adr.sh              решение о хранении -> docs/adr-0001-local-persistence.md
   bash demo/project-fs/run-docs-from-diff.sh   правка существующих доков по диапазону веток
 
