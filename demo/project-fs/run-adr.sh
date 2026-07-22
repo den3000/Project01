@@ -31,13 +31,18 @@ reset_task adr
 
 print_run_header "adr" "решение о локальном хранении -> docs/adr-0001-local-persistence.md"
 
+# fs-reporter держит только execution (запись файла), а НЕ execution..done. На validation
+# flash упорно коверкает глубокие пути в блоке '## Сделано' (слэши -> точки), а судья честно
+# снимает ход по ограничению «не называй путь, которого нет в вызовах» - и до done не доходит.
+# Отчёт пишется и заземляется судьёй на execution; validation/done идут на fallback без профиля:
+# constraints пусты, судья немой (hasInvariants=false, без вызова LLM), поток доходит до done.
 run_assistant \
   -prompt "Приступай: разберись, как в проекте устроено локальное хранение задач, и восстанови по коду принятое архитектурное решение." \
   -task adr \
   -rag "$RAG_NAME" \
   -agent provider gemini mode system \
   -agent fs-explorer provider gemini profile fs-explorer stages clarification..planning \
-  -agent fs-reporter provider gemini profile fs-reporter stages execution..done \
+  -agent fs-reporter provider gemini profile fs-reporter stages execution..execution \
   $JUDGE_ARG \
   -mcpServer "$PFS $CTT_REPO --write-ext=md"
 
