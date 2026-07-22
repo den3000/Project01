@@ -143,7 +143,7 @@ public class TurnEngine(
         // per-turn, not per-attempt, and stays out of it.
         var attemptContext = baseContext
         var attemptTurn = userTurn
-        var firstVerdict: InvariantVerdict? = null
+        val rejectedVerdicts = mutableListOf<InvariantVerdict>()
         var lastText = ""
         var totalUsage: Usage? = null
         var totalDuration = 0L
@@ -173,11 +173,11 @@ public class TurnEngine(
                 // A retry that fails on the wire must not cost the turn its first answer:
                 // fall back to blocking on what the judge already said, which is exactly
                 // the behaviour before retries existed.
-                val failedFirst = firstVerdict ?: return TurnResult.Failed(
-                    result.error ?: "empty response with no usage",
-                )
+                if (rejectedVerdicts.isEmpty()) {
+                    return TurnResult.Failed(result.error ?: "empty response with no usage")
+                }
                 return blockedTurn(
-                    lastText, agent, modelId, judge, failedFirst,
+                    lastText, agent, modelId, judge, rejectedVerdicts.toList(),
                     totalUsage, totalDuration, allToolCalls, retrieval,
                 )
             }
@@ -201,7 +201,7 @@ public class TurnEngine(
                     stageAdvance = advanceTaskStage(outcome.proposedStage),
                     judge = when {
                         judge == null -> JudgeOutcome.NotRun
-                        firstVerdict != null -> JudgeOutcome.Retried(firstVerdict)
+                        rejectedVerdicts.isNotEmpty() -> JudgeOutcome.Retried(rejectedVerdicts.toList())
                         else -> JudgeOutcome.Clean
                     },
                     judgeModelId = judge?.modelId,
@@ -210,9 +210,10 @@ public class TurnEngine(
                 )
             }
 
+            rejectedVerdicts += verdict
             if (attempt == MAX_JUDGE_ATTEMPTS - 1) {
                 return blockedTurn(
-                    text, agent, modelId, judge, verdict,
+                    text, agent, modelId, judge, rejectedVerdicts.toList(),
                     totalUsage, totalDuration, allToolCalls, retrieval,
                 )
             }
@@ -222,7 +223,6 @@ public class TurnEngine(
             // as SYSTEM would tear it away from the reply (providers lift SYSTEM into
             // their own slot), and replacing the user turn outright would delete the
             // question, which lives nowhere else until the turn is persisted.
-            firstVerdict = verdict
             attemptContext = attemptContext + attemptTurn + Message(
                 role = Role.ASSISTANT,
                 text = TaskStateMachine.stripStageSignal(text),
@@ -270,7 +270,7 @@ public class TurnEngine(
         agent: RoutedAgent,
         modelId: String,
         judge: RoutedJudge?,
-        verdict: InvariantVerdict,
+        rejected: List<InvariantVerdict>,
         usage: Usage?,
         durationMs: Long,
         toolCalls: List<ExecutedToolCall>,
@@ -283,7 +283,7 @@ public class TurnEngine(
         durationMs = durationMs,
         session = historyStore?.stats?.snapshot(),
         stageAdvance = advanceTaskStage(null),
-        judge = JudgeOutcome.Blocked(verdict),
+        judge = JudgeOutcome.Blocked(rejected),
         judgeModelId = judge?.modelId,
         executedToolCalls = toolCalls.toList(),
         retrieval = retrieval,
@@ -313,13 +313,15 @@ public class TurnEngine(
 }
 
 /**
- * Attempts a turn gets past the judge: the answer, then one rewrite.
+ * Attempts a turn gets past the judge: the first answer plus up to four rewrites.
  *
- * Two rather than more because a judge that rejected the same work twice is
- * unlikely to be talked round by a third pass, and every attempt is paid for in
- * tokens and latency the user is waiting through.
+ * More than a single rewrite because a flaky worker can miss the objection once
+ * and land it on the next pass — the extra tries are how a self-correcting model
+ * gets to a clean turn instead of a blocked one. Still capped, because every
+ * attempt is a worker call plus a judge call, billed and waited through, and a
+ * model that hasn't been talked round in five passes won't be by the sixth.
  */
-private const val MAX_JUDGE_ATTEMPTS = 2
+private const val MAX_JUDGE_ATTEMPTS = 5
 
 /**
  * The critique handed back to the agent — what was objected to, and what to do
@@ -349,9 +351,9 @@ private fun judgeFeedback(verdict: InvariantVerdict): String = buildString {
 }
 
 /**
- * Add up what two attempts cost. Both were really billed, and the turn counter
- * only ticks once, so the pair reads as "one exchange, the tokens of two calls".
- * Kept private rather than put on [Usage]: one caller, one meaning.
+ * Add up what the attempts cost. Every one was really billed, and the turn
+ * counter only ticks once, so the run reads as "one exchange, the tokens of the
+ * calls it took". Kept private rather than put on [Usage]: one caller, one meaning.
  */
 private infix fun Usage?.plus(other: Usage?): Usage? {
     if (this == null) return other

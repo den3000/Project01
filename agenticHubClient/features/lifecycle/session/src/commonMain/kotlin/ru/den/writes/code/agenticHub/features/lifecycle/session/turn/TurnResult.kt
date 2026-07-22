@@ -89,18 +89,18 @@ public sealed interface JudgeOutcome {
     public data object Clean : JudgeOutcome
 
     /**
-     * The first reply breached [first]; the agent was given the objections and
-     * its rewrite satisfied the judge. The turn stands on the rewrite — the
-     * objections are still shown, because the user is entitled to know the
-     * first answer was withdrawn.
+     * Earlier replies breached — [rejected] carries each rejected verdict in
+     * order — and the agent's rewrite finally satisfied the judge. The turn
+     * stands on the rewrite; the objections are still shown, because the user is
+     * entitled to know the earlier answers were withdrawn.
      */
-    public data class Retried(val first: InvariantVerdict) : JudgeOutcome
+    public data class Retried(val rejected: List<InvariantVerdict>) : JudgeOutcome
 
     /**
-     * Every attempt breached; [final] is the last verdict. The reply is shown
-     * but not persisted, and the task stage is held.
+     * Every attempt breached; [rejected] carries each verdict in order, newest
+     * last. The reply is shown but not persisted, and the task stage is held.
      */
-    public data class Blocked(val final: InvariantVerdict) : JudgeOutcome
+    public data class Blocked(val rejected: List<InvariantVerdict>) : JudgeOutcome
 }
 
 /**

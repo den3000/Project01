@@ -234,11 +234,11 @@ class AgentJudgeTest {
     }
 
     @Test
-    fun `when both attempts are flagged - then nothing persists and the stage is held`() = runTest {
+    fun `when every attempt is flagged - then nothing persists and the stage is held`() = runTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
             withTempMemoryRoot { root ->
-                // given — an unappeasable judge
+                // given — an unappeasable judge and enough scripted rewrites to spend the cap
                 val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
                     saveTask(TaskNotes("auth", stage = TaskStage.CLARIFICATION))
                     addRule("Kotlin only, no Spring")
@@ -247,6 +247,9 @@ class AgentJudgeTest {
                 val fakeScript = FakeLlmScript().apply {
                     queueText("Use Spring Boot.\n[[stage:planning]]")
                     queueText("Still Spring, sorry.")
+                    queueText("Spring again.")
+                    queueText("Cannot help it, Spring.")
+                    queueText("Spring, final answer.")
                 }
                 val fake = scriptedApi(fakeScript)
                 val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
@@ -260,10 +263,10 @@ class AgentJudgeTest {
                     routedJudges = listOf(violatingJudge),
                 )
 
-                // then — two attempts, then the pre-retry behaviour: dropped and held
-                assertEquals(2, fakeScript.calls.size)
+                // then — the first answer plus four rewrites are spent, then dropped and held
+                assertEquals(5, fakeScript.calls.size, "the worker answers once, then is rewritten to the cap")
                 assertEquals(TaskStage.CLARIFICATION, memStore.loadTask("auth")?.stage)
-                assertTrue(store.messages.isEmpty(), "a twice-flagged turn must not be persisted")
+                assertTrue(store.messages.isEmpty(), "a turn flagged on every attempt must not be persisted")
             }
         }
     }
