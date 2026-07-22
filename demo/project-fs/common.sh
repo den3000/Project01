@@ -14,7 +14,6 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DEMO_DIR="$REPO_ROOT/demo/project-fs"
 CLI="$REPO_ROOT/agenticHubClient/apps/cliJvmApp/build/install/cliJvmApp/bin/cliJvmApp"
 PFS="$REPO_ROOT/playground/projectfs-mcp/build/install/projectfs-mcp/bin/projectfs-mcp"
-GIT_MCP="$REPO_ROOT/playground/git-mcp/build/install/git-mcp/bin/git-mcp"
 TASKS="$HOME/.project01-cli/memory/tasks"
 
 # Стейджинг RAG-корпуса: копия только тех файлов целевого репозитория, что описывают
@@ -89,7 +88,7 @@ EOF
 # из них разваливает команду ровно так же, как пробел в корне проекта.
 require_built() {
   local binary
-  for binary in "$CLI" "$PFS" "$GIT_MCP"; do
+  for binary in "$CLI" "$PFS"; do
     require_no_spaces "$binary"
     if [ ! -x "$binary" ]; then
       echo "ОШИБКА: не собран '$binary'. Запусти сначала: bash demo/project-fs/setup.sh" >&2
@@ -151,23 +150,11 @@ reset_workspace() {
   done
 }
 
-# База для git-mcp: точка ветвления, относительно которой считается диапазон.
-resolve_base() {
-  local candidate
-  for candidate in main master; do
-    if git -C "$CTT_REPO" show-ref --verify --quiet "refs/heads/$candidate"; then
-      echo "$candidate"
-      return
-    fi
-  done
-  echo ""
-}
-
 # Судья - второй агент, проверяющий каждый ход на инварианты. JUDGE=0 выключает его.
 #
 # Диапазон clarification..done, то есть весь разговор. Мерило судьи - это `constraints`
 # профиля ОТВЕТИВШЕГО агента, а агент выбирается по стадии, поэтому фазирование судьи
-# делается нарезкой профилей (fs-explorer/fs-reporter и fs-surveyor/fs-editor), а не
+# делается нарезкой профилей (fs-explorer на разведке, fs-reporter на записи), а не
 # сужением его диапазона. Прежняя попытка обойтись одним профилем на весь разговор
 # требовала как раз сужения - и это лечило симптом: с одним мерилом ограничения фазы
 # записи применялись к первой реплике.
