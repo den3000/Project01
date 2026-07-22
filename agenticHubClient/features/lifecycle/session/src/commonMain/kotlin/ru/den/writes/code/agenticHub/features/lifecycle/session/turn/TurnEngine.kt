@@ -104,6 +104,23 @@ public class TurnEngine(
         routedJudges.firstOrNull { stage in it.binding }
 
     /**
+     * A stage move the engine rejected on the previous turn, held so the NEXT
+     * turn can tell the model its signal was refused and the stage stayed put.
+     * The rejection is otherwise invisible to the model — the engine holds the
+     * stage silently and only the view sees [StageAdvance.Rejected] — so without
+     * this the model re-sends the same illegal skip every turn and the task
+     * never advances (the observed `planning → done` loop).
+     *
+     * Deliberately ephemeral (mutable state, like [toolCallLog], not persisted):
+     * surfaced once then cleared. It must not reach [historyStore] — a SYSTEM
+     * note there would be re-concatenated into the provider's system slot every
+     * turn and go stale the moment the stage actually changed; a USER note there
+     * would sit two-USER-deep against the next `продолжай`. Safe as a bare var:
+     * turns are serialized (`SessionViewModel.drive` runs them one at a time).
+     */
+    private var pendingStageRejection: StageAdvance.Rejected? = null
+
+    /**
      * Run one turn for [prompt]. Builds «memory layer + planned history +
      * user turn», calls the routed agent, persists both sides on success,
      * applies any legal task-stage move, and returns an immutable [TurnResult].
@@ -127,7 +144,14 @@ public class TurnEngine(
         val active = ragControl?.active
         val retrieval = active?.retriever?.retrieve(prompt, active.topK).orEmpty()
         val ragContext = if (retrieval.isEmpty()) emptyList() else listOf(ragChunksToContextMessage(retrieval))
-        val baseContext = ragContext + (historyStore?.let { strategy.planContext(it.messages) } ?: emptyList())
+        // A stage move rejected on the previous turn is surfaced to the model HERE, as an
+        // ephemeral SYSTEM line at the top of this turn's context — consumed once and
+        // cleared (see [pendingStageRejection]). Above rag + history so it lands right
+        // under the memory layer in the provider's system slot.
+        val stageFeedback = pendingStageRejection?.let { listOf(stageRejectionMessage(it)) }.orEmpty()
+        pendingStageRejection = null
+        val baseContext =
+            stageFeedback + ragContext + (historyStore?.let { strategy.planContext(it.messages) } ?: emptyList())
         // Memory layer (profile / rules / current task) sits ABOVE the history
         // tail so it stays stable across turns. Empty when no MemoryProvider —
         // byte-identical to the no-memory path.
@@ -143,7 +167,7 @@ public class TurnEngine(
         // per-turn, not per-attempt, and stays out of it.
         var attemptContext = baseContext
         var attemptTurn = userTurn
-        var firstVerdict: InvariantVerdict? = null
+        val rejectedVerdicts = mutableListOf<InvariantVerdict>()
         var lastText = ""
         var totalUsage: Usage? = null
         var totalDuration = 0L
@@ -173,11 +197,11 @@ public class TurnEngine(
                 // A retry that fails on the wire must not cost the turn its first answer:
                 // fall back to blocking on what the judge already said, which is exactly
                 // the behaviour before retries existed.
-                val failedFirst = firstVerdict ?: return TurnResult.Failed(
-                    result.error ?: "empty response with no usage",
-                )
+                if (rejectedVerdicts.isEmpty()) {
+                    return TurnResult.Failed(result.error ?: "empty response with no usage")
+                }
                 return blockedTurn(
-                    lastText, agent, modelId, judge, failedFirst,
+                    lastText, agent, modelId, judge, rejectedVerdicts.toList(),
                     totalUsage, totalDuration, allToolCalls, retrieval,
                 )
             }
@@ -191,6 +215,11 @@ public class TurnEngine(
                     usage = totalUsage,
                     modelId = modelId,
                 )
+                // Re-arm the pending rejection so the next turn can surface it to the model
+                // (see [pendingStageRejection]). Any prior value was already consumed at the
+                // top of this turn; only a fresh rejection here sets it again.
+                val advance = advanceTaskStage(outcome.proposedStage)
+                if (advance is StageAdvance.Rejected) pendingStageRejection = advance
                 return TurnResult.Ok(
                     reply = text,
                     modelId = modelId,
@@ -198,10 +227,10 @@ public class TurnEngine(
                     usage = totalUsage,
                     durationMs = totalDuration,
                     session = historyStore?.stats?.snapshot(),
-                    stageAdvance = advanceTaskStage(outcome.proposedStage),
+                    stageAdvance = advance,
                     judge = when {
                         judge == null -> JudgeOutcome.NotRun
-                        firstVerdict != null -> JudgeOutcome.Retried(firstVerdict)
+                        rejectedVerdicts.isNotEmpty() -> JudgeOutcome.Retried(rejectedVerdicts.toList())
                         else -> JudgeOutcome.Clean
                     },
                     judgeModelId = judge?.modelId,
@@ -210,9 +239,10 @@ public class TurnEngine(
                 )
             }
 
+            rejectedVerdicts += verdict
             if (attempt == MAX_JUDGE_ATTEMPTS - 1) {
                 return blockedTurn(
-                    text, agent, modelId, judge, verdict,
+                    text, agent, modelId, judge, rejectedVerdicts.toList(),
                     totalUsage, totalDuration, allToolCalls, retrieval,
                 )
             }
@@ -222,7 +252,6 @@ public class TurnEngine(
             // as SYSTEM would tear it away from the reply (providers lift SYSTEM into
             // their own slot), and replacing the user turn outright would delete the
             // question, which lives nowhere else until the turn is persisted.
-            firstVerdict = verdict
             attemptContext = attemptContext + attemptTurn + Message(
                 role = Role.ASSISTANT,
                 text = TaskStateMachine.stripStageSignal(text),
@@ -270,7 +299,7 @@ public class TurnEngine(
         agent: RoutedAgent,
         modelId: String,
         judge: RoutedJudge?,
-        verdict: InvariantVerdict,
+        rejected: List<InvariantVerdict>,
         usage: Usage?,
         durationMs: Long,
         toolCalls: List<ExecutedToolCall>,
@@ -283,7 +312,7 @@ public class TurnEngine(
         durationMs = durationMs,
         session = historyStore?.stats?.snapshot(),
         stageAdvance = advanceTaskStage(null),
-        judge = JudgeOutcome.Blocked(verdict),
+        judge = JudgeOutcome.Blocked(rejected),
         judgeModelId = judge?.modelId,
         executedToolCalls = toolCalls.toList(),
         retrieval = retrieval,
@@ -313,13 +342,15 @@ public class TurnEngine(
 }
 
 /**
- * Attempts a turn gets past the judge: the answer, then one rewrite.
+ * Attempts a turn gets past the judge: the first answer plus up to four rewrites.
  *
- * Two rather than more because a judge that rejected the same work twice is
- * unlikely to be talked round by a third pass, and every attempt is paid for in
- * tokens and latency the user is waiting through.
+ * More than a single rewrite because a flaky worker can miss the objection once
+ * and land it on the next pass — the extra tries are how a self-correcting model
+ * gets to a clean turn instead of a blocked one. Still capped, because every
+ * attempt is a worker call plus a judge call, billed and waited through, and a
+ * model that hasn't been talked round in five passes won't be by the sixth.
  */
-private const val MAX_JUDGE_ATTEMPTS = 2
+private const val MAX_JUDGE_ATTEMPTS = 5
 
 /**
  * The critique handed back to the agent — what was objected to, and what to do
@@ -349,9 +380,33 @@ private fun judgeFeedback(verdict: InvariantVerdict): String = buildString {
 }
 
 /**
- * Add up what two attempts cost. Both were really billed, and the turn counter
- * only ticks once, so the pair reads as "one exchange, the tokens of two calls".
- * Kept private rather than put on [Usage]: one caller, one meaning.
+ * The SYSTEM line shown to the model on the turn AFTER it proposed an illegal
+ * stage move. English, like every other system-slot line (`judgeFeedback`,
+ * `TaskStage.expectedAction`, the `MemoryLayer` headings).
+ *
+ * Addressed to the exact mistake — names [StageAdvance.Rejected.from] /
+ * [StageAdvance.Rejected.proposed] / [StageAdvance.Rejected.allowed] verbatim —
+ * because the always-present static «Allowed next» line already failed to hold
+ * flash; a direct «your last move was refused, here is the only way forward»
+ * is the stronger nudge.
+ */
+private fun stageRejectionMessage(rejected: StageAdvance.Rejected): Message {
+    val from = rejected.from?.keyword ?: "(none)"
+    val allowed = rejected.allowed.joinToString(", ") { it.keyword }
+    return Message(
+        role = Role.SYSTEM,
+        text = "[fsm] Your previous reply asked to move $from → ${rejected.proposed.keyword}, which is not " +
+            "allowed: stages advance one at a time and cannot be skipped. The stage did NOT change — you " +
+            "are still in $from. To move on, end a reply with a [[stage:<next>]] line choosing one of: " +
+            "$allowed. Do not ask for ${rejected.proposed.keyword} again from here. If this stage's work " +
+            "is not finished yet, finish it this turn before signalling a move.",
+    )
+}
+
+/**
+ * Add up what the attempts cost. Every one was really billed, and the turn
+ * counter only ticks once, so the run reads as "one exchange, the tokens of the
+ * calls it took". Kept private rather than put on [Usage]: one caller, one meaning.
  */
 private infix fun Usage?.plus(other: Usage?): Usage? {
     if (this == null) return other

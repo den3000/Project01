@@ -237,21 +237,28 @@ public fun mcpToolLines(calls: List<ExecutedToolCall>, modelId: String): List<St
  * stage.
  */
 public fun judgeLines(outcome: JudgeOutcome): List<String> {
-    val (violations, trailer) = when (outcome) {
+    val (rejected, trailer) = when (outcome) {
         JudgeOutcome.NotRun -> return emptyList()
         JudgeOutcome.Clean -> return listOf("[invariant] clean — no objection to this turn")
         // Says whose text the objections are about. Without that the block reads as a
         // complaint against the reply on screen — which it is not, that one passed — and
         // the objections look wrong, because they quote a version that was withdrawn.
         is JudgeOutcome.Retried ->
-            outcome.first.violations to
-                "[invariant] objections above are about the WITHDRAWN first reply; " +
+            outcome.rejected to
+                "[invariant] objections above are about WITHDRAWN earlier replies; " +
                 "the answer shown is the agent's rewrite, which passed"
         is JudgeOutcome.Blocked ->
-            outcome.final.violations to "[invariant] reply not saved to history; task stage held"
+            outcome.rejected to "[invariant] reply not saved to history; task stage held"
     }
-    if (violations.isEmpty()) return emptyList()
-    return violations.map { "[invariant] violated ${it.ruleId ?: "constraint"}: ${it.explanation}" } + trailer
+    if (rejected.isEmpty()) return emptyList()
+    // Number the attempts only when there is more than one, so a single-rewrite turn
+    // reads exactly as before and a five-attempt block shows how each pass fared.
+    val numbered = rejected.size > 1
+    val objections = rejected.flatMapIndexed { index, verdict ->
+        val label = if (numbered) "attempt ${index + 1} " else ""
+        verdict.violations.map { "[invariant] ${label}violated ${it.ruleId ?: "constraint"}: ${it.explanation}" }
+    }
+    return objections + trailer
 }
 
 /**

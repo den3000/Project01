@@ -36,6 +36,7 @@ import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -161,6 +162,65 @@ class TurnEngineTest {
                 assertEquals(TaskStage.PLANNING, advance.from)
                 assertEquals(TaskStage.DONE, advance.proposed)
                 assertEquals(TaskStage.PLANNING, memStore.loadTask("t")?.stage)
+            }
+        }
+    }
+
+    @Test
+    fun `when a rejected stage move precedes a turn - then the next turn's wire carries the FSM signal once`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — PLANNING → DONE is rejected, so the first turn arms the feedback
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fakeScript = FakeLlmScript().apply {
+                    queueText("skip ahead [[stage:done]]")
+                    queueText("still working")
+                    queueText("more work")
+                }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
+                val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory)
+
+                // when
+                engine.turn("go")
+                engine.turn("go")
+                engine.turn("go")
+
+                // then
+                val signal = fakeScript.calls[1].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm]" in it.text }
+                assertNotNull(signal)
+                assertTrue("planning" in signal.text)
+                assertTrue("done" in signal.text)
+                assertTrue("execution" in signal.text)
+                assertTrue(fakeScript.calls[2].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
+            }
+        }
+    }
+
+    @Test
+    fun `when a legal stage move precedes a turn - then no FSM signal is injected`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — PLANNING → EXECUTION is legal, so nothing is armed
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.PLANNING)) }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fakeScript = FakeLlmScript().apply {
+                    queueText("plan ready [[stage:execution]]")
+                    queueText("executing")
+                }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
+                val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory)
+
+                // when
+                engine.turn("go")
+                engine.turn("go")
+
+                // then
+                assertTrue(fakeScript.calls[1].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
             }
         }
     }

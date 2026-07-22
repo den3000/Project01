@@ -10,11 +10,21 @@ package ru.den.writes.code.agenticHub.features.agent
  * blocks turn after turn. The question it must answer is "was this ever
  * established in this session", and only a session-wide list answers it.
  *
- * [capacity] bounds the prompt. The default fits the worst single turn whole —
+ * [capacity] bounds the prompt. The floor is the worst single turn whole —
  * `AgentResponder.MAX_TOOL_ROUNDS` calls per attempt, two attempts when a turn is
  * retried after a breach — so the most recent turn is never partially visible,
  * which would be worse than not seeing it at all: a half-listed turn reads as a
  * step that was never taken.
+ *
+ * The default sits well above that floor because the floor alone only covers a
+ * conversation whose claims are grounded by the turn that made them. Work that
+ * spans stages is not: a caller that searches the file tree while planning and
+ * reports what it found while validating is grounded only for as long as the
+ * search itself is still in the window. An assistant working over a project
+ * reaches a dozen calls inside one stage, so at the floor the write that created
+ * a report is already evicted by the time the report is restated — and the judge
+ * then reads a file that genuinely exists as invented, blocking an honest turn
+ * whose side effects have long been applied.
  *
  * Not derived from the history store: the tool exchange is deliberately ephemeral
  * and never persisted (see `AgentResponder`), so there is nothing there to derive
@@ -47,6 +57,6 @@ class ToolCallLog(private val capacity: Int = DEFAULT_CAPACITY) {
     }
 
     private companion object {
-        const val DEFAULT_CAPACITY = 12
+        const val DEFAULT_CAPACITY = 40
     }
 }

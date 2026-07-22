@@ -38,7 +38,9 @@ iOS-bundle-id остались на `project01` (это идентификато
 - **playground**: [cliTui](playground/cliTui/README.md) ·
   [openmeteo-mcp](playground/openmeteo-mcp/README.md) · [localfs-mcp](playground/localfs-mcp/README.md) ·
   [git-mcp](playground/git-mcp/README.md) · [support-mcp](playground/support-mcp/README.md)
+- **playground**: [projectfs-mcp](playground/projectfs-mcp/README.md) — файловые инструменты по дереву проекта (read-write, 5 штук; инфикс `_project_` — против коллизии имён с git-mcp, роутер падает на дубле на старте)
 - **demo**: [ctt-support](demo/ctt-support/README.md) — ассистент поддержки CTT (роли гость/клиент/разработчик, FSM+судья, RAG доки+код, тикеты через support-mcp)
+- **demo**: [project-fs](demo/project-fs/README.md) — ассистент по файлам чужого проекта (2 сценария: usage-report/adr; профили fs-explorer/fs-reporter нарезаны по фазам = так настраивается судья, projectfs-mcp, глобальных правил ноль)
 - **[scheduling](scheduling/README.md)** — ядро планировщика.
 - **testUtils** (`agenticHubClient/testUtils`) — кросс-каттинг тест-утилиты (`@IgnoreIos` — expect/actual,
   на iOS = `kotlin.test.Ignore`; JVM/Android — no-op), `commonTest`-зависимость. Фейки тут НЕ живут.
