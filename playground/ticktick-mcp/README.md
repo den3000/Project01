@@ -21,7 +21,10 @@ export WEEK_TZ='Europe/Moscow'          # опц.: зона для дат диа
 ```
 
 Токен добывается разово по OAuth2 authorization-code flow:
-1. Зарегистрировать приложение в TickTick Developer Center → `client_id` / `client_secret`.
+1. Зарегистрировать приложение в TickTick Developer Center → `client_id` / `client_secret`; **обязательно
+   вписать и сохранить OAuth redirect URL** (напр. `http://localhost:8000/callback`) — иначе authorize вернёт
+   `invalid_request: At least one redirect_uri must be registered`. `redirect_uri` в шагах 2-3 должен
+   совпадать с ним буквально.
 2. Открыть `https://ticktick.com/oauth/authorize?client_id=...&scope=tasks:read&state=x&redirect_uri=...&response_type=code`,
    подтвердить, забрать `code` из redirect.
 3. Обменять `code` на токен: `POST https://ticktick.com/oauth/token`
@@ -63,7 +66,8 @@ stdio-transport), `TicktickApi.kt` (порт-`interface` I/O) + `HttpTicktickApi
 `TicktickReports.kt` (логика/формат — **факты, модель не зовёт** + чистые `isPlannedInRange`/
 `parseTicktickInstantMillis`/`localDateToEpochMillis`), `SnapshotStore.kt` (порт персистентности
 `SnapshotStore` + `FileSnapshotStore` + модели `WeekSnapshot`/`PlannedTask`), `WeekReview.kt` (чистые
-`Outcome`/`classifyOutcome`/`buildWeekReview`), `Dtos.kt` (wire-DTO, `ignoreUnknownKeys`).
+`Outcome`/`classifyOutcome`/`buildWeekReview`), `WeekPlan.kt` (чистые
+`buildWeekPlan`/`plannedMinutes`/`formatWeekPlan`), `Dtos.kt` (wire-DTO, `ignoreUnknownKeys`).
 
 ## Запуск
 
@@ -81,13 +85,19 @@ LLM-CLI использует его для function calling:
 `./gradlew :playground:ticktick-mcp:test` — offline: логика `TicktickReports` на фейках порта и
 снапшот-стора (`TicktickReportsTest`), чистые функции диапазона/дат/формата (`TicktickWeekTest`:
 `isPlannedInRange`/`parseTicktickInstantMillis`/`formatSnapshot`), классификация/отчёт
-(`WeekReviewTest`: `classifyOutcome`/`buildWeekReview`). Живой путь сервера — прогоном бинаря с реальным
-токеном.
+(`WeekReviewTest`: `classifyOutcome`/`buildWeekReview`), план по тайм-блокам
+(`WeekPlanTest`: `buildWeekPlan`/`plannedMinutes`/`formatWeekPlan`). Живой путь сервера — прогоном бинаря
+с реальным токеном.
 
 ## Грабли
 
 - **`addTool`-handler — extension-лямбда `ClientConnection.(CallToolRequest)`**: ОДИН параметр +
   receiver. Lifecycle — `Server.createSession(transport)` + `onClose`-latch (`done.join()`).
 - **Официальный Open API отдаёт только незавершённые задачи** и не умеет ни списка выполненных, ни
-  фильтра по датам, ни тегов — «что сделано» детектируется снапшотом (см. следующие инструменты).
+  фильтра по датам, ни тегов — `snapshot_week`/`review_week` обходят это снапшотом; `week_plan` работает по
+  незавершённым тайм-блокам (их не отмечают done, поэтому они остаются в `/data`).
+- **`/open/v1/project` не отдаёт Inbox** и **не разворачивает повторяющиеся (RRULE)** — возвращает
+  родительскую задачу с исходной датой, а не инстансы недели. Тайм-блоки плана заводи отдельными задачами.
+- **Синхронизация не мгновенна:** только что добавленные в приложении задачи появляются в API с задержкой
+  (секунды-минуты) — если `week_plan` пуст сразу после правок, подожди и повтори.
 - Требования: JDK 11+; сеть к api.ticktick.com; валидный `TICKTICK_ACCESS_TOKEN` в env.
