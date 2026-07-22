@@ -8,4 +8,7 @@ package ru.den.writes.code.agenticHub.mcps.atimelogger
 internal interface AtimeloggerApi {
     /** All activity types defined for the account (`GET /types`). */
     suspend fun types(): List<ActivityTypeDto>
+
+    /** Tracked intervals overlapping the half-open window `[fromSec, toSec)`, unix seconds (`GET /intervals`). */
+    suspend fun intervals(fromSec: Long, toSec: Long): List<IntervalDto>
 }

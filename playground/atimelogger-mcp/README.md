@@ -16,6 +16,7 @@ API aTimeLogger v2 (`https://app.atimelogger.com/api/v2`) — авторизац
 ```bash
 export ATIMELOGGER_USERNAME='...'   # логин аккаунта aTimeLogger
 export ATIMELOGGER_PASSWORD='...'   # пароль аккаунта
+export WEEK_TZ='Europe/Moscow'      # опц.: зона для дат диапазона (дефолт — зона сервера)
 ```
 
 Заголовок собирается один раз в `defaultRequest` клиента (`basicAuthHeader`); значение пароля никуда не
@@ -25,6 +26,11 @@ export ATIMELOGGER_PASSWORD='...'   # пароль аккаунта
 
 - **`list_activity_types`** `{}` → типы активностей аккаунта (имя, и цвет когда задан), по строке на тип.
   `GET /types`. Нужен, чтобы знать имена категорий, против которых считается время.
+- **`time_by_activity`** `{ "from": "YYYY-MM-DD", "to": "YYYY-MM-DD" }` → суммарное время по типам за диапазон
+  (сортировка по времени + итог). `GET /intervals`. `from` — включительно, `to` — **исключительно** (день
+  ПОСЛЕ последнего). Полуоткрытый `[from, to)`; интервалы клипаются к окну (пограничный — только его часть в
+  окне). Даты читаются в зоне `WEEK_TZ`. Один запрос до 2000 интервалов (недели хватает с запасом; переполнение
+  — предупреждение в stderr).
 
 ## Раскладка
 
@@ -47,8 +53,10 @@ LLM-CLI использует его для function calling:
 
 ## Тесты
 
-`./gradlew :playground:atimelogger-mcp:test` — offline: логика/формат `AtimeloggerReports` на фейке
-порта, `basicAuthHeader`. Живой путь сервера — прогоном бинаря с реальными кредами.
+`./gradlew :playground:atimelogger-mcp:test` — offline: логика `AtimeloggerReports` на фейке порта
+(`AtimeloggerReportsTest`), чистые функции агрегации/формата/дат (`AtimeloggerFormatTest`:
+`aggregateByActivity`/`formatDuration`/`formatTimeByActivity`/`localDateToEpochSeconds`), `basicAuthHeader`
+(`AtimeloggerAuthTest`). Живой путь сервера — прогоном бинаря с реальными кредами.
 
 ## Грабли
 

@@ -21,14 +21,22 @@ import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import java.time.ZoneId
 
 /**
  * Runs the atimelogger MCP server over stdio. Authenticates to the aTimeLogger v2 API with HTTP
- * Basic ([username]/[password]) installed once on the client's `defaultRequest`. stdout is the
+ * Basic ([username]/[password]) installed once on the client's `defaultRequest`. Date-range
+ * tools interpret dates in the `WEEK_TZ` time zone (default: the server's zone). stdout is the
  * JSON-RPC channel — every diagnostic goes to stderr so it can't corrupt the protocol stream.
  * Blocks until the client disconnects (stdin closes).
  */
 suspend fun runAtimeloggerServer(username: String, password: String) {
+    val zone = System.getenv("WEEK_TZ")?.takeIf { it.isNotBlank() }
+        ?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+        ?: ZoneId.systemDefault()
+
     val http = HttpClient(Java) {
         install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
         defaultRequest { header(HttpHeaders.Authorization, basicAuthHeader(username, password)) }
@@ -53,7 +61,45 @@ suspend fun runAtimeloggerServer(username: String, password: String) {
         CallToolResult(content = listOf(TextContent(text)))
     }
 
-    System.err.println("[atimelogger-mcp] atimelogger MCP server ready on stdio (tools: list_activity_types)")
+    server.addTool(
+        name = "time_by_activity",
+        description = "Total time tracked per activity type over a date range (e.g. one week), sorted by " +
+            "time with a total. 'from' is the inclusive start date and 'to' is the EXCLUSIVE end date (the " +
+            "day after the last day), both YYYY-MM-DD. Dates are read in the WEEK_TZ zone (default: server zone).",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "from",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Inclusive start date, YYYY-MM-DD, e.g. \"2026-07-13\".")
+                    },
+                )
+                put(
+                    "to",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Exclusive end date — the day after the last day, YYYY-MM-DD, e.g. \"2026-07-20\".")
+                    },
+                )
+            },
+            required = listOf("from", "to"),
+        ),
+    ) { request ->
+        val from = request.arguments?.get("from")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val to = request.arguments?.get("to")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val text = when {
+            from == null || to == null -> "Error: 'from' and 'to' (YYYY-MM-DD) are required."
+            else -> runCatching {
+                reports.timeByActivity(localDateToEpochSeconds(from, zone), localDateToEpochSeconds(to, zone))
+            }.getOrElse { "Error fetching time by activity for $from..$to: ${it.message}" }
+        }
+        CallToolResult(content = listOf(TextContent(text)))
+    }
+
+    System.err.println(
+        "[atimelogger-mcp] atimelogger MCP server ready on stdio (tools: list_activity_types, time_by_activity)",
+    )
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),
         System.out.asSink().buffered(),
