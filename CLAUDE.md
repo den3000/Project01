@@ -37,8 +37,10 @@ iOS-bundle-id остались на `project01` (это идентификато
   [desktopApp](agenticHubClient/apps/desktopApp/README.md) · iosApp (Xcode-проект)
 - **playground**: [cliTui](playground/cliTui/README.md) ·
   [openmeteo-mcp](playground/openmeteo-mcp/README.md) · [localfs-mcp](playground/localfs-mcp/README.md) ·
-  [git-mcp](playground/git-mcp/README.md) · [support-mcp](playground/support-mcp/README.md)
+  [git-mcp](playground/git-mcp/README.md) · [support-mcp](playground/support-mcp/README.md) ·
+  [atimelogger-mcp](playground/atimelogger-mcp/README.md) · [ticktick-mcp](playground/ticktick-mcp/README.md)
 - **demo**: [ctt-support](demo/ctt-support/README.md) — ассистент поддержки CTT (роли гость/клиент/разработчик, FSM+судья, RAG доки+код, тикеты через support-mcp)
+- **demo**: [weekly-review](demo/weekly-review/README.md) — недельный разбор продуктивности: 2 MCP (atimelogger время + ticktick план/факт) + агент cliJvmApp → рекомендации; «что сделано» через snapshot-diff (официальный API не отдаёт выполненные)
 - **[scheduling](scheduling/README.md)** — ядро планировщика.
 - **testUtils** (`agenticHubClient/testUtils`) — кросс-каттинг тест-утилиты (`@IgnoreIos` — expect/actual,
   на iOS = `kotlin.test.Ignore`; JVM/Android — no-op), `commonTest`-зависимость. Фейки тут НЕ живут.
