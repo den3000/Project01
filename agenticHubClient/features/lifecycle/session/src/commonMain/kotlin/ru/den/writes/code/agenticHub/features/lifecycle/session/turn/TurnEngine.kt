@@ -104,6 +104,23 @@ public class TurnEngine(
         routedJudges.firstOrNull { stage in it.binding }
 
     /**
+     * A stage move the engine rejected on the previous turn, held so the NEXT
+     * turn can tell the model its signal was refused and the stage stayed put.
+     * The rejection is otherwise invisible to the model — the engine holds the
+     * stage silently and only the view sees [StageAdvance.Rejected] — so without
+     * this the model re-sends the same illegal skip every turn and the task
+     * never advances (the observed `planning → done` loop).
+     *
+     * Deliberately ephemeral (mutable state, like [toolCallLog], not persisted):
+     * surfaced once then cleared. It must not reach [historyStore] — a SYSTEM
+     * note there would be re-concatenated into the provider's system slot every
+     * turn and go stale the moment the stage actually changed; a USER note there
+     * would sit two-USER-deep against the next `продолжай`. Safe as a bare var:
+     * turns are serialized (`SessionViewModel.drive` runs them one at a time).
+     */
+    private var pendingStageRejection: StageAdvance.Rejected? = null
+
+    /**
      * Run one turn for [prompt]. Builds «memory layer + planned history +
      * user turn», calls the routed agent, persists both sides on success,
      * applies any legal task-stage move, and returns an immutable [TurnResult].
@@ -127,7 +144,14 @@ public class TurnEngine(
         val active = ragControl?.active
         val retrieval = active?.retriever?.retrieve(prompt, active.topK).orEmpty()
         val ragContext = if (retrieval.isEmpty()) emptyList() else listOf(ragChunksToContextMessage(retrieval))
-        val baseContext = ragContext + (historyStore?.let { strategy.planContext(it.messages) } ?: emptyList())
+        // A stage move rejected on the previous turn is surfaced to the model HERE, as an
+        // ephemeral SYSTEM line at the top of this turn's context — consumed once and
+        // cleared (see [pendingStageRejection]). Above rag + history so it lands right
+        // under the memory layer in the provider's system slot.
+        val stageFeedback = pendingStageRejection?.let { listOf(stageRejectionMessage(it)) }.orEmpty()
+        pendingStageRejection = null
+        val baseContext =
+            stageFeedback + ragContext + (historyStore?.let { strategy.planContext(it.messages) } ?: emptyList())
         // Memory layer (profile / rules / current task) sits ABOVE the history
         // tail so it stays stable across turns. Empty when no MemoryProvider —
         // byte-identical to the no-memory path.
@@ -191,6 +215,11 @@ public class TurnEngine(
                     usage = totalUsage,
                     modelId = modelId,
                 )
+                // Re-arm the pending rejection so the next turn can surface it to the model
+                // (see [pendingStageRejection]). Any prior value was already consumed at the
+                // top of this turn; only a fresh rejection here sets it again.
+                val advance = advanceTaskStage(outcome.proposedStage)
+                if (advance is StageAdvance.Rejected) pendingStageRejection = advance
                 return TurnResult.Ok(
                     reply = text,
                     modelId = modelId,
@@ -198,7 +227,7 @@ public class TurnEngine(
                     usage = totalUsage,
                     durationMs = totalDuration,
                     session = historyStore?.stats?.snapshot(),
-                    stageAdvance = advanceTaskStage(outcome.proposedStage),
+                    stageAdvance = advance,
                     judge = when {
                         judge == null -> JudgeOutcome.NotRun
                         rejectedVerdicts.isNotEmpty() -> JudgeOutcome.Retried(rejectedVerdicts.toList())
@@ -348,6 +377,30 @@ private fun judgeFeedback(verdict: InvariantVerdict): String = buildString {
     // that effect — a second ticket for one complaint.
     append("Any tool you already called has ALREADY run and its effect stands — do not call ")
     append("it again to redo the work. Reuse what the results above returned; rewrite the text only.")
+}
+
+/**
+ * The SYSTEM line shown to the model on the turn AFTER it proposed an illegal
+ * stage move. English, like every other system-slot line (`judgeFeedback`,
+ * `TaskStage.expectedAction`, the `MemoryLayer` headings).
+ *
+ * Addressed to the exact mistake — names [StageAdvance.Rejected.from] /
+ * [StageAdvance.Rejected.proposed] / [StageAdvance.Rejected.allowed] verbatim —
+ * because the always-present static «Allowed next» line already failed to hold
+ * flash; a direct «your last move was refused, here is the only way forward»
+ * is the stronger nudge.
+ */
+private fun stageRejectionMessage(rejected: StageAdvance.Rejected): Message {
+    val from = rejected.from?.keyword ?: "(none)"
+    val allowed = rejected.allowed.joinToString(", ") { it.keyword }
+    return Message(
+        role = Role.SYSTEM,
+        text = "[fsm] Your previous reply asked to move $from → ${rejected.proposed.keyword}, which is not " +
+            "allowed: stages advance one at a time and cannot be skipped. The stage did NOT change — you " +
+            "are still in $from. To move on, end a reply with a [[stage:<next>]] line choosing one of: " +
+            "$allowed. Do not ask for ${rejected.proposed.keyword} again from here. If this stage's work " +
+            "is not finished yet, finish it this turn before signalling a move.",
+    )
 }
 
 /**
