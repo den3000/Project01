@@ -1,13 +1,13 @@
 package ru.den.writes.code.agenticHub.mcps.projectfs
 
 /** Matches one search returns by default. */
-internal const val SEARCH_MATCHES_DEFAULT = 40
+internal const val SEARCH_MATCHES_DEFAULT = 80
 
 /** Ceiling on matches per search. */
-internal const val SEARCH_MATCHES_MAX = 100
+internal const val SEARCH_MATCHES_MAX = 200
 
 /** Matches shown per file, so one dense file can't consume the whole search budget. */
-internal const val MATCHES_PER_FILE = 10
+internal const val MATCHES_PER_FILE = 25
 
 /** Files listed in `filesOnly` mode before the result starts advising a narrower query. */
 internal const val FILES_ONLY_LIMIT = 50

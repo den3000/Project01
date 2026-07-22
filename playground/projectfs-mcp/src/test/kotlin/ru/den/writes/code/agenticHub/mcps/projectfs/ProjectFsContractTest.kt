@@ -82,8 +82,11 @@ class ProjectFsContractTest {
 
     @Test
     fun `when a tool returns more than the cap - then the dispatch clamps it`() {
-        // given
-        val files = (1..LIST_LIMIT_DEFAULT).associate { "very-long-file-name-number-$it.md" to "x" }
+        // given — a full listing whose entries overrun the cap. Name length is derived from
+        // the constants (not a fixed string) so raising MAX_OUTPUT_CHARS or LIST_LIMIT_DEFAULT
+        // keeps this exercising the clamp instead of silently fitting under it.
+        val nameLen = MAX_OUTPUT_CHARS / LIST_LIMIT_DEFAULT + 40
+        val files = (1..LIST_LIMIT_DEFAULT).associate { "f$it".padEnd(nameLen, 'x') + ".md" to "x" }
         val tools = projectFsTools(files = files)
 
         // when

@@ -145,8 +145,8 @@ class JudgePromptRenderTest {
 
     @Test
     fun `when a tool answer exceeds the line cap - then the omission is stated`() {
-        // given
-        val flood = (1..60).joinToString("\n") { "line $it" }
+        // given — comfortably past the line cap, so the omission note must appear
+        val flood = (1..90).joinToString("\n") { "line $it" }
         val input = JudgeInput("x", toolCalls = listOf(executed("list_tickets", flood)), rules = rules)
 
         // when

@@ -5,7 +5,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /** Hard ceiling on any tool's output — the last line of defence, see [respond]. */
-internal const val MAX_OUTPUT_CHARS = 12_000
+internal const val MAX_OUTPUT_CHARS = 24_000
 
 /**
  * A tool argument that is absent or unusable. Thrown rather than returned so every

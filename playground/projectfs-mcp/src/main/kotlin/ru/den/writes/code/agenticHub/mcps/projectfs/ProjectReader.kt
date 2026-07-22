@@ -1,14 +1,15 @@
 package ru.den.writes.code.agenticHub.mcps.projectfs
 
 /**
- * Lines returned by one read. 200 is not arbitrary: it clears the documents this server
- * exists to reconcile (a 155-line README, a 163-line AGENTS.md) in a single call, so the
- * common case costs one tool round instead of two.
+ * Lines returned by one read. Sized to clear in a single call the files this server exists
+ * to reconcile — not just the docs (a 155-line README, a 163-line AGENTS.md) but the source
+ * files a harder task reads whole (a 300-line screen, a viewmodel) — so the common case
+ * costs one tool round instead of a paging chain that burns the turn's tool budget.
  */
-internal const val READ_LIMIT_DEFAULT = 200
+internal const val READ_LIMIT_DEFAULT = 400
 
 /** Ceiling on a single read — past this the result crowds out everything else in the context. */
-internal const val READ_LIMIT_MAX = 400
+internal const val READ_LIMIT_MAX = 1_000
 
 /**
  * `read_project_file`: a window of one file as numbered lines.
