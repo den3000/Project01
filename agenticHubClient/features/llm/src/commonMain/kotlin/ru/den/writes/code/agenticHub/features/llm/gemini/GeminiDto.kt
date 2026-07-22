@@ -47,7 +47,12 @@ internal data class SystemInstruction(val parts: List<Part>)
  */
 @Serializable
 internal data class Content(
-    val parts: List<Part>,
+    // Defaulted so a response candidate that carries content WITHOUT parts —
+    // Gemini does this when it stops with no output (MAX_TOKENS spent on
+    // thinking, SAFETY, …) — deserialises instead of throwing MissingField and
+    // killing the whole call. A no-parts reply is then handled as "no content"
+    // (see GeminiApi.noContentError), not as a crash. Requests always set parts.
+    val parts: List<Part> = emptyList(),
     val role: String? = null,
 )
 
@@ -105,8 +110,18 @@ internal data class GeminiResponse(
     val usageMetadata: UsageMetadata? = null,
 )
 
+/**
+ * One generated candidate. [content] is null when the model stopped without
+ * producing any (a bare `finishReason` with no `content`), and [finishReason]
+ * names why generation ended — `STOP` on a normal end, `MAX_TOKENS` when the
+ * budget ran out (often on thinking), `SAFETY` / `RECITATION` when blocked.
+ * Surfaced so a "no content" outcome can say the cause instead of an empty text.
+ */
 @Serializable
-internal data class Candidate(val content: Content? = null)
+internal data class Candidate(
+    val content: Content? = null,
+    val finishReason: String? = null,
+)
 
 /**
  * Token accounting Gemini attaches to each response. All fields are nullable

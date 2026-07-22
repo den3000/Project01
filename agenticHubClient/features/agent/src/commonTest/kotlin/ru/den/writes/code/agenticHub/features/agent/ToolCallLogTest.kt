@@ -38,6 +38,21 @@ class ToolCallLogTest {
     }
 
     @Test
+    fun `when an investigation spans several turns - then the default window loses no call`() {
+        // given — work that runs across stages, each turn spending its whole tool budget
+        val log = ToolCallLog()
+
+        // when
+        repeat(TURNS_OF_AN_INVESTIGATION) { turn ->
+            log.record(List(CALLS_PER_BUSY_TURN) { index -> executed("search_$turn$index") })
+        }
+
+        // then — the call that established a fact is still evidence when the fact is restated
+        assertEquals(0, log.dropped)
+        assertEquals("search_00", log.calls.first().call.name)
+    }
+
+    @Test
     fun `when the window overflows - then the oldest calls give way`() {
         // given — capacity of two
         val log = ToolCallLog(capacity = 2)
@@ -65,4 +80,12 @@ class ToolCallLogTest {
 
     private fun executed(name: String): ExecutedToolCall =
         ExecutedToolCall(ToolCall(name = name, arguments = JsonObject(emptyMap())), output = "ok")
+
+    private companion object {
+        /** A turn that spends the whole tool budget — `AgentResponder.MAX_TOOL_ROUNDS`. */
+        const val CALLS_PER_BUSY_TURN = 6
+
+        /** Long enough to cross stages: a fact is established early and restated late. */
+        const val TURNS_OF_AN_INVESTIGATION = 4
+    }
 }

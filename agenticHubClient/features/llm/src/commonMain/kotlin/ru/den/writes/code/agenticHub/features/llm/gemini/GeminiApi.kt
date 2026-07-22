@@ -1,7 +1,6 @@
 package ru.den.writes.code.agenticHub.features.llm.gemini
 
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -11,6 +10,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.delay
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
@@ -25,6 +26,15 @@ import ru.den.writes.code.agenticHub.platform.logging.logWarn
 
 private const val API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 private fun endpointFor(model: GeminiModel): String = "$API_BASE/${model.id}:generateContent"
+
+/**
+ * Parser for the response body. Decoded here rather than through Ktor's
+ * content negotiation so a decode failure is a value we can turn into a
+ * readable [LlmResult.error], not an exception thrown out of the send loop.
+ * `ignoreUnknownKeys` because Gemini keeps adding fields; `isLenient` for the
+ * odd non-strict token.
+ */
+private val GEMINI_JSON = Json { ignoreUnknownKeys = true; isLenient = true }
 
 /**
  * Backoff used when a 429 response body doesn't carry a server-suggested
@@ -130,7 +140,17 @@ class GeminiApi(
                 )
             }
 
-            val response: GeminiResponse = httpResponse.body()
+            // Parse the body ourselves rather than via Ktor's negotiation: a shape we
+            // don't model (Gemini adds fields, and a candidate can arrive with no parts)
+            // must surface as a readable error, not an uncaught MissingFieldException that
+            // tears the whole run down. Lenient + ignore-unknown for the same reason.
+            val rawBody = httpResponse.bodyAsText()
+            val response = runCatching { GEMINI_JSON.decodeFromString<GeminiResponse>(rawBody) }.getOrElse { e ->
+                return LlmResult(
+                    text = null,
+                    error = "Gemini response could not be parsed (${e.message}): ${redactGeminiKey(rawBody.take(500))}",
+                )
+            }
             val usage = response.usageMetadata?.let { u ->
                 Usage(
                     promptTokens = u.promptTokenCount ?: 0,
@@ -138,6 +158,18 @@ class GeminiApi(
                     thoughtsTokens = u.thoughtsTokenCount ?: 0,
                     totalTokens = u.totalTokenCount ?: 0,
                 )
+            }
+            // A candidate with neither text nor a tool call is "no content" — Gemini does
+            // this (thinking spent the whole budget, a safety stop, a transient hiccup).
+            // Retry once, since a hiccup usually clears; if it persists, return the reason
+            // as an error so the caller sees WHY, instead of an empty answer or a crash.
+            response.noContentError()?.let { reason ->
+                if (!hasRetried) {
+                    logWarn("[retry] no content — retrying once")
+                    hasRetried = true
+                    continue
+                }
+                return LlmResult(text = null, usage = usage, error = reason)
             }
             return LlmResult(
                 text = response.extractText(),
@@ -232,6 +264,20 @@ internal fun GeminiResponse.extractToolCalls(): List<ToolCall> =
     candidates.firstOrNull()?.content?.parts.orEmpty()
         .mapNotNull { it.functionCall }
         .map { ToolCall(name = it.name, arguments = it.args) }
+
+/**
+ * The error message when the reply carries no usable content — neither text nor
+ * a tool call — or null when it does. A blank/absent answer alone hides why;
+ * [Candidate.finishReason] names the cause (`MAX_TOKENS` when thinking ate the
+ * budget, `SAFETY` / `RECITATION` when blocked), so the caller can act on it
+ * rather than seeing an empty string. A tool-call-only reply is NOT no-content:
+ * that is the ordinary middle of an agent loop.
+ */
+internal fun GeminiResponse.noContentError(): String? {
+    if (extractText() != null || extractToolCalls().isNotEmpty()) return null
+    val reason = candidates.firstOrNull()?.finishReason ?: "no candidates"
+    return "Gemini returned no content (finishReason=$reason)"
+}
 
 /**
  * Builds Gemini's `generationConfig` from the neutral [GenerationParams].
