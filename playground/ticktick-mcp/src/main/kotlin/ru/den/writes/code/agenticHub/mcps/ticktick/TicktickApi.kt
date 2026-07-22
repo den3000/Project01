@@ -8,4 +8,7 @@ package ru.den.writes.code.agenticHub.mcps.ticktick
 internal interface TicktickApi {
     /** All projects/lists for the authenticated user (`GET /open/v1/project`). */
     suspend fun projects(): List<ProjectDto>
+
+    /** A project's **undone** tasks and columns (`GET /open/v1/project/{projectId}/data`). */
+    suspend fun projectData(projectId: String): ProjectDataDto
 }

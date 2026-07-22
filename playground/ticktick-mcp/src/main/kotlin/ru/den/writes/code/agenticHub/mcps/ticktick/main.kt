@@ -8,6 +8,8 @@ package ru.den.writes.code.agenticHub.mcps.ticktick
  *   - `TICKTICK_ACCESS_TOKEN` — obtained once via the OAuth2 authorization-code flow (see README).
  * When absent, the server prints a hint to stderr and exits.
  *
+ * Week snapshots are written under `TICKTICK_SNAPSHOT_DIR` (default `~/.project01-mcplab/ticktick`).
+ *
  * Spawned by an MCP client as a subprocess; runs until the client disconnects (stdin closes).
  */
 suspend fun main() {
@@ -16,5 +18,7 @@ suspend fun main() {
         System.err.println("[ticktick-mcp] missing credentials: set TICKTICK_ACCESS_TOKEN env var")
         return
     }
-    runTicktickServer(token)
+    val snapshotRoot = System.getenv("TICKTICK_SNAPSHOT_DIR")?.takeIf { it.isNotBlank() }
+        ?: (System.getProperty("user.home") + "/.project01-mcplab/ticktick")
+    runTicktickServer(token, snapshotRoot)
 }

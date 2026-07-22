@@ -15,7 +15,9 @@ Standalone **MCP-сервер** (Model Context Protocol) по stdio над за�
 окружения** (не из argv); без него сервер печатает подсказку в stderr и выходит:
 
 ```bash
-export TICKTICK_ACCESS_TOKEN='...'   # OAuth2 access token (см. ниже)
+export TICKTICK_ACCESS_TOKEN='...'      # OAuth2 access token (см. ниже)
+export TICKTICK_SNAPSHOT_DIR='...'      # опц.: куда писать снапшоты (дефолт ~/.project01-mcplab/ticktick)
+export WEEK_TZ='Europe/Moscow'          # опц.: зона для дат диапазона (дефолт — зона сервера)
 ```
 
 Токен добывается разово по OAuth2 authorization-code flow:
@@ -30,13 +32,20 @@ export TICKTICK_ACCESS_TOKEN='...'   # OAuth2 access token (см. ниже)
 ## Инструменты
 
 - **`list_projects`** `{}` → проекты (списки) аккаунта, `id  name` по строке. `GET /open/v1/project`.
+- **`snapshot_week`** `{ "from": "YYYY-MM-DD", "to": "YYYY-MM-DD", "label"? }` → снимок плана недели:
+  сохраняет на диск все незавершённые задачи с dueDate в полуоткрытом `[from, to)` (`from` включительно,
+  `to` исключительно), чтобы `review_week` потом сверил «что сделано» (API не отдаёт выполненные).
+  **Запускать в НАЧАЛЕ недели.** `label` (напр. `2026-W29`) именует снапшот; дефолт — `<from>_<to>`.
+  Даты читаются в зоне `WEEK_TZ`.
 
 ## Раскладка
 
 Всё под `src/main/kotlin/ru/den/writes/code/agenticHub/mcps/ticktick/`: `main.kt` (токен из env →
 `runTicktickServer`), `TicktickServer.kt` (HTTP-клиент с Bearer + регистрация инструментов +
 stdio-transport), `TicktickApi.kt` (порт-`interface` I/O) + `HttpTicktickApi.kt` (реальная реализация),
-`TicktickReports.kt` (логика/формат — **факты, модель не зовёт**), `Dtos.kt` (wire-DTO,
+`TicktickReports.kt` (логика/формат — **факты, модель не зовёт** + чистые `isPlannedInRange`/
+`parseTicktickInstantMillis`/`localDateToEpochMillis`), `SnapshotStore.kt` (порт персистентности
+`SnapshotStore` + `FileSnapshotStore` + модели `WeekSnapshot`/`PlannedTask`), `Dtos.kt` (wire-DTO,
 `ignoreUnknownKeys`).
 
 ## Запуск
@@ -52,8 +61,10 @@ LLM-CLI использует его для function calling:
 
 ## Тесты
 
-`./gradlew :playground:ticktick-mcp:test` — offline: логика/формат `TicktickReports` на фейке порта.
-Живой путь сервера — прогоном бинаря с реальным токеном.
+`./gradlew :playground:ticktick-mcp:test` — offline: логика `TicktickReports` на фейках порта и
+снапшот-стора (`TicktickReportsTest`), чистые функции диапазона/дат/формата (`TicktickWeekTest`:
+`isPlannedInRange`/`parseTicktickInstantMillis`/`formatSnapshot`). Живой путь сервера — прогоном бинаря
+с реальным токеном.
 
 ## Грабли
 

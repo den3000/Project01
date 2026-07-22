@@ -21,19 +21,27 @@ import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import java.time.ZoneId
 
 /**
  * Runs the ticktick MCP server over stdio. Authenticates to the TickTick Open API with the OAuth2
- * Bearer [accessToken] installed once on the client's `defaultRequest`. stdout is the JSON-RPC
- * channel — every diagnostic goes to stderr so it can't corrupt the protocol stream. Blocks until
- * the client disconnects (stdin closes).
+ * Bearer [accessToken] installed once on the client's `defaultRequest`; week snapshots persist
+ * under [snapshotRoot]. Date-range tools interpret dates in the `WEEK_TZ` time zone (default: the
+ * server's zone). stdout is the JSON-RPC channel — every diagnostic goes to stderr so it can't
+ * corrupt the protocol stream. Blocks until the client disconnects (stdin closes).
  */
-suspend fun runTicktickServer(accessToken: String) {
+suspend fun runTicktickServer(accessToken: String, snapshotRoot: String) {
+    val zone = System.getenv("WEEK_TZ")?.takeIf { it.isNotBlank() }
+        ?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+        ?: ZoneId.systemDefault()
+
     val http = HttpClient(Java) {
         install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
         defaultRequest { header(HttpHeaders.Authorization, "Bearer $accessToken") }
     }
-    val reports = TicktickReports(HttpTicktickApi(http))
+    val reports = TicktickReports(HttpTicktickApi(http), FileSnapshotStore(snapshotRoot))
 
     val server = Server(
         serverInfo = Implementation(name = "ticktick-mcp", version = "0.1.0"),
@@ -53,7 +61,56 @@ suspend fun runTicktickServer(accessToken: String) {
         CallToolResult(content = listOf(TextContent(text)))
     }
 
-    System.err.println("[ticktick-mcp] ticktick MCP server ready on stdio (tools: list_projects)")
+    server.addTool(
+        name = "snapshot_week",
+        description = "Snapshot the plan for a week: save every undone task whose due date falls in " +
+            "the range, so review_week can later tell what got done (the API can't list completed tasks). " +
+            "Run this at the START of the week. 'from' is the inclusive start date and 'to' the EXCLUSIVE " +
+            "end date (day after the last day), both YYYY-MM-DD; 'label' names the snapshot, e.g. \"2026-W29\".",
+        inputSchema = ToolSchema(
+            properties = buildJsonObject {
+                put(
+                    "from",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Inclusive start date, YYYY-MM-DD, e.g. \"2026-07-13\".")
+                    },
+                )
+                put(
+                    "to",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Exclusive end date — the day after the last day, YYYY-MM-DD, e.g. \"2026-07-20\".")
+                    },
+                )
+                put(
+                    "label",
+                    buildJsonObject {
+                        put("type", "string")
+                        put("description", "Snapshot name, e.g. \"2026-W29\". Reused by review_week. Defaults to \"<from>_<to>\".")
+                    },
+                )
+            },
+            required = listOf("from", "to"),
+        ),
+    ) { request ->
+        val from = request.arguments?.get("from")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val to = request.arguments?.get("to")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val label = request.arguments?.get("label")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val text = when {
+            from == null || to == null -> "Error: 'from' and 'to' (YYYY-MM-DD) are required."
+            else -> runCatching {
+                reports.snapshotWeek(
+                    localDateToEpochMillis(from, zone),
+                    localDateToEpochMillis(to, zone),
+                    label ?: "${from}_$to",
+                )
+            }.getOrElse { "Error taking snapshot for $from..$to: ${it.message}" }
+        }
+        CallToolResult(content = listOf(TextContent(text)))
+    }
+
+    System.err.println("[ticktick-mcp] ticktick MCP server ready on stdio (tools: list_projects, snapshot_week)")
     val transport = StdioServerTransport(
         System.`in`.asSource().buffered(),
         System.out.asSink().buffered(),

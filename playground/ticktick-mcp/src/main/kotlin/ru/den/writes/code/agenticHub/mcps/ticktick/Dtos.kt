@@ -12,3 +12,24 @@ internal data class ProjectDto(
     val id: String,
     val name: String = "",
 )
+
+/** Response of `GET /open/v1/project/{id}/data` — the project's undone tasks (columns ignored). */
+@Serializable
+internal data class ProjectDataDto(val tasks: List<TaskDto> = emptyList())
+
+/**
+ * A TickTick task. `status` is 0 = normal (undone), 2 = completed. The `/data` endpoint only
+ * returns undone tasks; a single-task fetch is what surfaces `status`/`completedTime` at review.
+ */
+@Serializable
+internal data class TaskDto(
+    val id: String,
+    val projectId: String = "",
+    val title: String = "",
+    val status: Int = 0,
+    val dueDate: String? = null,
+    val startDate: String? = null,
+    val completedTime: String? = null,
+    val priority: Int? = null,
+    val isAllDay: Boolean? = null,
+)

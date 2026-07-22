@@ -17,6 +17,9 @@ internal class HttpTicktickApi(
     override suspend fun projects(): List<ProjectDto> =
         http.get("$baseUrl/open/v1/project").body<List<ProjectDto>>()
 
+    override suspend fun projectData(projectId: String): ProjectDataDto =
+        http.get("$baseUrl/open/v1/project/$projectId/data").body<ProjectDataDto>()
+
     private companion object {
         const val BASE_URL = "https://api.ticktick.com"
     }
