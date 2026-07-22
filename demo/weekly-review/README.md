@@ -44,7 +44,9 @@ export GEMINI_API_KEY='...'         # если ключ не в local.properties
 export WEEK_TZ='Europe/Moscow'      # опц.: зона для границ недели (дефолт — зона машины)
 ```
 
-TickTick-токен добывается разово по OAuth2 — пошагово в
+Положи эти строки в `~/.project01-weekly.env` (или в `.env` рядом со скриптом — он в `.gitignore`):
+`review-week.sh` сам их подхватит, если они не выставлены в шелле. Либо просто `export`-ни их в текущем
+терминале (ручное окружение имеет приоритет). TickTick-токен добывается разово по OAuth2 — пошагово в
 [`playground/ticktick-mcp/README.md`](../../playground/ticktick-mcp/README.md).
 
 ## Запуск

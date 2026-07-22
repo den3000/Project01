@@ -10,9 +10,23 @@
 #
 # Требует `bash demo/weekly-review/setup-weekly.sh` (сборка бинарей + профиль weekly).
 #
+# Доступы берутся из окружения; если их там нет — скрипт сам загрузит `.env` рядом с собой
+# или `~/.project01-weekly.env`. Явно выставленное окружение (ручной `source`) имеет приоритет.
+#
 set -euo pipefail
 export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 export LANG="${LANG:-en_US.UTF-8}"
+
+# Авто-подхват доступов: если токен ещё не в окружении — загрузить локальный env-файл
+# (.env рядом со скриптом → ~/.project01-weekly.env). Уже выставленное окружение не трогаем.
+if [ -z "${TICKTICK_ACCESS_TOKEN:-}" ]; then
+  for env_file in "$(dirname "$0")/.env" "$HOME/.project01-weekly.env"; do
+    if [ -f "$env_file" ]; then
+      set -a; . "$env_file"; set +a
+      break
+    fi
+  done
+fi
 
 FROM="${1:?FROM date (YYYY-MM-DD) required}"
 TO="${2:?TO date (YYYY-MM-DD, exclusive) required}"
