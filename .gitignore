@@ -5,6 +5,9 @@
 xcuserdata
 !src/**/build/
 local.properties
+# Локальные env-файлы с секретами (никогда не коммитить), напр. demo/weekly-review/.env
+.env
+*.env
 .idea
 .DS_Store
 captures

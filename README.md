@@ -36,10 +36,20 @@ KMP-проект на Compose Multiplatform (Android, iOS, Desktop/JVM) плюс
 - [androidApp](./agenticHubClient/apps/androidApp) · [desktopApp](./agenticHubClient/apps/desktopApp)
   — Compose-MP таргеты; **iosApp** (`apps/iosApp`) — Xcode-проект (SwiftUI-хост для `ComposeApp`).
 
-**`playground/`** — песочницы и standalone MCP-серверы:
-- [cliTui](./playground/cliTui) — сравнение TUI-библиотек · [openmeteo-mcp](./playground/openmeteo-mcp)
-  (погода) · [localfs-mcp](./playground/localfs-mcp) (локальная ФС). MCP-серверы CLI дёргает через
-  `-mcpServer` (повторяемый).
+**`playground/`** — песочницы и standalone MCP-серверы (CLI дёргает их через `-mcpServer`, повторяемый):
+- [cliTui](./playground/cliTui) — сравнение TUI-библиотек;
+- MCP-серверы: [openmeteo-mcp](./playground/openmeteo-mcp) (погода) ·
+  [localfs-mcp](./playground/localfs-mcp) (локальная ФС) · [git-mcp](./playground/git-mcp)
+  (git-инспекция: ветка/файлы/дифф) · [support-mcp](./playground/support-mcp) (users/tickets) ·
+  [atimelogger-mcp](./playground/atimelogger-mcp) (трекинг времени aTimeLogger) ·
+  [ticktick-mcp](./playground/ticktick-mcp) (задачи TickTick) ·
+  [projectfs-mcp](./playground/projectfs-mcp) (файлы проекта, read-write).
+
+**`demo/`** — сценарии поверх MCP-серверов и агента cliJvmApp:
+- [ctt-support](./demo/ctt-support) — ассистент поддержки (роли, FSM+судья, RAG, тикеты через support-mcp);
+- [weekly-review](./demo/weekly-review) — недельный разбор продуктивности: план (ticktick-mcp `week_plan`)
+  vs факт времени (atimelogger-mcp `time_by_activity`) → рекомендации от LLM;
+- [project-fs](./demo/project-fs) — ассистент по файлам чужого проекта (usage-report/adr, projectfs-mcp).
 
 **[scheduling](./scheduling)** — переиспользуемое ядро планировщика (без зависимостей), используется
 openmeteo-mcp и cliJvmApp.
