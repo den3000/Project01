@@ -28,5 +28,11 @@ kotlin {
             // @IgnoreIos актуализируется на iOS через kotlin.test.Ignore.
             api(libs.kotlin.test)
         }
+        jvmMain.dependencies {
+            // runLiveTest — общая timeout-обёртка для jvmTest live-тестов
+            // (features:llm/rag, lifecycle:session). TestScope/TestResult торчат
+            // в её сигнатуре → api.
+            api(libs.kotlinx.coroutinesTest)
+        }
     }
 }

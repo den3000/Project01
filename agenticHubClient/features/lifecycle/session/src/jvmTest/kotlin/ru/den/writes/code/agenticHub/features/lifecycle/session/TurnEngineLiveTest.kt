@@ -1,7 +1,6 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.session
 
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runTest
 import org.koin.core.Koin
 import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.BuildKonfig
@@ -27,12 +26,12 @@ import ru.den.writes.code.agenticHub.platform.database.di.databaseTestModule
 import ru.den.writes.code.agenticHub.platform.filesystem.LocalFileSystem
 import ru.den.writes.code.agenticHub.platform.filesystem.di.fileSystemModule
 import ru.den.writes.code.agenticHub.platform.network.di.networkModule
+import ru.den.writes.code.agenticHub.testutils.runLiveTest
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.minutes
 
 class TurnEngineLiveTest {
 
@@ -66,10 +65,6 @@ class TurnEngineLiveTest {
 
         // then
         assertTrue { runLog.turnLogs.size < MAX_TURNS }
-    }
-
-    private fun runLiveTest(block: suspend TestScope.() -> Unit) = runTest(timeout = LIVE_TIMEOUT) {
-        block()
     }
 
     private suspend fun TestScope.runTurnEngineWith(modelProvider: ModelProvider, sessionName: String, taskNotes: TaskNotes?) =
@@ -256,8 +251,6 @@ class TurnEngineLiveTest {
     )
 
     private companion object {
-        private val LIVE_TIMEOUT = 10.minutes
-
         const val OPENING_PROMPT =
             "Begin the task. I have no requirements beyond the goal — decide the details yourself " +
                     "and move the task forward without asking me questions."
