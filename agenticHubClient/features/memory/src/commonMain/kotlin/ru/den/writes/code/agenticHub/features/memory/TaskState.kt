@@ -22,8 +22,10 @@ enum class TaskStage(
     CLARIFICATION(
         "clarification",
         "Clarification",
-        "Gather and confirm the requirements, constraints and definition of done. " +
-            "Ask before assuming. Do not plan or write the solution yet.",
+        "Confirm the goal, constraints and definition of done. If they are already clear, or the " +
+            "user asked you to proceed on your own, state your working assumptions and move on — do " +
+            "not demand input that will not come. Ask only when genuinely blocked. Do not plan or " +
+            "write the solution yet.",
     ),
     PLANNING(
         "planning",
