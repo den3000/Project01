@@ -46,5 +46,9 @@ kotlin {
             implementation(projects.agenticHubClient.platform.fileSystem)
             implementation(projects.agenticHubClient.testUtils)
         }
+        jvmTest.dependencies {
+            implementation(projects.agenticHubClient.platform.network)
+            implementation(projects.agenticHubClient.platform.config)
+        }
     }
 }
