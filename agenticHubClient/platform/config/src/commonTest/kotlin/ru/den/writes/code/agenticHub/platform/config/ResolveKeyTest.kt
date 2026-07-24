@@ -1,4 +1,4 @@
-package ru.den.writes.code.agenticHub.cliJvm.di
+package ru.den.writes.code.agenticHub.platform.config
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,10 +12,10 @@ class ResolveKeyTest {
     @Test
     fun `when the env var is set - then it wins over the baked key`() {
         // given
-        val env = mapOf("GEMINI_API_KEY" to "from-env")
+        val env = mapOf(ApiKey.GEMINI.envVar to "from-env")
 
         // when
-        val key = resolveKey("GEMINI_API_KEY", baked = "from-buildkonfig", env = env::get)
+        val key = resolveKey(ApiKey.GEMINI, baked = "from-buildkonfig", env = env::get)
 
         // then
         assertEquals("from-env", key)
@@ -27,7 +27,7 @@ class ResolveKeyTest {
         val env = emptyMap<String, String>()
 
         // when
-        val key = resolveKey("GEMINI_API_KEY", baked = "from-buildkonfig", env = env::get)
+        val key = resolveKey(ApiKey.GEMINI, baked = "from-buildkonfig", env = env::get)
 
         // then
         assertEquals("from-buildkonfig", key)
@@ -36,10 +36,10 @@ class ResolveKeyTest {
     @Test
     fun `when the env var is blank - then it counts as absent`() {
         // given — an unset CI secret expands to an empty string, not a missing var
-        val env = mapOf("GEMINI_API_KEY" to "   ")
+        val env = mapOf(ApiKey.GEMINI.envVar to "   ")
 
         // when
-        val key = resolveKey("GEMINI_API_KEY", baked = "from-buildkonfig", env = env::get)
+        val key = resolveKey(ApiKey.GEMINI, baked = "from-buildkonfig", env = env::get)
 
         // then
         assertEquals("from-buildkonfig", key)
@@ -51,7 +51,7 @@ class ResolveKeyTest {
         val env = emptyMap<String, String>()
 
         // when
-        val key = resolveKey("GEMINI_API_KEY", baked = "", env = env::get)
+        val key = resolveKey(ApiKey.GEMINI, baked = "", env = env::get)
 
         // then
         assertEquals("", key)
@@ -60,11 +60,11 @@ class ResolveKeyTest {
     @Test
     fun `when resolving - then each key reads its own variable`() {
         // given
-        val env = mapOf("GEMINI_API_KEY" to "g", "OPENROUTER_API_KEY" to "o")
+        val env = mapOf(ApiKey.GEMINI.envVar to "g", ApiKey.OPEN_ROUTER.envVar to "o")
 
         // when - then
-        assertEquals("g", resolveKey("GEMINI_API_KEY", baked = "", env = env::get))
-        assertEquals("o", resolveKey("OPENROUTER_API_KEY", baked = "", env = env::get))
-        assertEquals("baked-hf", resolveKey("HUGGINGFACE_API_KEY", baked = "baked-hf", env = env::get))
+        assertEquals("g", resolveKey(ApiKey.GEMINI, baked = "", env = env::get))
+        assertEquals("o", resolveKey(ApiKey.OPEN_ROUTER, baked = "", env = env::get))
+        assertEquals("baked-hf", resolveKey(ApiKey.HUGGING_FACE, baked = "baked-hf", env = env::get))
     }
 }

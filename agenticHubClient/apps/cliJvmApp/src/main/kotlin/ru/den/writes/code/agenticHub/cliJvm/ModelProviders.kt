@@ -14,13 +14,7 @@ import ru.den.writes.code.agenticHub.features.llm.PROVIDER_HUGGINGFACE
 import ru.den.writes.code.agenticHub.features.llm.PROVIDER_OLLAMA
 import ru.den.writes.code.agenticHub.features.llm.PROVIDER_OPENROUTER
 import ru.den.writes.code.agenticHub.features.llm.buildModelProvider
-
-/** Provider API keys, injected into a [ModelProviderFactory] at construction. */
-internal data class ApiKeys(
-    val gemini: String = "",
-    val openRouter: String = "",
-    val huggingFace: String = "",
-)
+import ru.den.writes.code.agenticHub.platform.config.ApiKeys
 
 /**
  * The one place the provider API keys live after startup. Resolves a parsed
