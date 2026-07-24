@@ -67,6 +67,43 @@ class TurnEngineLiveTest {
         assertTrue { runLog.turnLogs.size < MAX_TURNS }
     }
 
+    @Test
+    fun `when turn engine uses different models with simple task - then works any time`() = runLiveTest {
+        // given
+        val modelProvider1 = ModelProvider.Gemini(
+            model = GeminiModel.Known.Gemini25FlashLite,
+            apiKey = BuildKonfig.GEMINI_API_KEY
+        )
+        val modelProvider2 = ModelProvider.Gemini(
+            model = GeminiModel.Known.Gemini31FlashLite,
+            apiKey = BuildKonfig.GEMINI_API_KEY
+        )
+        val modelProvider3 = ModelProvider.Gemini(
+            model = GeminiModel.Known.Gemini25Flash,
+            apiKey = BuildKonfig.GEMINI_API_KEY
+        )
+        val sessionName = "turn-engine-live-test"
+
+        // when
+        val tries = 3
+        val runLogs1 = (0..<tries).mapNotNull { runTurnEngineWith(modelProvider1, sessionName, SIMPLE_TASK) }
+        val runLogs2 = (0..<tries).mapNotNull { runTurnEngineWith(modelProvider2, sessionName, SIMPLE_TASK) }
+        val runLogs3 = (0..<tries).mapNotNull { runTurnEngineWith(modelProvider3, sessionName, SIMPLE_TASK) }
+
+        // then — diagnostic summary per model across tries (no hard assert yet)
+        listOf(runLogs1, runLogs2, runLogs3).forEach { runs -> printModelSummary(runs, tries) }
+    }
+
+    private fun printModelSummary(runs: List<RunLog>, tries: Int) {
+        val model = runs.firstOrNull()?.modelId ?: "?"
+        val reached = runs.count { it.reachedDone }
+        val turns = runs.map { it.turnLogs.size }
+        println("========================= MODEL SUMMARY =========================")
+        println("MODEL $model — reachedDone $reached/$tries — turns per try $turns")
+        runs.forEach { println(it.formatted()) }
+    }
+
+
     private suspend fun TestScope.runTurnEngineWith(modelProvider: ModelProvider, sessionName: String, taskNotes: TaskNotes?) =
         withKoinAndTmpFsRoot { koin, tempFsRoot ->
             val memStore = FileMemoryStore(tempFsRoot.absolutePath, fs = koin.get<LocalFileSystem>())
@@ -87,10 +124,12 @@ class TurnEngineLiveTest {
             )
             val engine = TurnEngine(chatCmd, api, store, memory = memory)
             val turns = runTurnsWith(engine, memStore, taskNotes)
+            val finalStage = taskNotes?.let { memStore.loadTask(it.taskId)?.stage }
             return@withKoinAndTmpFsRoot RunLog(
                 modelId = modelProvider.modelId,
                 sessionName = sessionName,
                 taskId = taskNotes?.taskId,
+                finalStage = finalStage,
                 turnLogs = turns
             )
         }
@@ -128,6 +167,10 @@ class TurnEngineLiveTest {
                                 prompt = prompt,
                                 reply = result.reply,
                                 suggestedNextStage = null,
+                                judge = result.judge::class.simpleName.orEmpty(),
+                                outputTokens = result.usage?.outputTokens,
+                                thoughtsTokens = result.usage?.thoughtsTokens,
+                                durationMs = result.durationMs,
                             )
                         }
 
@@ -138,6 +181,10 @@ class TurnEngineLiveTest {
                                 prompt = prompt,
                                 reply = result.reply,
                                 suggestedNextStage = advance.to,
+                                judge = result.judge::class.simpleName.orEmpty(),
+                                outputTokens = result.usage?.outputTokens,
+                                thoughtsTokens = result.usage?.thoughtsTokens,
+                                durationMs = result.durationMs,
                             )
                         }
 
@@ -148,6 +195,10 @@ class TurnEngineLiveTest {
                                 prompt = prompt,
                                 reply = result.reply,
                                 suggestedNextStage = advance.proposed,
+                                judge = result.judge::class.simpleName.orEmpty(),
+                                outputTokens = result.usage?.outputTokens,
+                                thoughtsTokens = result.usage?.thoughtsTokens,
+                                durationMs = result.durationMs,
                                 replayErrorReason = "",
                                 advanceErrorReason = "NOT ALLOWED"
                             )
@@ -166,13 +217,32 @@ class TurnEngineLiveTest {
         val prompt: String,
         val reply: String,
         val suggestedNextStage: TaskStage?,
+        val judge: String = "",
+        val outputTokens: Int? = null,
+        val thoughtsTokens: Int? = null,
+        val durationMs: Long = 0,
         val replayErrorReason: String = "",
         val advanceErrorReason: String = "",
     ) {
+        /** What the turn did to the FSM, derived from the fields already captured. */
+        val failed: Boolean get() = replayErrorReason.isNotEmpty()
+        val rejected: Boolean get() = advanceErrorReason.isNotEmpty()
+        val advanced: Boolean get() = suggestedNextStage != null && !rejected && !failed
+        val outcome: String
+            get() = when {
+                failed -> "FAILED"
+                rejected -> "REJECTED"
+                advanced -> "ADVANCED"
+                else -> "NO_MOVE"
+            }
+
         fun formatted(): String = buildString {
             append("================================= turn $index ================================")
             append("\nstageBefore: ${stageBefore ?: "NO_STAGE"}")
             append(" suggestedNextStage: ${suggestedNextStage ?: "NO_STAGE"}")
+            append(" outcome: $outcome")
+            append("\ntokens: out=${outputTokens ?: "-"} thoughts=${thoughtsTokens ?: "-"}")
+            append(" durationMs=$durationMs judge=${judge.ifEmpty { "-" }}")
             replayErrorReason
                 .takeIf { it.isNotEmpty() }
                 ?.let { append("\nreplayErrorReason: $it") }
@@ -191,11 +261,23 @@ class TurnEngineLiveTest {
         val modelId: String,
         val sessionName: String,
         val taskId: String?,
+        val finalStage: TaskStage?,
         val turnLogs: List<TurnLog>,
     ) {
-        fun formatted(): String = buildString {
-            append("================================= run ================================")
+        val reachedDone: Boolean get() = finalStage == TaskStage.DONE
+        val advances: Int get() = turnLogs.count { it.advanced }
+        val rejects: Int get() = turnLogs.count { it.rejected }
+        val noMoves: Int get() = turnLogs.count { !it.advanced && !it.rejected && !it.failed }
+        val failures: Int get() = turnLogs.count { it.failed }
+        val outputTokens: Int get() = turnLogs.sumOf { it.outputTokens ?: 0 }
+        val thoughtsTokens: Int get() = turnLogs.sumOf { it.thoughtsTokens ?: 0 }
+        val durationMs: Long get() = turnLogs.sumOf { it.durationMs }
 
+        fun formatted(): String = buildString {
+            append("---- run [$modelId] task=$taskId ----")
+            append("\n  reachedDone=$reachedDone finalStage=${finalStage ?: "NO_STAGE"} turns=${turnLogs.size}")
+            append("\n  advances=$advances rejects=$rejects noMoves=$noMoves failures=$failures")
+            append("\n  tokens: out=$outputTokens thoughts=$thoughtsTokens durationMs=$durationMs")
         }
     }
 
