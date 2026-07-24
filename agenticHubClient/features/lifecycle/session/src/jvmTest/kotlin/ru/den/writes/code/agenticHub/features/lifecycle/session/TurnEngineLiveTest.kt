@@ -102,15 +102,15 @@ class TurnEngineLiveTest {
             apiKey = BuildKonfig.GEMINI_API_KEY
         )
         val sessionName = "turn-engine-live-test"
-        val reps = 10
+        val reps = 20
 
-        // when
-        val baseline = (0..<reps).map { runTurnEngineWith(modelProvider, sessionName, MINIMAL_TASK) }
-        val withHint = (0..<reps).map { runTurnEngineWith(modelProvider, sessionName, MINIMAL_TASK) }
+        // when — same weak model + task, differing only by whether the stall nudge is armed
+        val baseline = (0..<reps).map { runTurnEngineWith(modelProvider, sessionName, MINIMAL_TASK, stallHint = false) }
+        val withHint = (0..<reps).map { runTurnEngineWith(modelProvider, sessionName, MINIMAL_TASK, stallHint = true) }
 
         // then
         printGroupSummary("baseline (no hint)", baseline, reps)
-        printGroupSummary("with stall hint (placeholder — not implemented)", withHint, reps)
+        printGroupSummary("with stall hint", withHint, reps)
     }
 
     private fun printModelSummary(runs: List<RunLog>, tries: Int) {
@@ -131,7 +131,7 @@ class TurnEngineLiveTest {
     }
 
 
-    private suspend fun TestScope.runTurnEngineWith(modelProvider: ModelProvider, sessionName: String, taskNotes: TaskNotes?) =
+    private suspend fun TestScope.runTurnEngineWith(modelProvider: ModelProvider, sessionName: String, taskNotes: TaskNotes?, stallHint: Boolean = false) =
         withKoinAndTmpFsRoot { koin, tempFsRoot ->
             val memStore = FileMemoryStore(tempFsRoot.absolutePath, fs = koin.get<LocalFileSystem>())
             val memory = if (taskNotes != null) {
@@ -149,7 +149,7 @@ class TurnEngineLiveTest {
                 temperature = null,
                 thinkingBudget = 0
             )
-            val engine = TurnEngine(chatCmd, api, store, memory = memory)
+            val engine = TurnEngine(chatCmd, api, store, memory = memory, stallHint = stallHint)
             val turns = runTurnsWith(engine, memStore, taskNotes)
             val finalStage = taskNotes?.let { memStore.loadTask(it.taskId)?.stage }
             return@withKoinAndTmpFsRoot RunLog(

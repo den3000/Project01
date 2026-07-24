@@ -62,6 +62,10 @@ public fun buildSessionViewModel(
     val schedulerEnabled = schedules.isNotEmpty()
     val engine = TurnEngine(
         cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor, ragControl,
+        // Real sessions get the stall nudge: on a weak model the task FSM otherwise degenerates into a
+        // silent NO_MOVE loop (the model re-signals the current stage). Task-less chat never stalls, so
+        // it is unaffected. See TurnEngine.stallHint.
+        stallHint = true,
     )
 
     val actions = mutableMapOf<String, ScheduleAction>()
