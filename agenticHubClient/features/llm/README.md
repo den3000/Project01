@@ -66,6 +66,11 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
   `https://openrouter.ai/api/v1/models`. Дефолт `openrouter/auto` — роутер, может быть платным.
 - **HF Router** маршрутизирует между провайдерами — цены в `ModelPricing.kt` для HF *приближения*;
   503 при cold start → одна retry с `Retry-After`. Каталог: `https://router.huggingface.co/v1/models`.
+- **Transient-retry несёт каждый провайдер сам** (`platform:network` намеренно без `HttpRequestRetry`):
+  что считать transient и как ждать — знает только провайдер (body-level `error` у OpenRouter, server-hint
+  backoff у Gemini). Матрица (явная, не случайная): **Gemini** — 429/timeout однократно + **503 многоходово**
+  (общий бюджет `MAX_RETRIES=3` через `spendRetryBudget`; сырой connection-drop не ретраится); **HF** — 503
+  однократно; **OpenRouter/Ollama** — retry нет.
 - **flash-lite TPM 4M** — боттлнек нагрузочных прогонов (rate-limit раньше переполнения контекста).
 - **Ollama**: токен-кап зовётся `num_predict` (не `max_tokens`), context window — `num_ctx`;
   `temperature`/`top_p`/`seed`/`stop`/`num_ctx` — внутри `options`;

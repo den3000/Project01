@@ -15,6 +15,11 @@ internal const val REQUEST_TIMEOUT_MS = 300_000L
  * requests when the client closed too early, and keeps connections warm. Engine
  * Java (not CIO — CIO's chunked parser dies on long Gemini thinking responses).
  * `ContentNegotiation(Json)` so callers can `setBody(dto)` / `response.body<T>()`.
+ *
+ * Deliberately NO `HttpRequestRetry`. Transient-retry is provider-specific — what
+ * counts as transient (a 503 vs a body-level `error` field) and how long to wait
+ * (Gemini's server-hint backoff) differ per API — so it lives in each `*Api`
+ * (`features:llm`), not on the shared transport. See the llm module's README.
  */
 internal fun buildHttpClient(): HttpClient = HttpClient(Java) {
     install(ContentNegotiation) {

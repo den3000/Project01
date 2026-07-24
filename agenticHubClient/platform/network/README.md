@@ -9,7 +9,9 @@ KMP-модуль (jvm/android/ios): единая точка сборки `HttpCl
   jvm actual `single<HttpClient> { buildHttpClient() } onClose { it?.close() }`, android/ios — `TODO`).
   Билдер `buildHttpClient` — `internal` (jvmMain): движок **Java** (не CIO — рвёт длинные
   thinking-ответы Gemini) + `ContentNegotiation(Json{ ignoreUnknownKeys=true; explicitNulls=false })` +
-  `HttpTimeout`. Общая дока — [DI.md](../../DI.md).
+  `HttpTimeout`. **Без `HttpRequestRetry` намеренно** — transient-retry провайдер-специфичен (что считать
+  transient и как ждать различается по API), поэтому живёт в каждом `*Api` (`features:llm`), не на
+  транспорте. Общая дока — [DI.md](../../DI.md).
 
 ## Зависимости
 - commonMain: `api(ktor.client.core)` (тип `HttpClient` — публичный словарь модуля),
