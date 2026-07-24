@@ -226,6 +226,97 @@ class TurnEngineTest {
     }
 
     @Test
+    fun `when a stage stalls twice with the hint armed - then the next turn is nudged toward the next stage`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — VALIDATION, and the model keeps signalling the CURRENT stage (no move)
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.VALIDATION)) }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fakeScript = FakeLlmScript().apply {
+                    queueText("still checking [[stage:validation]]") // NO_MOVE — streak 1
+                    queueText("still checking [[stage:validation]]") // NO_MOVE — streak 2, arms the nudge
+                    queueText("done now")
+                }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
+                val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory, stallHint = true)
+
+                // when
+                engine.turn("go")
+                engine.turn("go")
+                engine.turn("go")
+
+                // then — only turn 3 carries the nudge, and it names the NEXT stage (done), not validation-only
+                assertTrue(fakeScript.calls[0].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
+                assertTrue(fakeScript.calls[1].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
+                val nudge = fakeScript.calls[2].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm]" in it.text }
+                assertNotNull(nudge)
+                assertTrue("validation" in nudge.text)
+                assertTrue("done" in nudge.text)
+            }
+        }
+    }
+
+    @Test
+    fun `when a stage stalls but the hint is not armed - then no nudge is ever injected`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — same stall, but stallHint left at its default (off) — this is the production-parity path
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.VALIDATION)) }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fakeScript = FakeLlmScript().apply {
+                    queueText("still checking [[stage:validation]]")
+                    queueText("still checking [[stage:validation]]")
+                    queueText("still checking [[stage:validation]]")
+                }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
+                val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory)
+
+                // when
+                engine.turn("go")
+                engine.turn("go")
+                engine.turn("go")
+
+                // then
+                assertTrue(fakeScript.calls.all { call -> call.messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text } })
+            }
+        }
+    }
+
+    @Test
+    fun `when a real stage move breaks the stall run - then the streak resets and no nudge fires`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — a stall, then a real move (resets the streak), then another lone stall: never two in a row
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.VALIDATION)) }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fakeScript = FakeLlmScript().apply {
+                    queueText("still checking [[stage:validation]]") // NO_MOVE — streak 1
+                    queueText("back to it [[stage:execution]]")      // Advanced VALIDATION→EXECUTION — streak resets
+                    queueText("still working [[stage:execution]]")   // NO_MOVE — streak 1 again
+                    queueText("more")
+                }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
+                val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory, stallHint = true)
+
+                // when
+                engine.turn("go")
+                engine.turn("go")
+                engine.turn("go")
+                engine.turn("go")
+
+                // then — the streak never reached the limit twice in a row, so nothing is ever nudged
+                assertTrue(fakeScript.calls.all { call -> call.messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text } })
+            }
+        }
+    }
+
+    @Test
     fun `when the active stage matches a routed agent - then that agent answers`() = runTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin

@@ -68,6 +68,14 @@ public class TurnEngine(
      */
     private val ragControl: RagControl? = null,
     /**
+     * When true, a stage the model refuses to leave for [STALL_STREAK_LIMIT] passed
+     * turns running (it keeps signalling the current stage, or none) earns a one-shot
+     * `[fsm]` nudge on the following turn (see [stallHintMessage]). Off by default so
+     * task-less chat and the existing tests stay byte-identical; the composition root
+     * turns it on for real sessions, the stand toggles it per group to measure it.
+     */
+    private val stallHint: Boolean = false,
+    /**
      * Session-wide record of what the tools actually did — the judge's evidence.
      * Injected rather than owned so its eviction rule stays testable on its own;
      * the default is the ordinary per-session log.
@@ -121,14 +129,27 @@ public class TurnEngine(
     private var pendingStageRejection: StageAdvance.Rejected? = null
 
     /**
+     * A stage the model has refused to leave for [STALL_STREAK_LIMIT] passed turns
+     * running (it keeps signalling the current stage, or emits no marker) — held so
+     * the NEXT turn can nudge it toward the next stage. Ephemeral and surfaced-once,
+     * exactly like [pendingStageRejection]; only ever armed when [stallHint] is on.
+     */
+    private var pendingStallHint: TaskStage? = null
+
+    /** Consecutive passed turns that left an active stage put; see [updateStallHint]. */
+    private var stallStreak = 0
+
+    /**
      * Run one turn for [prompt]. Builds «memory layer + planned history +
      * user turn», calls the routed agent, persists both sides on success,
      * applies any legal task-stage move, and returns an immutable [TurnResult].
      */
     suspend fun turn(prompt: String): TurnResult {
         // The agent that answers is picked by the active task's stage; with no
-        // routed agents that's always the fallback (single-agent parity).
-        val stage = memory?.activeTaskId()?.let { memory.store.loadTask(it)?.stage }
+        // routed agents that's always the fallback (single-agent parity). The whole
+        // task is loaded (not just the stage) so the stall check can see `paused`.
+        val task = memory?.activeTaskId()?.let { memory.store.loadTask(it) }
+        val stage = task?.stage
         val agent = agentFor(stage)
         val modelId = agent.modelId
         // Per-turn strategy side effect (rolling-summary compaction, facts
@@ -148,8 +169,12 @@ public class TurnEngine(
         // ephemeral SYSTEM line at the top of this turn's context — consumed once and
         // cleared (see [pendingStageRejection]). Above rag + history so it lands right
         // under the memory layer in the provider's system slot.
-        val stageFeedback = pendingStageRejection?.let { listOf(stageRejectionMessage(it)) }.orEmpty()
+        val stageFeedback = listOfNotNull(
+            pendingStageRejection?.let(::stageRejectionMessage),
+            pendingStallHint?.let(::stallHintMessage),
+        )
         pendingStageRejection = null
+        pendingStallHint = null
         val baseContext =
             stageFeedback + ragContext + (historyStore?.let { strategy.planContext(it.messages) } ?: emptyList())
         // Memory layer (profile / rules / current task) sits ABOVE the history
@@ -220,6 +245,7 @@ public class TurnEngine(
                 // top of this turn; only a fresh rejection here sets it again.
                 val advance = advanceTaskStage(outcome.proposedStage)
                 if (advance is StageAdvance.Rejected) pendingStageRejection = advance
+                if (stallHint) updateStallHint(advance, stage, task?.paused == true)
                 return TurnResult.Ok(
                     reply = text,
                     modelId = modelId,
@@ -339,6 +365,26 @@ public class TurnEngine(
         mem.store.saveTask(task.copy(stage = proposed))
         return StageAdvance.Advanced(from, proposed)
     }
+
+    /**
+     * Track a stage that refuses to move. A passed turn that leaves an active,
+     * non-terminal, non-[paused] stage put — [StageAdvance.None], i.e. the model
+     * signalled the CURRENT stage or emitted no marker — is a "stall";
+     * [STALL_STREAK_LIMIT] of them in a row arm a one-shot nudge for the next turn
+     * (see [stallHintMessage]). A real move ([StageAdvance.Advanced]), a rejected
+     * one, or anything off-task resets the streak. Only called when [stallHint] is on.
+     */
+    private fun updateStallHint(advance: StageAdvance, stage: TaskStage?, paused: Boolean) {
+        val stalled = advance is StageAdvance.None && stage != null && stage != TaskStage.DONE && !paused
+        if (stalled) {
+            if (++stallStreak >= STALL_STREAK_LIMIT) {
+                pendingStallHint = stage
+                stallStreak = 0
+            }
+        } else {
+            stallStreak = 0
+        }
+    }
 }
 
 /**
@@ -351,6 +397,14 @@ public class TurnEngine(
  * model that hasn't been talked round in five passes won't be by the sixth.
  */
 private const val MAX_JUDGE_ATTEMPTS = 5
+
+/**
+ * Passed turns in a row that leave the stage put before the engine nudges the
+ * model to move on. Two, not one: a single no-move is normal (this stage's work
+ * may still be in progress); a run of them is the degeneration loop the nudge is
+ * meant to break.
+ */
+private const val STALL_STREAK_LIMIT = 2
 
 /**
  * The critique handed back to the agent — what was objected to, and what to do
@@ -400,6 +454,23 @@ private fun stageRejectionMessage(rejected: StageAdvance.Rejected): Message {
             "are still in $from. To move on, end a reply with a [[stage:<next>]] line choosing one of: " +
             "$allowed. Do not ask for ${rejected.proposed.keyword} again from here. If this stage's work " +
             "is not finished yet, finish it this turn before signalling a move.",
+    )
+}
+
+/**
+ * The SYSTEM line shown after the model has sat in one stage for several turns
+ * without moving — it keeps signalling the CURRENT stage (or emits no marker), so
+ * the FSM never advances. Names the single next stage explicitly, because the
+ * observed failure is the model repeating `[[stage:<current>]]` instead of the next.
+ */
+private fun stallHintMessage(from: TaskStage): Message {
+    val next = TaskStateMachine.allowedNext(from).maxByOrNull { it.ordinal }
+    return Message(
+        role = Role.SYSTEM,
+        text = "[fsm] You have stayed in ${from.keyword} for several turns without moving on. If this " +
+            "stage's work is done, end your reply with a [[stage:${next?.keyword}]] line — it must name " +
+            "the NEXT stage (${next?.keyword}), not ${from.keyword} again. If the work is not finished, " +
+            "finish it this turn.",
     )
 }
 
