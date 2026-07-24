@@ -95,6 +95,63 @@ class GeminiApiTest {
     }
     //endregion
 
+    //region spendRetryBudget
+
+    @Test
+    fun `when spendRetryBudget called for 503 - then spent increments by one`() {
+        // given — a 503 costs one unit, so it can be retried until the budget runs out
+        val expectedBySpent = mapOf(0 to 1, 1 to 2, 2 to 3)
+
+        // when / then
+        expectedBySpent.forEach { (spent, expected) ->
+            assertEquals(expected, spendRetryBudget(spent, is503 = true), "spent=$spent")
+        }
+    }
+
+    @Test
+    fun `when spendRetryBudget called for non-503 - then spent jumps by the full budget`() {
+        // given — 429 / timeout / empty candidate spend the whole budget, firing exactly once
+        val expectedBySpent = mapOf(0 to 3, 1 to 4, 2 to 5)
+
+        // when / then
+        expectedBySpent.forEach { (spent, expected) ->
+            assertEquals(expected, spendRetryBudget(spent, is503 = false), "spent=$spent")
+        }
+    }
+
+    @Test
+    fun `when a 503 keeps failing from zero - then three retries exhaust the budget`() {
+        // given — the send loop retries while spent is below the limit (3)
+        var spent = 0
+        var retries = 0
+
+        // when
+        while (spent < 3) {
+            spent = spendRetryBudget(spent, is503 = true)
+            retries++
+        }
+
+        // then — a 503 rides the spike across three attempts
+        assertEquals(3, retries)
+    }
+
+    @Test
+    fun `when a non-503 failure fires from zero - then a single retry exhausts the budget`() {
+        // given
+        var spent = 0
+        var retries = 0
+
+        // when
+        while (spent < 3) {
+            spent = spendRetryBudget(spent, is503 = false)
+            retries++
+        }
+
+        // then — a non-503 spends the whole budget at once
+        assertEquals(1, retries)
+    }
+    //endregion
+
     //region buildSystemInstruction
 
     @Test
