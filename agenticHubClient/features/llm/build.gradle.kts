@@ -58,6 +58,8 @@ kotlin {
             // features:rag comes transitively via commonMain api (RagContextMapper).
             implementation(projects.agenticHubClient.platform.network)
             implementation(libs.junit)
+            // runLiveTest — shared live-test timeout wrapper.
+            implementation(projects.agenticHubClient.testUtils)
             // platform:config (BuildKonfig, for the Gemini live test's GEMINI_API_KEY)
             // now comes transitively from commonMain.
         }
