@@ -9,6 +9,7 @@ import ru.den.writes.code.agenticHub.features.llm.ollama.LocalOllamaApi
 import ru.den.writes.code.agenticHub.features.llm.ollama.OllamaModel
 import ru.den.writes.code.agenticHub.features.llm.openrouter.OpenRouterApi
 import ru.den.writes.code.agenticHub.features.llm.openrouter.OpenRouterModel
+import ru.den.writes.code.agenticHub.platform.config.ApiKey
 
 public const val PROVIDER_GEMINI: String = "gemini"
 public const val PROVIDER_OPENROUTER: String = "openrouter"
@@ -54,21 +55,21 @@ public fun buildModelProvider(
     ollamaBaseUrl: String? = null,
 ): ModelProvider = when (providerRaw) {
     PROVIDER_GEMINI -> {
-        if (geminiApiKey.isBlank()) throw ModelProviderError.MissingApiKey("GEMINI_API_KEY")
+        if (geminiApiKey.isBlank()) throw ModelProviderError.MissingApiKey(ApiKey.GEMINI.envVar)
         ModelProvider.Gemini(
             model = modelRaw?.let(GeminiModel.Companion::fromId) ?: GeminiModel.Default,
             apiKey = geminiApiKey,
         )
     }
     PROVIDER_OPENROUTER -> {
-        if (openRouterApiKey.isBlank()) throw ModelProviderError.MissingApiKey("OPENROUTER_API_KEY")
+        if (openRouterApiKey.isBlank()) throw ModelProviderError.MissingApiKey(ApiKey.OPEN_ROUTER.envVar)
         ModelProvider.OpenRouter(
             model = modelRaw?.let(OpenRouterModel.Companion::fromId) ?: OpenRouterModel.Default,
             apiKey = openRouterApiKey,
         )
     }
     PROVIDER_HUGGINGFACE -> {
-        if (huggingFaceApiKey.isBlank()) throw ModelProviderError.MissingApiKey("HUGGINGFACE_API_KEY")
+        if (huggingFaceApiKey.isBlank()) throw ModelProviderError.MissingApiKey(ApiKey.HUGGING_FACE.envVar)
         ModelProvider.HuggingFace(
             model = modelRaw?.let(HuggingFaceModel.Companion::fromId) ?: HuggingFaceModel.Default,
             apiKey = huggingFaceApiKey,

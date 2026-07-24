@@ -26,6 +26,10 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.agenticHubClient.platform.logging)
 
+            // ApiKey — the env-var names for the provider keys; buildModelProvider
+            // raises MissingApiKey with them. platform:config also exposes BuildKonfig.
+            implementation(projects.agenticHubClient.platform.config)
+
             // RagContextMapper (retrieved chunks → grounding Message) is production
             // glue for RAG-answering; ScoredChunk leaks through its public signature
             // → api(features:rag). No cycle: features:rag does NOT depend on llm.
@@ -54,8 +58,8 @@ kotlin {
             // features:rag comes transitively via commonMain api (RagContextMapper).
             implementation(projects.agenticHubClient.platform.network)
             implementation(libs.junit)
-            // platform:config exposes BuildKonfig — the Gemini live test reads GEMINI_API_KEY.
-            implementation(projects.agenticHubClient.platform.config)
+            // platform:config (BuildKonfig, for the Gemini live test's GEMINI_API_KEY)
+            // now comes transitively from commonMain.
         }
     }
 }
