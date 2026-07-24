@@ -52,7 +52,7 @@ class TurnEngineLiveTest {
     }
 
     @Test
-    fun `when turn engine works with simple task - then it finishes faster then max test tuens`() = runLiveTest {
+    fun `when turn engine works with simple task - then it finishes faster then max test turns`() = runLiveTest {
         // given
         val modelProvider = ModelProvider.Gemini(
             model = GeminiModel.Default,
@@ -94,12 +94,39 @@ class TurnEngineLiveTest {
         listOf(runLogs1, runLogs2, runLogs3).forEach { runs -> printModelSummary(runs, tries) }
     }
 
+    @Test
+    fun `when the stall hint is armed - then reach-done beats the baseline`() = runLiveTest {
+        // given
+        val modelProvider = ModelProvider.Gemini(
+            model = GeminiModel.Known.Gemini25FlashLite,
+            apiKey = BuildKonfig.GEMINI_API_KEY
+        )
+        val sessionName = "turn-engine-live-test"
+        val reps = 10
+
+        // when
+        val baseline = (0..<reps).map { runTurnEngineWith(modelProvider, sessionName, MINIMAL_TASK) }
+        val withHint = (0..<reps).map { runTurnEngineWith(modelProvider, sessionName, MINIMAL_TASK) }
+
+        // then
+        printGroupSummary("baseline (no hint)", baseline, reps)
+        printGroupSummary("with stall hint (placeholder — not implemented)", withHint, reps)
+    }
+
     private fun printModelSummary(runs: List<RunLog>, tries: Int) {
         val model = runs.firstOrNull()?.modelId ?: "?"
         val reached = runs.count { it.reachedDone }
         val turns = runs.map { it.turnLogs.size }
         println("========================= MODEL SUMMARY =========================")
         println("MODEL $model — reachedDone $reached/$tries — turns per try $turns")
+        runs.forEach { println(it.formatted()) }
+    }
+
+    private fun printGroupSummary(label: String, runs: List<RunLog>, reps: Int) {
+        val reached = runs.count { it.reachedDone }
+        val turns = runs.map { it.turnLogs.size }
+        println("========================= GROUP: $label =========================")
+        println("$label — reachedDone $reached/$reps — turns per rep $turns")
         runs.forEach { println(it.formatted()) }
     }
 
@@ -346,6 +373,23 @@ class TurnEngineLiveTest {
             goal = "Compose a three-item pre-release checklist for a small command-line tool. " +
                     "Each item is one sentence. The checklist text itself is the whole deliverable — " +
                     "no files, no tools, no external systems.",
+            stage = TaskStage.CLARIFICATION,
+        )
+
+        /**
+         * The opposite lever from a "hard" task: the deliverable is a SINGLE sentence, ready the
+         * moment planning ends, so EXECUTION has nothing left to do. On each `continue` the model
+         * tends to repeat ("I already said it") and degenerate into the execution-lock (NO_MOVE)
+         * instead of signalling validation — the failure mode a stall hint targets. Short replies
+         * also keep runs fast and within the live budget, unlike the volume a "cover as many
+         * scenarios as you can" task provokes (which collapsed into 503s and a 15-min timeout).
+         * Pure text — no tools, RAG or judge — to isolate the FSM marker channel.
+         */
+        val MINIMAL_TASK = TaskNotes(
+            taskId = "minimal-task",
+            goal = "Name the single most important pre-release check for a small command-line " +
+                    "tool, in one short sentence. That one sentence is the entire deliverable — " +
+                    "nothing else: no explanation, no list, no extra text.",
             stage = TaskStage.CLARIFICATION,
         )
     }
