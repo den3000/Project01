@@ -4,28 +4,15 @@ import io.ktor.client.HttpClient
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import ru.den.writes.code.agenticHub.BuildKonfig
-import ru.den.writes.code.agenticHub.cliJvm.ApiKeys
 import ru.den.writes.code.agenticHub.cliJvm.ModelProviderFactory
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderKind
 import ru.den.writes.code.agenticHub.features.rag.embedding.EmbedderSelector
 import ru.den.writes.code.agenticHub.features.rag.embedding.GeminiEmbedder
 import ru.den.writes.code.agenticHub.features.rag.embedding.OllamaEmbedder
-
-/**
- * Resolve one provider key: the process environment wins over the [baked] value
- * [BuildKonfig] compiled in, and a blank env var counts as absent.
- *
- * [BuildKonfig] reads `local.properties` (or the env) at Gradle *configuration* time and
- * bakes the result into the binary — fine for a developer machine, useless for a binary
- * built somewhere that must not see the secret. Reading the env at *runtime* lets a build
- * carry no credentials at all and a deployment (CI, a container) supply them per run;
- * with no env set, local development keeps working off `local.properties` exactly as before.
- *
- * [env] is injectable so the precedence is unit-testable without touching the real process.
- */
-internal fun resolveKey(name: String, baked: String, env: (String) -> String? = System::getenv): String =
-    env(name)?.takeIf { it.isNotBlank() } ?: baked
+import ru.den.writes.code.agenticHub.platform.config.ApiKey
+import ru.den.writes.code.agenticHub.platform.config.ApiKeys
+import ru.den.writes.code.agenticHub.platform.config.resolveKey
 
 /**
  * App-owned bindings for the CLI composition root: the provider keys ([resolveKey] over
@@ -37,9 +24,9 @@ internal fun resolveKey(name: String, baked: String, env: (String) -> String? = 
 internal val appModule: Module = module {
     single {
         ApiKeys(
-            gemini = resolveKey("GEMINI_API_KEY", BuildKonfig.GEMINI_API_KEY),
-            openRouter = resolveKey("OPENROUTER_API_KEY", BuildKonfig.OPENROUTER_API_KEY),
-            huggingFace = resolveKey("HUGGINGFACE_API_KEY", BuildKonfig.HUGGINGFACE_API_KEY),
+            gemini = resolveKey(ApiKey.GEMINI, BuildKonfig.GEMINI_API_KEY, System::getenv),
+            openRouter = resolveKey(ApiKey.OPEN_ROUTER, BuildKonfig.OPENROUTER_API_KEY, System::getenv),
+            huggingFace = resolveKey(ApiKey.HUGGING_FACE, BuildKonfig.HUGGINGFACE_API_KEY, System::getenv),
         )
     }
     single { ModelProviderFactory(get()) }
