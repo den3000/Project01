@@ -213,6 +213,67 @@ class AgentResponderTest {
         assertEquals(emptyList<ExecutedToolCall>(), outcome.executedToolCalls)
     }
 
+    @Test
+    fun `when the model narrates alongside a tool call - then the narration survives in the reply`() = runTest {
+        // given — the model writes text in the SAME reply as its tool call, then a plain finale
+        val args = buildJsonObject { put("city", "Paris") }
+        val script = FakeLlmScript().apply {
+            queue(LlmResult(text = "Let me check.", toolCalls = listOf(ToolCall("current_weather", args))))
+            queueText("It is sunny in Paris.")
+        }
+        val api = scriptedApi(script)
+        val executor = RecordingExecutor("Paris: 18C")
+        val responder = AgentResponder(AgentConfig(llmApi = api, params = GenerationParams(), toolExecutor = executor))
+
+        // when
+        val outcome = responder.respond(emptyList(), emptyList(), Message(Role.USER, "weather in Paris?"))
+
+        // then — the narration is folded in ahead of the final reply, and echoed on the wire (not "")
+        assertEquals("Let me check.\n\nIt is sunny in Paris.", outcome.result.text)
+        val resent = script.calls[1].messages
+        assertEquals("Let me check.", resent[resent.size - 2].text)
+    }
+
+    @Test
+    fun `when the finale goes silent after a spoken fragment - then the fragment becomes the reply`() = runTest {
+        // given — measured live: the model wrote its work next to the call, then answered the
+        // tool result with an empty candidate (finishReason=STOP)
+        val args = buildJsonObject { put("city", "Paris") }
+        val script = FakeLlmScript().apply {
+            queue(LlmResult(text = "The forecast: sunny, 18C.", toolCalls = listOf(ToolCall("current_weather", args))))
+            queue(LlmResult(text = null, error = "Gemini returned no content (finishReason=STOP)"))
+        }
+        val api = scriptedApi(script)
+        val executor = RecordingExecutor("Paris: 18C")
+        val responder = AgentResponder(AgentConfig(llmApi = api, params = GenerationParams(), toolExecutor = executor))
+
+        // when
+        val outcome = responder.respond(emptyList(), emptyList(), Message(Role.USER, "weather?"))
+
+        // then — the fragment is recovered as the reply and the "no content" error is cleared
+        assertEquals("The forecast: sunny, 18C.", outcome.result.text)
+        assertNull(outcome.result.error)
+    }
+
+    @Test
+    fun `when a recovered fragment carries a stage marker - then proposedStage is parsed from it`() = runTest {
+        // given — the stage signal lived in the text spoken next to the call; the finale went silent
+        val args = buildJsonObject { put("id", "T-1") }
+        val script = FakeLlmScript().apply {
+            queue(LlmResult(text = "Plan ready. [[stage:execution]]", toolCalls = listOf(ToolCall("get_ticket", args))))
+            queue(LlmResult(text = null, error = "Gemini returned no content (finishReason=STOP)"))
+        }
+        val api = scriptedApi(script)
+        val executor = RecordingExecutor("T-1: open")
+        val responder = AgentResponder(AgentConfig(llmApi = api, params = GenerationParams(), toolExecutor = executor))
+
+        // when
+        val outcome = responder.respond(emptyList(), emptyList(), Message(Role.USER, "go"))
+
+        // then — the marker that would have been dropped now drives the FSM
+        assertEquals(TaskStage.EXECUTION, outcome.proposedStage)
+    }
+
     private class RecordingExecutor(private val output: String) : ToolExecutor {
         val calls = mutableListOf<ToolCall>()
         override suspend fun execute(call: ToolCall): String {
