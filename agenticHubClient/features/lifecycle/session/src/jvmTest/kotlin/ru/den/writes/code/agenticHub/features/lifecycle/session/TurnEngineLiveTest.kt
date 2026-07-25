@@ -39,7 +39,7 @@ class TurnEngineLiveTest {
     fun `when turn engine works without task - then it is pure hallucination`() = runLiveTest {
         // given
         val modelProvider = ModelProvider.Gemini(
-            model = GeminiModel.Default,
+            model = GeminiModel.Known.Gemini25FlashLite,
             apiKey = BuildKonfig.GEMINI_API_KEY
         )
         val sessionName = "turn-engine-live-test"
@@ -55,7 +55,7 @@ class TurnEngineLiveTest {
     fun `when turn engine works with simple task - then it finishes faster then max test turns`() = runLiveTest {
         // given
         val modelProvider = ModelProvider.Gemini(
-            model = GeminiModel.Default,
+            model = GeminiModel.Known.Gemini25FlashLite,
             apiKey = BuildKonfig.GEMINI_API_KEY
         )
         val sessionName = "turn-engine-live-test"
@@ -86,12 +86,12 @@ class TurnEngineLiveTest {
 
         // when
         val tries = 3
-        val runLogs1 = (0..<tries).mapNotNull { runTurnEngineWith(modelProvider1, sessionName, SIMPLE_TASK) }
-        val runLogs2 = (0..<tries).mapNotNull { runTurnEngineWith(modelProvider2, sessionName, SIMPLE_TASK) }
-        val runLogs3 = (0..<tries).mapNotNull { runTurnEngineWith(modelProvider3, sessionName, SIMPLE_TASK) }
+        val groups = listOf(modelProvider1, modelProvider2, modelProvider3).map { provider ->
+            RunGroup(provider.modelId, (0..<tries).map { runTurnEngineWith(provider, sessionName, SIMPLE_TASK) })
+        }
 
         // then — diagnostic summary per model across tries (no hard assert yet)
-        listOf(runLogs1, runLogs2, runLogs3).forEach { runs -> printModelSummary(runs, tries) }
+        reportGroups(groups)
     }
 
     @Test
@@ -109,25 +109,87 @@ class TurnEngineLiveTest {
         val withHint = (0..<reps).map { runTurnEngineWith(modelProvider, sessionName, MINIMAL_TASK, stallHint = true) }
 
         // then
-        printGroupSummary("baseline (no hint)", baseline, reps)
-        printGroupSummary("with stall hint", withHint, reps)
+        reportGroups(
+            listOf(
+                RunGroup("baseline (no hint)", baseline),
+                RunGroup("with stall hint", withHint),
+            )
+        )
     }
 
-    private fun printModelSummary(runs: List<RunLog>, tries: Int) {
-        val model = runs.firstOrNull()?.modelId ?: "?"
-        val reached = runs.count { it.reachedDone }
-        val turns = runs.map { it.turnLogs.size }
-        println("========================= MODEL SUMMARY =========================")
-        println("MODEL $model — reachedDone $reached/$tries — turns per try $turns")
-        runs.forEach { println(it.formatted()) }
+    /** A labelled batch of runs — one model, or one arm of an A/B (baseline vs hint). */
+    private data class RunGroup(val label: String, val runs: List<RunLog>)
+
+    /**
+     * The one report every grouped live test prints, in three widening zooms:
+     *   1. per-group detail — the turn-by-turn block for each run (MODEL SUMMARY, as before);
+     *   2. PER-RUN table — one row per run, raw counts, so every run is visible/comparable;
+     *   3. PER-GROUP table — one row per group, counts averaged per run.
+     * Takes any number of groups, so new grouped tests reuse it as-is.
+     */
+    private fun reportGroups(groups: List<RunGroup>) {
+        groups.forEach { printGroupDetail(it) }
+        printTable(
+            "PER-RUN (raw, every run a row)",
+            listOf("group", "run", "done", "turns", "adv", "rej", "noMv", "fail", "out", "thghts", "ms", "stage"),
+            groups.flatMap { g ->
+                g.runs.mapIndexed { i, r ->
+                    listOf(
+                        g.label,
+                        "${i + 1}",
+                        if (r.reachedDone) "Y" else "-",
+                        "${r.turnLogs.size}",
+                        "${r.advances}",
+                        "${r.rejects}",
+                        "${r.noMoves}",
+                        "${r.failures}",
+                        "${r.outputTokens}",
+                        "${r.thoughtsTokens}",
+                        "${r.durationMs}",
+                        r.finalStage?.name ?: "-",
+                    )
+                }
+            },
+        )
+        printTable(
+            "PER-GROUP (averaged per run)",
+            listOf("group", "done", "turns", "adv", "rej", "noMv", "fail", "out", "thghts", "ms"),
+            groups.map { g ->
+                val n = g.runs.size.coerceAtLeast(1)
+                fun avg(sel: (RunLog) -> Number) = g.runs.sumOf { sel(it).toDouble() } / n
+                listOf(
+                    g.label,
+                    "${g.runs.count { it.reachedDone }}/${g.runs.size}",
+                    "%.1f".format(avg { it.turnLogs.size }),
+                    "%.1f".format(avg { it.advances }),
+                    "%.1f".format(avg { it.rejects }),
+                    "%.1f".format(avg { it.noMoves }),
+                    "%.1f".format(avg { it.failures }),
+                    "%.0f".format(avg { it.outputTokens }),
+                    "%.0f".format(avg { it.thoughtsTokens }),
+                    "%.0f".format(avg { it.durationMs }),
+                )
+            },
+        )
     }
 
-    private fun printGroupSummary(label: String, runs: List<RunLog>, reps: Int) {
-        val reached = runs.count { it.reachedDone }
-        val turns = runs.map { it.turnLogs.size }
-        println("========================= GROUP: $label =========================")
-        println("$label — reachedDone $reached/$reps — turns per rep $turns")
-        runs.forEach { println(it.formatted()) }
+    private fun printGroupDetail(group: RunGroup) {
+        val reached = group.runs.count { it.reachedDone }
+        val turns = group.runs.map { it.turnLogs.size }
+        println("========================= SUMMARY: ${group.label} =========================")
+        println("reachedDone $reached/${group.runs.size} — turns per run $turns")
+        group.runs.forEach { println(it.formatted()) }
+    }
+
+    /** Print a titled table: header + rows, label column left-aligned, numeric columns right. */
+    private fun printTable(title: String, header: List<String>, rows: List<List<String>>) {
+        val all = listOf(header) + rows
+        val widths = header.indices.map { c -> all.maxOf { it[c].length } }
+        fun line(row: List<String>) =
+            row.mapIndexed { c, v -> if (c == 0) v.padEnd(widths[c]) else v.padStart(widths[c]) }.joinToString("  ")
+        println("\n===== $title =====")
+        println(line(header))
+        rows.forEach { println(line(it)) }
     }
 
 
