@@ -20,8 +20,8 @@ import kotlin.test.assertTrue
  * task-stage FSM outcome. No I/O is asserted (the engine doesn't print) and no model is
  * called — replies come from a scripted fake, so every assertion is deterministic.
  *
- * Environment comes from `TurnEngineTestSupport.kt`; the live stand shares it, which is
- * what keeps both suites pointed at the same engine wiring.
+ * Environment comes from `TurnEngineFixture.kt`; the live stand shares it, which is what
+ * keeps both suites pointed at the same engine wiring.
  */
 class TurnEngineTest {
 

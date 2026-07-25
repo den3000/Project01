@@ -13,8 +13,8 @@ import ru.den.writes.code.agenticHub.features.memory.TaskStage
  *
  * Only the live stand needs this: a run is many turns, the model is nondeterministic, and
  * the question is never "did this turn pass" but "how often, and where did it get stuck".
- * So nothing here asserts — it measures, and the tables are the output. Offline tests use
- * `TurnEngineTestSupport.kt` alone.
+ * So nothing here asserts — it measures, and the tables are the output. The engine under
+ * it is built by `TurnEngineFixture.kt`.
  */
 
 //region прогон

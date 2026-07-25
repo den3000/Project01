@@ -11,8 +11,9 @@ import kotlin.test.assertTrue
 /**
  * The FSM stability stand: a real [ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine]
  * against a real model, measured rather than asserted. Environment comes from
- * `TurnEngineTestSupport.kt`, the run driver and the tables from `TurnEngineRunReport.kt`;
- * what stays here is which model, which task, and how many repetitions.
+ * `TurnEngineFixture.kt`, its parts from `TurnEngineTestSupport.kt`, the run driver and the
+ * tables from `TurnEngineRunReport.kt`; what stays here is which model, which task, and how
+ * many repetitions.
  *
  * Opt-in (`-PliveTests`) and it **burns tokens** — the A/B below is 2 × [reps] full runs.
  */
