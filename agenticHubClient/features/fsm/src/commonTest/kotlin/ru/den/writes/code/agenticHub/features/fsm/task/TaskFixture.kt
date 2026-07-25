@@ -10,7 +10,7 @@ import ru.den.writes.code.agenticHub.features.fsm.Task
  * measured stalls actually happen.
  */
 internal fun task(
-    stage: Stage? = Stage.EXECUTION,
+    stage: Stage = Stage.EXECUTION,
     paused: Boolean = false,
     notes: List<String> = emptyList(),
     taskRetryState: RetryState = RetryState.task(),

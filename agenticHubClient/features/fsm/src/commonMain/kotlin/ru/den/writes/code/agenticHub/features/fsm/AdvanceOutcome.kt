@@ -29,7 +29,7 @@ sealed interface AdvanceOutcome {
      */
     data class Advanced(
         override val task: Task,
-        val from: Stage?,
+        val from: Stage,
         val to: Stage,
     ) : AdvanceOutcome {
         override val reason: RetryReason? get() = null
@@ -51,7 +51,7 @@ sealed interface AdvanceOutcome {
     /** The move skipped a stage (or left a terminal one); it was refused and the stage held. */
     data class Rejected(
         override val task: Task,
-        val from: Stage?,
+        val from: Stage,
         val proposed: Stage,
         val allowed: Set<Stage>,
     ) : AdvanceOutcome {

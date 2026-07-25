@@ -15,7 +15,12 @@ package ru.den.writes.code.agenticHub.features.fsm
  */
 data class Task(
     val taskId: String,
-    val stage: Stage? = null,
+    /**
+     * Where the task stands. Never absent: a task is always somewhere in the
+     * machine, and a stored task with no recorded stage is a parsing problem the
+     * loader settles by starting it at [Stage.INITIAL].
+     */
+    val stage: Stage = Stage.INITIAL,
     val paused: Boolean = false,
     val goal: String? = null,
     val notes: List<String> = emptyList(),

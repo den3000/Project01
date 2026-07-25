@@ -12,7 +12,6 @@ class TaskTransitionsTest {
     @Test
     fun `when allowedNext queried - then matches the transition table`() {
         // given
-        // The full forward + single-step-back table; done is terminal.
         val table = mapOf(
             Stage.CLARIFICATION to setOf(Stage.PLANNING),
             Stage.PLANNING to setOf(Stage.EXECUTION, Stage.CLARIFICATION),
@@ -21,11 +20,12 @@ class TaskTransitionsTest {
             Stage.DONE to emptySet(),
         )
 
-        // when - then
-        // forEach justified (rule §11.E): one invariant — "allowedNext matches the
-        // table" — over every enum value; per-case message pinpoints a miss.
         Stage.entries.forEach { from ->
-            assertEquals(table[from], TaskStateMachine.allowedNext(from), "allowedNext($from)")
+            // when
+            val to = TaskStateMachine.allowedNext(from)
+
+            // then
+            assertEquals(table[from], to, "allowedNext($from)")
         }
     }
 
@@ -48,8 +48,6 @@ class TaskTransitionsTest {
     @Test
     fun `when canTransition steps back one stage - then allowed`() {
         // given
-        // A plan that turns out wrong is not a dead end; the FSM lets the task
-        // revisit the prior phase rather than restart.
         val back = listOf(
             Stage.PLANNING to Stage.CLARIFICATION,
             Stage.EXECUTION to Stage.PLANNING,
@@ -79,20 +77,8 @@ class TaskTransitionsTest {
     }
 
     @Test
-    fun `when canTransition from a null stage - then any target initializes`() {
-        // given
-        // A task with no stage yet: nothing to violate, so any stage is a valid start.
-
-        // when - then
-        Stage.entries.forEach { to ->
-            assertTrue(TaskStateMachine.canTransition(null, to), "null -> $to should initialize")
-        }
-    }
-
-    @Test
     fun `when canTransition from done - then every target is rejected`() {
         // given
-        // done is terminal — a finished task is not reopened automatically.
 
         // when - then
         Stage.entries.forEach { to ->

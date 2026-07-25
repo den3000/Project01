@@ -31,9 +31,6 @@ class TaskStageAdvanceTest {
     @Test
     fun `when the stage advances - then both inner budgets start over`() {
         // given
-        // They measure what THIS stage cost; a task that honestly spends four
-        // turns and a dozen rewrites per stage has never stalled and must not
-        // restart. A run that is still advancing is not thrown away.
         val task = task(
             stage = Stage.PLANNING,
             stageRetryState = RetryState(attempt = 4, max = STAGE_MAX),
@@ -48,7 +45,6 @@ class TaskStageAdvanceTest {
         assertIs<AdvanceOutcome.Advanced>(actual)
         assertEquals(RetryState.stage(), actual.task.stageRetryState)
         assertEquals(RetryState.turn(), actual.task.turnRetryState)
-        // the outage budget is not an inner one — progress does not refill it
         assertEquals(3, actual.task.transportRetryState.attempt)
     }
 
@@ -67,16 +63,16 @@ class TaskStageAdvanceTest {
     }
 
     @Test
-    fun `when a task with no stage is moved - then any stage initializes it`() {
+    fun `when a fresh task is moved - then it advances off clarification like any other`() {
         // given
-        // A hand-edited or freshly created task: no prior stage to violate.
-        val task = task(stage = null)
+        // A task with nothing set yet still starts inside the machine, so it gets
+        // no free jump: from the initial stage only planning is reachable.
+        val task = task(stage = Stage.INITIAL)
 
         // when - then
         Stage.entries.forEach { to ->
             val actual = TaskStateMachine.advance(task, to)
-            assertIs<AdvanceOutcome.Advanced>(actual, "advance(null -> $to)")
-            assertEquals(to, actual.task.stage, "stage(null -> $to)")
+            assertEquals(to == Stage.PLANNING, actual is AdvanceOutcome.Advanced, "advance(initial -> $to)")
         }
     }
 

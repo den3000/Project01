@@ -26,12 +26,17 @@ object TaskStateMachine {
     }
 
     /**
-     * Whether moving [from] → [to] is permitted. A null [from] (a task with no
-     * stage yet) accepts any [to] as initialization: there is no prior stage to
-     * violate. Once a stage is set, only [allowedNext] entries pass.
+     * Whether moving [from] → [to] is permitted: exactly the [allowedNext]
+     * entries, no special cases.
+     *
+     * There is deliberately no "stage unknown" case. A task is always somewhere
+     * in the machine — a stored file without a recorded stage is a parsing
+     * problem, and whoever loads it substitutes [Stage.INITIAL] at the boundary.
+     * Letting an unknown stage through here would mean a task could reach
+     * [Stage.DONE] in one move by having no stage set, which is precisely the
+     * guarantee this table exists to give.
      */
-    fun canTransition(from: Stage?, to: Stage): Boolean =
-        if (from == null) true else to in allowedNext(from)
+    fun canTransition(from: Stage, to: Stage): Boolean = to in allowedNext(from)
 
     /**
      * Apply the move [proposed] for [task] and say what happened.
@@ -56,7 +61,7 @@ object TaskStateMachine {
         // instead of swallowing it — silence here is the FSM's main lock.
         if (proposed == from) return AdvanceOutcome.Repeated(task, proposed, allowedNext(proposed))
         if (!canTransition(from, proposed)) {
-            return AdvanceOutcome.Rejected(task, from, proposed, from?.let(::allowedNext).orEmpty())
+            return AdvanceOutcome.Rejected(task, from, proposed, allowedNext(from))
         }
         return AdvanceOutcome.Advanced(
             task = task.copy(
