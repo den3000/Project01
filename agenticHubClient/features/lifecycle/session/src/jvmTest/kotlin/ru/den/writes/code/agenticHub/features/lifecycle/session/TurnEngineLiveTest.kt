@@ -137,7 +137,7 @@ class TurnEngineLiveTest {
         printTable(
             "PER-RUN (raw, every run a row)",
             listOf(
-                "group", "run", "done", "turns", "adv", "rej", "noMv", "fail",
+                "group", "run", "done", "turns", "adv", "rej", "noMv", "rep", "fail",
                 "stall", "recov", "stalledAt", "out", "thghts", "ms", "stage",
             ),
             groups.flatMap { g ->
@@ -150,6 +150,7 @@ class TurnEngineLiveTest {
                         "${r.advances}",
                         "${r.rejects}",
                         "${r.noMoves}",
+                        "${r.repeats}",
                         "${r.failures}",
                         "${r.longestStall}",
                         if (!r.stalled) "-" else if (r.recovered) "Y" else "N",
@@ -165,7 +166,7 @@ class TurnEngineLiveTest {
         printTable(
             "PER-GROUP (averaged per run)",
             listOf(
-                "group", "done", "stalled", "recov", "turns", "adv", "rej", "noMv",
+                "group", "done", "stalled", "recov", "turns", "adv", "rej", "noMv", "rep",
                 "fail", "out", "thghts", "ms",
             ),
             groups.map { g ->
@@ -181,6 +182,7 @@ class TurnEngineLiveTest {
                     "%.1f".format(avg { it.advances }),
                     "%.1f".format(avg { it.rejects }),
                     "%.1f".format(avg { it.noMoves }),
+                    "%.1f".format(avg { it.repeats }),
                     "%.1f".format(avg { it.failures }),
                     "%.0f".format(avg { it.outputTokens }),
                     "%.0f".format(avg { it.thoughtsTokens }),
@@ -343,6 +345,21 @@ class TurnEngineLiveTest {
                                 advanceErrorReason = "NOT ALLOWED"
                             )
                         }
+
+                        is StageAdvance.Repeated -> {
+                            TurnLog(
+                                index = index,
+                                stageBefore = stageBefore,
+                                prompt = prompt,
+                                reply = result.reply,
+                                suggestedNextStage = null,
+                                judge = result.judge::class.simpleName.orEmpty(),
+                                outputTokens = result.usage?.outputTokens,
+                                thoughtsTokens = result.usage?.thoughtsTokens,
+                                durationMs = result.durationMs,
+                                repeatedStage = advance.stage,
+                            )
+                        }
                     }
                 }
             }
@@ -363,17 +380,24 @@ class TurnEngineLiveTest {
         val durationMs: Long = 0,
         val replayErrorReason: String = "",
         val advanceErrorReason: String = "",
+        val repeatedStage: TaskStage? = null,
     ) {
         /** What the turn did to the FSM, derived from the fields already captured. */
         val failed: Boolean get() = replayErrorReason.isNotEmpty()
         val rejected: Boolean get() = advanceErrorReason.isNotEmpty()
         val advanced: Boolean get() = suggestedNextStage != null && !rejected && !failed
+
+        /** The model named the stage it was already in — a no-move it can be told about. */
+        val repeated: Boolean get() = repeatedStage != null
+
+        /** Left the stage put, whichever way — what the engine counts toward a stall. */
         val noMove: Boolean get() = !advanced && !rejected && !failed
         val outcome: String
             get() = when {
                 failed -> "FAILED"
                 rejected -> "REJECTED"
                 advanced -> "ADVANCED"
+                repeated -> "REPEATED"
                 else -> "NO_MOVE"
             }
 
@@ -412,6 +436,9 @@ class TurnEngineLiveTest {
         val advances: Int get() = turnLogs.count { it.advanced }
         val rejects: Int get() = turnLogs.count { it.rejected }
         val noMoves: Int get() = turnLogs.count { it.noMove }
+
+        /** How much of [noMoves] was the model re-signalling its stage rather than silence. */
+        val repeats: Int get() = turnLogs.count { it.repeated }
         val failures: Int get() = turnLogs.count { it.failed }
         val outputTokens: Int get() = turnLogs.sumOf { it.outputTokens ?: 0 }
         val thoughtsTokens: Int get() = turnLogs.sumOf { it.thoughtsTokens ?: 0 }

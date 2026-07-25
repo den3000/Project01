@@ -129,6 +129,15 @@ public class TurnEngine(
     private var pendingStageRejection: StageAdvance.Rejected? = null
 
     /**
+     * The model named the stage it was already in on the previous turn, held so the NEXT
+     * turn can say so. Same reasoning as [pendingStageRejection] and the same ephemeral
+     * handling — and the same failure without it, only quieter: a re-signal is not even
+     * an illegal move, so the engine used to swallow it in silence. The model then had no
+     * way to learn that its marker did nothing, and simply sent it again.
+     */
+    private var pendingStageRepeat: StageAdvance.Repeated? = null
+
+    /**
      * A stage the model has refused to leave for [STALL_STREAK_LIMIT] passed turns
      * running (it keeps signalling the current stage, or emits no marker) — held so
      * the NEXT turn can nudge it toward the next stage. Ephemeral and surfaced-once,
@@ -171,9 +180,11 @@ public class TurnEngine(
         // under the memory layer in the provider's system slot.
         val stageFeedback = listOfNotNull(
             pendingStageRejection?.let(::stageRejectionMessage),
+            pendingStageRepeat?.let(::stageRepeatMessage),
             pendingStallHint?.let(::stallHintMessage),
         )
         pendingStageRejection = null
+        pendingStageRepeat = null
         pendingStallHint = null
         val baseContext =
             stageFeedback + ragContext + (historyStore?.let { strategy.planContext(it.messages) } ?: emptyList())
@@ -245,6 +256,7 @@ public class TurnEngine(
                 // top of this turn; only a fresh rejection here sets it again.
                 val advance = advanceTaskStage(outcome.proposedStage)
                 if (advance is StageAdvance.Rejected) pendingStageRejection = advance
+                if (advance is StageAdvance.Repeated) pendingStageRepeat = advance
                 if (stallHint) updateStallHint(advance, stage, task?.paused == true)
                 return TurnResult.Ok(
                     reply = text,
@@ -357,7 +369,9 @@ public class TurnEngine(
         val task = mem.store.loadTask(id) ?: TaskNotes(id, stage = TaskStage.INITIAL)
         if (task.paused) return StageAdvance.None
         val from = task.stage
-        if (proposed == from) return StageAdvance.None
+        // Not a move, but not an illegal one either: the model used the marker to label
+        // where it already is. Reported rather than swallowed, so the next turn can say so.
+        if (proposed == from) return StageAdvance.Repeated(proposed, TaskStateMachine.allowedNext(proposed))
         if (!TaskStateMachine.canTransition(from, proposed)) {
             val allowed = from?.let(TaskStateMachine::allowedNext).orEmpty()
             return StageAdvance.Rejected(from, proposed, allowed)
@@ -368,14 +382,15 @@ public class TurnEngine(
 
     /**
      * Track a stage that refuses to move. A passed turn that leaves an active,
-     * non-terminal, non-[paused] stage put — [StageAdvance.None], i.e. the model
-     * signalled the CURRENT stage or emitted no marker — is a "stall";
+     * non-terminal, non-[paused] stage put — [StageAdvance.None] (no marker at all) or
+     * [StageAdvance.Repeated] (the current stage named again) — is a "stall";
      * [STALL_STREAK_LIMIT] of them in a row arm a one-shot nudge for the next turn
      * (see [stallHintMessage]). A real move ([StageAdvance.Advanced]), a rejected
      * one, or anything off-task resets the streak. Only called when [stallHint] is on.
      */
     private fun updateStallHint(advance: StageAdvance, stage: TaskStage?, paused: Boolean) {
-        val stalled = advance is StageAdvance.None && stage != null && stage != TaskStage.DONE && !paused
+        val stalled = (advance is StageAdvance.None || advance is StageAdvance.Repeated) &&
+            stage != null && stage != TaskStage.DONE && !paused
         if (stalled) {
             if (++stallStreak >= STALL_STREAK_LIMIT) {
                 pendingStallHint = stage
@@ -458,6 +473,34 @@ private fun stageRejectionMessage(rejected: StageAdvance.Rejected): Message {
 }
 
 /**
+ * The SYSTEM line shown after the model named the stage it was already in. Immediate and
+ * specific, unlike [stallHintMessage]: it quotes the marker back, says why it did nothing,
+ * and lists where the stage can actually go — so the mistake is correctable on the very
+ * next turn instead of after [STALL_STREAK_LIMIT] wasted ones.
+ *
+ * `internal` rather than private so the wording is covered directly.
+ */
+internal fun stageRepeatMessage(repeated: StageAdvance.Repeated): Message {
+    val here = repeated.stage.keyword
+    val allowed = repeated.allowed.joinToString(", ") { it.keyword }
+    return Message(
+        role = Role.SYSTEM,
+        text = "$FSM_NO_MOVE Your last reply signalled [[stage:$here]], but $here is the stage you are " +
+            "already in — the marker names the stage you are moving TO, so it moved nothing. From $here " +
+            "the task can go to: $allowed. If this stage's work is done, end your reply with the marker " +
+            "for the stage you are moving to; if it is not, finish it this turn.",
+    )
+}
+
+/**
+ * Tags for the SYSTEM lines the FSM sends the model. Distinct per cause, so a model
+ * receiving two of them in one turn reads two different instructions rather than one
+ * blurred repetition — and so tests can pin the one they are about.
+ */
+internal const val FSM_NO_MOVE: String = "[fsm] no move:"
+internal const val FSM_STALLED: String = "[fsm] stalled:"
+
+/**
  * The SYSTEM line shown after the model has sat in one stage for several turns
  * without moving — it keeps signalling the CURRENT stage (or emits no marker), so
  * the FSM never advances. Names the next stage explicitly, because the observed
@@ -492,7 +535,7 @@ internal fun stallHintMessage(from: TaskStage): Message {
                 "finish it this turn."
         }
     }
-    return Message(role = Role.SYSTEM, text = "[fsm] $text")
+    return Message(role = Role.SYSTEM, text = "$FSM_STALLED $text")
 }
 
 /**

@@ -13,5 +13,7 @@ internal data class StagePlainView(val advance: StageAdvance) : PlainView {
                 "[task] model proposed ${advance.from?.keyword ?: "(none)"} → ${advance.proposed.keyword}, " +
                     "not allowed (allowed: ${advance.allowed.joinToString(", ") { it.keyword }}) — ignored"
             )
+        is StageAdvance.Repeated ->
+            listOf("[task] model re-signalled ${advance.stage.keyword} — already there, no move")
     }
 }

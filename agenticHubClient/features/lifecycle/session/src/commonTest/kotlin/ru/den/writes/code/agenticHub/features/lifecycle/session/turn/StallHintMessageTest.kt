@@ -58,7 +58,7 @@ class StallHintMessageTest {
 
             // then
             assertEquals(Role.SYSTEM, hint.role, "$stage")
-            assertTrue(hint.text.startsWith("[fsm] "), "$stage: ${hint.text}")
+            assertTrue(hint.text.startsWith(FSM_STALLED), "$stage: ${hint.text}")
         }
     }
 

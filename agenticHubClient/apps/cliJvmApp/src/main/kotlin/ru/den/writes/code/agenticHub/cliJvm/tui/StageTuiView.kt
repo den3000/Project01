@@ -20,6 +20,8 @@ internal data class StageTuiView(val advance: StageAdvance) : TuiView {
             is StageAdvance.Rejected ->
                 "model proposed ${advance.from?.keyword ?: "(none)"} → ${advance.proposed.keyword}, " +
                     "not allowed (allowed: ${advance.allowed.joinToString(", ") { it.keyword }}) — ignored"
+            is StageAdvance.Repeated ->
+                "model re-signalled ${advance.stage.keyword} — already there, no move"
         }
         wrapWords("task", text, width).forEach { yellow { textLine(it) } }
     }

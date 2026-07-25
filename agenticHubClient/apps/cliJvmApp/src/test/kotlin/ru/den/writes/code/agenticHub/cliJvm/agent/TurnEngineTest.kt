@@ -167,6 +167,66 @@ class TurnEngineTest {
     }
 
     @Test
+    fun `when the reply signals the stage it is already in - then Repeated and the task is unchanged`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — the model uses the marker to label where it is, not to name a destination
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.VALIDATION)) }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fakeScript = FakeLlmScript().apply { queueText("still checking [[stage:validation]]") }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
+                val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory)
+
+                // when
+                val result = engine.turn("hi")
+
+                // then
+                val advance = (result as TurnResult.Ok).stageAdvance
+                assertTrue(advance is StageAdvance.Repeated)
+                assertEquals(TaskStage.VALIDATION, advance.stage)
+                assertEquals(setOf(TaskStage.DONE, TaskStage.EXECUTION), advance.allowed)
+                assertEquals(TaskStage.VALIDATION, memStore.loadTask("t")?.stage)
+            }
+        }
+    }
+
+    @Test
+    fun `when a re-signalled stage precedes a turn - then the next turn's wire carries the no-move note once`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — turn 1 re-signals VALIDATION; turn 2 answers without any marker
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply { saveTask(TaskNotes("t", stage = TaskStage.VALIDATION)) }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "t")
+                val fakeScript = FakeLlmScript().apply {
+                    queueText("still checking [[stage:validation]]")
+                    queueText("wrapping up")
+                    queueText("more")
+                }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "s")
+                val engine = TurnEngine(newChat("hi", "s"), fake, store, memory = memory)
+
+                // when
+                engine.turn("go")
+                engine.turn("go")
+                engine.turn("go")
+
+                // then — on the very next turn, quoting the marker back and naming both exits
+                val note = fakeScript.calls[1].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm] no move:" in it.text }
+                assertNotNull(note)
+                assertTrue("[[stage:validation]]" in note.text)
+                assertTrue("done" in note.text)
+                assertTrue("execution" in note.text)
+                // consumed once: turn 2 signalled nothing at all, so turn 3 carries no note
+                assertTrue(fakeScript.calls[2].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
+            }
+        }
+    }
+
+    @Test
     fun `when a rejected stage move precedes a turn - then the next turn's wire carries the FSM signal once`() = runTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
@@ -247,10 +307,12 @@ class TurnEngineTest {
                 engine.turn("go")
                 engine.turn("go")
 
-                // then — only turn 3 carries the nudge, and it names the NEXT stage (done), not validation-only
+                // then — the no-move note lands at once (turn 2, one re-signal is enough), while the
+                // nudge waits for the streak (turn 3) and names the NEXT stage, not validation-only
                 assertTrue(fakeScript.calls[0].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
-                assertTrue(fakeScript.calls[1].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
-                val nudge = fakeScript.calls[2].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm]" in it.text }
+                assertTrue(fakeScript.calls[1].messages.any { it.role == Role.SYSTEM && "[fsm] no move:" in it.text })
+                assertTrue(fakeScript.calls[1].messages.none { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text })
+                val nudge = fakeScript.calls[2].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text }
                 assertNotNull(nudge)
                 assertTrue("validation" in nudge.text)
                 assertTrue("done" in nudge.text)
@@ -280,8 +342,10 @@ class TurnEngineTest {
                 engine.turn("go")
                 engine.turn("go")
 
-                // then
-                assertTrue(fakeScript.calls.all { call -> call.messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text } })
+                // then — the flag gates the nudge only. The no-move note is not gated: it is the
+                // engine telling the model its marker did nothing, which is true either way.
+                assertTrue(fakeScript.calls.all { call -> call.messages.none { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text } })
+                assertTrue(fakeScript.calls[1].messages.any { it.role == Role.SYSTEM && "[fsm] no move:" in it.text })
             }
         }
     }
@@ -311,7 +375,8 @@ class TurnEngineTest {
                 engine.turn("go")
 
                 // then — the streak never reached the limit twice in a row, so nothing is ever nudged
-                assertTrue(fakeScript.calls.all { call -> call.messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text } })
+                // (the lone re-signals still draw their own no-move note; that is not the nudge)
+                assertTrue(fakeScript.calls.all { call -> call.messages.none { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text } })
             }
         }
     }

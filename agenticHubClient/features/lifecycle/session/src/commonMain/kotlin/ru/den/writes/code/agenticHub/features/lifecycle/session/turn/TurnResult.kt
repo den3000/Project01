@@ -109,11 +109,20 @@ public sealed interface JudgeOutcome {
  * the current `maybeAdvanceTaskStage`, lifted out of the I/O.
  */
 public sealed interface StageAdvance {
-    /** Nothing to report: no memory, no active task, no signal, paused, or already there. */
+    /** Nothing to report: no memory, no active task, no signal, or paused. */
     data object None : StageAdvance
 
     /** The proposed move was legal and applied: `[task] stage: <from> → <to> (auto)`. */
     data class Advanced(val from: TaskStage?, val to: TaskStage) : StageAdvance
+
+    /**
+     * The model named the stage it is already in, so nothing moved. Its own variant
+     * rather than [None] because it is a specific, correctable mistake — the marker
+     * names a destination, and the model used it to label where it already was. Left
+     * silent, this is the FSM's main lock: the model repeats the marker, the engine
+     * keeps swallowing it, and neither side learns anything.
+     */
+    data class Repeated(val stage: TaskStage, val allowed: Set<TaskStage>) : StageAdvance
 
     /** The model proposed an illegal move; it was ignored and reported. */
     data class Rejected(
