@@ -50,6 +50,10 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutinesTest)
+            // Fake HTTP transport: the *Api classes take an HttpClient, so a canned
+            // engine is the only way to cover the retry loops (which statuses are
+            // retried, how often) without a real provider on the wire.
+            implementation(libs.ktor.client.mock)
         }
         jvmTest.dependencies {
             // JVM-only live tests hitting a real local Ollama: platform:network gives the
