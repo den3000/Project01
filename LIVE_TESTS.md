@@ -50,8 +50,13 @@ subprojects {
 ## Как писать live-тест
 
 1. Назвать класс `<...>LiveTest`, положить в `src/jvmTest`.
-2. В начале — probe + `assumeTrue`, чтобы скипаться при недоступном сервисе.
-3. Переиспользовать хелпер сервиса, если он есть.
+2. В начале — probe + `assumeTrue`, чтобы скипаться при недоступном сервисе (для платного API —
+   `assumeTrue(..., BuildKonfig.GEMINI_API_KEY.isNotBlank())`, чтобы без ключа был skip, а не падение
+   на проводе).
+3. Оборачивать тело в **`runLiveTest { … }`** (`testUtils`, jvmMain) вместо `runTest`: реальный inference
+   идёт по стенным часам и вылетает за дефолтные 60 s. Потолок общий (15 минут) и намеренно не
+   настраивается по месту.
+4. Переиспользовать хелпер сервиса, если он есть.
 
 Пример для Ollama — `liveOllamaTest(koin) { … }`
 ([OllamaLiveSupport.kt](agenticHubClient/features/rag/src/jvmTest/kotlin/ru/den/writes/code/agenticHub/features/rag/OllamaLiveSupport.kt)):
@@ -60,6 +65,13 @@ probe-`HttpClient`.
 
 ## Текущие live-тесты
 
+- **`features:lifecycle:session`** (нужен `GEMINI_API_KEY`, **жжёт токены**):
+  - `TurnEngineLiveTest` — стенд стабильности task-FSM на слабой модели (`gemini-2.5-flash-lite`).
+    Реальный `TurnEngine` без судьи/RAG/MCP (изолирует канал стадии), печатает per-turn `outcome`
+    (ADVANCED/REJECTED/NO_MOVE/FAILED) + токены + время и per-run сводку (`reachedDone`,
+    advances/rejects/noMoves/failures). **Замер, а не ассерт**: им сравнивают конфигурации движка
+    (напр. `stallHint` on/off) по `reachedDone N/reps`. Каветат: дневная дисперсия flash-lite огромна
+    (baseline гулял 11/20 … 19/20) — сравнивать только В ОДНОМ прогоне, иначе меришь настроение модели.
 - **`features:rag`** (нужны локальная Ollama + `ollama pull nomic-embed-text`):
   - `OllamaLiveTest` — реальный embed, семантическая близость, end-to-end retrieve.
   - `DocsIndexingOllamaLiveTest` — индексация реального корпуса (markdown репо) с сохранением

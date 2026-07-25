@@ -10,7 +10,8 @@ KMP-модуль (common; таргеты jvm/android/ios): портируемы�
 - `SessionViewModel` — цикл: `state: StateFlow<UiState>` (единственный писатель), `run(IntentSource)`,
   гидрация/resume, оркестрация ходов, feed→repl, summary.
 - `TurnEngine` — чистый движок хода (`turn(): TurnResult`, persist + FSM-переход; делегирует в
-  `AgentResponder`); `CommandRunner` — `/`-команды → нотисы.
+  `AgentResponder`); флаг `stallHint` — нудж модели из застрявшей стадии (см. «Грабли»);
+  `CommandRunner` — `/`-команды → нотисы.
 - `SessionAssembly` (`buildSessionViewModel()` + `startSchedulerLoops()`). Гидрация
   `SessionInitialState` (`contextStrategy`/`resolveMemoryProvider`/`resolveHistoryStore`) — в
   composition-root (cliJvmApp `commandMappers`, резолв из Koin), не здесь.
@@ -38,7 +39,24 @@ ScheduleAction/TaskHandlerImpl).
 Интеграция (`runSessionForTest` = `TurnEngine`+`SessionViewModel`+`PlainRenderer`, golden
 `PlainViewGoldenTest`) остаётся в `apps:cliJvmApp:test` (нужен `PlainRenderer`).
 
+**`TurnEngineLiveTest`** (`jvmTest`, opt-in `-PliveTests`, **жжёт токены**, скип без `GEMINI_API_KEY`) —
+стенд стабильности FSM: гоняет реальный `TurnEngine` (настоящий Gemini + Room in-memory + файловая
+память во временном каталоге; без судьи/RAG/MCP — изолирует канал стадии) на `MINIMAL_TASK`/`SIMPLE_TASK`
+и печатает метрики: per-turn `outcome` (ADVANCED/REJECTED/NO_MOVE/FAILED) + токены + время, per-run
+сводку (`reachedDone`, advances/rejects/noMoves/failures). Ассертов на модель нет — это ЗАМЕР, им
+сравнивают конфигурации (напр. `stallHint` on/off) по `reachedDone N/reps`. Каветат: у flash-lite
+дневная дисперсия огромна (baseline от 11/20 до 19/20 в разные прогоны) — сравнивать конфигурации
+можно только В ОДНОМ прогоне, а не с числом из прошлого.
+
 ## Грабли
+- **Тихий NO_MOVE-лок FSM на слабой модели** — модель шлёт маркер ТЕКУЩЕЙ стадии (`[[stage:validation]]`
+  будучи в validation) → `proposedStage == from` → `StageAdvance.None` → застой без единого сигнала.
+  Корень — асимметрия фидбека: незаконный скип модель узнаёт (`pendingStageRejection`), а тихий столл
+  нет. Лечится флагом `stallHint`: 2 подряд no-move хода на активной нетерминальной непаузной стадии →
+  одноразовая `[fsm]`-нота, называющая СЛЕДУЮЩУЮ стадию. Дефолт off (task-less чат и тесты байт-в-байт),
+  `buildSessionViewModel` включает в бою. Замер на стенде: подсказка направление даёт, но слабая модель
+  её часто игнорирует — статзначимого выигрыша нет, потому она и осталась дешёвой страховкой, а не
+  несущим механизмом.
 - **Троттл feed (16 s)** живёт на `PromptSourceIntents` (feed-источник), не в `TurnEngine`; stdin/TUI → 0.
 - **Scheduler-инъекция в MVI (`MergedIntentSource`)** — фон инжектит ходы/feed через опц.
   `schedulerInbox`; при `inbox==null` — старый путь `source.next()` (golden байт-в-байт). Primary
