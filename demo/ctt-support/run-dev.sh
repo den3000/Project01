@@ -43,16 +43,21 @@ require_supported_model "$FALLBACK_MODEL" FALLBACK_MODEL
 require_supported_model "$DEVELOPER_MODEL" DEVELOPER_MODEL
 require_supported_model "$JUDGE_MODEL" JUDGE_MODEL
 
+# TEMP=<0..2> - температура воркеров (судья не затрагивается).
+TEMP="${TEMP:-}"
+require_valid_temp "$TEMP"
+
 # Печатается до первого хода: по этой строке потом читают, на чём был прогон.
 echo "[demo] модели: fallback=$(model_label "$FALLBACK_MODEL") developer=$(model_label "$DEVELOPER_MODEL")" >&2
 echo "[demo]         судья=$(model_label "$JUDGE_MODEL")" >&2
+echo "[demo] температура воркеров: $(temp_label "$TEMP")" >&2
 
 exec "$CLI" \
   -tui \
   -prompt "Привет, нужно закрыть тикет." \
   -task dev-case \
   -rag ctt-support \
-  -agent provider gemini $(model_arg "$FALLBACK_MODEL") mode system \
+  -agent provider gemini $(model_arg "$FALLBACK_MODEL") $(temp_arg "$TEMP") mode system \
   -agent developer   provider gemini $(model_arg "$DEVELOPER_MODEL") profile developer stages clarification..done \
   -agent rules-judge provider gemini $(model_arg "$JUDGE_MODEL") stages clarification..done judge \
   -mcpServer "$SUPP $DEMO_DIR --dev"

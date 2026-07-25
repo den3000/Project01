@@ -73,6 +73,11 @@ FALLBACK_MODEL_ARG="$(model_arg "$FALLBACK_MODEL")"
 EXPLORER_MODEL_ARG="$(model_arg "$EXPLORER_MODEL")"
 REPORTER_MODEL_ARG="$(model_arg "$REPORTER_MODEL")"
 
+# TEMP=<0..2> - температура воркеров (fallback + стадийные агенты; судья не затрагивается).
+TEMP="${TEMP:-}"
+require_valid_temp "$TEMP"
+TEMP_ARG="$(temp_arg "$TEMP")"
+
 # Строка -mcpServer бьётся клиентом по whitespace, поэтому путь с пробелом развалится
 # на два аргумента и сервер получит не тот корень.
 require_no_spaces() {
@@ -229,6 +234,7 @@ print_run_header() {
 Модели:      fallback=$(model_label "$FALLBACK_MODEL")
              fs-explorer=$(model_label "$EXPLORER_MODEL")  fs-reporter=$(model_label "$REPORTER_MODEL")
              судья=$(model_label "$JUDGE_MODEL")
+Температура: $(temp_label "$TEMP") — воркеры (судья на своих дефолтах)
 Судья:       $([ "$JUDGE" = "1" ] && echo "включён, clarification..done" || echo "ВЫКЛЮЧЕН (JUDGE=0)")
 Репозиторий: $CTT_REPO
              ветка $(git -C "$CTT_REPO" branch --show-current)

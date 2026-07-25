@@ -50,16 +50,21 @@ require_supported_model "$INTAKE_MODEL" INTAKE_MODEL
 require_supported_model "$SOLVE_MODEL" SOLVE_MODEL
 require_supported_model "$JUDGE_MODEL" JUDGE_MODEL
 
+# TEMP=<0..2> - температура воркеров (судья не затрагивается).
+TEMP="${TEMP:-}"
+require_valid_temp "$TEMP"
+
 # Печатается до первого хода: по этой строке потом читают, на чём был прогон.
 echo "[demo] модели: fallback=$(model_label "$FALLBACK_MODEL") intake=$(model_label "$INTAKE_MODEL")" >&2
 echo "[demo]         solve=$(model_label "$SOLVE_MODEL") судья=$(model_label "$JUDGE_MODEL")" >&2
+echo "[demo] температура воркеров: $(temp_label "$TEMP")" >&2
 
 exec "$CLI" \
   -tui \
   -prompt "Здравствуйте!" \
   -task ctt-case \
   -rag ctt-support \
-  -agent provider gemini $(model_arg "$FALLBACK_MODEL") mode system \
+  -agent provider gemini $(model_arg "$FALLBACK_MODEL") $(temp_arg "$TEMP") mode system \
   -agent support-intake provider gemini $(model_arg "$INTAKE_MODEL") profile support-intake stages clarification..planning \
   -agent support-solve  provider gemini $(model_arg "$SOLVE_MODEL") profile support-solve  stages execution..done \
   -agent rules-judge    provider gemini $(model_arg "$JUDGE_MODEL") stages clarification..done judge \
