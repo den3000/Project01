@@ -102,7 +102,7 @@ class TurnEngineLiveTest {
             apiKey = BuildKonfig.GEMINI_API_KEY
         )
         val sessionName = "turn-engine-live-test"
-        val reps = 20
+        val reps = 100
 
         // when — same weak model + task, differing only by whether the stall nudge is armed
         val baseline = (0..<reps).map { runTurnEngineWith(modelProvider, sessionName, MINIMAL_TASK, stallHint = false) }
@@ -121,10 +121,11 @@ class TurnEngineLiveTest {
     private data class RunGroup(val label: String, val runs: List<RunLog>)
 
     /**
-     * The one report every grouped live test prints, in three widening zooms:
+     * The one report every grouped live test prints, in four widening zooms:
      *   1. per-group detail — the turn-by-turn block for each run (MODEL SUMMARY, as before);
      *   2. PER-RUN table — one row per run, raw counts, so every run is visible/comparable;
-     *   3. PER-GROUP table — one row per group, counts averaged per run.
+     *   3. PER-GROUP table — one row per group, counts averaged per run;
+     *   4. PER-STALL-STAGE table — stalls and break-outs split by the stage they happened in.
      * Takes any number of groups, so new grouped tests reuse it as-is.
      *
      * `stalled`/`recov` carry the conditional read: a run that never sits still is one the
@@ -137,7 +138,7 @@ class TurnEngineLiveTest {
             "PER-RUN (raw, every run a row)",
             listOf(
                 "group", "run", "done", "turns", "adv", "rej", "noMv", "fail",
-                "stall", "recov", "out", "thghts", "ms", "stage",
+                "stall", "recov", "stalledAt", "out", "thghts", "ms", "stage",
             ),
             groups.flatMap { g ->
                 g.runs.mapIndexed { i, r ->
@@ -152,6 +153,7 @@ class TurnEngineLiveTest {
                         "${r.failures}",
                         "${r.longestStall}",
                         if (!r.stalled) "-" else if (r.recovered) "Y" else "N",
+                        r.stalledAt?.name ?: "-",
                         "${r.outputTokens}",
                         "${r.thoughtsTokens}",
                         "${r.durationMs}",
@@ -185,6 +187,37 @@ class TurnEngineLiveTest {
                     "%.0f".format(avg { it.durationMs }),
                 )
             },
+        )
+        printStallStageTable(groups)
+    }
+
+    /**
+     * Where the runs actually got stuck, and whether the nudge got them out of each stage.
+     * The question is per stage — a nudge worded for one stage cannot be judged by a rate
+     * that pools every stage together, and [RunLog.finalStage] hides the answer precisely
+     * for the runs that broke out (they end at DONE). Skipped when nothing stalled.
+     */
+    private fun printStallStageTable(groups: List<RunGroup>) {
+        val rows = groups.flatMap { g ->
+            g.runs.filter { it.stalled }
+                .groupBy { it.stalledAt }
+                .toList()
+                .sortedBy { (stage, _) -> stage?.ordinal ?: -1 }
+                .map { (stage, runs) ->
+                    listOf(
+                        g.label,
+                        stage?.name ?: "NO_STAGE",
+                        "${runs.size}",
+                        "${runs.count { it.recovered }}/${runs.size}",
+                        "%.1f".format(runs.sumOf { it.longestStall.toDouble() } / runs.size),
+                    )
+                }
+        }
+        if (rows.isEmpty()) return
+        printTable(
+            "PER-STALL-STAGE (where runs got stuck)",
+            listOf("group", "stalledAt", "stalled", "recov", "avgLen"),
+            rows,
         )
     }
 
@@ -365,6 +398,9 @@ class TurnEngineLiveTest {
         }
     }
 
+    /** One maximal span of consecutive NO_MOVE turns: how long, in which stage, and how it ended. */
+    private data class StallSpan(val length: Int, val stage: TaskStage?, val brokeOut: Boolean)
+
     private data class RunLog(
         val modelId: String,
         val sessionName: String,
@@ -381,43 +417,51 @@ class TurnEngineLiveTest {
         val thoughtsTokens: Int get() = turnLogs.sumOf { it.thoughtsTokens ?: 0 }
         val durationMs: Long get() = turnLogs.sumOf { it.durationMs }
 
-        /**
-         * Every maximal span of consecutive NO_MOVE turns, paired with whether the turn that
-         * ended it actually advanced the stage (a break-out). False when a reject/failure
-         * ended it, or when the span was still open as the run ran out of turns.
-         */
-        private val noMoveSpans: List<Pair<Int, Boolean>>
+        /** Every maximal span of consecutive NO_MOVE turns, in order. */
+        private val noMoveSpans: List<StallSpan>
             get() {
-                val spans = mutableListOf<Pair<Int, Boolean>>()
+                val spans = mutableListOf<StallSpan>()
                 var len = 0
+                var stage: TaskStage? = null
                 turnLogs.forEach { turn ->
                     if (turn.noMove) {
+                        // The stage cannot change across a NO_MOVE span, so the first turn's
+                        // `stageBefore` names the stage the whole span sat in.
+                        if (len == 0) stage = turn.stageBefore
                         len++
                     } else {
-                        if (len > 0) spans += len to turn.advanced
+                        if (len > 0) spans += StallSpan(len, stage, brokeOut = turn.advanced)
                         len = 0
                     }
                 }
-                if (len > 0) spans += len to false
+                if (len > 0) spans += StallSpan(len, stage, brokeOut = false)
                 return spans
             }
 
         /**
          * Spans long enough to count as a stall episode. [STALL_STREAK_LIMIT] NO_MOVE turns
-         * in a row is exactly what arms the engine's stall nudge, so these runs — and only
-         * these — are the population an A/B over that nudge is actually about.
+         * in a row inside a stage is exactly what arms the engine's stall nudge, so these
+         * runs — and only these — are the population an A/B over that nudge is about. The
+         * stage check is not redundant: a task-less run is all NO_MOVE and never nudged.
          */
-        private val stallSpans: List<Pair<Int, Boolean>> get() =
-            noMoveSpans.filter { (len, _) -> len >= STALL_STREAK_LIMIT }
+        private val stallSpans: List<StallSpan> get() =
+            noMoveSpans.filter { it.length >= STALL_STREAK_LIMIT && it.stage != null }
 
         /** Longest NO_MOVE streak of any length; 0 when the stage never repeated. */
-        val longestStall: Int get() = noMoveSpans.maxOfOrNull { (len, _) -> len } ?: 0
+        val longestStall: Int get() = noMoveSpans.maxOfOrNull { it.length } ?: 0
 
         /** Sat through at least one stall episode — the nudge had something to fix here. */
         val stalled: Boolean get() = stallSpans.isNotEmpty()
 
         /** Broke out of at least one stall episode with a real stage advance. */
-        val recovered: Boolean get() = stallSpans.any { (_, broke) -> broke }
+        val recovered: Boolean get() = stallSpans.any { it.brokeOut }
+
+        /**
+         * The stage the run actually got stuck in — the longest episode's, when there were
+         * several. Not derivable from [finalStage]: a run that broke out and finished ends
+         * at DONE, which hides where it had been sitting.
+         */
+        val stalledAt: TaskStage? get() = stallSpans.maxByOrNull { it.length }?.stage
 
         fun formatted(): String = buildString {
             append("---- run [$modelId] task=$taskId ----")
