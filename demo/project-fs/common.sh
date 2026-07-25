@@ -49,11 +49,29 @@ CTT_REPO="$(resolve_ctt_repo)"
 # веткой репозитория. На ней же построен сброс - см. reset_workspace.
 WORK_BRANCH="${WORK_BRANCH:-feature/docs-assistant}"
 
-# Модель нигде не выбирается, и это не упущение. Клиент в этой ветке не умеет Gemini 3.x
-# с инструментами (в ответе нет thoughtSignature, и следующий запрос получает 400
-# «Function call is missing a thought_signature»), а всё демо построено на вызовах
-# инструментов. Работает семейство 2.5, то есть дефолт клиента - gemini-2.5-flash.
-# Переключателя MODEL здесь нет намеренно: он выглядел бы рабочим и падал бы в проде.
+# Выбор моделей - переменными окружения, общий для всех демо (интерфейс и валидация - в models.sh).
+# Роли этого демо: fallback (безпрофильный), fs-explorer (разведка), fs-reporter (запись), судья.
+#   MODEL=<id>                            - всем разом
+#   EXPLORER_MODEL / REPORTER_MODEL       - конкретному исполнителю
+#   FALLBACK_MODEL / JUDGE_MODEL          - fallback-агенту / судье
+# Пусто = дефолт клиента (gemini-2.5-flash). Семейство 3.x отсекается с объяснением: демо построено
+# на вызовах инструментов, а с ними 3.x у этого клиента не работает.
+# shellcheck source=demo/models.sh
+source "$REPO_ROOT/demo/models.sh"
+
+FALLBACK_MODEL="$(model_for "${FALLBACK_MODEL:-}")"
+EXPLORER_MODEL="$(model_for "${EXPLORER_MODEL:-}")"
+REPORTER_MODEL="$(model_for "${REPORTER_MODEL:-}")"
+JUDGE_MODEL="$(model_for "${JUDGE_MODEL:-}")"
+
+require_supported_model "$FALLBACK_MODEL" FALLBACK_MODEL
+require_supported_model "$EXPLORER_MODEL" EXPLORER_MODEL
+require_supported_model "$REPORTER_MODEL" REPORTER_MODEL
+require_supported_model "$JUDGE_MODEL" JUDGE_MODEL
+
+FALLBACK_MODEL_ARG="$(model_arg "$FALLBACK_MODEL")"
+EXPLORER_MODEL_ARG="$(model_arg "$EXPLORER_MODEL")"
+REPORTER_MODEL_ARG="$(model_arg "$REPORTER_MODEL")"
 
 # Строка -mcpServer бьётся клиентом по whitespace, поэтому путь с пробелом развалится
 # на два аргумента и сервер получит не тот корень.
@@ -168,7 +186,7 @@ reset_workspace() {
 JUDGE="${JUDGE:-1}"
 JUDGE_ARG=""
 if [ "$JUDGE" = "1" ]; then
-  JUDGE_ARG="-agent judge provider gemini stages clarification..done judge"
+  JUDGE_ARG="-agent judge provider gemini $(model_arg "$JUDGE_MODEL") stages clarification..done judge"
 else
   echo "[demo] судья выключен (JUDGE=0)" >&2
 fi
@@ -208,7 +226,9 @@ print_run_header() {
 ------------------------------------------------------------
 Сценарий:    $1
              $2
-Модель:      дефолт клиента (gemini-2.5-flash)
+Модели:      fallback=$(model_label "$FALLBACK_MODEL")
+             fs-explorer=$(model_label "$EXPLORER_MODEL")  fs-reporter=$(model_label "$REPORTER_MODEL")
+             судья=$(model_label "$JUDGE_MODEL")
 Судья:       $([ "$JUDGE" = "1" ] && echo "включён, clarification..done" || echo "ВЫКЛЮЧЕН (JUDGE=0)")
 Репозиторий: $CTT_REPO
              ветка $(git -C "$CTT_REPO" branch --show-current)

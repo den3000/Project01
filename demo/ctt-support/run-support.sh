@@ -31,13 +31,36 @@ TASKS="$HOME/.project01-cli/memory/tasks"
 mkdir -p "$TASKS"
 cp "$DEMO_DIR/case-template.md" "$TASKS/ctt-case.md"   # сброс кейса в clarification
 
+# Выбор моделей - переменными окружения (интерфейс и валидация - в demo/models.sh).
+# Роли: fallback (безпрофильный), support-intake (опознание), support-solve (диагностика), судья.
+#   MODEL=<id>                     - всем разом
+#   INTAKE_MODEL / SOLVE_MODEL     - конкретному стадийному агенту
+#   FALLBACK_MODEL / JUDGE_MODEL   - fallback-агенту / судье
+# Пусто = дефолт клиента (gemini-2.5-flash).
+# shellcheck source=demo/models.sh
+source "$REPO_ROOT/demo/models.sh"
+
+FALLBACK_MODEL="$(model_for "${FALLBACK_MODEL:-}")"
+INTAKE_MODEL="$(model_for "${INTAKE_MODEL:-}")"
+SOLVE_MODEL="$(model_for "${SOLVE_MODEL:-}")"
+JUDGE_MODEL="$(model_for "${JUDGE_MODEL:-}")"
+
+require_supported_model "$FALLBACK_MODEL" FALLBACK_MODEL
+require_supported_model "$INTAKE_MODEL" INTAKE_MODEL
+require_supported_model "$SOLVE_MODEL" SOLVE_MODEL
+require_supported_model "$JUDGE_MODEL" JUDGE_MODEL
+
+# Печатается до первого хода: по этой строке потом читают, на чём был прогон.
+echo "[demo] модели: fallback=$(model_label "$FALLBACK_MODEL") intake=$(model_label "$INTAKE_MODEL")" >&2
+echo "[demo]         solve=$(model_label "$SOLVE_MODEL") судья=$(model_label "$JUDGE_MODEL")" >&2
+
 exec "$CLI" \
   -tui \
   -prompt "Здравствуйте!" \
   -task ctt-case \
   -rag ctt-support \
-  -agent provider gemini mode system \
-  -agent support-intake provider gemini profile support-intake stages clarification..planning \
-  -agent support-solve  provider gemini profile support-solve  stages execution..done \
-  -agent rules-judge    provider gemini stages clarification..done judge \
+  -agent provider gemini $(model_arg "$FALLBACK_MODEL") mode system \
+  -agent support-intake provider gemini $(model_arg "$INTAKE_MODEL") profile support-intake stages clarification..planning \
+  -agent support-solve  provider gemini $(model_arg "$SOLVE_MODEL") profile support-solve  stages execution..done \
+  -agent rules-judge    provider gemini $(model_arg "$JUDGE_MODEL") stages clarification..done judge \
   -mcpServer "$SUPP $DEMO_DIR"

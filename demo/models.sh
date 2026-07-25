@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+#
+# Выбор моделей для обёрток демо. Подключается через `source`, самостоятельно не запускается.
+#
+# Зачем: модель у клиента задаётся ТОЛЬКО per-agent (глобального флага нет), поэтому прогон на другой
+# модели раньше требовал правки КАЖДОГО клоза `-agent` в каждой обёртке - а забытый клоз молча уезжал
+# на дефолт, и замер сравнивал разные модели. Здесь это сведено к переменным окружения.
+#
+# Интерфейс (пусто = дефолт клиента, gemini-2.5-flash):
+#   MODEL=<id>           - всем агентам разом: fallback + исполнители + судья
+#   FALLBACK_MODEL=<id>  - только безпрофильному fallback-агенту      (дефолт: $MODEL)
+#   JUDGE_MODEL=<id>     - только судье                               (дефолт: $MODEL)
+#   <РОЛЬ>_MODEL=<id>    - конкретному исполнителю; список ролей - в шапке своей обёртки
+#
+# Примеры:
+#   MODEL=gemini-2.5-flash-lite bash demo/project-fs/run-adr.sh
+#   MODEL=gemini-2.5-flash-lite JUDGE_MODEL=gemini-2.5-flash bash demo/ctt-support/run-support.sh
+#   REPORTER_MODEL=gemini-2.5-pro bash demo/project-fs/run-usage-report.sh
+
+# Идентификаторы, на которых демо реально работают. Всё демо построено на вызовах инструментов, а
+# семейство 3.x у этого клиента с ними несовместимо: в ответе нет `thoughtSignature`, и следующий
+# запрос получает `400 Function call is missing a thought_signature`.
+SUPPORTED_MODELS="gemini-2.5-pro gemini-2.5-flash gemini-2.5-flash-lite"
+
+# Проверка id ДО старта JVM. Клиент неизвестный id молча заворачивает в `Custom` и уходит с ним на
+# провод, поэтому опечатка вылезает не сразу, а посреди прогона - после setup, ходов и сожжённых
+# токенов. Опечатка должна стоить секунду, а не прогон.
+require_supported_model() {
+  local id="${1:-}" whose="${2:-MODEL}" known
+  if [ -z "$id" ]; then
+    return 0
+  fi
+  for known in $SUPPORTED_MODELS; do
+    if [ "$id" = "$known" ]; then
+      return 0
+    fi
+  done
+  if [ "${ALLOW_CUSTOM_MODEL:-0}" = "1" ]; then
+    echo "[demo] $whose='$id' вне списка поддержанных - продолжаю (ALLOW_CUSTOM_MODEL=1)." >&2
+    return 0
+  fi
+  case "$id" in
+    gemini-3*)
+      echo "ОШИБКА: $whose='$id' - семейство 3.x несовместимо с function-calling в этом клиенте:" >&2
+      echo "        в ответе нет thoughtSignature -> '400 Function call is missing a thought_signature'." >&2
+      ;;
+    *)
+      echo "ОШИБКА: $whose='$id' - неизвестный id. Клиент молча превратит его в Custom и упадёт" >&2
+      echo "        уже на проводе, посреди прогона." >&2
+      ;;
+  esac
+  echo "        Поддержаны: $SUPPORTED_MODELS" >&2
+  echo "        Всё равно попробовать: ALLOW_CUSTOM_MODEL=1 $whose=$id bash <обёртка>" >&2
+  exit 1
+}
+
+# Каскад: модель роли -> общий MODEL -> дефолт клиента (пусто).
+model_for() {
+  if [ -n "${1:-}" ]; then
+    echo "$1"
+  else
+    echo "${MODEL:-}"
+  fi
+}
+
+# Кусок `model <id>` для клоза `-agent`, либо пусто (клоз идёт на дефолте клиента).
+#
+# Строкой, а не массивом, и подставляется БЕЗ кавычек: в bash 3.2 (стоковый на macOS) под `set -u`
+# раскрытие ПУСТОГО массива "${A[@]}" считается unbound variable и роняет скрипт - тем же приёмом
+# подставляется JUDGE_ARG.
+model_arg() {
+  if [ -n "${1:-}" ]; then
+    echo "model $1"
+  fi
+}
+
+# Что печатать в шапке прогона: пустая модель - это дефолт клиента, и назвать его надо явно, иначе
+# шапка врёт при переопределении (а по шапке потом читают, на чём был замер).
+model_label() {
+  if [ -n "${1:-}" ]; then
+    echo "$1"
+  else
+    echo "gemini-2.5-flash (дефолт)"
+  fi
+}
