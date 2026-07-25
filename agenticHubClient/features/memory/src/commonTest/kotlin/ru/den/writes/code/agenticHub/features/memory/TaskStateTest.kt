@@ -146,6 +146,38 @@ class TaskStateTest {
     }
     //endregion
 
+    //region per-stage instruction
+
+    @Test
+    fun `when expectedAction read for every stage - then none is blank`() {
+        // given
+        // The instruction is injected into every turn; a blank one would silently
+        // drop the phase distinction and let the agent attempt the whole task at once.
+
+        // when - then
+        TaskStage.entries.forEach { stage ->
+            assertTrue(stage.expectedAction.isNotBlank(), "expectedAction(${stage.keyword})")
+        }
+    }
+
+    @Test
+    fun `when clarification instructs the agent - then it may proceed on stated assumptions`() {
+        // given
+        // Measured: under a headless prompt the stage used to demand requirements
+        // from a user who was never going to answer, and the task never left
+        // clarification. The wording is the fix, so it is pinned like the FSM's
+        // own system lines are.
+        val action = TaskStage.CLARIFICATION.expectedAction
+
+        // when - then
+        assertTrue("state your working assumptions and move on" in action, action)
+        assertTrue("do not demand input that will not come" in action.lowercase(), action)
+        assertTrue("Ask only when genuinely blocked" in action, action)
+        // and it still holds the line the stage exists for
+        assertTrue("Do not plan or write the solution yet" in action, action)
+    }
+    //endregion
+
     //region stage signal parsing
 
     @Test
