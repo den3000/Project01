@@ -131,13 +131,14 @@ KMP-модуль (common; таргеты jvm/android/ios): стадии зада
 `TaskStateMachine` в `features:memory`).
 
 ## Тесты
-`./gradlew :agenticHubClient:features:fsm:jvmTest` — 30 тестов, по одному файлу на грань поведения
+`./gradlew :agenticHubClient:features:fsm:jvmTest` — 33 теста, по одному файлу на грань поведения
 (`fsm/task/`): `TaskTransitionsTest` (таблица переходов), `TaskStageAdvanceTest` (решения про
-переход), `TaskTurnRetryTest`, `TaskTransportRetryTest`, `TaskStageRetryTest`, `TaskRestartTest`.
-Все дёргают `TaskStateMachine` — состояние собирается фабрикой и проверяется в исходе, прямых
-вызовов на `Task` нет, потому что их и не существует. Общая фабрика задачи и потолки бюджетов —
-`TaskFixture.kt`; потолки запинены константами теста, а не читаются из `RetryState`, иначе тест
-согласится с любой правкой дефолтов.
+переход), `TaskPauseTest` (пауза старше таблицы), `TaskTurnRetryTest`, `TaskTransportRetryTest`,
+`TaskStageRetryTest`, `TaskRestartTest`. Все дёргают `TaskStateMachine` — состояние собирается
+фабрикой и проверяется в исходе, прямых вызовов на `Task` нет, потому что их и не существует.
+Общая фабрика задачи — `TaskFixture.kt`; потолки бюджетов тесты читают из `RetryState`, чтобы
+величина жила в одном месте (плата: изменение самого потолка тесты не заметят, они сторожат логику
+вокруг него).
 
 Имена тест-функций **без** `()`/`,` — иначе iOS-таргет (commonTest) не компилится (ограничение
 Kotlin/Native на backtick-имена).

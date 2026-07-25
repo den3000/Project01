@@ -150,18 +150,4 @@ class TaskStageAdvanceTest {
         assertEquals(task, actual.task)
         assertEquals(RetryReason.STAGE_REJECTED, actual.reason)
     }
-
-    @Test
-    fun `when a paused task is moved - then the proposal is held and costs nothing`() {
-        // given
-        val task = task(stage = Stage.EXECUTION, paused = true)
-
-        // when
-        val actual = TaskStateMachine.advance(task, Stage.VALIDATION)
-
-        // then
-        assertIs<AdvanceOutcome.Held>(actual)
-        assertEquals(task, actual.task)
-        assertNull(actual.reason)
-    }
 }
