@@ -460,18 +460,39 @@ private fun stageRejectionMessage(rejected: StageAdvance.Rejected): Message {
 /**
  * The SYSTEM line shown after the model has sat in one stage for several turns
  * without moving — it keeps signalling the CURRENT stage (or emits no marker), so
- * the FSM never advances. Names the single next stage explicitly, because the
- * observed failure is the model repeating `[[stage:<current>]]` instead of the next.
+ * the FSM never advances. Names the next stage explicitly, because the observed
+ * failure is the model repeating `[[stage:<current>]]` instead of the next.
+ *
+ * [TaskStage.VALIDATION] gets its own wording. Naming only the forward exit is
+ * enough where the stage's work can simply be finished, but a model that judges its
+ * own deliverable inadequate has no move it is willing to make — so it rewords the
+ * deliverable and re-signals validation, forever. Here both exits are ordinary
+ * outcomes (passes → done, fails → back to execution) and the nudge offers both,
+ * plus what a verdict actually is, since restating the deliverable is not one.
+ *
+ * `internal` rather than private so the wording is covered directly — the arming
+ * logic around it ([TurnEngine.updateStallHint]) has no offline harness yet.
  */
-private fun stallHintMessage(from: TaskStage): Message {
-    val next = TaskStateMachine.allowedNext(from).maxByOrNull { it.ordinal }
-    return Message(
-        role = Role.SYSTEM,
-        text = "[fsm] You have stayed in ${from.keyword} for several turns without moving on. If this " +
-            "stage's work is done, end your reply with a [[stage:${next?.keyword}]] line — it must name " +
-            "the NEXT stage (${next?.keyword}), not ${from.keyword} again. If the work is not finished, " +
-            "finish it this turn.",
-    )
+internal fun stallHintMessage(from: TaskStage): Message {
+    val text = when (from) {
+        TaskStage.VALIDATION ->
+            "You have stayed in ${from.keyword} for several turns without moving on. Validating means " +
+                "judging the deliverable you have ALREADY produced — restating or rewording it is not a " +
+                "verdict and leaves the task exactly where it is. Decide this turn: if it meets the goal, " +
+                "say so in one line and end your reply with [[stage:${TaskStage.DONE.keyword}]]; if it does " +
+                "not, say what is wrong and end with [[stage:${TaskStage.EXECUTION.keyword}]] to fix it. " +
+                "The marker names the stage you move TO — [[stage:${from.keyword}]] is the stage you are " +
+                "already in and changes nothing."
+
+        else -> {
+            val next = TaskStateMachine.allowedNext(from).maxByOrNull { it.ordinal }
+            "You have stayed in ${from.keyword} for several turns without moving on. If this stage's " +
+                "work is done, end your reply with a [[stage:${next?.keyword}]] line — it must name the " +
+                "NEXT stage (${next?.keyword}), not ${from.keyword} again. If the work is not finished, " +
+                "finish it this turn."
+        }
+    }
+    return Message(role = Role.SYSTEM, text = "[fsm] $text")
 }
 
 /**
