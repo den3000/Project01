@@ -20,8 +20,9 @@ import kotlin.test.assertTrue
  * task-stage FSM outcome. No I/O is asserted (the engine doesn't print) and no model is
  * called — replies come from a scripted fake, so every assertion is deterministic.
  *
- * Environment comes from `TurnEngineFixture.kt`; the live stand shares it, which is what
- * keeps both suites pointed at the same engine wiring.
+ * Every test drives the engine through the same `runTurnEngineWith` the live stand uses
+ * (`TurnEngineFixture.kt`), differing only in the scripted [LlmApi] and how many turns to
+ * feed — which is what keeps both suites pointed at the same engine wiring.
  */
 class TurnEngineTest {
 
@@ -30,52 +31,50 @@ class TurnEngineTest {
     @Test
     fun `when a turn succeeds - then both sides persist and Ok carries the snapshot`() = runTest {
         // given
-        val script = FakeLlmScript().apply { queueText("reply", promptTokens = 12, outputTokens = 3) }
+        val api = FakeLlmScript()
+            .apply { queueText("reply", promptTokens = 12, outputTokens = 3) }
+            .let { scriptedApi(it) }
 
-        withTurnEngine({ scriptedApi(script) }) {
-            // when
-            val result = engine.turn("hi")
+        // when
+        val run = runTurnEngineWith({ api }, prompt = "hi")
 
-            // then
-            assertTrue(result is TurnResult.Ok)
-            assertEquals("reply", result.reply)
-            assertEquals(12, result.usage?.promptTokens)
-            assertEquals(StageAdvance.None, result.stageAdvance)
-            assertEquals(1, result.session?.turns)
-            assertEquals(
-                listOf(Message(Role.USER, "hi"), Message(Role.ASSISTANT, "reply")),
-                persistedMessages(),
-            )
-        }
+        // then
+        val result = run.ok()
+        assertEquals("reply", result.reply)
+        assertEquals(12, result.usage?.promptTokens)
+        assertEquals(StageAdvance.None, result.stageAdvance)
+        assertEquals(1, result.session?.turns)
+        assertEquals(
+            listOf(Message(Role.USER, "hi"), Message(Role.ASSISTANT, "reply")),
+            run.persistedMessages,
+        )
     }
 
     @Test
     fun `when the provider errors - then Failed and nothing persisted`() = runTest {
-        // given — an empty queue makes the fake answer with its synthetic error
-        val script = FakeLlmScript()
+        // given
+        val api = scriptedApi(FakeLlmScript())
 
-        withTurnEngine({ scriptedApi(script) }) {
-            // when
-            val result = engine.turn("hi")
+        // when
+        val run = runTurnEngineWith({ api })
 
-            // then
-            assertEquals(TurnResult.Failed("FakeLlmScript: no scripted response"), result)
-            assertEquals(0, persistedCount())
-        }
+        // then
+        assertEquals(TurnResult.Failed("FakeLlmScript: no scripted response"), run.results.single())
+        assertEquals(0, run.persistedCount)
     }
 
     @Test
     fun `when the reply is empty with no usage - then Failed with that reason`() = runTest {
         // given
-        val script = FakeLlmScript().apply { queue(LlmResult(text = null)) }
+        val api = FakeLlmScript()
+            .apply { queue(LlmResult(text = null)) }
+            .let { scriptedApi(it) }
 
-        withTurnEngine({ scriptedApi(script) }) {
-            // when
-            val result = engine.turn("hi")
+        // when
+        val run = runTurnEngineWith({ api })
 
-            // then
-            assertEquals(TurnResult.Failed("empty response with no usage"), result)
-        }
+        // then
+        assertEquals(TurnResult.Failed("empty response with no usage"), run.results.single())
     }
 
     //endregion
@@ -85,55 +84,52 @@ class TurnEngineTest {
     @Test
     fun `when the reply signals a legal stage move - then Advanced and the task is saved`() = runTest {
         // given
-        val script = FakeLlmScript().apply { queueText("on it [[stage:execution]]") }
+        val api = FakeLlmScript()
+            .apply { queueText("on it [[stage:execution]]") }
+            .let { scriptedApi(it) }
 
-        withTurnEngine({ scriptedApi(script) }, task = TaskNotes("t", stage = TaskStage.PLANNING)) {
-            // when
-            val result = engine.turn("hi")
+        // when
+        val run = runTurnEngineWith({ api }, task = TaskNotes("t", stage = TaskStage.PLANNING))
 
-            // then
-            assertEquals(
-                StageAdvance.Advanced(TaskStage.PLANNING, TaskStage.EXECUTION),
-                (result as TurnResult.Ok).stageAdvance,
-            )
-            assertEquals(TaskStage.EXECUTION, stageOf("t"))
-        }
+        // then
+        assertEquals(StageAdvance.Advanced(TaskStage.PLANNING, TaskStage.EXECUTION), run.advance())
+        assertEquals(TaskStage.EXECUTION, run.finalStage)
     }
 
     @Test
     fun `when the reply signals an illegal stage move - then Rejected and the task is unchanged`() = runTest {
-        // given — DONE isn't reachable from PLANNING
-        val script = FakeLlmScript().apply { queueText("skip ahead [[stage:done]]") }
+        // given
+        val api = FakeLlmScript()
+            .apply { queueText("skip ahead [[stage:done]]") }
+            .let { scriptedApi(it) }
 
-        withTurnEngine({ scriptedApi(script) }, task = TaskNotes("t", stage = TaskStage.PLANNING)) {
-            // when
-            val result = engine.turn("hi")
+        // when
+        val run = runTurnEngineWith({ api }, task = TaskNotes("t", stage = TaskStage.PLANNING))
 
-            // then
-            val advance = (result as TurnResult.Ok).stageAdvance
-            assertTrue(advance is StageAdvance.Rejected)
-            assertEquals(TaskStage.PLANNING, advance.from)
-            assertEquals(TaskStage.DONE, advance.proposed)
-            assertEquals(TaskStage.PLANNING, stageOf("t"))
-        }
+        // then
+        val advance = run.advance()
+        assertTrue(advance is StageAdvance.Rejected)
+        assertEquals(TaskStage.PLANNING, advance.from)
+        assertEquals(TaskStage.DONE, advance.proposed)
+        assertEquals(TaskStage.PLANNING, run.finalStage)
     }
 
     @Test
     fun `when the reply signals the stage it is already in - then Repeated and the task is unchanged`() = runTest {
-        // given — the model uses the marker to label where it is, not to name a destination
-        val script = FakeLlmScript().apply { queueText("still checking [[stage:validation]]") }
+        // given
+        val api = FakeLlmScript()
+            .apply { queueText("still checking [[stage:validation]]") }
+            .let { scriptedApi(it) }
 
-        withTurnEngine({ scriptedApi(script) }, task = TaskNotes("t", stage = TaskStage.VALIDATION)) {
-            // when
-            val result = engine.turn("hi")
+        // when
+        val run = runTurnEngineWith({ api }, task = TaskNotes("t", stage = TaskStage.VALIDATION))
 
-            // then
-            val advance = (result as TurnResult.Ok).stageAdvance
-            assertTrue(advance is StageAdvance.Repeated)
-            assertEquals(TaskStage.VALIDATION, advance.stage)
-            assertEquals(setOf(TaskStage.DONE, TaskStage.EXECUTION), advance.allowed)
-            assertEquals(TaskStage.VALIDATION, stageOf("t"))
-        }
+        // then
+        val advance = run.advance()
+        assertTrue(advance is StageAdvance.Repeated)
+        assertEquals(TaskStage.VALIDATION, advance.stage)
+        assertEquals(setOf(TaskStage.DONE, TaskStage.EXECUTION), advance.allowed)
+        assertEquals(TaskStage.VALIDATION, run.finalStage)
     }
 
     //endregion
@@ -143,72 +139,63 @@ class TurnEngineTest {
     @Test
     fun `when a re-signalled stage precedes a turn - then the next turn's wire carries the no-move note once`() =
         runTest {
-            // given — turn 1 re-signals VALIDATION; turn 2 answers without any marker
+            // given
             val script = FakeLlmScript().apply {
                 queueText("still checking [[stage:validation]]")
                 queueText("wrapping up")
                 queueText("more")
             }
+            val api = scriptedApi(script)
 
-            withTurnEngine({ scriptedApi(script) }, task = TaskNotes("t", stage = TaskStage.VALIDATION)) {
-                // when
-                engine.turn("go")
-                engine.turn("go")
-                engine.turn("go")
+            // when
+            runTurnEngineWith({ api }, task = TaskNotes("t", stage = TaskStage.VALIDATION), turns = 3)
 
-                // then — on the very next turn, quoting the marker back and naming both exits
-                val note = script.calls[1].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm] no move:" in it.text }
-                assertNotNull(note)
-                assertTrue("[[stage:validation]]" in note.text)
-                assertTrue("done" in note.text)
-                assertTrue("execution" in note.text)
-                // consumed once: turn 2 signalled nothing at all, so turn 3 carries no note
-                assertTrue(script.calls[2].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
-            }
+            // then
+            val note = script.calls[1].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm] no move:" in it.text }
+            assertNotNull(note)
+            assertTrue("[[stage:validation]]" in note.text)
+            assertTrue("done" in note.text)
+            assertTrue("execution" in note.text)
+            assertTrue(script.calls[2].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
         }
 
     @Test
     fun `when a rejected stage move precedes a turn - then the next turn's wire carries the FSM signal once`() =
         runTest {
-            // given — PLANNING → DONE is rejected, so the first turn arms the feedback
+            // given
             val script = FakeLlmScript().apply {
                 queueText("skip ahead [[stage:done]]")
                 queueText("still working")
                 queueText("more work")
             }
+            val api = scriptedApi(script)
 
-            withTurnEngine({ scriptedApi(script) }, task = TaskNotes("t", stage = TaskStage.PLANNING)) {
-                // when
-                engine.turn("go")
-                engine.turn("go")
-                engine.turn("go")
+            // when
+            runTurnEngineWith({ api }, task = TaskNotes("t", stage = TaskStage.PLANNING), turns = 3)
 
-                // then
-                val signal = script.calls[1].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm]" in it.text }
-                assertNotNull(signal)
-                assertTrue("planning" in signal.text)
-                assertTrue("done" in signal.text)
-                assertTrue("execution" in signal.text)
-                assertTrue(script.calls[2].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
-            }
+            // then
+            val signal = script.calls[1].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm]" in it.text }
+            assertNotNull(signal)
+            assertTrue("planning" in signal.text)
+            assertTrue("done" in signal.text)
+            assertTrue("execution" in signal.text)
+            assertTrue(script.calls[2].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
         }
 
     @Test
     fun `when a legal stage move precedes a turn - then no FSM signal is injected`() = runTest {
-        // given — PLANNING → EXECUTION is legal, so nothing is armed
+        // given
         val script = FakeLlmScript().apply {
             queueText("plan ready [[stage:execution]]")
             queueText("executing")
         }
+        val api = scriptedApi(script)
 
-        withTurnEngine({ scriptedApi(script) }, task = TaskNotes("t", stage = TaskStage.PLANNING)) {
-            // when
-            engine.turn("go")
-            engine.turn("go")
+        // when
+        runTurnEngineWith({ api }, task = TaskNotes("t", stage = TaskStage.PLANNING), turns = 2)
 
-            // then
-            assertTrue(script.calls[1].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
-        }
+        // then
+        assertTrue(script.calls[1].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
     }
 
     //endregion
@@ -218,88 +205,79 @@ class TurnEngineTest {
     @Test
     fun `when a stage stalls twice with the hint armed - then the next turn is nudged toward the next stage`() =
         runTest {
-            // given — VALIDATION, and the model keeps signalling the CURRENT stage (no move)
+            // given
             val script = FakeLlmScript().apply {
-                queueText("still checking [[stage:validation]]") // NO_MOVE — streak 1
-                queueText("still checking [[stage:validation]]") // NO_MOVE — streak 2, arms the nudge
+                queueText("still checking [[stage:validation]]")
+                queueText("still checking [[stage:validation]]")
                 queueText("done now")
             }
+            val api = scriptedApi(script)
 
-            withTurnEngine(
-                { scriptedApi(script) },
+            // when
+            runTurnEngineWith(
+                { api },
                 task = TaskNotes("t", stage = TaskStage.VALIDATION),
+                turns = 3,
                 stallHint = true,
-            ) {
-                // when
-                engine.turn("go")
-                engine.turn("go")
-                engine.turn("go")
+            )
 
-                // then — the no-move note lands at once (turn 2, one re-signal is enough), while the
-                // nudge waits for the streak (turn 3) and names the NEXT stage, not validation-only
-                assertTrue(script.calls[0].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
-                assertTrue(script.calls[1].messages.any { it.role == Role.SYSTEM && "[fsm] no move:" in it.text })
-                assertTrue(script.calls[1].messages.none { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text })
-                val nudge =
-                    script.calls[2].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text }
-                assertNotNull(nudge)
-                assertTrue("validation" in nudge.text)
-                assertTrue("done" in nudge.text)
-            }
+            // then
+            assertTrue(script.calls[0].messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text })
+            assertTrue(script.calls[1].messages.any { it.role == Role.SYSTEM && "[fsm] no move:" in it.text })
+            assertTrue(script.calls[1].messages.none { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text })
+            val nudge = script.calls[2].messages.firstOrNull { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text }
+            assertNotNull(nudge)
+            assertTrue("validation" in nudge.text)
+            assertTrue("done" in nudge.text)
         }
 
     @Test
     fun `when a stage stalls but the hint is not armed - then no nudge is ever injected`() = runTest {
-        // given — same stall, but stallHint left at its default (off) — the production-parity path
+        // given
         val script = FakeLlmScript().apply {
             queueText("still checking [[stage:validation]]")
             queueText("still checking [[stage:validation]]")
             queueText("still checking [[stage:validation]]")
         }
+        val api = scriptedApi(script)
 
-        withTurnEngine({ scriptedApi(script) }, task = TaskNotes("t", stage = TaskStage.VALIDATION)) {
-            // when
-            engine.turn("go")
-            engine.turn("go")
-            engine.turn("go")
+        // when
+        runTurnEngineWith({ api }, task = TaskNotes("t", stage = TaskStage.VALIDATION), turns = 3)
 
-            // then — the flag gates the nudge only. The no-move note is not gated: it is the
-            // engine telling the model its marker did nothing, which is true either way.
-            assertTrue(
-                script.calls.all { call ->
-                    call.messages.none { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text }
-                },
-            )
-            assertTrue(script.calls[1].messages.any { it.role == Role.SYSTEM && "[fsm] no move:" in it.text })
-        }
+        // then
+        assertTrue(
+            script.calls.all { call ->
+                call.messages.none { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text }
+            },
+        )
+        assertTrue(script.calls[1].messages.any { it.role == Role.SYSTEM && "[fsm] no move:" in it.text })
     }
 
     @Test
     fun `when a real stage move breaks the stall run - then the streak resets and no nudge fires`() = runTest {
-        // given — a stall, then a real move (resets the streak), then another lone stall: never two in a row
+        // given
         val script = FakeLlmScript().apply {
-            queueText("still checking [[stage:validation]]") // NO_MOVE — streak 1
-            queueText("back to it [[stage:execution]]")      // Advanced VALIDATION→EXECUTION — streak resets
-            queueText("still working [[stage:execution]]")   // NO_MOVE — streak 1 again
+            queueText("still checking [[stage:validation]]")
+            queueText("back to it [[stage:execution]]")
+            queueText("still working [[stage:execution]]")
             queueText("more")
         }
+        val api = scriptedApi(script)
 
-        withTurnEngine(
-            { scriptedApi(script) },
+        // when
+        runTurnEngineWith(
+            { api },
             task = TaskNotes("t", stage = TaskStage.VALIDATION),
+            turns = 4,
             stallHint = true,
-        ) {
-            // when
-            repeat(4) { engine.turn("go") }
+        )
 
-            // then — the streak never reached the limit twice in a row, so nothing is ever nudged
-            // (the lone re-signals still draw their own no-move note; that is not the nudge)
-            assertTrue(
-                script.calls.all { call ->
-                    call.messages.none { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text }
-                },
-            )
-        }
+        // then
+        assertTrue(
+            script.calls.all { call ->
+                call.messages.none { it.role == Role.SYSTEM && "[fsm] stalled:" in it.text }
+            },
+        )
     }
 
     //endregion
@@ -312,22 +290,20 @@ class TurnEngineTest {
         val fallbackScript = FakeLlmScript().apply { queueText("fb") }
         val plannerScript = FakeLlmScript().apply { queueText("planned") }
         val planner = routedAgent(TaskStage.PLANNING, TaskStage.EXECUTION, scriptedApi(plannerScript), "planner")
+        val api = scriptedApi(fallbackScript)
 
-        withTurnEngine(
-            { scriptedApi(fallbackScript) },
+        // when
+        val run = runTurnEngineWith(
+            { api },
             task = TaskNotes("t", stage = TaskStage.PLANNING),
             routedAgents = listOf(planner),
-        ) {
-            // when
-            val result = engine.turn("hi")
+        )
 
-            // then
-            result as TurnResult.Ok
-            assertEquals("planned", result.reply)
-            assertEquals("planner", result.profileName)
-            assertEquals(1, plannerScript.calls.size)
-            assertEquals(0, fallbackScript.calls.size)
-        }
+        // then
+        assertEquals("planned", run.ok().reply)
+        assertEquals("planner", run.ok().profileName)
+        assertEquals(1, plannerScript.calls.size)
+        assertEquals(0, fallbackScript.calls.size)
     }
 
     @Test
@@ -336,39 +312,39 @@ class TurnEngineTest {
         val planner = routedAgent(
             TaskStage.PLANNING,
             TaskStage.EXECUTION,
-            scriptedApi(FakeLlmScript().apply { queueText("planned") }),
+            FakeLlmScript().apply { queueText("planned") }.let { scriptedApi(it) },
             "planner",
         )
         val judge = RecordingJudge()
+        val api = scriptedApi(FakeLlmScript())
 
-        withTurnEngine(
-            { scriptedApi(FakeLlmScript()) },
+        // when
+        runTurnEngineWith(
+            { api },
             task = TaskNotes("t", stage = TaskStage.PLANNING),
+            prompt = "my server is down",
             routedAgents = listOf(planner),
             routedJudges = listOf(judge.routed()),
-        ) {
-            // given — a profile whose four sections are all populated (read fresh every turn)
-            memStore.addNamedProfileItem("planner", ProfileSection.CONSTRAINTS, "no guessing")
-            memStore.addNamedProfileItem("planner", ProfileSection.FORMAT, "name the doc file")
-            memStore.addNamedProfileItem("planner", ProfileSection.STYLE, "be brief")
-            memStore.addNamedProfileItem("planner", ProfileSection.CONTEXT, "call find_user first")
+            profileItems = listOf(
+                ProfileItem("planner", ProfileSection.CONSTRAINTS, "no guessing"),
+                ProfileItem("planner", ProfileSection.FORMAT, "name the doc file"),
+                ProfileItem("planner", ProfileSection.STYLE, "be brief"),
+                ProfileItem("planner", ProfileSection.CONTEXT, "call find_user first"),
+            ),
+        )
 
-            // when
-            engine.turn("my server is down")
-
-            // then — the whole turn reaches the judge, except the section that says how to work
-            val seen = judge.seen
-            assertEquals("my server is down", seen?.userMessage)
-            assertEquals(TaskStage.PLANNING, seen?.stage)
-            assertEquals(listOf("no guessing"), seen?.constraints)
-            assertEquals(listOf("name the doc file"), seen?.format)
-            assertEquals(listOf("be brief"), seen?.style)
-            val everythingTheJudgeGot = listOf(seen?.constraints, seen?.format, seen?.style).flatMap { it.orEmpty() }
-            assertTrue(
-                everythingTheJudgeGot.none { it.contains("find_user") },
-                "the profile context section must never reach the judge — it says how to work, not what is forbidden",
-            )
-        }
+        // then
+        val seen = judge.seen
+        assertEquals("my server is down", seen?.userMessage)
+        assertEquals(TaskStage.PLANNING, seen?.stage)
+        assertEquals(listOf("no guessing"), seen?.constraints)
+        assertEquals(listOf("name the doc file"), seen?.format)
+        assertEquals(listOf("be brief"), seen?.style)
+        val everythingTheJudgeGot = listOf(seen?.constraints, seen?.format, seen?.style).flatMap { it.orEmpty() }
+        assertTrue(
+            everythingTheJudgeGot.none { it.contains("find_user") },
+            "the profile context section must never reach the judge — it says how to work, not what is forbidden",
+        )
     }
 
     //endregion

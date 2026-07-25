@@ -3,10 +3,12 @@ package ru.den.writes.code.agenticHub.features.lifecycle.session
 import kotlinx.coroutines.test.TestScope
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.StageAdvance
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnResult
+import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.buildLlmApi
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
+import kotlin.test.fail
 
 /**
  * What a run of the engine amounts to, and what a batch of runs is reported as.
@@ -114,13 +116,32 @@ internal data class TurnLog(
 /** One maximal span of consecutive NO_MOVE turns: how long, in which stage, and how it ended. */
 private data class StallSpan(val length: Int, val stage: TaskStage?, val brokeOut: Boolean)
 
+/**
+ * One finished run: every turn it took, the stage it left the task at, and the history it
+ * persisted. The stand reads the counters below; an offline test reads the raw results and
+ * the persisted side through [ok] / [results] / [persistedMessages].
+ */
 internal data class RunLog(
     val modelId: String,
     val sessionName: String,
     val taskId: String?,
     val finalStage: TaskStage?,
     val turnLogs: List<TurnLog>,
+    /** History as the next session would load it: both sides of every persisted turn. */
+    val persistedMessages: List<Message>,
+    /** Rows in the message table — 0 proves a failed turn persisted nothing. */
+    val persistedCount: Int,
 ) {
+    /** What each turn came back with, in order. */
+    val results: List<TurnResult> get() = turnLogs.map { it.result }
+
+    /** Turn [index]'s result as [TurnResult.Ok] — a turn that failed fails the test here. */
+    fun ok(index: Int = 0): TurnResult.Ok =
+        results[index] as? TurnResult.Ok ?: fail("turn $index did not pass: ${results[index]}")
+
+    /** What turn [index] did to the task stage. */
+    fun advance(index: Int = 0): StageAdvance = ok(index).stageAdvance
+
     val reachedDone: Boolean get() = finalStage == TaskStage.DONE
     val advances: Int get() = turnLogs.count { it.advanced }
     val rejects: Int get() = turnLogs.count { it.rejected }

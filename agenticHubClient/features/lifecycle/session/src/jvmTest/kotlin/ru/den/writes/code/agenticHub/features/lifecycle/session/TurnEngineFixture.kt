@@ -114,6 +114,9 @@ internal suspend fun <T> TestScope.withTurnEngine(
  * headless run pipes in. The loop stops early once the task reaches DONE: a finished task
  * has nothing left to answer, and the stand measures how many turns that took.
  *
+ * [profileItems] are planted before the first turn; the memory layer is re-read every turn,
+ * so they are live for the whole run.
+ *
  * [logTurns] prints each turn as it lands. Only the stand wants it (a run is minutes long
  * and the output is watched live); offline it would be noise.
  */
@@ -126,6 +129,7 @@ internal suspend fun TestScope.runTurnEngineWith(
     stallHint: Boolean = false,
     routedAgents: List<RoutedAgent> = emptyList(),
     routedJudges: List<RoutedJudge> = emptyList(),
+    profileItems: List<ProfileItem> = emptyList(),
     modelProvider: ModelProvider = dummyProvider(),
     sessionName: String = "s",
     temperature: Double? = null,
@@ -141,7 +145,8 @@ internal suspend fun TestScope.runTurnEngineWith(
     prompt = prompt,
     temperature = temperature,
 ) {
-    // The turns run first: `finalStage` is what they left behind, not what they started from.
+    profileItems.forEach { memStore.addNamedProfileItem(it.agent, it.section, it.text) }
+    // The turns run first: everything below is what they left behind, not what they started from.
     val turnLogs = runTurns(task, turns, prompt, followUpPrompt, logTurns)
     RunLog(
         modelId = modelProvider.modelId,
@@ -149,6 +154,8 @@ internal suspend fun TestScope.runTurnEngineWith(
         taskId = task?.taskId,
         finalStage = task?.let { stageOf(it.taskId) },
         turnLogs = turnLogs,
+        persistedMessages = persistedMessages(),
+        persistedCount = persistedCount(),
     )
 }
 

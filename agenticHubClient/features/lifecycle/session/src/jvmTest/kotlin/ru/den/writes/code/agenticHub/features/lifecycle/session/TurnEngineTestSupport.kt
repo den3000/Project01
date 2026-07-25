@@ -18,6 +18,7 @@ import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.di.llmTestModule
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
+import ru.den.writes.code.agenticHub.features.memory.ProfileSection
 import ru.den.writes.code.agenticHub.features.memory.TaskBinding
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
@@ -92,6 +93,9 @@ internal fun routedAgent(
     profileName = profileName,
     modelId = "routed-model",
 )
+
+/** One line of a named agent's profile, planted before a run starts. */
+internal data class ProfileItem(val agent: String, val section: ProfileSection, val text: String)
 
 /**
  * A judge that passes every turn and keeps what it was handed. Verdict-only assertions do
