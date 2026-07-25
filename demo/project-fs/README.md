@@ -28,7 +28,7 @@ bash demo/project-fs/run-usage-report.sh
 MODEL=gemini-2.5-flash-lite bash demo/project-fs/run-adr.sh          # всем агентам разом
 MODEL=gemini-2.5-flash-lite JUDGE_MODEL=gemini-2.5-flash \
   bash demo/project-fs/run-usage-report.sh                           # исполнители слабые, судья сильный
-REPORTER_MODEL=gemini-2.5-pro bash demo/project-fs/run-adr.sh        # только тот, кто пишет отчёт
+REPORTER_MODEL=gemini-2.5-flash bash demo/project-fs/run-adr.sh      # только тот, кто пишет отчёт
 ```
 
 Роли: `FALLBACK_MODEL` (безпрофильный агент), `EXPLORER_MODEL` (разведка), `REPORTER_MODEL` (запись),

@@ -15,12 +15,18 @@
 # Примеры:
 #   MODEL=gemini-2.5-flash-lite bash demo/project-fs/run-adr.sh
 #   MODEL=gemini-2.5-flash-lite JUDGE_MODEL=gemini-2.5-flash bash demo/ctt-support/run-support.sh
-#   REPORTER_MODEL=gemini-2.5-pro bash demo/project-fs/run-usage-report.sh
+#   REPORTER_MODEL=gemini-2.5-flash bash demo/project-fs/run-usage-report.sh
 
-# Идентификаторы, на которых демо реально работают. Всё демо построено на вызовах инструментов, а
-# семейство 3.x у этого клиента с ними несовместимо: в ответе нет `thoughtSignature`, и следующий
-# запрос получает `400 Function call is missing a thought_signature`.
-SUPPORTED_MODELS="gemini-2.5-pro gemini-2.5-flash gemini-2.5-flash-lite"
+# Идентификаторы, на которых демо реально работают — проверено прогоном, а не взято из каталога
+# клиента. Два отсева:
+#   - семейство 3.x несовместимо с function-calling у этого клиента (в ответе нет `thoughtSignature`,
+#     следующий запрос получает `400 Function call is missing a thought_signature`), а всё демо
+#     построено на вызовах инструментов;
+#   - `gemini-2.5-pro` отдаёт `404 NOT_FOUND: "no longer available to new users"` — он есть в каталоге
+#     клиента (`GeminiModel.Known`), но этим ключом недоступен. Держать его в списке значило бы ровно
+#     тот отказ, ради которого список и заведён: переключатель выглядит рабочим и падает в бою (замер:
+#     3 прогона adr сгорели, репортёр 404-ил на каждом ходу стадии execution).
+SUPPORTED_MODELS="gemini-2.5-flash gemini-2.5-flash-lite"
 
 # Проверка id ДО старта JVM. Клиент неизвестный id молча заворачивает в `Custom` и уходит с ним на
 # провод, поэтому опечатка вылезает не сразу, а посреди прогона - после setup, ходов и сожжённых
@@ -43,6 +49,11 @@ require_supported_model() {
     gemini-3*)
       echo "ОШИБКА: $whose='$id' - семейство 3.x несовместимо с function-calling в этом клиенте:" >&2
       echo "        в ответе нет thoughtSignature -> '400 Function call is missing a thought_signature'." >&2
+      ;;
+    gemini-2.5-pro)
+      echo "ОШИБКА: $whose='$id' - модель отключена на стороне Gemini:" >&2
+      echo "        '404 NOT_FOUND: this model is no longer available to new users'." >&2
+      echo "        Она есть в каталоге клиента (GeminiModel.Known), но этим ключом недоступна." >&2
       ;;
     *)
       echo "ОШИБКА: $whose='$id' - неизвестный id. Клиент молча превратит его в Custom и упадёт" >&2

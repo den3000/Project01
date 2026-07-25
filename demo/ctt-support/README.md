@@ -111,7 +111,7 @@ bash demo/ctt-support/run-dev.sh
 MODEL=gemini-2.5-flash-lite bash demo/ctt-support/run-support.sh     # всем агентам разом
 MODEL=gemini-2.5-flash-lite JUDGE_MODEL=gemini-2.5-flash \
   bash demo/ctt-support/run-support.sh                               # исполнители слабые, судья сильный
-SOLVE_MODEL=gemini-2.5-pro bash demo/ctt-support/run-support.sh      # только диагностика
+SOLVE_MODEL=gemini-2.5-flash bash demo/ctt-support/run-support.sh    # только диагностика
 ```
 
 Роли: `FALLBACK_MODEL` (безпрофильный агент), `INTAKE_MODEL`/`SOLVE_MODEL` (стадийные агенты
