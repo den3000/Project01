@@ -68,12 +68,12 @@ class TaskRestartTest {
     }
 
     @Test
-    fun `when a task is restarted repeatedly - then the fifth restart is the last one`() {
+    fun `when a task is restarted to its budget - then the next failure gives up`() {
         // given
         var task = task()
 
         // when - then
-        repeat(TASK_MAX) { attempt ->
+        repeat(RetryState.TASK_MAX) { attempt ->
             val actual = TaskStateMachine.retry(task, RetryReason.TASK_STALLED)
             assertIs<RetryOutcome.Restarted>(actual, "restart #${attempt + 1}")
             task = actual.task

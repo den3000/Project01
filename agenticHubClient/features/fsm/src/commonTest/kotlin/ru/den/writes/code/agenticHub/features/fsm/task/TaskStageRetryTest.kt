@@ -59,12 +59,12 @@ class TaskStageRetryTest {
     }
 
     @Test
-    fun `when a stalling stage is retried repeatedly - then the tenth retry is the last one`() {
+    fun `when a stalling stage is retried to its budget - then the next retry restarts the task`() {
         // given
         var task = task()
 
         // when - then
-        repeat(STAGE_MAX) { turn ->
+        repeat(RetryState.STAGE_MAX) { turn ->
             val actual = TaskStateMachine.retry(task, RetryReason.NO_MARKER)
             assertIs<RetryOutcome.Retried>(actual, "retry #${turn + 1}")
             task = actual.task

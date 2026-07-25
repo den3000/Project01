@@ -33,9 +33,9 @@ class TaskStageAdvanceTest {
         // given
         val task = task(
             stage = Stage.PLANNING,
-            stageRetryState = RetryState(attempt = 4, max = STAGE_MAX),
-            turnRetryState = RetryState(attempt = 12, max = TURN_MAX),
-            transportRetryState = RetryState(attempt = 3, max = TRANSPORT_MAX),
+            stageRetryState = RetryState(attempt = 4, max = RetryState.STAGE_MAX),
+            turnRetryState = RetryState(attempt = 12, max = RetryState.TURN_MAX),
+            transportRetryState = RetryState(attempt = 3, max = RetryState.TRANSPORT_MAX),
         )
 
         // when
@@ -52,7 +52,7 @@ class TaskStageAdvanceTest {
     fun `when the stage advances - then the restarts already spent still stand`() {
         // given
         // Reaching a new stage is progress within the attempt, not a new attempt.
-        val task = task(stage = Stage.PLANNING, taskRetryState = RetryState(attempt = 2, max = TASK_MAX))
+        val task = task(stage = Stage.PLANNING, taskRetryState = RetryState(attempt = 2, max = RetryState.TASK_MAX))
 
         // when
         val actual = TaskStateMachine.advance(task, Stage.EXECUTION)

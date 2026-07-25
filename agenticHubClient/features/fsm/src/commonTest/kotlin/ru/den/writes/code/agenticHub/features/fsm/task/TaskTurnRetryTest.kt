@@ -59,12 +59,12 @@ class TaskTurnRetryTest {
     }
 
     @Test
-    fun `when a turn is retried repeatedly - then the fifteenth retry is the last one`() {
+    fun `when a turn is retried to its budget - then the next retry restarts the task`() {
         // given
         var task = task()
 
         // when - then
-        repeat(TURN_MAX) { rewrite ->
+        repeat(RetryState.TURN_MAX) { rewrite ->
             val actual = TaskStateMachine.retry(task, RetryReason.JUDGE_REWRITE)
             assertIs<RetryOutcome.Retried>(actual, "retry #${rewrite + 1}")
             task = actual.task

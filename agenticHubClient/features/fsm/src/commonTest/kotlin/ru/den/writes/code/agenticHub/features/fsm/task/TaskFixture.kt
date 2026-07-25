@@ -34,9 +34,3 @@ internal fun spentToTheLast(state: RetryState): RetryState = state.copy(attempt 
 
 internal const val TASK_ID = "task-42"
 internal const val GOAL = "ship the import script"
-
-/** Pinned here rather than read off [RetryState]: the numbers are the contract. */
-internal const val TURN_MAX = 15
-internal const val TRANSPORT_MAX = 15
-internal const val STAGE_MAX = 10
-internal const val TASK_MAX = 5

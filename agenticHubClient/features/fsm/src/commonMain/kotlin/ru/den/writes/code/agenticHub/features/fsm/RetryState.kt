@@ -19,25 +19,37 @@ data class RetryState(
          * run never needed more than three, and the tail is cheap because most
          * tasks never restart at all.
          */
-        fun task() = RetryState(0, 5)
+        const val TASK_MAX: Int = 5
 
         /** Turns one stage may sit still before the task is restarted. */
-        fun stage() = RetryState(0, 10)
+        const val STAGE_MAX: Int = 10
 
         /**
          * Rewrites one stage may spend inside its turns before the task is
          * restarted. Three fully-blocked turns' worth (the engine caps one turn
          * at five): a rewrite here and there is a judge doing its job, fifteen
          * without leaving the stage is an attempt arguing with its own auditor.
+         * Both breaches seen live were the judge being wrong, so a restart after
+         * one or two blocked turns would punish the task for the auditor's error.
          */
-        fun turn() = RetryState(0, 15)
+        const val TURN_MAX: Int = 15
 
         /**
          * Unreachable-provider failures the whole task may absorb before the run
-         * is abandoned. Same fifteen, but spanning the task and never refilled:
-         * this budget measures an outage, and an outage does not care which stage
-         * the task is on or how many times it has started over.
+         * is abandoned. Spans the task and is never refilled — this budget
+         * measures an outage, which does not care which stage the task is on or
+         * how many times it has started over. Lower than the rest on purpose: an
+         * outage is an external fact, not something the task can be talked out
+         * of, and fifteen pokes at a wall merely cost more than five.
          */
-        fun transport() = RetryState(0, 15)
+        const val TRANSPORT_MAX: Int = 5
+
+        fun task() = RetryState(0, TASK_MAX)
+
+        fun stage() = RetryState(0, STAGE_MAX)
+
+        fun turn() = RetryState(0, TURN_MAX)
+
+        fun transport() = RetryState(0, TRANSPORT_MAX)
     }
 }

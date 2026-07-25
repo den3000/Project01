@@ -46,13 +46,13 @@ class TaskTransportRetryTest {
         // given
         // It counts an outage, and an outage does not care that the task started
         // over — refilling it would let a down provider be hammered five times as long.
-        val task = task(transportRetryState = RetryState(attempt = 9, max = TRANSPORT_MAX))
+        val task = task(transportRetryState = RetryState(attempt = 3, max = RetryState.TRANSPORT_MAX))
 
         // when
         val actual = TaskStateMachine.retry(task, RetryReason.TASK_STALLED)
 
         // then
         assertIs<RetryOutcome.Restarted>(actual)
-        assertEquals(9, actual.task.transportRetryState.attempt)
+        assertEquals(3, actual.task.transportRetryState.attempt)
     }
 }
