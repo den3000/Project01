@@ -92,8 +92,23 @@ class ProjectExtensionFilterTest {
         // when
         val actual = search.search("anything", subdir = "server", ext = "kt")
 
+        // then — the bad path is named as the cause, not the filter
+        assertContains(actual, "подкаталога 'server' в проекте нет")
+    }
+
+    @Test
+    fun `when the subdir path is wrong - then the notice denies absence and names what does exist`() {
+        // given — measured: a weak model read the terser wording as "the search found nothing",
+        // reported that as a finding, and kept building on it until the run was spent.
+        val search = projectSearch(files = mapOf("docs/a.md" to "text", "shared/b.kt" to "code"))
+
+        // when
+        val actual = search.search("anything", subdir = "data/local", ext = "kt")
+
         // then
-        assertEquals("projectfs error: под 'server' нет файлов вовсе — проверь путь подкаталога.", actual)
+        assertContains(actual, "ошибка ПУТИ")
+        assertContains(actual, "НЕ означает, что искомого нет")
+        assertContains(actual, "На верхнем уровне есть: docs, shared")
     }
 
     @Test
