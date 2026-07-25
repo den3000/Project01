@@ -111,8 +111,10 @@ internal suspend fun <T> TestScope.withTurnEngine(
  * `engine.turn` itself and they cannot drift apart.
  *
  * [prompt] is the first turn's, [followUpPrompt] every later one's — the "continue" a
- * headless run pipes in. The loop stops early once the task reaches DONE: a finished task
- * has nothing left to answer, and the stand measures how many turns that took.
+ * headless run pipes in. By default the loop stops early once the task reaches DONE: a
+ * finished task has nothing left to answer, and the stand measures how many turns that took.
+ * [stopAtDone] = false keeps feeding it anyway — a real session does exactly that, and it is
+ * the only way to reach the engine's behaviour AT the terminal stage.
  *
  * [profileItems] are planted before the first turn; the memory layer is re-read every turn,
  * so they are live for the whole run.
@@ -133,6 +135,7 @@ internal suspend fun TestScope.runTurnEngineWith(
     modelProvider: ModelProvider = dummyProvider(),
     sessionName: String = "s",
     temperature: Double? = null,
+    stopAtDone: Boolean = true,
     logTurns: Boolean = false,
 ): RunLog = withTurnEngine(
     llmApi = llmApi,
@@ -147,7 +150,7 @@ internal suspend fun TestScope.runTurnEngineWith(
 ) {
     profileItems.forEach { memStore.addNamedProfileItem(it.agent, it.section, it.text) }
     // The turns run first: everything below is what they left behind, not what they started from.
-    val turnLogs = runTurns(task, turns, prompt, followUpPrompt, logTurns)
+    val turnLogs = runTurns(task, turns, prompt, followUpPrompt, stopAtDone, logTurns)
     RunLog(
         modelId = modelProvider.modelId,
         sessionName = sessionName,
@@ -159,16 +162,17 @@ internal suspend fun TestScope.runTurnEngineWith(
     )
 }
 
-/** Feed the engine up to [turns] turns, logging each; stops the moment the task is DONE. */
+/** Feed the engine up to [turns] turns, logging each; stops at DONE unless told otherwise. */
 private suspend fun TurnEngineFixture.runTurns(
     task: TaskNotes?,
     turns: Int,
     prompt: String,
     followUpPrompt: String,
+    stopAtDone: Boolean,
     logTurns: Boolean,
 ): List<TurnLog> = (0..<turns).mapNotNull { index ->
     val stageBefore = task?.let { stageOf(it.taskId) }
-    if (stageBefore == TaskStage.DONE) return@mapNotNull null
+    if (stopAtDone && stageBefore == TaskStage.DONE) return@mapNotNull null
 
     val turnPrompt = if (index == 0) prompt else followUpPrompt
     TurnLog(index, stageBefore, turnPrompt, engine.turn(turnPrompt))

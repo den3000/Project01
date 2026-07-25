@@ -280,6 +280,77 @@ class TurnEngineTest {
         )
     }
 
+    @Test
+    fun `when the task is paused - then a stalled stage is never nudged`() = runTest {
+        // given
+        val script = FakeLlmScript().apply {
+            queueText("still checking [[stage:validation]]")
+            queueText("still checking [[stage:validation]]")
+            queueText("still checking [[stage:validation]]")
+        }
+        val api = scriptedApi(script)
+
+        // when
+        runTurnEngineWith(
+            { api },
+            task = TaskNotes("t", stage = TaskStage.VALIDATION, paused = true),
+            turns = 3,
+            stallHint = true,
+        )
+
+        // then
+        assertEquals(3, script.calls.size)
+        assertTrue(
+            script.calls.all { call -> call.messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text } },
+        )
+    }
+
+    @Test
+    fun `when the task is already done - then the terminal stage is never nudged`() = runTest {
+        // given
+        val script = FakeLlmScript().apply {
+            queueText("nothing left to do")
+            queueText("nothing left to do")
+            queueText("nothing left to do")
+        }
+        val api = scriptedApi(script)
+
+        // when
+        runTurnEngineWith(
+            { api },
+            task = TaskNotes("t", stage = TaskStage.DONE),
+            turns = 3,
+            stallHint = true,
+            stopAtDone = false,
+        )
+
+        // then
+        assertEquals(3, script.calls.size)
+        assertTrue(
+            script.calls.all { call -> call.messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text } },
+        )
+    }
+
+    @Test
+    fun `when there is no task at all - then no-move turns never nudge`() = runTest {
+        // given
+        val script = FakeLlmScript().apply {
+            queueText("just talking")
+            queueText("still talking")
+            queueText("talking on")
+        }
+        val api = scriptedApi(script)
+
+        // when
+        runTurnEngineWith({ api }, turns = 3, stallHint = true)
+
+        // then
+        assertEquals(3, script.calls.size)
+        assertTrue(
+            script.calls.all { call -> call.messages.none { it.role == Role.SYSTEM && "[fsm]" in it.text } },
+        )
+    }
+
     //endregion
 
     //region маршрутизация и судья
