@@ -4,6 +4,7 @@ import ru.den.writes.code.agenticHub.features.fsm.AdvanceOutcome
 import ru.den.writes.code.agenticHub.features.fsm.RetryReason
 import ru.den.writes.code.agenticHub.features.fsm.RetryState
 import ru.den.writes.code.agenticHub.features.fsm.Stage
+import ru.den.writes.code.agenticHub.features.fsm.Task
 import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -72,15 +73,46 @@ class TaskStageAdvanceTest {
     }
 
     @Test
-    fun `when a fresh task is moved - then it advances off clarification like any other`() {
+    fun `when a task is created without a stage - then it starts at clarification`() {
         // given
-        val task = task(stage = Stage.INITIAL)
+        val task = Task(taskId = TASK_ID)
 
-        // when - then
-        Stage.entries.forEach { to ->
-            val actual = TaskStateMachine.advance(task, to)
-            assertEquals(to == Stage.PLANNING, actual is AdvanceOutcome.Advanced, "advance(initial -> $to)")
-        }
+        // when
+        val actual = task.stage
+
+        // then
+        assertEquals(Stage.CLARIFICATION, actual)
+    }
+
+    @Test
+    fun `when a fresh task is moved to done - then the jump is refused like any other`() {
+        // given
+        val task = Task(taskId = TASK_ID)
+        val proposed = Stage.DONE
+
+        // when
+        val actual = TaskStateMachine.advance(task, proposed)
+
+        // then
+        assertIs<AdvanceOutcome.Rejected>(actual)
+        assertEquals(Stage.CLARIFICATION, actual.from)
+        assertEquals(proposed, actual.proposed)
+        assertEquals(task, actual.task)
+    }
+
+    @Test
+    fun `when a fresh task is moved to planning - then it advances`() {
+        // given
+        val task = Task(taskId = TASK_ID)
+        val proposed = Stage.PLANNING
+
+        // when
+        val actual = TaskStateMachine.advance(task, proposed)
+
+        // then
+        assertIs<AdvanceOutcome.Advanced>(actual)
+        assertEquals(Stage.CLARIFICATION, actual.from)
+        assertEquals(proposed, actual.task.stage)
     }
 
     @Test

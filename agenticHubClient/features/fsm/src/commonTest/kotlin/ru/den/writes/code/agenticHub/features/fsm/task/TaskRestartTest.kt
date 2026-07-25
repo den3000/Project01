@@ -41,7 +41,7 @@ class TaskRestartTest {
         reasons.forEach { reason ->
             val actual = TaskStateMachine.retry(task, reason)
             assertIs<RetryOutcome.Restarted>(actual, "outcome($reason)")
-            assertEquals(Stage.INITIAL, actual.task.stage, "stage($reason)")
+            assertEquals(Stage.CLARIFICATION, actual.task.stage, "stage($reason)")
             assertFalse(actual.task.paused, "paused($reason)")
             assertEquals(1, actual.task.taskRetryState.attempt, "task attempt($reason)")
         }
