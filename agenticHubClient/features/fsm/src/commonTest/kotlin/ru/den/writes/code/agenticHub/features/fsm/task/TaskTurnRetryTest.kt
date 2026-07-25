@@ -31,23 +31,22 @@ class TaskTurnRetryTest {
     @Test
     fun `when a turn retry lands - then the stage is left alone`() {
         // given
-        // The turn is being re-run, not abandoned: the FSM has not had its say yet.
-        val task = task(stage = Stage.PLANNING, notes = listOf("scope agreed"))
+        val stage = Stage.PLANNING
+        val notes = listOf("scope agreed")
+        val task = task(stage = stage, notes = notes)
 
         // when
         val actual = TaskStateMachine.retry(task, RetryReason.JUDGE_REWRITE)
 
         // then
         assertIs<RetryOutcome.Retried>(actual)
-        assertEquals(Stage.PLANNING, actual.task.stage)
-        assertEquals(listOf("scope agreed"), actual.task.notes)
+        assertEquals(stage, actual.task.stage)
+        assertEquals(notes, actual.task.notes)
     }
 
     @Test
     fun `when the turn budget runs out - then the task restarts instead`() {
         // given
-        // An attempt that has spent fifteen rewrites is arguing with its own
-        // auditor; another rewrite is not what it needs.
         val task = task(turnRetryState = spentToTheLast(RetryState.turn()))
 
         // when

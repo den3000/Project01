@@ -30,24 +30,22 @@ class TaskStageRetryTest {
     @Test
     fun `when a stage retry lands - then the stage and its notes are kept`() {
         // given
-        // The stage did not move, so nothing about the work is thrown away — that
-        // is what separates a stage retry from a restart.
-        val task = task(stage = Stage.VALIDATION, notes = listOf("api is rate-limited"))
+        val stage = Stage.VALIDATION
+        val notes = listOf("api is rate-limited")
+        val task = task(stage = stage, notes = notes)
 
         // when
         val actual = TaskStateMachine.retry(task, RetryReason.NO_MARKER)
 
         // then
         assertIs<RetryOutcome.Retried>(actual)
-        assertEquals(Stage.VALIDATION, actual.task.stage)
-        assertEquals(listOf("api is rate-limited"), actual.task.notes)
+        assertEquals(stage, actual.task.stage)
+        assertEquals(notes, actual.task.notes)
     }
 
     @Test
     fun `when the stage budget runs out - then the task restarts instead`() {
         // given
-        // The failure is promoted, not dropped: a stage that cannot be moved in
-        // ten turns is not going to be moved by an eleventh.
         val task = task(stageRetryState = spentToTheLast(RetryState.stage()))
 
         // when

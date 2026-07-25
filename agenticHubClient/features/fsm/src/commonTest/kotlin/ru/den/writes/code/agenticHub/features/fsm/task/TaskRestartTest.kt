@@ -17,8 +17,6 @@ class TaskRestartTest {
     @Test
     fun `when a restart lands - then both inner budgets are fresh`() {
         // given
-        // Otherwise the restarted task would begin already out of retries and
-        // bounce straight into the next restart, burning all five in five turns.
         val task = task(
             turnRetryState = spentToTheLast(RetryState.turn()),
             stageRetryState = spentToTheLast(RetryState.stage()),
@@ -52,10 +50,8 @@ class TaskRestartTest {
     @Test
     fun `when a task restarts - then what the user said about it survives`() {
         // given
-        // The restart forgets how the attempt went, not what the attempt was for.
-        // Notes are written by the user (`/task note`) and injected every turn —
-        // dropping them would start the second attempt less informed than the first.
-        val task = task(stage = Stage.EXECUTION, notes = listOf("api rate-limits at 1 rps"))
+        val notes = listOf("api rate-limits at 1 rps")
+        val task = task(stage = Stage.EXECUTION, notes = notes)
 
         // when
         val actual = TaskStateMachine.retry(task, RetryReason.TASK_STALLED)
@@ -64,7 +60,7 @@ class TaskRestartTest {
         assertIs<RetryOutcome.Restarted>(actual)
         assertEquals(TASK_ID, actual.task.taskId)
         assertEquals(GOAL, actual.task.goal)
-        assertEquals(listOf("api rate-limits at 1 rps"), actual.task.notes)
+        assertEquals(notes, actual.task.notes)
     }
 
     @Test
@@ -84,35 +80,32 @@ class TaskRestartTest {
     @Test
     fun `when the restarts are exhausted - then giving up names the reason that was asked for`() {
         // given
-        // A stage reason that escalated all the way through a spent task budget
-        // still reports itself: the run died fighting a stage that would not move,
-        // and reporting the escalation instead would hide that.
+        val reason = RetryReason.NO_MARKER
         val task = task(
             taskRetryState = spentToTheLast(RetryState.task()),
             stageRetryState = spentToTheLast(RetryState.stage()),
         )
 
         // when
-        val actual = TaskStateMachine.retry(task, RetryReason.NO_MARKER)
+        val actual = TaskStateMachine.retry(task, reason)
 
         // then
         assertIs<RetryOutcome.GaveUp>(actual)
-        assertEquals(RetryReason.NO_MARKER, actual.reason)
+        assertEquals(reason, actual.reason)
     }
 
     @Test
     fun `when the run gives up - then it carries the state the task died in`() {
         // given
-        // For the report, not for another turn: the stage it stalled on and the
-        // spent budgets are the whole diagnosis.
-        val task = task(stage = Stage.VALIDATION, taskRetryState = spentToTheLast(RetryState.task()))
+        val stage = Stage.VALIDATION
+        val task = task(stage = stage, taskRetryState = spentToTheLast(RetryState.task()))
 
         // when
         val actual = TaskStateMachine.retry(task, RetryReason.USER_RESTART)
 
         // then
         assertIs<RetryOutcome.GaveUp>(actual)
-        assertEquals(Stage.VALIDATION, actual.task.stage)
+        assertEquals(stage, actual.task.stage)
         assertTrue(actual.task.taskRetryState.exhausted)
     }
 }

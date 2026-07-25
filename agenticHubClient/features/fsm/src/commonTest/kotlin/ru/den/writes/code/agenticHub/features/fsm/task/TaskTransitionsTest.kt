@@ -78,8 +78,6 @@ class TaskTransitionsTest {
 
     @Test
     fun `when canTransition from done - then every target is rejected`() {
-        // given
-
         // when - then
         Stage.entries.forEach { to ->
             assertFalse(TaskStateMachine.canTransition(Stage.DONE, to), "done -> $to should be rejected")

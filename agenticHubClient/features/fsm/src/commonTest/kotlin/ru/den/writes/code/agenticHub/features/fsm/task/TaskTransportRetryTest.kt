@@ -28,8 +28,6 @@ class TaskTransportRetryTest {
     @Test
     fun `when the transport budget runs out - then the run gives up without restarting`() {
         // given
-        // A dead provider is the one failure a restart cannot help: starting over
-        // points the same unreachable endpoint at the same task from the top.
         val task = task(transportRetryState = spentToTheLast(RetryState.transport()))
 
         // when
@@ -44,15 +42,19 @@ class TaskTransportRetryTest {
     @Test
     fun `when the task restarts - then the transport budget carries over`() {
         // given
-        // It counts an outage, and an outage does not care that the task started
-        // over — refilling it would let a down provider be hammered five times as long.
-        val task = task(transportRetryState = RetryState(attempt = 3, max = RetryState.TRANSPORT_MAX))
+        val transportRetryStateAttempt = 3
+        val task = task(
+            transportRetryState = RetryState(
+                attempt = transportRetryStateAttempt,
+                max = RetryState.TRANSPORT_MAX,
+            ),
+        )
 
         // when
         val actual = TaskStateMachine.retry(task, RetryReason.TASK_STALLED)
 
         // then
         assertIs<RetryOutcome.Restarted>(actual)
-        assertEquals(3, actual.task.transportRetryState.attempt)
+        assertEquals(transportRetryStateAttempt, actual.task.transportRetryState.attempt)
     }
 }

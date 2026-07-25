@@ -15,27 +15,33 @@ class TaskStageAdvanceTest {
     @Test
     fun `when a legal move is proposed - then the stage advances`() {
         // given
-        val task = task(stage = Stage.PLANNING)
+        val stage = Stage.PLANNING
+        val proposed = Stage.EXECUTION
+        val task = task(stage = stage)
 
         // when
-        val actual = TaskStateMachine.advance(task, Stage.EXECUTION)
+        val actual = TaskStateMachine.advance(task, proposed)
 
         // then
         assertIs<AdvanceOutcome.Advanced>(actual)
-        assertEquals(Stage.PLANNING, actual.from)
-        assertEquals(Stage.EXECUTION, actual.to)
-        assertEquals(Stage.EXECUTION, actual.task.stage)
+        assertEquals(stage, actual.from)
+        assertEquals(proposed, actual.to)
+        assertEquals(proposed, actual.task.stage)
         assertNull(actual.reason)
     }
 
     @Test
     fun `when the stage advances - then both inner budgets start over`() {
         // given
+        val transportRetryStateAttempt = 3
         val task = task(
             stage = Stage.PLANNING,
             stageRetryState = RetryState(attempt = 4, max = RetryState.STAGE_MAX),
             turnRetryState = RetryState(attempt = 12, max = RetryState.TURN_MAX),
-            transportRetryState = RetryState(attempt = 3, max = RetryState.TRANSPORT_MAX),
+            transportRetryState = RetryState(
+                attempt = transportRetryStateAttempt,
+                max = RetryState.TRANSPORT_MAX
+            ),
         )
 
         // when
@@ -45,28 +51,29 @@ class TaskStageAdvanceTest {
         assertIs<AdvanceOutcome.Advanced>(actual)
         assertEquals(RetryState.stage(), actual.task.stageRetryState)
         assertEquals(RetryState.turn(), actual.task.turnRetryState)
-        assertEquals(3, actual.task.transportRetryState.attempt)
+        assertEquals(transportRetryStateAttempt, actual.task.transportRetryState.attempt)
     }
 
     @Test
     fun `when the stage advances - then the restarts already spent still stand`() {
         // given
-        // Reaching a new stage is progress within the attempt, not a new attempt.
-        val task = task(stage = Stage.PLANNING, taskRetryState = RetryState(attempt = 2, max = RetryState.TASK_MAX))
+        val taskRetryStateAttempt = 2
+        val task = task(
+            stage = Stage.PLANNING,
+            taskRetryState = RetryState(attempt = taskRetryStateAttempt, max = RetryState.TASK_MAX),
+        )
 
         // when
         val actual = TaskStateMachine.advance(task, Stage.EXECUTION)
 
         // then
         assertIs<AdvanceOutcome.Advanced>(actual)
-        assertEquals(2, actual.task.taskRetryState.attempt)
+        assertEquals(taskRetryStateAttempt, actual.task.taskRetryState.attempt)
     }
 
     @Test
     fun `when a fresh task is moved - then it advances off clarification like any other`() {
         // given
-        // A task with nothing set yet still starts inside the machine, so it gets
-        // no free jump: from the initial stage only planning is reachable.
         val task = task(stage = Stage.INITIAL)
 
         // when - then
@@ -79,16 +86,15 @@ class TaskStageAdvanceTest {
     @Test
     fun `when the current stage is proposed again - then nothing moves`() {
         // given
-        // The marker names the stage being moved TO; used as a label it does
-        // nothing, and swallowing that in silence is the FSM's main lock.
-        val task = task(stage = Stage.EXECUTION)
+        val stage = Stage.EXECUTION
+        val task = task(stage = stage)
 
         // when
-        val actual = TaskStateMachine.advance(task, Stage.EXECUTION)
+        val actual = TaskStateMachine.advance(task, stage)
 
         // then
         assertIs<AdvanceOutcome.Repeated>(actual)
-        assertEquals(Stage.EXECUTION, actual.stage)
+        assertEquals(stage, actual.stage)
         assertEquals(setOf(Stage.VALIDATION, Stage.PLANNING), actual.allowed)
         assertEquals(task, actual.task)
         assertEquals(RetryReason.STAGE_REPEATED, actual.reason)
@@ -97,16 +103,17 @@ class TaskStageAdvanceTest {
     @Test
     fun `when a skipping move is proposed - then it is refused and the stage held`() {
         // given
-        // The guarantee the prompt cannot give: a model asked to skip a stage will.
-        val task = task(stage = Stage.PLANNING)
+        val stage = Stage.PLANNING
+        val proposed = Stage.DONE
+        val task = task(stage = stage)
 
         // when
-        val actual = TaskStateMachine.advance(task, Stage.DONE)
+        val actual = TaskStateMachine.advance(task, proposed)
 
         // then
         assertIs<AdvanceOutcome.Rejected>(actual)
-        assertEquals(Stage.PLANNING, actual.from)
-        assertEquals(Stage.DONE, actual.proposed)
+        assertEquals(stage, actual.from)
+        assertEquals(proposed, actual.proposed)
         assertEquals(setOf(Stage.EXECUTION, Stage.CLARIFICATION), actual.allowed)
         assertEquals(task, actual.task)
         assertEquals(RetryReason.STAGE_REJECTED, actual.reason)
@@ -115,8 +122,6 @@ class TaskStageAdvanceTest {
     @Test
     fun `when a paused task is moved - then the proposal is held and costs nothing`() {
         // given
-        // Pause is a standing instruction to hold the stage; charging a retry for
-        // obeying it would restart a task that is doing what it was told.
         val task = task(stage = Stage.EXECUTION, paused = true)
 
         // when
