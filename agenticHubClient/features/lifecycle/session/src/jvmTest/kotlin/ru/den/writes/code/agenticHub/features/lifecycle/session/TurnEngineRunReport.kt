@@ -9,113 +9,81 @@ import ru.den.writes.code.agenticHub.features.memory.TaskNotes
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
 
 /**
- * Driving a whole task to its end against a real model, and reporting what happened.
+ * What a run of the engine amounts to, and what a batch of runs is reported as.
  *
- * Only the live stand needs this: a run is many turns, the model is nondeterministic, and
- * the question is never "did this turn pass" but "how often, and where did it get stuck".
- * So nothing here asserts — it measures, and the tables are the output. The engine under
- * it is built by `TurnEngineFixture.kt`.
+ * The records ([TurnLog] / [RunLog]) are filled in by the driver in `TurnEngineFixture.kt`
+ * and serve both suites; everything around them is the live stand's, and only the stand
+ * needs it: a run there is many turns, the model is nondeterministic, and the question is
+ * never "did this turn pass" but "how often, and where did it get stuck". So nothing here
+ * asserts — it measures, and the tables are the output.
  */
 
 //region прогон
 
-/** Run one task to completion (or to [MAX_TURNS]) against [modelProvider], and log every turn. */
+/**
+ * Run one task to completion (or to [MAX_TURNS]) against [modelProvider], and log every turn.
+ *
+ * The live face of the driver in `TurnEngineFixture.kt`: same run, only the [LlmApi] is the
+ * real provider built off the graph, the turn budget is the stand's, and every turn is
+ * printed as it lands.
+ */
 internal suspend fun TestScope.runTurnEngineWith(
     modelProvider: ModelProvider,
     sessionName: String,
     taskNotes: TaskNotes?,
     stallHint: Boolean = false,
-): RunLog = withTurnEngine(
+): RunLog = runTurnEngineWith(
     llmApi = { koin -> buildLlmApi(modelProvider, koin.get()) },
     task = taskNotes,
+    turns = MAX_TURNS,
     stallHint = stallHint,
     modelProvider = modelProvider,
     sessionName = sessionName,
-    prompt = OPENING_PROMPT,
-) {
-    val turns = runTurns(taskNotes)
-    RunLog(
-        modelId = modelProvider.modelId,
-        sessionName = sessionName,
-        taskId = taskNotes?.taskId,
-        finalStage = taskNotes?.let { stageOf(it.taskId) },
-        turnLogs = turns,
-    )
-}
-
-/**
- * Feed the engine turns until the task reaches DONE or [MAX_TURNS] runs out, logging each.
- * The first turn carries [OPENING_PROMPT], the rest [FOLLOW_UP_PROMPT] — the same "continue"
- * a headless demo pipes in, which is what provokes the degeneration this stand measures.
- */
-private suspend fun TurnEngineFixture.runTurns(taskNotes: TaskNotes?): List<TurnLog> =
-    (0..<MAX_TURNS).mapNotNull { index ->
-        val stageBefore = taskNotes?.let { stageOf(it.taskId) }
-        if (stageBefore == TaskStage.DONE) return@mapNotNull null
-
-        val prompt = if (index == 0) OPENING_PROMPT else FOLLOW_UP_PROMPT
-        val turnLog = when (val result = engine.turn(prompt)) {
-            is TurnResult.Failed -> TurnLog(
-                index = index,
-                stageBefore = stageBefore,
-                prompt = prompt,
-                reply = "",
-                suggestedNextStage = null,
-                replayErrorReason = result.reason,
-            )
-
-            is TurnResult.Ok -> {
-                val base = TurnLog(
-                    index = index,
-                    stageBefore = stageBefore,
-                    prompt = prompt,
-                    reply = result.reply,
-                    suggestedNextStage = null,
-                    judge = result.judge::class.simpleName.orEmpty(),
-                    outputTokens = result.usage?.outputTokens,
-                    thoughtsTokens = result.usage?.thoughtsTokens,
-                    durationMs = result.durationMs,
-                )
-                when (val advance = result.stageAdvance) {
-                    StageAdvance.None -> base
-                    is StageAdvance.Advanced -> base.copy(suggestedNextStage = advance.to)
-                    is StageAdvance.Rejected ->
-                        base.copy(suggestedNextStage = advance.proposed, advanceErrorReason = "NOT ALLOWED")
-
-                    is StageAdvance.Repeated -> base.copy(repeatedStage = advance.stage)
-                }
-            }
-        }
-
-        println(turnLog.formatted())
-        return@mapNotNull turnLog
-    }
+    logTurns = true,
+)
 
 //endregion
 
 //region логи прогона
 
+/**
+ * One turn, as the run left it: what it was asked, where the task stood, and the raw
+ * [TurnResult] it came back with. Everything else is read off that result rather than
+ * copied out of it — an offline test asserting on `result` and a table counting outcomes
+ * are then looking at the same thing, with no mapping in between to disagree.
+ */
 internal data class TurnLog(
     val index: Int,
     val stageBefore: TaskStage?,
     val prompt: String,
-    val reply: String,
-    val suggestedNextStage: TaskStage?,
-    val judge: String = "",
-    val outputTokens: Int? = null,
-    val thoughtsTokens: Int? = null,
-    val durationMs: Long = 0,
-    val replayErrorReason: String = "",
-    val advanceErrorReason: String = "",
-    val repeatedStage: TaskStage? = null,
+    val result: TurnResult,
 ) {
-    /** What the turn did to the FSM, derived from the fields already captured. */
-    val failed: Boolean get() = replayErrorReason.isNotEmpty()
-    val rejected: Boolean get() = advanceErrorReason.isNotEmpty()
-    val advanced: Boolean get() = suggestedNextStage != null && !rejected && !failed
+    private val ok: TurnResult.Ok? get() = result as? TurnResult.Ok
+    private val advance: StageAdvance? get() = ok?.stageAdvance
+
+    val reply: String get() = ok?.reply.orEmpty()
+    val judge: String get() = ok?.judge?.let { it::class.simpleName }.orEmpty()
+    val outputTokens: Int? get() = ok?.usage?.outputTokens
+    val thoughtsTokens: Int? get() = ok?.usage?.thoughtsTokens
+    val durationMs: Long get() = ok?.durationMs ?: 0
+    val replayErrorReason: String get() = (result as? TurnResult.Failed)?.reason.orEmpty()
+    val advanceErrorReason: String get() = if (rejected) "NOT ALLOWED" else ""
+
+    /** The stage the model asked for, legal or not; null when it named none. */
+    val suggestedNextStage: TaskStage?
+        get() = when (val moved = advance) {
+            is StageAdvance.Advanced -> moved.to
+            is StageAdvance.Rejected -> moved.proposed
+            else -> null
+        }
+
+    /** What the turn did to the FSM. */
+    val failed: Boolean get() = result is TurnResult.Failed
+    val rejected: Boolean get() = advance is StageAdvance.Rejected
+    val advanced: Boolean get() = advance is StageAdvance.Advanced
 
     /** The model named the stage it was already in — a no-move it can be told about. */
-    val repeated: Boolean get() = repeatedStage != null
+    val repeated: Boolean get() = advance is StageAdvance.Repeated
 
     /** Left the stage put, whichever way — what the engine counts toward a stall. */
     val noMove: Boolean get() = !advanced && !rejected && !failed

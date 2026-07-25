@@ -26,16 +26,17 @@ import java.io.File
 import java.nio.file.Files
 
 /**
- * Assembling a real [TurnEngine] for a test, offline or live.
+ * Assembling a real [TurnEngine] for a test, offline or live, and running turns against it.
  *
  * One environment serves both: the engine, its memory and its history are wired the same
  * way in either case, and only the [LlmApi] differs — a scripted fake offline, the real
  * provider live. Keeping that seam as a factory (rather than two builders) is what stops
- * the offline suite and the live stand from drifting into testing different engines.
+ * the offline suite and the live stand from drifting into testing different engines. The
+ * same goes for [runTurnEngineWith]: one driver, two faces.
  *
  * The pieces the environment is built from — tasks, prompts, scripted fakes, stage agents —
  * live in `TurnEngineTestSupport.kt`; the reporting the live stand needs on top of a run —
- * per-turn logs, stall spans, the tables — in `TurnEngineRunReport.kt`.
+ * the run records themselves, stall spans, the tables — in `TurnEngineRunReport.kt`.
  */
 
 /**
@@ -98,6 +99,73 @@ internal suspend fun <T> TestScope.withTurnEngine(
         stallHint = stallHint,
     )
     TurnEngineFixture(engine, memStore, dao, sessionName).block()
+}
+
+/**
+ * Build the engine over a throwaway environment, feed it [turns] turns, and return the run.
+ *
+ * The one entry point both suites drive the engine through: offline a test hands it a
+ * scripted [LlmApi] and a turn count, the live stand a real provider and [MAX_TURNS] (see
+ * the overload in `TurnEngineRunReport.kt`). Everything a turn produces is on the returned
+ * [RunLog] — a test asserts on it, the stand tabulates it — so neither suite reaches for
+ * `engine.turn` itself and they cannot drift apart.
+ *
+ * [prompt] is the first turn's, [followUpPrompt] every later one's — the "continue" a
+ * headless run pipes in. The loop stops early once the task reaches DONE: a finished task
+ * has nothing left to answer, and the stand measures how many turns that took.
+ *
+ * [logTurns] prints each turn as it lands. Only the stand wants it (a run is minutes long
+ * and the output is watched live); offline it would be noise.
+ */
+internal suspend fun TestScope.runTurnEngineWith(
+    llmApi: (Koin) -> LlmApi,
+    task: TaskNotes? = null,
+    turns: Int = 1,
+    prompt: String = OPENING_PROMPT,
+    followUpPrompt: String = FOLLOW_UP_PROMPT,
+    stallHint: Boolean = false,
+    routedAgents: List<RoutedAgent> = emptyList(),
+    routedJudges: List<RoutedJudge> = emptyList(),
+    modelProvider: ModelProvider = dummyProvider(),
+    sessionName: String = "s",
+    temperature: Double? = null,
+    logTurns: Boolean = false,
+): RunLog = withTurnEngine(
+    llmApi = llmApi,
+    task = task,
+    stallHint = stallHint,
+    routedAgents = routedAgents,
+    routedJudges = routedJudges,
+    modelProvider = modelProvider,
+    sessionName = sessionName,
+    prompt = prompt,
+    temperature = temperature,
+) {
+    // The turns run first: `finalStage` is what they left behind, not what they started from.
+    val turnLogs = runTurns(task, turns, prompt, followUpPrompt, logTurns)
+    RunLog(
+        modelId = modelProvider.modelId,
+        sessionName = sessionName,
+        taskId = task?.taskId,
+        finalStage = task?.let { stageOf(it.taskId) },
+        turnLogs = turnLogs,
+    )
+}
+
+/** Feed the engine up to [turns] turns, logging each; stops the moment the task is DONE. */
+private suspend fun TurnEngineFixture.runTurns(
+    task: TaskNotes?,
+    turns: Int,
+    prompt: String,
+    followUpPrompt: String,
+    logTurns: Boolean,
+): List<TurnLog> = (0..<turns).mapNotNull { index ->
+    val stageBefore = task?.let { stageOf(it.taskId) }
+    if (stageBefore == TaskStage.DONE) return@mapNotNull null
+
+    val turnPrompt = if (index == 0) prompt else followUpPrompt
+    TurnLog(index, stageBefore, turnPrompt, engine.turn(turnPrompt))
+        .also { if (logTurns) println(it.formatted()) }
 }
 
 /** Koin graph + temp filesystem root + in-memory database, all disposed after [block]. */
