@@ -126,12 +126,19 @@ class TurnEngineLiveTest {
      *   2. PER-RUN table — one row per run, raw counts, so every run is visible/comparable;
      *   3. PER-GROUP table — one row per group, counts averaged per run.
      * Takes any number of groups, so new grouped tests reuse it as-is.
+     *
+     * `stalled`/`recov` carry the conditional read: a run that never sits still is one the
+     * stall nudge never touches, so an overall `done` rate mixes those in and dilutes
+     * whatever the nudge did. `recov` is scored over the stalled runs alone.
      */
     private fun reportGroups(groups: List<RunGroup>) {
         groups.forEach { printGroupDetail(it) }
         printTable(
             "PER-RUN (raw, every run a row)",
-            listOf("group", "run", "done", "turns", "adv", "rej", "noMv", "fail", "out", "thghts", "ms", "stage"),
+            listOf(
+                "group", "run", "done", "turns", "adv", "rej", "noMv", "fail",
+                "stall", "recov", "out", "thghts", "ms", "stage",
+            ),
             groups.flatMap { g ->
                 g.runs.mapIndexed { i, r ->
                     listOf(
@@ -143,6 +150,8 @@ class TurnEngineLiveTest {
                         "${r.rejects}",
                         "${r.noMoves}",
                         "${r.failures}",
+                        "${r.longestStall}",
+                        if (!r.stalled) "-" else if (r.recovered) "Y" else "N",
                         "${r.outputTokens}",
                         "${r.thoughtsTokens}",
                         "${r.durationMs}",
@@ -153,13 +162,19 @@ class TurnEngineLiveTest {
         )
         printTable(
             "PER-GROUP (averaged per run)",
-            listOf("group", "done", "turns", "adv", "rej", "noMv", "fail", "out", "thghts", "ms"),
+            listOf(
+                "group", "done", "stalled", "recov", "turns", "adv", "rej", "noMv",
+                "fail", "out", "thghts", "ms",
+            ),
             groups.map { g ->
                 val n = g.runs.size.coerceAtLeast(1)
+                val stalledRuns = g.runs.count { it.stalled }
                 fun avg(sel: (RunLog) -> Number) = g.runs.sumOf { sel(it).toDouble() } / n
                 listOf(
                     g.label,
                     "${g.runs.count { it.reachedDone }}/${g.runs.size}",
+                    "$stalledRuns/${g.runs.size}",
+                    if (stalledRuns == 0) "-" else "${g.runs.count { it.recovered }}/$stalledRuns",
                     "%.1f".format(avg { it.turnLogs.size }),
                     "%.1f".format(avg { it.advances }),
                     "%.1f".format(avg { it.rejects }),
@@ -175,9 +190,12 @@ class TurnEngineLiveTest {
 
     private fun printGroupDetail(group: RunGroup) {
         val reached = group.runs.count { it.reachedDone }
+        val stalledRuns = group.runs.count { it.stalled }
         val turns = group.runs.map { it.turnLogs.size }
         println("========================= SUMMARY: ${group.label} =========================")
         println("reachedDone $reached/${group.runs.size} — turns per run $turns")
+        val recovered = if (stalledRuns == 0) "-" else "${group.runs.count { it.recovered }}/$stalledRuns"
+        println("stalled $stalledRuns/${group.runs.size} — recovered $recovered")
         group.runs.forEach { println(it.formatted()) }
     }
 
@@ -317,6 +335,7 @@ class TurnEngineLiveTest {
         val failed: Boolean get() = replayErrorReason.isNotEmpty()
         val rejected: Boolean get() = advanceErrorReason.isNotEmpty()
         val advanced: Boolean get() = suggestedNextStage != null && !rejected && !failed
+        val noMove: Boolean get() = !advanced && !rejected && !failed
         val outcome: String
             get() = when {
                 failed -> "FAILED"
@@ -356,11 +375,49 @@ class TurnEngineLiveTest {
         val reachedDone: Boolean get() = finalStage == TaskStage.DONE
         val advances: Int get() = turnLogs.count { it.advanced }
         val rejects: Int get() = turnLogs.count { it.rejected }
-        val noMoves: Int get() = turnLogs.count { !it.advanced && !it.rejected && !it.failed }
+        val noMoves: Int get() = turnLogs.count { it.noMove }
         val failures: Int get() = turnLogs.count { it.failed }
         val outputTokens: Int get() = turnLogs.sumOf { it.outputTokens ?: 0 }
         val thoughtsTokens: Int get() = turnLogs.sumOf { it.thoughtsTokens ?: 0 }
         val durationMs: Long get() = turnLogs.sumOf { it.durationMs }
+
+        /**
+         * Every maximal span of consecutive NO_MOVE turns, paired with whether the turn that
+         * ended it actually advanced the stage (a break-out). False when a reject/failure
+         * ended it, or when the span was still open as the run ran out of turns.
+         */
+        private val noMoveSpans: List<Pair<Int, Boolean>>
+            get() {
+                val spans = mutableListOf<Pair<Int, Boolean>>()
+                var len = 0
+                turnLogs.forEach { turn ->
+                    if (turn.noMove) {
+                        len++
+                    } else {
+                        if (len > 0) spans += len to turn.advanced
+                        len = 0
+                    }
+                }
+                if (len > 0) spans += len to false
+                return spans
+            }
+
+        /**
+         * Spans long enough to count as a stall episode. [STALL_STREAK_LIMIT] NO_MOVE turns
+         * in a row is exactly what arms the engine's stall nudge, so these runs — and only
+         * these — are the population an A/B over that nudge is actually about.
+         */
+        private val stallSpans: List<Pair<Int, Boolean>> get() =
+            noMoveSpans.filter { (len, _) -> len >= STALL_STREAK_LIMIT }
+
+        /** Longest NO_MOVE streak of any length; 0 when the stage never repeated. */
+        val longestStall: Int get() = noMoveSpans.maxOfOrNull { (len, _) -> len } ?: 0
+
+        /** Sat through at least one stall episode — the nudge had something to fix here. */
+        val stalled: Boolean get() = stallSpans.isNotEmpty()
+
+        /** Broke out of at least one stall episode with a real stage advance. */
+        val recovered: Boolean get() = stallSpans.any { (_, broke) -> broke }
 
         fun formatted(): String = buildString {
             append("---- run [$modelId] task=$taskId ----")
@@ -422,6 +479,14 @@ class TurnEngineLiveTest {
     )
 
     private companion object {
+        /**
+         * NO_MOVE turns in a row that make a stall episode. Mirrors the engine's own
+         * `STALL_STREAK_LIMIT` (TurnEngine.kt) — the point where the stall nudge arms —
+         * so `stalled`/`recovered` describe exactly the runs the nudge could act on.
+         * The engine's constant is file-private, so this copy is kept in sync by hand.
+         */
+        const val STALL_STREAK_LIMIT = 2
+
         const val OPENING_PROMPT =
             "Begin the task. I have no requirements beyond the goal — decide the details yourself " +
                     "and move the task forward without asking me questions."
