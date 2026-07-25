@@ -36,7 +36,7 @@ class TaskRestartTest {
     @Test
     fun `when a task-level reason is retried - then the task starts over from clarification`() {
         // given
-        val task = task(stage = Stage.VALIDATION, paused = true, notes = listOf("half-written plan"))
+        val task = task(stage = Stage.VALIDATION, paused = true)
         val reasons = RetryReason.entries.filter { it.level == RetryLevel.TASK }
 
         // when - then
@@ -44,17 +44,18 @@ class TaskRestartTest {
             val actual = TaskStateMachine.retry(task, reason)
             assertIs<RetryOutcome.Restarted>(actual, "outcome($reason)")
             assertEquals(Stage.INITIAL, actual.task.stage, "stage($reason)")
-            assertEquals(emptyList(), actual.task.notes, "notes($reason)")
             assertFalse(actual.task.paused, "paused($reason)")
             assertEquals(1, actual.task.taskRetryState.attempt, "task attempt($reason)")
         }
     }
 
     @Test
-    fun `when a task restarts - then its goal and id survive`() {
+    fun `when a task restarts - then what the user said about it survives`() {
         // given
         // The restart forgets how the attempt went, not what the attempt was for.
-        val task = task(stage = Stage.EXECUTION)
+        // Notes are written by the user (`/task note`) and injected every turn —
+        // dropping them would start the second attempt less informed than the first.
+        val task = task(stage = Stage.EXECUTION, notes = listOf("api rate-limits at 1 rps"))
 
         // when
         val actual = TaskStateMachine.retry(task, RetryReason.TASK_STALLED)
@@ -63,6 +64,7 @@ class TaskRestartTest {
         assertIs<RetryOutcome.Restarted>(actual)
         assertEquals(TASK_ID, actual.task.taskId)
         assertEquals(GOAL, actual.task.goal)
+        assertEquals(listOf("api rate-limits at 1 rps"), actual.task.notes)
     }
 
     @Test

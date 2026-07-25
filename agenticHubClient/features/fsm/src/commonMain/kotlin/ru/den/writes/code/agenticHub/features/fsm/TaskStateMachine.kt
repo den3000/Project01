@@ -114,9 +114,15 @@ object TaskStateMachine {
     }
 
     /**
-     * Start the task over: back to [Stage.INITIAL], notes dropped, both inner
-     * budgets fresh, one task attempt lighter. [RetryOutcome.GaveUp] when the
-     * attempts are gone.
+     * Start the task over: back to [Stage.INITIAL], both inner budgets fresh, one
+     * task attempt lighter. [RetryOutcome.GaveUp] when the attempts are gone.
+     *
+     * [Task.goal] and [Task.notes] survive. The restart forgets how the attempt
+     * went, not what it was for, and both of those are what the user said about
+     * the task — not residue the failed attempt left behind. Dropping the notes
+     * would start the second attempt less informed than the first, exactly when
+     * the task is already struggling. (If the model is ever allowed to write
+     * notes of its own, that content IS residue and the field has to be split.)
      *
      * The inner budgets reset because the restart is a new attempt at the whole
      * task, not a continuation of the failed one — carrying their spent state over
@@ -135,7 +141,6 @@ object TaskStateMachine {
         return RetryOutcome.Restarted(
             task.copy(
                 stage = Stage.INITIAL,
-                notes = emptyList(),
                 paused = false,
                 taskRetryState = spent,
                 stageRetryState = RetryState.stage(),
