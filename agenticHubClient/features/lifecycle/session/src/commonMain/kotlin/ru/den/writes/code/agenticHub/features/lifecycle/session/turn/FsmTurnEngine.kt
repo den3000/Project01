@@ -7,9 +7,9 @@ import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.agent.ToolCallLog
 import ru.den.writes.code.agenticHub.features.fsm.AdvanceOutcome
 import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
-import ru.den.writes.code.agenticHub.features.fsm.RetryReason
 import ru.den.writes.code.agenticHub.features.fsm.Task
 import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
+import ru.den.writes.code.agenticHub.features.fsm.UpdateReason
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.session.RagControl
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
@@ -31,12 +31,16 @@ import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
  *
  * Everything about producing an answer is shared with [InlineFsmTurnEngine] (see
  * [TurnAttempts]); what differs is the part after it. Where the inline engine has
- * a transition table of its own and nothing else, this one asks
- * [TaskStateMachine] and gets back both the move and its price: a turn the stage
- * paid for spends a budget, an exhausted budget escalates, and the escalation is
- * carried out here — the task is written back and the conversation moves to a
- * fresh branch. The verdict still rides out in [TurnResult.fsm], now as a report
- * of what happened rather than an instruction for someone else to execute.
+ * a transition table of its own and decides the rest as it goes, this one hands
+ * the finished turn to [TaskStateMachine] and carries out what comes back: the
+ * task is written down, a restart moves the conversation to a fresh branch, the
+ * charged reason is held for the next prompt, and the move is phrased for the
+ * view. The verdict rides out in [TurnResult.fsm] as a report of what happened.
+ *
+ * No rule about the task lives here. Which budget a failure spends, whether a
+ * legal move still costs a turn, when a stall escalates into a restart — all of
+ * that is `features:fsm`'s, and this engine could not answer any of it without
+ * asking.
  *
  * Two behaviours are deliberately not the inline engine's:
  * - a task always has a stage (a file without one starts at the beginning), so
@@ -116,7 +120,7 @@ public class FsmTurnEngine(
             // the one budget that can end the run without a restart in between.
             is AttemptOutcome.Failed -> TurnResult.Failed(
                 reason = outcome.reason,
-                fsm = charge(notes, task, RetryReason.TRANSPORT_FAILED),
+                fsm = apply(notes, task, UpdateReason.TransportFailed).fsm,
             )
 
             // Every rewrite breached. The turn is spent and the task is no further
@@ -133,11 +137,11 @@ public class FsmTurnEngine(
                 judgeModelId = judge?.modelId,
                 executedToolCalls = outcome.toolCalls,
                 retrieval = retrieval,
-                fsm = charge(notes, task, RetryReason.JUDGE_BLOCKED),
+                fsm = apply(notes, task, UpdateReason.JudgeBlocked).fsm,
             )
 
             is AttemptOutcome.Answered -> {
-                val decided = decide(notes, task, outcome.proposedStage)
+                val decided = apply(notes, task, outcome.proposedStage.toUpdateReason())
                 TurnResult.Ok(
                     reply = outcome.reply,
                     modelId = modelId,
@@ -161,65 +165,43 @@ public class FsmTurnEngine(
     }
 
     /**
-     * What this turn did to the task: the move if there was one, and the retry it
-     * cost if there wasn't. A turn with no active task decides nothing.
+     * Hand the turn to the machine and carry out what it decided. Everything here is
+     * something the machine cannot do: write the task down, move the conversation,
+     * arm the note for the next prompt, phrase the move for the view. What the turn
+     * cost and whether the task moved is not decided here at all.
+     *
+     * The task is persisted whatever the verdict — a spent budget is a fact even when
+     * the run is over, and a report that cannot see it cannot explain why the task
+     * stopped. A turn with no active task has nothing to decide about.
      */
-    private suspend fun decide(notes: TaskNotes?, task: Task?, proposed: TaskStage?): Decided {
+    private suspend fun apply(notes: TaskNotes?, task: Task?, reason: UpdateReason): Decided {
         if (notes == null || task == null) return Decided(StageAdvance.None, null)
-        // No marker at all — the quiet stall. It never reaches `advance`: there is
-        // nothing to advance to, and the FSM only ever judges a proposal.
-        val proposedStage = proposed?.toFsmStage()
-            ?: return Decided(StageAdvance.None, charge(notes, task, RetryReason.NO_MARKER))
-
-        return when (val advance = machine.advance(task, proposedStage)) {
-            is AdvanceOutcome.Advanced -> {
-                val rendered = StageAdvance.Advanced(advance.from.toTaskStage(), advance.to.toTaskStage())
-                // A move onto new ground is progress and costs nothing. A move back over
-                // covered ground is legal, applied — and charged, or a task can oscillate
-                // between two stages for ever without the FSM ever getting a say. The
-                // charge is applied to the moved task, so the stage it now sits on is the
-                // one paying.
-                val moved = notes.withFsmTask(advance.task)
-                save(notes, advance.task)
-                Decided(rendered, advance.reason?.let { charge(moved, advance.task, it) })
-            }
-
-            is AdvanceOutcome.Repeated -> Decided(
-                StageAdvance.Repeated(advance.stage.toTaskStage(), advance.allowed.toTaskStages()),
-                charge(notes, task, advance.reason),
-            )
-
-            is AdvanceOutcome.Rejected -> Decided(
-                StageAdvance.Rejected(
-                    advance.from.toTaskStage(),
-                    advance.proposed.toTaskStage(),
-                    advance.allowed.toTaskStages(),
-                ),
-                charge(notes, task, advance.reason, proposed = advance.proposed.toTaskStage()),
-            )
-        }
+        val decision = machine.update(task, reason)
+        save(notes, decision.task)
+        pendingFeedback = decision.retryReason?.let { RetryFeedback(it, decision.advance.refusedStage()) }
+        if (decision.retryOutcome is RetryOutcome.Restarted) restart(decision.task)
+        return Decided(decision.advance.render(), decision.retryOutcome)
     }
+
+    /** The move as the view says it; [StageAdvance.None] when there was no move to speak of. */
+    private fun AdvanceOutcome?.render(): StageAdvance = when (this) {
+        null -> StageAdvance.None
+        is AdvanceOutcome.Advanced -> StageAdvance.Advanced(from.toTaskStage(), to.toTaskStage())
+        is AdvanceOutcome.Repeated -> StageAdvance.Repeated(stage.toTaskStage(), allowed.toTaskStages())
+        is AdvanceOutcome.Rejected ->
+            StageAdvance.Rejected(from.toTaskStage(), proposed.toTaskStage(), allowed.toTaskStages())
+    }
+
+    /** The stage a refused move asked for — the one thing feedback quotes back. */
+    private fun AdvanceOutcome?.refusedStage(): TaskStage? =
+        (this as? AdvanceOutcome.Rejected)?.proposed?.toTaskStage()
 
     /**
-     * Spend one retry and store what it left. The task is persisted whatever the
-     * verdict — a spent budget is a fact even when the run is over, and a report
-     * that cannot see it cannot explain why the task stopped.
+     * What the model's answer amounts to for the FSM. No marker is not a missing
+     * value to be defaulted away — it is the quiet stall, and it has its own case.
      */
-    private suspend fun charge(
-        notes: TaskNotes?,
-        task: Task?,
-        reason: RetryReason,
-        proposed: TaskStage? = null,
-    ): RetryOutcome? {
-        if (notes == null || task == null) return null
-        val outcome = machine.retry(task, reason)
-        save(notes, outcome.task)
-        // Only a plain retry talks to the model: a restarted task must not learn it
-        // was restarted, and a run that gave up has nobody left to tell.
-        if (outcome is RetryOutcome.Retried) pendingFeedback = RetryFeedback(reason, proposed)
-        if (outcome is RetryOutcome.Restarted) restart(outcome.task)
-        return outcome
-    }
+    private fun TaskStage?.toUpdateReason(): UpdateReason =
+        this?.let { UpdateReason.StageProposed(it.toFsmStage()) } ?: UpdateReason.NoStageProposed
 
     /**
      * Make the restart real. The machine has already put the task back to the
