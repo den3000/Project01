@@ -18,20 +18,14 @@ import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 
 /**
- * The same run as `runTurnEngineWith`, except this driver **executes** a restart instead of
- * only recording it.
+ * The same run as `runTurnEngineWith`, except this driver lets a run restart itself and
+ * measures what the restarts did.
  *
- * A turn cannot restart its own task: the verdict travels out in [TurnResult.fsm] and
- * whoever owns the loop has to act on it. In production that is the view-model, which is not
- * wired for it yet; here it is this driver, so the stand can measure what a restart actually
- * does rather than that one was decided.
- *
- * Executing it means all three of the things a restart has to forget:
- *   1. the task state — already done by the machine, persisted by the engine;
- *   2. the conversation — `switchTo` a fresh branch, so the failed attempt leaves the wire
- *      while its rows stay in the database for the report;
- *   3. the engine's own ephemeral state — a new engine over the same stores, because there
- *      is no reset for it.
+ * The restart is carried out by the engine — the task goes back to the beginning and the
+ * conversation moves to a fresh branch, both inside the turn that decided it. What is left
+ * for a driver is bookkeeping: keep feeding turns until the task is done or has given up,
+ * and record what the restarts did on the way. [TurnResult.fsm] is read as a report, and the
+ * same reading serves whoever owns the loop in production.
  *
  * A deliberate copy of the plain driver rather than a flag on it: the two answer different
  * questions ("how does one attempt go" vs "how does a run with restarts go"), and a stand
@@ -42,7 +36,6 @@ internal suspend fun TestScope.runRestartingTurnEngineWith(
     llmApi: (Koin) -> LlmApi,
     engineUnderTest: EngineUnderTest = FSM_ENGINE,
     task: TaskNotes,
-    turns: Int = MAX_TURNS,
     prompt: String = OPENING_PROMPT,
     followUpPrompt: String = FOLLOW_UP_PROMPT,
     routedAgents: List<RoutedAgent> = emptyList(),
@@ -50,7 +43,6 @@ internal suspend fun TestScope.runRestartingTurnEngineWith(
     modelProvider: ModelProvider = dummyProvider(),
     sessionName: String = "s",
     temperature: Double? = null,
-    stopAtDone: Boolean = true,
     logTurns: Boolean = false,
 ): RestartingRunLog = withSessionEnv { koin, fsRoot ->
     val memStore = FileMemoryStore(fsRoot.absolutePath, fs = koin.get())
@@ -67,15 +59,14 @@ internal suspend fun TestScope.runRestartingTurnEngineWith(
         stallHint = false,
     )
 
-    var engine: TurnEngine = engineUnderTest.create(deps)
+    val engine: TurnEngine = engineUnderTest.create(deps)
     val turnLogs = mutableListOf<TurnLog>()
     val restarts = mutableListOf<RestartLog>()
     var attempt = 1
+    var index = 0
 
-    for (index in 0..<turns) {
+    while (memStore.loadTask(task.taskId)?.stage != TaskStage.DONE) {
         val stageBefore = memStore.loadTask(task.taskId)?.stage
-        if (stopAtDone && stageBefore == TaskStage.DONE) break
-
         val turnPrompt = if (index == 0) prompt else followUpPrompt
         val log = TurnLog(index, stageBefore, turnPrompt, engine.turn(turnPrompt))
         turnLogs += log
@@ -84,14 +75,10 @@ internal suspend fun TestScope.runRestartingTurnEngineWith(
         when (val verdict = log.result.fsm) {
             is RetryOutcome.Restarted -> {
                 attempt++
-                // The conversation is what the model actually reads, so the restart is only
-                // real once the wire is empty: a fresh branch leaves the failed attempt in
-                // the database (the report still counts its turns and tokens) and out of
-                // every prompt from here on.
-                historyStore.switchTo("$sessionName-attempt-$attempt")
-                engine = engineUnderTest.create(deps)
+                // The engine has already emptied the wire; the driver only records where
+                // the attempt that just died had got to.
                 restarts += RestartLog(afterTurn = index, attempt = attempt, stage = stageBefore)
-                if (logTurns) println(">>> RESTART after turn $index — attempt $attempt, branch switched")
+                if (logTurns) println(">>> RESTART after turn $index — attempt $attempt, branch ${historyStore.branchId}")
             }
 
             is RetryOutcome.GaveUp -> {
@@ -102,6 +89,7 @@ internal suspend fun TestScope.runRestartingTurnEngineWith(
 
             else -> Unit
         }
+        index++
     }
 
     RestartingRunLog(
@@ -126,12 +114,10 @@ internal suspend fun TestScope.runRestartingTurnEngineWith(
     sessionName: String,
     task: TaskNotes,
     engineUnderTest: EngineUnderTest = FSM_ENGINE,
-    turns: Int = MAX_TURNS,
 ): RestartingRunLog = runRestartingTurnEngineWith(
     llmApi = { koin -> buildLlmApi(modelProvider, koin.get()) },
     engineUnderTest = engineUnderTest,
     task = task,
-    turns = turns,
     modelProvider = modelProvider,
     sessionName = sessionName,
     logTurns = true,

@@ -9,15 +9,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The FSM stability stand: a real [ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine]
- * against a real model, measured rather than asserted. Environment comes from
- * `TurnEngineFixture.kt`, its parts from `TurnEngineTestSupport.kt`, the run driver and the
- * tables from `TurnEngineRunReport.kt`; what stays here is which model, which task, and how
- * many repetitions.
- *
- * Opt-in (`-PliveTests`) and it **burns tokens** — the A/B below is 2 × [reps] full runs.
- */
 class TurnEngineLiveTest {
 
     private fun gemini(model: GeminiModel) =
@@ -85,14 +76,6 @@ class TurnEngineLiveTest {
         )
     }
 
-    /**
-     * The new engine on the task that normally finishes: 50 runs, one model, no A/B.
-     *
-     * Not a comparison — a look. The question is whether a turn whose decisions come from
-     * `features:fsm` runs at all end to end: stages advance, refusals are charged, the
-     * counters in the task file move, and the run still reaches done as often as before.
-     * The `rtry`/`rstrt`/`spent` columns are the whole point of the table here.
-     */
     @Test
     fun `when the fsm engine runs a simple task - then the run reaches done and the budgets show its cost`() =
         runLiveTest(timeout = BATCH_TIMEOUT) {
@@ -102,25 +85,13 @@ class TurnEngineLiveTest {
 
             // when
             val runs = (0..<reps).map {
-                runTurnEngineWith(modelProvider, SESSION_NAME, SIMPLE_TASK, engineUnderTest = FSM_ENGINE)
+                runRestartingTurnEngineWith(modelProvider, SESSION_NAME, SIMPLE_TASK)
             }
 
             // then
-            reportGroups(listOf(RunGroup("fsm engine / simple", runs)))
+            reportRestartingRuns("fsm engine / simple", runs)
         }
 
-    /**
-     * The new engine on the task that stalls, with restarts actually executed: 20 runs.
-     *
-     * The other driver only records an escalation; this one carries it out — fresh history
-     * branch, new engine — so the question stops being "does the machine decide to restart"
-     * and becomes "does a restarted attempt behave differently". That is the whole reason
-     * the restart exists, and it is the one thing the plain stand cannot show.
-     *
-     * [RESTART_TURNS] leaves room for it: ten charged turns exhaust the stage budget, the
-     * eleventh restarts, and what follows is the fresh attempt worth watching. Two of those
-     * fit; the five restarts the task budget allows would take three times the calls.
-     */
     @Test
     fun `when the fsm engine restarts a minimal task - then the fresh attempt is visible`() =
         runLiveTest(timeout = BATCH_TIMEOUT) {
@@ -130,12 +101,7 @@ class TurnEngineLiveTest {
 
             // when
             val runs = (0..<reps).map {
-                runRestartingTurnEngineWith(
-                    modelProvider,
-                    SESSION_NAME,
-                    MINIMAL_TASK,
-                    turns = RESTART_TURNS,
-                )
+                runRestartingTurnEngineWith(modelProvider, SESSION_NAME, MINIMAL_TASK)
             }
 
             // then
@@ -145,16 +111,6 @@ class TurnEngineLiveTest {
     private companion object {
         const val SESSION_NAME = "turn-engine-live-test"
 
-        /**
-         * Long enough for two attempts: ten turns burn the stage budget, the eleventh
-         * restarts, and the rest is the fresh attempt the restart was for.
-         */
-        const val RESTART_TURNS = 25
-
-        /**
-         * Several hundred sequential calls per batch — the default fifteen minutes is a
-         * ceiling for a handful of them, not for a stand.
-         */
         val BATCH_TIMEOUT = 90.minutes
     }
 }
