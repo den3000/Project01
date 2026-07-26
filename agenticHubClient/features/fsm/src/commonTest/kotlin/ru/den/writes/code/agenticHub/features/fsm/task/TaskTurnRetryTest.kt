@@ -61,6 +61,7 @@ class TaskTurnRetryTest {
         // then
         assertIs<RetryOutcome.Restarted>(actual)
         assertEquals(1, actual.task.taskRetryState.attempt)
+        assertEquals(RetryState.turn(), actual.task.turnRetryState)
     }
 
     @Test
