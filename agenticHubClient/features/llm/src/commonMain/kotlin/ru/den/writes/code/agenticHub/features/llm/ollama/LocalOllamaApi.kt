@@ -96,9 +96,29 @@ private fun GenerationParams.toOllamaOptions(): OllamaOptions? {
     )
 }
 
-/** Map a neutral non-SYSTEM [Message] into the OpenAI-style role/content shape. */
-private fun Message.toApi(): OllamaMessage =
-    OllamaMessage(
+/**
+ * Map a neutral non-SYSTEM [Message] into the OpenAI-style role/content shape.
+ *
+ * Function-calling turns get their own shape, and it is driven by the tool fields
+ * rather than [Message.role]: a message carrying [Message.toolCalls] becomes a
+ * `role:"assistant"` turn with `tool_calls`, and one carrying [Message.toolResultFor]
+ * becomes a `role:"tool"` turn naming the tool whose output sits in [Message.text].
+ * The latter arrives as [Role.USER] (that is how the responder replays a result), so
+ * reading the role instead would send the result back as an ordinary user turn and
+ * the model would lose the link to its own call. Plain turns are unchanged.
+ */
+private fun Message.toApi(): OllamaMessage {
+    toolCalls?.let { calls ->
+        return OllamaMessage(
+            role = "assistant",
+            content = text,
+            toolCalls = calls.map { OllamaToolCall(OllamaToolCallFunction(name = it.name, arguments = it.arguments)) },
+        )
+    }
+    toolResultFor?.let { name ->
+        return OllamaMessage(role = "tool", content = text, toolName = name)
+    }
+    return OllamaMessage(
         role = when (role) {
             // Filtered out by buildOllamaWireMessages — SYSTEM goes into the single
             // combined system message, not a per-message wire row. Kept for exhaustiveness.
@@ -108,6 +128,7 @@ private fun Message.toApi(): OllamaMessage =
         },
         content = text,
     )
+}
 
 /**
  * Build the OAI-style `messages` list per the [LlmApi.send] contract — identical rules
@@ -117,7 +138,9 @@ private fun Message.toApi(): OllamaMessage =
  *   `"\n\n"`, and an `endSequence` instruction (when set) is appended with the same
  *   separator — producing ONE `role:"system"` message at the head.
  * - No system message is emitted when both inputs are empty.
- * - Non-SYSTEM entries follow in their original order, mapped through [toApi].
+ * - Non-SYSTEM entries follow in their original order, mapped through [toApi] —
+ *   including the function-calling turns (the model's call and the tool's result),
+ *   which keep their position in the exchange like any other turn.
  */
 internal fun buildOllamaWireMessages(
     messages: List<Message>,
