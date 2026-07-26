@@ -148,6 +148,9 @@ public class InlineFsmTurnEngine(
     /** Consecutive passed turns that left an active stage put; see [updateStallHint]. */
     private var stallStreak = 0
 
+    /** Call → judge → rewrite → persist; the part of a turn the FSM has no say in. */
+    private val attempts = TurnAttempts(historyStore, toolDefs, toolExecutor, toolCallLog)
+
     /**
      * Run one turn for [prompt]. Builds «memory layer + planned history +
      * user turn», calls the routed agent, persists both sides on success,
@@ -195,62 +198,10 @@ public class InlineFsmTurnEngine(
         val mem = memory
         val judge = if (mem != null) stage?.let(::judgeFor) else null
 
-        // The attempt loop. A flagged reply is not thrown away silently: the agent is
-        // handed the objections and rewrites, and only a second breach blocks the turn.
-        // Dropping it outright taught the agent nothing — it lost the turn and repeated
-        // the same answer next time — while a false positive cost the user their work.
-        // Everything above the loop (compaction, retrieval, the memory layer) is
-        // per-turn, not per-attempt, and stays out of it.
-        var attemptContext = baseContext
-        var attemptTurn = userTurn
-        val rejectedVerdicts = mutableListOf<InvariantVerdict>()
-        var lastText = ""
-        var totalUsage: Usage? = null
-        var totalDuration = 0L
-        val allToolCalls = mutableListOf<ExecutedToolCall>()
-
-        repeat(MAX_JUDGE_ATTEMPTS) { attempt ->
-            val (outcome, duration) = measureTimedValue {
-                agent.responder.respond(
-                    baseContext = attemptContext,
-                    memoryLayer = memoryLayer,
-                    userTurn = attemptTurn,
-                    toolDefs = toolDefs.ifEmpty { null },
-                    toolExecutor = toolExecutor,
-                )
-            }
-            val result = outcome.result
-            totalUsage = totalUsage plus result.usage
-            totalDuration += duration.inWholeMilliseconds
-            allToolCalls += outcome.executedToolCalls
-            // Recorded before the verdict and regardless of it: a tool that ran has
-            // already had its effect, and hiding it from the next turn's judge would
-            // make a real ticket look invented.
-            toolCallLog.record(outcome.executedToolCalls)
-
-            val text = result.text
-            if (result.error != null || text == null) {
-                // A retry that fails on the wire must not cost the turn its first answer:
-                // fall back to blocking on what the judge already said, which is exactly
-                // the behaviour before retries existed.
-                if (rejectedVerdicts.isEmpty()) {
-                    return TurnResult.Failed(result.error ?: "empty response with no usage")
-                }
-                return blockedTurn(
-                    lastText, agent, modelId, judge, rejectedVerdicts.toList(),
-                    totalUsage, totalDuration, allToolCalls, retrieval,
-                )
-            }
-            lastText = text
-
-            val verdict = judgeVerdict(judge, mem, agent, text, prompt, stage)
-            if (verdict.passed) {
-                historyStore?.append(userTurn)
-                historyStore?.append(
-                    Message(role = Role.ASSISTANT, text = text),
-                    usage = totalUsage,
-                    modelId = modelId,
-                )
+        return when (val outcome = attempts.run(prompt, userTurn, baseContext, memoryLayer, agent, judge, mem, stage)) {
+            is AttemptOutcome.Failed -> TurnResult.Failed(outcome.reason)
+            is AttemptOutcome.Blocked -> blockedTurn(outcome, agent, modelId, judge, retrieval)
+            is AttemptOutcome.Answered -> {
                 // Re-arm the pending rejection so the next turn can surface it to the model
                 // (see [pendingStageRejection]). Any prior value was already consumed at the
                 // top of this turn; only a fresh rejection here sets it again.
@@ -258,74 +209,25 @@ public class InlineFsmTurnEngine(
                 if (advance is StageAdvance.Rejected) pendingStageRejection = advance
                 if (advance is StageAdvance.Repeated) pendingStageRepeat = advance
                 if (stallHint) updateStallHint(advance, stage, task?.paused == true)
-                return TurnResult.Ok(
-                    reply = text,
+                TurnResult.Ok(
+                    reply = outcome.reply,
                     modelId = modelId,
                     profileName = agent.profileName,
-                    usage = totalUsage,
-                    durationMs = totalDuration,
+                    usage = outcome.usage,
+                    durationMs = outcome.durationMs,
                     session = historyStore?.stats?.snapshot(),
                     stageAdvance = advance,
                     judge = when {
                         judge == null -> JudgeOutcome.NotRun
-                        rejectedVerdicts.isNotEmpty() -> JudgeOutcome.Retried(rejectedVerdicts.toList())
+                        outcome.rejected.isNotEmpty() -> JudgeOutcome.Retried(outcome.rejected)
                         else -> JudgeOutcome.Clean
                     },
                     judgeModelId = judge?.modelId,
-                    executedToolCalls = allToolCalls.toList(),
+                    executedToolCalls = outcome.toolCalls,
                     retrieval = retrieval,
                 )
             }
-
-            rejectedVerdicts += verdict
-            if (attempt == MAX_JUDGE_ATTEMPTS - 1) {
-                return blockedTurn(
-                    text, agent, modelId, judge, rejectedVerdicts.toList(),
-                    totalUsage, totalDuration, allToolCalls, retrieval,
-                )
-            }
-            // Set up the rewrite. The rejected reply joins the context so the agent can
-            // see what it wrote, and the objections become the new user turn: the wire
-            // reads as ask → answer → auditor objected → rewrite. Feeding the critique
-            // as SYSTEM would tear it away from the reply (providers lift SYSTEM into
-            // their own slot), and replacing the user turn outright would delete the
-            // question, which lives nowhere else until the turn is persisted.
-            attemptContext = attemptContext + attemptTurn + Message(
-                role = Role.ASSISTANT,
-                text = TaskStateMachine.stripStageSignal(text),
-            )
-            attemptTurn = Message(role = Role.USER, text = judgeFeedback(verdict))
         }
-        error("unreachable: the attempt loop always returns")
-    }
-
-    /** Ask the judge covering this stage; no judge or no memory means nothing to enforce. */
-    private suspend fun judgeVerdict(
-        judge: RoutedJudge?,
-        mem: MemoryProvider?,
-        agent: RoutedAgent,
-        text: String,
-        prompt: String,
-        stage: TaskStage?,
-    ): InvariantVerdict {
-        if (judge == null || mem == null) return InvariantVerdict.CLEAN
-        // One profile read, sliced into what the judge may enforce (constraints) and
-        // what only informs its reading (format / style) — `context` stays out by
-        // construction, it tells the agent how to work, not what is forbidden.
-        val profile = mem.profileDataForAgent(agent.profileName)
-        return judge.checker.check(
-            JudgeInput(
-                assistantReply = text,
-                userMessage = prompt,
-                toolCalls = toolCallLog.calls,
-                droppedToolCalls = toolCallLog.dropped,
-                rules = mem.store.listRules(),
-                constraints = profile?.items(ProfileSection.CONSTRAINTS).orEmpty(),
-                format = profile?.items(ProfileSection.FORMAT).orEmpty(),
-                style = profile?.items(ProfileSection.STYLE).orEmpty(),
-                stage = stage,
-            ),
-        )
     }
 
     /**
@@ -333,26 +235,22 @@ public class InlineFsmTurnEngine(
      * the breach can't poison later context, and the stage is held.
      */
     private fun blockedTurn(
-        reply: String,
+        outcome: AttemptOutcome.Blocked,
         agent: RoutedAgent,
         modelId: String,
         judge: RoutedJudge?,
-        rejected: List<InvariantVerdict>,
-        usage: Usage?,
-        durationMs: Long,
-        toolCalls: List<ExecutedToolCall>,
         retrieval: List<ScoredChunk>,
     ): TurnResult.Ok = TurnResult.Ok(
-        reply = reply,
+        reply = outcome.reply,
         modelId = modelId,
         profileName = agent.profileName,
-        usage = usage,
-        durationMs = durationMs,
+        usage = outcome.usage,
+        durationMs = outcome.durationMs,
         session = historyStore?.stats?.snapshot(),
         stageAdvance = advanceTaskStage(null),
-        judge = JudgeOutcome.Blocked(rejected),
+        judge = JudgeOutcome.Blocked(outcome.rejected),
         judgeModelId = judge?.modelId,
-        executedToolCalls = toolCalls.toList(),
+        executedToolCalls = outcome.toolCalls,
         retrieval = retrieval,
     )
 
@@ -403,17 +301,6 @@ public class InlineFsmTurnEngine(
 }
 
 /**
- * Attempts a turn gets past the judge: the first answer plus up to four rewrites.
- *
- * More than a single rewrite because a flaky worker can miss the objection once
- * and land it on the next pass — the extra tries are how a self-correcting model
- * gets to a clean turn instead of a blocked one. Still capped, because every
- * attempt is a worker call plus a judge call, billed and waited through, and a
- * model that hasn't been talked round in five passes won't be by the sixth.
- */
-private const val MAX_JUDGE_ATTEMPTS = 5
-
-/**
  * Passed turns in a row that leave the stage put before the engine nudges the
  * model to move on. Two, not one: a single no-move is normal (this stage's work
  * may still be in progress); a run of them is the degeneration loop the nudge is
@@ -429,7 +316,7 @@ private const val STALL_STREAK_LIMIT = 2
  * positives. Without it a rewrite obediently strips out correct facts to appease
  * an objection that was wrong, which is worse than the original reply.
  */
-private fun judgeFeedback(verdict: InvariantVerdict): String = buildString {
+internal fun judgeFeedback(verdict: InvariantVerdict): String = buildString {
     appendLine("[invariant-auditor] An independent auditor rejected your previous reply.")
     appendLine("Rewrite it so it honours every invariant. Do not apologise and do not mention")
     appendLine("this message — produce the corrected reply only.")
@@ -538,18 +425,3 @@ internal fun stallHintMessage(from: TaskStage): Message {
     return Message(role = Role.SYSTEM, text = "$FSM_STALLED $text")
 }
 
-/**
- * Add up what the attempts cost. Every one was really billed, and the turn
- * counter only ticks once, so the run reads as "one exchange, the tokens of the
- * calls it took". Kept private rather than put on [Usage]: one caller, one meaning.
- */
-private infix fun Usage?.plus(other: Usage?): Usage? {
-    if (this == null) return other
-    if (other == null) return this
-    return Usage(
-        promptTokens = promptTokens + other.promptTokens,
-        outputTokens = outputTokens + other.outputTokens,
-        thoughtsTokens = thoughtsTokens + other.thoughtsTokens,
-        totalTokens = totalTokens + other.totalTokens,
-    )
-}
