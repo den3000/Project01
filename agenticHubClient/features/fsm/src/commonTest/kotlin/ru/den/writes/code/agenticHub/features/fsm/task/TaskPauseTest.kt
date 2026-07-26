@@ -13,7 +13,7 @@ class TaskPauseTest {
     @Test
     fun `when a paused task is offered a legal move - then it is held`() {
         // given
-        val task = task(stage = Stage.EXECUTION, paused = true)
+        val task = task(stage = Stage.EXECUTION, paused = true, notes = listOf("scope agreed"))
         val proposed = Stage.VALIDATION
 
         // when
@@ -28,7 +28,7 @@ class TaskPauseTest {
     @Test
     fun `when a paused task is offered an illegal move - then it is held`() {
         // given
-        val task = task(stage = Stage.EXECUTION, paused = true)
+        val task = task(stage = Stage.EXECUTION, paused = true, notes = listOf("scope agreed"))
         val proposed = Stage.DONE
 
         // when
@@ -44,7 +44,7 @@ class TaskPauseTest {
     fun `when a paused task is offered the stage it is already in - then it is held`() {
         // given
         val stage = Stage.EXECUTION
-        val task = task(stage = stage, paused = true)
+        val task = task(stage = stage, paused = true, notes = listOf("scope agreed"))
 
         // when
         val actual = TaskStateMachine.advance(task, stage)

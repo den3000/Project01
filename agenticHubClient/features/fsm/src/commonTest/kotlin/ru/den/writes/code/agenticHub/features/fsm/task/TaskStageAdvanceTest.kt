@@ -32,44 +32,29 @@ class TaskStageAdvanceTest {
     }
 
     @Test
-    fun `when the stage advances - then both inner budgets start over`() {
+    fun `when the stage advances - then only the inner budgets start over`() {
         // given
-        val transportRetryStateAttempt = 3
         val task = task(
             stage = Stage.PLANNING,
+            notes = listOf("scope agreed"),
+            taskRetryState = RetryState(attempt = 2, max = RetryState.TASK_MAX),
             stageRetryState = RetryState(attempt = 4, max = RetryState.STAGE_MAX),
             turnRetryState = RetryState(attempt = 12, max = RetryState.TURN_MAX),
-            transportRetryState = RetryState(
-                attempt = transportRetryStateAttempt,
-                max = RetryState.TRANSPORT_MAX
-            ),
+            transportRetryState = RetryState(attempt = 3, max = RetryState.TRANSPORT_MAX),
         )
+        val proposed = Stage.EXECUTION
 
         // when
-        val actual = TaskStateMachine.advance(task, Stage.EXECUTION)
+        val actual = TaskStateMachine.advance(task, proposed)
 
         // then
-        assertIs<AdvanceOutcome.Advanced>(actual)
-        assertEquals(RetryState.stage(), actual.task.stageRetryState)
-        assertEquals(RetryState.turn(), actual.task.turnRetryState)
-        assertEquals(transportRetryStateAttempt, actual.task.transportRetryState.attempt)
-    }
-
-    @Test
-    fun `when the stage advances - then the restarts already spent still stand`() {
-        // given
-        val taskRetryStateAttempt = 2
-        val task = task(
-            stage = Stage.PLANNING,
-            taskRetryState = RetryState(attempt = taskRetryStateAttempt, max = RetryState.TASK_MAX),
+        val expected = task.copy(
+            stage = proposed,
+            stageRetryState = RetryState.stage(),
+            turnRetryState = RetryState.turn(),
         )
-
-        // when
-        val actual = TaskStateMachine.advance(task, Stage.EXECUTION)
-
-        // then
         assertIs<AdvanceOutcome.Advanced>(actual)
-        assertEquals(taskRetryStateAttempt, actual.task.taskRetryState.attempt)
+        assertEquals(expected, actual.task)
     }
 
     @Test
@@ -97,6 +82,7 @@ class TaskStageAdvanceTest {
         assertIs<AdvanceOutcome.Rejected>(actual)
         assertEquals(Stage.CLARIFICATION, actual.from)
         assertEquals(proposed, actual.proposed)
+        assertEquals(setOf(Stage.PLANNING), actual.allowed)
         assertEquals(task, actual.task)
     }
 

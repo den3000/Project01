@@ -61,13 +61,29 @@ class TaskTransitionsTest {
     }
 
     @Test
-    fun `when canTransition skips a stage - then rejected`() {
+    fun `when canTransition skips a stage forward - then rejected`() {
         // given
         val illegal = listOf(
             Stage.CLARIFICATION to Stage.EXECUTION,
             Stage.CLARIFICATION to Stage.DONE,
             Stage.PLANNING to Stage.VALIDATION,
             Stage.PLANNING to Stage.DONE,
+            Stage.EXECUTION to Stage.DONE,
+        )
+
+        // when - then
+        illegal.forEach { (from, to) ->
+            assertFalse(TaskStateMachine.canTransition(from, to), "$from -> $to should be rejected")
+        }
+    }
+
+    @Test
+    fun `when canTransition steps back over a stage - then rejected`() {
+        // given
+        val illegal = listOf(
+            Stage.EXECUTION to Stage.CLARIFICATION,
+            Stage.VALIDATION to Stage.PLANNING,
+            Stage.VALIDATION to Stage.CLARIFICATION,
         )
 
         // when - then
