@@ -25,6 +25,10 @@ internal fun TaskNotes.toFsmTask(): Task = Task(
     // beginning: the FSM has no "unknown" position, and treating it as the first
     // stage is the only reading that cannot hand out a free jump to done.
     stage = stage?.toFsmStage() ?: Stage.INITIAL,
+    // A file with no recorded depth is read as having reached where it stands: the task
+    // is plainly no shallower than its own stage, and assuming less would hand a loop a
+    // free budget refresh on its next move.
+    deepestStage = deepestStage?.toFsmStage() ?: stage?.toFsmStage() ?: Stage.INITIAL,
     goal = goal,
     notes = notes,
     // Only the spent side is stored; the ceilings come from the FSM, so tuning a
@@ -45,6 +49,7 @@ internal fun TaskNotes.toFsmTask(): Task = Task(
 internal fun TaskNotes.withFsmTask(task: Task): TaskNotes = copy(
     goal = task.goal,
     stage = task.stage.toTaskStage(),
+    deepestStage = task.deepestStage.toTaskStage(),
     notes = task.notes,
     taskRetriesSpent = task.taskRetryState.attempt,
     stageRetriesSpent = task.stageRetryState.attempt,

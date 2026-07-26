@@ -16,6 +16,7 @@ class TaskNotesFsmMappingTest {
             taskId = "auth-service",
             goal = "Сервис авторизации поверх Ktor",
             stage = TaskStage.EXECUTION,
+            deepestStage = TaskStage.VALIDATION,
             paused = true,
             notes = listOf("Ktor 3", "без Spring"),
             taskRetriesSpent = 2,
@@ -42,6 +43,20 @@ class TaskNotesFsmMappingTest {
         assertEquals(RetryState(attempt = 2, max = RetryState.TASK_MAX), actual.taskRetryState)
         assertEquals(RetryState(attempt = 7, max = RetryState.STAGE_MAX), actual.stageRetryState)
         assertEquals(RetryState(attempt = 1, max = RetryState.TRANSPORT_MAX), actual.transportRetryState)
+    }
+
+    @Test
+    fun `when the stored task has no recorded depth - then it counts as having reached its stage`() {
+        // given
+        // A file written before the depth existed. Reading it as shallower would hand a
+        // task that is already oscillating a free budget refresh on its next move.
+        val notes = TaskNotes(taskId = "t", stage = TaskStage.VALIDATION, deepestStage = null)
+
+        // when
+        val actual = notes.toFsmTask()
+
+        // then
+        assertEquals(Stage.VALIDATION, actual.deepestStage)
     }
 
     @Test
