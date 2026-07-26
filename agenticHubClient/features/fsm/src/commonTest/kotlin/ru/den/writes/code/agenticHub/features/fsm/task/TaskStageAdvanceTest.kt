@@ -32,14 +32,13 @@ class TaskStageAdvanceTest {
     }
 
     @Test
-    fun `when the stage advances - then only the inner budgets start over`() {
+    fun `when the stage advances - then only the stage budget starts over`() {
         // given
         val task = task(
             stage = Stage.PLANNING,
             notes = listOf("scope agreed"),
             taskRetryState = RetryState(attempt = 2, max = RetryState.TASK_MAX),
             stageRetryState = RetryState(attempt = 4, max = RetryState.STAGE_MAX),
-            turnRetryState = RetryState(attempt = 12, max = RetryState.TURN_MAX),
             transportRetryState = RetryState(attempt = 3, max = RetryState.TRANSPORT_MAX),
         )
         val proposed = Stage.EXECUTION
@@ -51,7 +50,6 @@ class TaskStageAdvanceTest {
         val expected = task.copy(
             stage = proposed,
             stageRetryState = RetryState.stage(),
-            turnRetryState = RetryState.turn(),
         )
         assertIs<AdvanceOutcome.Advanced>(actual)
         assertEquals(expected, actual.task)

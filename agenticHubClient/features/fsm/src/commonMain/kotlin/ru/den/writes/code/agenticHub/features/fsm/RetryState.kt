@@ -21,18 +21,13 @@ data class RetryState(
          */
         const val TASK_MAX: Int = 5
 
-        /** Turns one stage may sit still before the task is restarted. */
-        const val STAGE_MAX: Int = 10
-
         /**
-         * Rewrites one stage may spend inside its turns before the task is
-         * restarted. Three fully-blocked turns' worth (the engine caps one turn
-         * at five): a rewrite here and there is a judge doing its job, fifteen
-         * without leaving the stage is an attempt arguing with its own auditor.
-         * Both breaches seen live were the judge being wrong, so a restart after
-         * one or two blocked turns would punish the task for the auditor's error.
+         * Turns one stage may cost before the task is restarted — whether the
+         * turn left the stage where it was or was sent back to be rewritten. Ten
+         * because a stage doing real work takes several turns; ten of them
+         * without moving on is not work, it is a loop.
          */
-        const val TURN_MAX: Int = 15
+        const val STAGE_MAX: Int = 10
 
         /**
          * Unreachable-provider failures the whole task may absorb before the run
@@ -47,8 +42,6 @@ data class RetryState(
         fun task() = RetryState(0, TASK_MAX)
 
         fun stage() = RetryState(0, STAGE_MAX)
-
-        fun turn() = RetryState(0, TURN_MAX)
 
         fun transport() = RetryState(0, TRANSPORT_MAX)
     }

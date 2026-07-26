@@ -45,8 +45,8 @@ object TaskStateMachine {
      * will happily skip a stage if asked, so the hard "no planning → done"
      * guarantee has to live in code. The model only ever proposes; this decides.
      *
-     * Only [AdvanceOutcome.Advanced] changes the task — and it refills both inner
-     * budgets, because reaching a new stage is the proof that the task is moving
+     * Only [AdvanceOutcome.Advanced] changes the task — and it refills the stage
+     * budget, because reaching a new stage is the proof that the task is moving
      * (see [AdvanceOutcome.Advanced]). Every other outcome hands the task back
      * untouched and names, in [AdvanceOutcome.reason], the failure the caller
      * should then spend through [retry].
@@ -67,7 +67,6 @@ object TaskStateMachine {
             task = task.copy(
                 stage = proposed,
                 stageRetryState = RetryState.stage(),
-                turnRetryState = RetryState.turn(),
             ),
             from = from,
             to = proposed,
@@ -77,12 +76,12 @@ object TaskStateMachine {
     /**
      * Spend one retry for [reason] and say what the caller should do next.
      *
-     * A cascade of three nested budgets, plus one that sits outside it. A failure
-     * inside a turn costs a [Task.turnRetryState] attempt, a stage that will not
-     * move costs a [Task.stageRetryState] one. Either inner budget running out is
-     * not the end — the failure is promoted, and the whole task restarts on a
-     * [Task.taskRetryState] attempt with both inner budgets fresh. The outermost
-     * budget running out ends the run ([RetryOutcome.GaveUp]).
+     * Two nested budgets, plus one that sits outside them. A turn the stage paid
+     * for and got nothing back — no move, or an answer sent back to be rewritten —
+     * costs a [Task.stageRetryState] attempt. That budget running out is not the
+     * end: the failure is promoted, and the whole task restarts on a
+     * [Task.taskRetryState] attempt with a fresh stage budget. The outer budget
+     * running out ends the run ([RetryOutcome.GaveUp]).
      *
      * [RetryLevel.TRANSPORT] is not part of that cascade: it spends
      * [Task.transportRetryState] and, when that is gone, gives up on the spot.
@@ -91,16 +90,9 @@ object TaskStateMachine {
      * restarts on a wall.
      */
     fun retry(task: Task, reason: RetryReason): RetryOutcome = when (reason.level) {
-        RetryLevel.TURN -> retryTurn(task, reason)
         RetryLevel.STAGE -> retryStage(task, reason)
         RetryLevel.TASK -> restart(task, reason)
         RetryLevel.TRANSPORT -> retryTransport(task, reason)
-    }
-
-    /** Try the turn again, one turn attempt lighter; out of them → escalate to a restart. */
-    private fun retryTurn(task: Task, reason: RetryReason): RetryOutcome {
-        val spent = task.turnRetryState.spend() ?: return restart(task, reason)
-        return RetryOutcome.Retried(task.copy(turnRetryState = spent))
     }
 
     /** Stay where we are, one stage attempt lighter; out of them → escalate to a restart. */
@@ -119,8 +111,8 @@ object TaskStateMachine {
     }
 
     /**
-     * Start the task over: back to [Stage.INITIAL], both inner budgets fresh, one
-     * task attempt lighter. [RetryOutcome.GaveUp] when the attempts are gone.
+     * Start the task over: back to [Stage.INITIAL], stage budget fresh, one task
+     * attempt lighter. [RetryOutcome.GaveUp] when the attempts are gone.
      *
      * [Task.goal] and [Task.notes] survive. The restart forgets how the attempt
      * went, not what it was for, and both of those are what the user said about
@@ -129,12 +121,12 @@ object TaskStateMachine {
      * the task is already struggling. (If the model is ever allowed to write
      * notes of its own, that content IS residue and the field has to be split.)
      *
-     * The inner budgets reset because the restart is a new attempt at the whole
-     * task, not a continuation of the failed one — carrying their spent state over
+     * The stage budget resets because the restart is a new attempt at the whole
+     * task, not a continuation of the failed one — carrying its spent state over
      * would let a restarted task escalate again on its first stall, and the five
      * restarts would burn down in five turns. [Task.transportRetryState] is
-     * pointedly not among them: it counts an outage, which a new attempt does
-     * nothing about, so it carries over untouched.
+     * pointedly not reset: it counts an outage, which a new attempt does nothing
+     * about, so it carries over untouched.
      *
      * Persisted state only. A restart has to forget three things and this covers
      * exactly one of them — the conversation (history branch) and the engine's
@@ -149,7 +141,6 @@ object TaskStateMachine {
                 paused = false,
                 taskRetryState = spent,
                 stageRetryState = RetryState.stage(),
-                turnRetryState = RetryState.turn(),
             ),
         )
     }

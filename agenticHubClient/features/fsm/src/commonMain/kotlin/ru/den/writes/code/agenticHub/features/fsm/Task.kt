@@ -3,7 +3,7 @@ package ru.den.writes.code.agenticHub.features.fsm
 /**
  * A task and everything the FSM needs to keep running it: where it is ([stage]),
  * what it is for ([goal] / [notes]), whether it is holding ([paused]), and how
- * much failure it may still absorb (the four budgets).
+ * much failure it may still absorb (the three budgets).
  *
  * State only — every decision about it lives in [TaskStateMachine]. Reading a
  * field tells you where the task stands; it never tells you what happens next.
@@ -26,10 +26,8 @@ data class Task(
     val notes: List<String> = emptyList(),
     /** Restarts of the whole task; running out ends the run. */
     val taskRetryState: RetryState = RetryState.task(),
-    /** Turns this stage may sit still; running out restarts the task. */
+    /** Turns this stage may cost without moving on; running out restarts the task. */
     val stageRetryState: RetryState = RetryState.stage(),
-    /** Rewrites this stage may spend inside its turns; running out restarts the task. */
-    val turnRetryState: RetryState = RetryState.turn(),
     /** Unreachable-provider failures for the whole task; running out ends the run. */
     val transportRetryState: RetryState = RetryState.transport(),
 )

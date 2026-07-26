@@ -15,7 +15,6 @@ internal fun task(
     notes: List<String> = emptyList(),
     taskRetryState: RetryState = RetryState.task(),
     stageRetryState: RetryState = RetryState.stage(),
-    turnRetryState: RetryState = RetryState.turn(),
     transportRetryState: RetryState = RetryState.transport(),
 ): Task = Task(
     taskId = TASK_ID,
@@ -25,7 +24,6 @@ internal fun task(
     notes = notes,
     taskRetryState = taskRetryState,
     stageRetryState = stageRetryState,
-    turnRetryState = turnRetryState,
     transportRetryState = transportRetryState,
 )
 

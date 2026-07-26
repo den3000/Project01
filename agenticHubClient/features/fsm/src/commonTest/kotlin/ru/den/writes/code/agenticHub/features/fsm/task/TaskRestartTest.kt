@@ -14,12 +14,9 @@ import kotlin.test.assertIs
 class TaskRestartTest {
 
     @Test
-    fun `when a stage escalation restarts the task - then both inner budgets are fresh`() {
+    fun `when a stage escalation restarts the task - then the stage budget is fresh`() {
         // given
-        val task = task(
-            turnRetryState = spentToTheLast(RetryState.turn()),
-            stageRetryState = spentToTheLast(RetryState.stage()),
-        )
+        val task = task(stageRetryState = spentToTheLast(RetryState.stage()))
 
         // when
         val actual = TaskStateMachine.retry(task, RetryReason.JUDGE_BLOCKED)
@@ -27,7 +24,6 @@ class TaskRestartTest {
         // then
         assertIs<RetryOutcome.Restarted>(actual)
         assertEquals(RetryState.stage(), actual.task.stageRetryState)
-        assertEquals(RetryState.turn(), actual.task.turnRetryState)
     }
 
     @Test

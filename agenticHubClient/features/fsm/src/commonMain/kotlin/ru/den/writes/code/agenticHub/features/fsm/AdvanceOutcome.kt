@@ -23,8 +23,8 @@ sealed interface AdvanceOutcome {
     val reason: RetryReason?
 
     /**
-     * The move was legal and applied. Both inner budgets come back fresh: they
-     * measure what one stage cost, and a task that keeps reaching new stages is
+     * The move was legal and applied. The stage budget comes back fresh: it
+     * measures what one stage cost, and a task that keeps reaching new stages is
      * not stalling, however expensive it has been.
      */
     data class Advanced(
