@@ -71,12 +71,13 @@ public class FsmTurnEngine(
     private val attempts = TurnAttempts(historyStore, toolDefs, toolExecutor, toolCallLog)
 
     /**
-     * The move refused (or wasted) on the previous turn, held so THIS turn can say
-     * so to the model. Ephemeral on purpose, exactly as in the inline engine: a
-     * SYSTEM note in the history would be re-sent every turn and go stale the
-     * moment the stage changed.
+     * The retry charged on the previous turn, held so THIS turn can tell the model
+     * what to redo. One slot, because there is one channel: whatever the FSM
+     * charged is what the model hears about. Ephemeral on purpose — a SYSTEM note
+     * in the history would be re-sent every turn and go stale the moment the stage
+     * changed.
      */
-    private var pendingAdvance: AdvanceOutcome? = null
+    private var pendingFeedback: RetryFeedback? = null
 
     /** The agent for [stage]: first routed binding that spans it, else the fallback. */
     private fun agentFor(stage: TaskStage?): RoutedAgent =
@@ -96,8 +97,8 @@ public class FsmTurnEngine(
         val active = ragControl?.active
         val retrieval = active?.retriever?.retrieve(prompt, active.topK).orEmpty()
         val ragContext = if (retrieval.isEmpty()) emptyList() else listOf(ragChunksToContextMessage(retrieval))
-        val stageFeedback = stageFeedback(task)
-        pendingAdvance = null
+        val stageFeedback = listOfNotNull(feedbackMessage(task))
+        pendingFeedback = null
         val baseContext =
             stageFeedback + ragContext + (historyStore?.let { strategy.planContext(it.messages) } ?: emptyList())
         val memoryLayer = memory?.memoryLayerFor(agent.profileName) ?: emptyList()
@@ -169,25 +170,19 @@ public class FsmTurnEngine(
                 Decided(StageAdvance.Advanced(advance.from.toTaskStage(), advance.to.toTaskStage()), null)
             }
 
-            is AdvanceOutcome.Repeated -> {
-                pendingAdvance = advance
-                Decided(
-                    StageAdvance.Repeated(advance.stage.toTaskStage(), advance.allowed.toTaskStages()),
-                    charge(notes, task, advance.reason),
-                )
-            }
+            is AdvanceOutcome.Repeated -> Decided(
+                StageAdvance.Repeated(advance.stage.toTaskStage(), advance.allowed.toTaskStages()),
+                charge(notes, task, advance.reason),
+            )
 
-            is AdvanceOutcome.Rejected -> {
-                pendingAdvance = advance
-                Decided(
-                    StageAdvance.Rejected(
-                        advance.from.toTaskStage(),
-                        advance.proposed.toTaskStage(),
-                        advance.allowed.toTaskStages(),
-                    ),
-                    charge(notes, task, advance.reason),
-                )
-            }
+            is AdvanceOutcome.Rejected -> Decided(
+                StageAdvance.Rejected(
+                    advance.from.toTaskStage(),
+                    advance.proposed.toTaskStage(),
+                    advance.allowed.toTaskStages(),
+                ),
+                charge(notes, task, advance.reason, proposed = advance.proposed.toTaskStage()),
+            )
         }
     }
 
@@ -196,10 +191,18 @@ public class FsmTurnEngine(
      * verdict — a spent budget is a fact even when the run is over, and a report
      * that cannot see it cannot explain why the task stopped.
      */
-    private fun charge(notes: TaskNotes?, task: Task?, reason: RetryReason): RetryOutcome? {
+    private fun charge(
+        notes: TaskNotes?,
+        task: Task?,
+        reason: RetryReason,
+        proposed: TaskStage? = null,
+    ): RetryOutcome? {
         if (notes == null || task == null) return null
         val outcome = machine.retry(task, reason)
         save(notes, outcome.task)
+        // Only a plain retry talks to the model: a restarted task must not learn it
+        // was restarted, and a run that gave up has nobody left to tell.
+        if (outcome is RetryOutcome.Retried) pendingFeedback = RetryFeedback(reason, proposed)
         return outcome
     }
 
@@ -208,23 +211,23 @@ public class FsmTurnEngine(
     }
 
     /**
-     * The `[fsm]` lines this turn opens with: the refused or wasted move from last
-     * turn, plus a nudge once the stage has burned [STALL_NUDGE_AFTER] of its
-     * budget. The wording is the inline engine's — it was tuned on live runs and
-     * has no reason to differ.
+     * The `[fsm]` line this turn opens with, if last turn cost the task anything.
+     * Built here rather than stored: what to say follows from the charged reason,
+     * how firmly — from the budget the stage has burned by now, and both are read
+     * at the moment they are needed.
      */
-    private fun stageFeedback(task: Task?): List<Message> = listOfNotNull(
-        (pendingAdvance as? AdvanceOutcome.Rejected)?.let {
-            stageRejectionMessage(
-                StageAdvance.Rejected(it.from.toTaskStage(), it.proposed.toTaskStage(), it.allowed.toTaskStages()),
-            )
-        },
-        (pendingAdvance as? AdvanceOutcome.Repeated)?.let {
-            stageRepeatMessage(StageAdvance.Repeated(it.stage.toTaskStage(), it.allowed.toTaskStages()))
-        },
-        task?.takeIf { it.stageRetryState.attempt == STALL_NUDGE_AFTER && it.stage.toTaskStage() != TaskStage.DONE }
-            ?.let { stallHintMessage(it.stage.toTaskStage()) },
-    )
+    private fun feedbackMessage(task: Task?): Message? {
+        val feedback = pendingFeedback ?: return null
+        if (task == null) return null
+        val stage = task.stage.toTaskStage()
+        if (stage == TaskStage.DONE) return null
+        return retryFeedbackMessage(
+            feedback = feedback,
+            stage = stage,
+            spent = task.stageRetryState.attempt,
+            allowed = machine.allowedNext(task.stage).toTaskStages(),
+        )
+    }
 
     private fun Set<ru.den.writes.code.agenticHub.features.fsm.Stage>.toTaskStages(): Set<TaskStage> =
         mapTo(mutableSetOf()) { it.toTaskStage() }
@@ -232,10 +235,3 @@ public class FsmTurnEngine(
     /** What one turn decided: what the view shows, and what the caller may have to act on. */
     private data class Decided(val rendered: StageAdvance, val fsm: RetryOutcome?)
 }
-
-/**
- * Turns a stage may burn before the model is nudged about it. Two, like the
- * counter it replaces: a single no-move is normal, a run of them is the
- * degeneration loop the nudge exists to break.
- */
-private const val STALL_NUDGE_AFTER = 2
