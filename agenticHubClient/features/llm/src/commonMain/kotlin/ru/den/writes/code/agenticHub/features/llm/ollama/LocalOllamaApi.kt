@@ -13,9 +13,14 @@ import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.ToolCall
+import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
 import ru.den.writes.code.agenticHub.features.llm.Usage
 
 private const val CHAT_PATH = "/api/chat"
+
+/** The only tool kind Ollama declares — see [OllamaTool.type] for why it is not a default. */
+private const val FUNCTION_TYPE = "function"
 
 /**
  * [LlmApi] backed by a local Ollama server (`POST /api/chat`, non-streaming). Ollama
@@ -28,6 +33,12 @@ private const val CHAT_PATH = "/api/chat"
  *
  * Token accounting maps `prompt_eval_count` → prompt and `eval_count` → output; there
  * is no separate «thoughts» counter. One instance is bound to one [model].
+ *
+ * Function calling is supported: [GenerationParams.tools] go out as Ollama's
+ * OpenAI-shaped `tools`, and the model's `tool_calls` come back in
+ * [LlmResult.toolCalls]. Whether the served tag can call anything is the model's
+ * property, not the client's — a tag without that capability makes the server reject
+ * the request, and the rejection surfaces as [LlmResult.error].
  */
 public class LocalOllamaApi(
     private val httpClient: HttpClient,
@@ -50,6 +61,7 @@ public class LocalOllamaApi(
                         stream = false,
                         // Reuse the neutral thinking knob: 0 disables, >0 enables, null = model default.
                         think = params.thinkingBudget?.let { it > 0 },
+                        tools = params.tools?.toOllamaTools(),
                         options = params.toOllamaOptions(),
                     )
                 )
@@ -72,12 +84,35 @@ public class LocalOllamaApi(
                 thoughtsTokens = 0,
                 totalTokens = response.promptEvalCount + response.evalCount,
             )
-            LlmResult(text = text, usage = usage)
+            // A reply that is nothing but a tool call has no text — that is the ordinary
+            // middle of an agent loop, not a failure, so it goes back with text = null and
+            // no error, and the caller drives the tools.
+            LlmResult(text = text, usage = usage, toolCalls = response.extractToolCalls())
         } catch (e: Exception) {
             LlmResult(text = null, error = "Request failed: ${e.message}")
         }
     }
 }
+
+/**
+ * Wrap neutral [ToolDefinition]s into Ollama's OpenAI-shaped `tools` list — one
+ * entry per declaration (unlike Gemini, which groups them all under a single tool).
+ *
+ * Whether the served model can actually call anything is not checked here: Ollama
+ * answers a tools request to a model without that capability with an explicit error,
+ * which travels back as [LlmResult.error] like any other server failure.
+ */
+internal fun List<ToolDefinition>.toOllamaTools(): List<OllamaTool> =
+    map {
+        OllamaTool(
+            type = FUNCTION_TYPE,
+            function = OllamaFunction(name = it.name, description = it.description, parameters = it.parameters),
+        )
+    }
+
+/** The reply's `tool_calls` as neutral [ToolCall]s; empty on a plain answer. */
+internal fun OllamaChatResponse.extractToolCalls(): List<ToolCall> =
+    message?.toolCalls.orEmpty().map { ToolCall(name = it.function.name, arguments = it.function.argumentsObject()) }
 
 /** Fold the neutral params into Ollama's nested `options`; null when nothing is set. */
 private fun GenerationParams.toOllamaOptions(): OllamaOptions? {
