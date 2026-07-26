@@ -1,5 +1,6 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.session.turn
 
+import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.memory.SessionStats
 import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
@@ -16,6 +17,20 @@ import ru.den.writes.code.agenticHub.features.rag.indexing.ScoredChunk
  * be able to race the next turn's accumulation through a shared object.
  */
 public sealed interface TurnResult {
+
+    /**
+     * What the task FSM decided about this turn, when an engine consulted one —
+     * null from an engine that keeps its own FSM inline, and from any turn with
+     * no active task.
+     *
+     * This is the one thing a turn cannot finish by itself. [RetryOutcome.Retried]
+     * is already done: the task was persisted and the next turn just runs.
+     * [RetryOutcome.Restarted] needs the conversation branched and the engine
+     * rebuilt — an engine cannot do either to itself — and [RetryOutcome.GaveUp]
+     * ends the run. Both are the view-model's to execute, which is why the verdict
+     * travels out here instead of being acted on inside.
+     */
+    public val fsm: RetryOutcome?
 
     /**
      * A successful turn. [reply] is the model text; [modelId] / [profileName]
@@ -43,10 +58,15 @@ public sealed interface TurnResult {
         val executedToolCalls: List<ExecutedToolCall> = emptyList(),
         /** RAG chunks retrieved and injected this turn (empty when RAG is off). */
         val retrieval: List<ScoredChunk> = emptyList(),
+        override val fsm: RetryOutcome? = null,
     ) : TurnResult
 
-    /** The turn failed (provider error or empty response). [reason] is the message. */
-    data class Failed(val reason: String) : TurnResult
+    /**
+     * The turn failed (provider error or empty response). [reason] is the message;
+     * [fsm] is what the machine charged for it — a dead provider spends the
+     * transport budget and can end the run on its own.
+     */
+    data class Failed(val reason: String, override val fsm: RetryOutcome? = null) : TurnResult
 }
 
 /**

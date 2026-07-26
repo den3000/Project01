@@ -30,6 +30,10 @@ kotlin {
             api(projects.agenticHubClient.features.lifecycle.command)
             api(projects.agenticHubClient.features.memory)
             api(projects.agenticHubClient.features.agent)
+            // Task FSM: an engine implementation delegates its stage decisions here,
+            // and TurnResult carries the machine's verdict out to the view-model.
+            // `api` because RetryOutcome crosses the public surface of TurnResult.
+            api(projects.agenticHubClient.features.fsm)
             // RagControl (load a saved index) + turn-time retrieval/context injection.
             implementation(projects.agenticHubClient.features.rag)
             implementation(projects.agenticHubClient.platform.logging)
