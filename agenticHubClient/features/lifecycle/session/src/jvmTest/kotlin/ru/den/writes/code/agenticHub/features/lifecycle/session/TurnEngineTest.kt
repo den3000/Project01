@@ -23,45 +23,15 @@ import kotlin.test.assertTrue
  * Every test drives the engine through the same `runTurnEngineWith` the live stand uses
  * (`TurnEngineFixture.kt`), differing only in the scripted [LlmApi] and how many turns to
  * feed — which is what keeps both suites pointed at the same engine wiring.
+ *
+ * What is here is what THIS engine does: the wording it puts on the wire, the private streak
+ * counter behind its nudge, its routing. What any engine must do — the reply, the history,
+ * where the task ends up — moved to `TurnEngineConformanceTest`, which runs it on every
+ * implementation instead of on whichever one this file happened to be written against.
  */
 class TurnEngineTest {
 
     //region ход и персист
-
-    @Test
-    fun `when a turn succeeds - then both sides persist and Ok carries the snapshot`() = runTest {
-        // given
-        val api = FakeLlmScript()
-            .apply { queueText("reply", promptTokens = 12, outputTokens = 3) }
-            .let { scriptedApi(it) }
-
-        // when
-        val run = runTurnEngineWith({ api }, prompt = "hi")
-
-        // then
-        val result = run.ok()
-        assertEquals("reply", result.reply)
-        assertEquals(12, result.usage?.promptTokens)
-        assertEquals(StageAdvance.None, result.stageAdvance)
-        assertEquals(1, result.session?.turns)
-        assertEquals(
-            listOf(Message(Role.USER, "hi"), Message(Role.ASSISTANT, "reply")),
-            run.persistedMessages,
-        )
-    }
-
-    @Test
-    fun `when the provider errors - then Failed and nothing persisted`() = runTest {
-        // given
-        val api = scriptedApi(FakeLlmScript())
-
-        // when
-        val run = runTurnEngineWith({ api })
-
-        // then
-        assertEquals(TurnResult.Failed("FakeLlmScript: no scripted response"), run.results.single())
-        assertEquals(0, run.persistedCount)
-    }
 
     @Test
     fun `when the reply is empty with no usage - then Failed with that reason`() = runTest {
@@ -75,61 +45,6 @@ class TurnEngineTest {
 
         // then
         assertEquals(TurnResult.Failed("empty response with no usage"), run.results.single())
-    }
-
-    //endregion
-
-    //region переходы стадий
-
-    @Test
-    fun `when the reply signals a legal stage move - then Advanced and the task is saved`() = runTest {
-        // given
-        val api = FakeLlmScript()
-            .apply { queueText("on it [[stage:execution]]") }
-            .let { scriptedApi(it) }
-
-        // when
-        val run = runTurnEngineWith({ api }, task = TaskNotes("t", stage = TaskStage.PLANNING))
-
-        // then
-        assertEquals(StageAdvance.Advanced(TaskStage.PLANNING, TaskStage.EXECUTION), run.advance())
-        assertEquals(TaskStage.EXECUTION, run.finalStage)
-    }
-
-    @Test
-    fun `when the reply signals an illegal stage move - then Rejected and the task is unchanged`() = runTest {
-        // given
-        val api = FakeLlmScript()
-            .apply { queueText("skip ahead [[stage:done]]") }
-            .let { scriptedApi(it) }
-
-        // when
-        val run = runTurnEngineWith({ api }, task = TaskNotes("t", stage = TaskStage.PLANNING))
-
-        // then
-        val advance = run.advance()
-        assertTrue(advance is StageAdvance.Rejected)
-        assertEquals(TaskStage.PLANNING, advance.from)
-        assertEquals(TaskStage.DONE, advance.proposed)
-        assertEquals(TaskStage.PLANNING, run.finalStage)
-    }
-
-    @Test
-    fun `when the reply signals the stage it is already in - then Repeated and the task is unchanged`() = runTest {
-        // given
-        val api = FakeLlmScript()
-            .apply { queueText("still checking [[stage:validation]]") }
-            .let { scriptedApi(it) }
-
-        // when
-        val run = runTurnEngineWith({ api }, task = TaskNotes("t", stage = TaskStage.VALIDATION))
-
-        // then
-        val advance = run.advance()
-        assertTrue(advance is StageAdvance.Repeated)
-        assertEquals(TaskStage.VALIDATION, advance.stage)
-        assertEquals(setOf(TaskStage.DONE, TaskStage.EXECUTION), advance.allowed)
-        assertEquals(TaskStage.VALIDATION, run.finalStage)
     }
 
     //endregion

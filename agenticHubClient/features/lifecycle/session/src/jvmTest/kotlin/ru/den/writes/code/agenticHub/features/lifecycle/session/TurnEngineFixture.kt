@@ -5,6 +5,8 @@ import org.koin.core.Koin
 import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
+import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.FsmTurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.InlineFsmTurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
@@ -16,6 +18,7 @@ import ru.den.writes.code.agenticHub.features.memory.MemoryMode
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
+import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
 import ru.den.writes.code.agenticHub.platform.database.MessageDao
 import ru.den.writes.code.agenticHub.platform.database.TestDb
@@ -64,6 +67,61 @@ internal class TurnEngineFixture(
 }
 
 /**
+ * Everything an engine is built from, so a test can name WHICH engine it is driving without
+ * knowing how to assemble one.
+ */
+internal data class EngineDeps(
+    val cliArgs: StartCommand.SessionInitialState,
+    val llmApi: LlmApi,
+    val historyStore: HistoryStore,
+    val memory: MemoryProvider,
+    val routedAgents: List<RoutedAgent>,
+    val routedJudges: List<RoutedJudge>,
+    val stallHint: Boolean,
+)
+
+/**
+ * An engine under test, with a name for the assert message.
+ *
+ * The seam the conformance suite runs on: one test, both engines, and a failure that says
+ * which of them broke. [name] is short because it is printed on every assertion.
+ */
+internal data class EngineUnderTest(val name: String, val create: (EngineDeps) -> TurnEngine) {
+    override fun toString(): String = name
+}
+
+/** The engine whose FSM lives inside it (`features:memory` table, private counters). */
+internal val INLINE_ENGINE: EngineUnderTest = EngineUnderTest("inline") { d ->
+    InlineFsmTurnEngine(
+        d.cliArgs,
+        d.llmApi,
+        d.historyStore,
+        memory = d.memory,
+        routedAgents = d.routedAgents,
+        routedJudges = d.routedJudges,
+        stallHint = d.stallHint,
+    )
+}
+
+/**
+ * The engine that delegates to `features:fsm`. [EngineDeps.stallHint] is ignored on purpose:
+ * this one arms its nudge off the stage budget, so there is no flag to turn on.
+ */
+internal val FSM_ENGINE: EngineUnderTest = EngineUnderTest("fsm") { d ->
+    FsmTurnEngine(
+        d.cliArgs,
+        d.llmApi,
+        d.historyStore,
+        memory = d.memory,
+        routedAgents = d.routedAgents,
+        routedJudges = d.routedJudges,
+    )
+}
+
+/** Both engines, for a test that must hold for either. */
+internal val BOTH_ENGINES: List<EngineUnderTest> = listOf(INLINE_ENGINE, FSM_ENGINE)
+
+/**
  * Build a [TurnEngine] over a throwaway environment (in-memory DB, temp memory root) and
  * hand it to [block]. Everything is torn down afterwards, including on failure.
  *
@@ -77,6 +135,7 @@ internal class TurnEngineFixture(
  */
 internal suspend fun <T> TestScope.withTurnEngine(
     llmApi: (Koin) -> LlmApi,
+    engineUnderTest: EngineUnderTest = INLINE_ENGINE,
     task: TaskNotes? = null,
     stallHint: Boolean = false,
     routedAgents: List<RoutedAgent> = emptyList(),
@@ -90,14 +149,16 @@ internal suspend fun <T> TestScope.withTurnEngine(
     val memStore = FileMemoryStore(fsRoot.absolutePath, fs = koin.get<LocalFileSystem>())
     task?.let(memStore::saveTask)
     val dao = koin.get<MessageDao>()
-    val engine = InlineFsmTurnEngine(
-        newChat(prompt, sessionName, modelProvider, temperature),
-        llmApi(koin),
-        RoomHistoryStore(dao, sessionId = sessionName),
-        memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = task?.taskId),
-        routedAgents = routedAgents,
-        routedJudges = routedJudges,
-        stallHint = stallHint,
+    val engine = engineUnderTest.create(
+        EngineDeps(
+            cliArgs = newChat(prompt, sessionName, modelProvider, temperature),
+            llmApi = llmApi(koin),
+            historyStore = RoomHistoryStore(dao, sessionId = sessionName),
+            memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = task?.taskId),
+            routedAgents = routedAgents,
+            routedJudges = routedJudges,
+            stallHint = stallHint,
+        ),
     )
     TurnEngineFixture(engine, memStore, dao, sessionName).block()
 }
@@ -125,6 +186,7 @@ internal suspend fun <T> TestScope.withTurnEngine(
  */
 internal suspend fun TestScope.runTurnEngineWith(
     llmApi: (Koin) -> LlmApi,
+    engineUnderTest: EngineUnderTest = INLINE_ENGINE,
     task: TaskNotes? = null,
     turns: Int = 1,
     prompt: String = OPENING_PROMPT,
@@ -140,6 +202,7 @@ internal suspend fun TestScope.runTurnEngineWith(
     logTurns: Boolean = false,
 ): RunLog = withTurnEngine(
     llmApi = llmApi,
+    engineUnderTest = engineUnderTest,
     task = task,
     stallHint = stallHint,
     routedAgents = routedAgents,
