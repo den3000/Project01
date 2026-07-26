@@ -84,6 +84,7 @@ public class TaskStateMachine {
             ),
             from = from,
             to = proposed,
+            newGround = newGround,
         )
     }
 

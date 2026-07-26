@@ -9,7 +9,9 @@ import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class TaskStageAdvanceTest {
 
@@ -103,7 +105,7 @@ class TaskStageAdvanceTest {
     }
 
     @Test
-    fun `when a move revisits ground already reached - then the stage budget is not refreshed`() {
+    fun `when a move revisits ground already reached - then it is charged and the budget is not refreshed`() {
         // given
         val spent = RetryState(attempt = 6, max = RetryState.STAGE_MAX)
         val task = task(stage = Stage.VALIDATION, deepestStage = Stage.VALIDATION, stageRetryState = spent)
@@ -113,25 +115,43 @@ class TaskStageAdvanceTest {
 
         // then
         assertIs<AdvanceOutcome.Advanced>(actual)
+        assertFalse(actual.newGround)
+        assertEquals(RetryReason.STAGE_REVISITED, actual.reason)
         assertEquals(spent, actual.task.stageRetryState)
         assertEquals(Stage.VALIDATION, actual.task.deepestStage)
     }
 
     @Test
-    fun `when a task oscillates between two stages - then the budget keeps its charges`() {
+    fun `when a move goes forward onto ground already reached - then it is charged like a step back`() {
         // given
-        // The loop measured live: execution -> validation -> execution -> … Both moves are
-        // legal, so while the budget refreshed on movement each of them wiped it and the
-        // task was never charged for a single one of its twenty-five turns.
         val spent = RetryState(attempt = 6, max = RetryState.STAGE_MAX)
         val task = task(stage = Stage.EXECUTION, deepestStage = Stage.VALIDATION, stageRetryState = spent)
 
-        // when
+        // when — forward on the table, but the task has stood on validation before
         val actual = machine.advance(task, Stage.VALIDATION)
 
         // then
         assertIs<AdvanceOutcome.Advanced>(actual)
+        assertFalse(actual.newGround)
+        assertEquals(RetryReason.STAGE_REVISITED, actual.reason)
         assertEquals(spent, actual.task.stageRetryState)
+        assertEquals(Stage.VALIDATION, actual.task.deepestStage)
+    }
+
+    @Test
+    fun `when a move goes onto new ground - then it costs nothing and the stage budget starts over`() {
+        // given
+        val spent = RetryState(attempt = 4, max = RetryState.STAGE_MAX)
+        val task = task(stage = Stage.PLANNING, deepestStage = Stage.PLANNING, stageRetryState = spent)
+
+        // when
+        val actual = machine.advance(task, Stage.EXECUTION)
+
+        // then
+        assertIs<AdvanceOutcome.Advanced>(actual)
+        assertTrue(actual.newGround)
+        assertNull(actual.reason)
+        assertEquals(RetryState.stage(), actual.task.stageRetryState)
     }
 
     @Test

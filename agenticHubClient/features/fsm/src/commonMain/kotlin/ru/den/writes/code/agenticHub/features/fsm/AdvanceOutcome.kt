@@ -23,16 +23,22 @@ sealed interface AdvanceOutcome {
     val reason: RetryReason?
 
     /**
-     * The move was legal and applied. The stage budget comes back fresh: it
-     * measures what one stage cost, and a task that keeps reaching new stages is
-     * not stalling, however expensive it has been.
+     * The move was legal and applied.
+     *
+     * [newGround] says whether it took the task past everything this attempt had
+     * already reached. On new ground the stage budget comes back fresh and nothing
+     * is charged — that is what progress looks like. On ground already covered
+     * (a step back, or the step forward that undoes one) the budget stands and the
+     * turn is charged as [RetryReason.STAGE_REVISITED]: the move was legal, but the
+     * task is no further along than it was, and a loop of such moves must not be free.
      */
     data class Advanced(
         override val task: Task,
         val from: Stage,
         val to: Stage,
+        val newGround: Boolean,
     ) : AdvanceOutcome {
-        override val reason: RetryReason? get() = null
+        override val reason: RetryReason? get() = if (newGround) null else RetryReason.STAGE_REVISITED
     }
 
     /**

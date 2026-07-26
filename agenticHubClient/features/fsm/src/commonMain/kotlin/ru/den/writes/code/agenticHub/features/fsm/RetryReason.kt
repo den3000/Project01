@@ -49,6 +49,18 @@ enum class RetryReason(val level: RetryLevel) {
     STAGE_REJECTED(RetryLevel.STAGE),
 
     /**
+     * The move was legal and applied, but it led onto ground this attempt had already
+     * covered — a step back, or the step forward that undoes one.
+     *
+     * Charged because otherwise it is free, and free is what a loop feeds on: a run
+     * measured live oscillated `execution ↔ validation` for twenty-five turns, every
+     * move legal, nothing ever spent, no escalation possible. Rework is allowed and
+     * costs one turn of the stage's budget, the same as any other turn that left the
+     * task no further along.
+     */
+    STAGE_REVISITED(RetryLevel.STAGE),
+
+    /**
      * Every rewrite attempt breached, so the turn is shown but not persisted and
      * the stage is held. `JudgeOutcome.Blocked` — the turn is spent, the task is
      * no further along.

@@ -166,8 +166,15 @@ public class FsmTurnEngine(
 
         return when (val advance = machine.advance(task, proposedStage)) {
             is AdvanceOutcome.Advanced -> {
+                val rendered = StageAdvance.Advanced(advance.from.toTaskStage(), advance.to.toTaskStage())
+                // A move onto new ground is progress and costs nothing. A move back over
+                // covered ground is legal, applied — and charged, or a task can oscillate
+                // between two stages for ever without the FSM ever getting a say. The
+                // charge is applied to the moved task, so the stage it now sits on is the
+                // one paying.
+                val moved = notes.withFsmTask(advance.task)
                 save(notes, advance.task)
-                Decided(StageAdvance.Advanced(advance.from.toTaskStage(), advance.to.toTaskStage()), null)
+                Decided(rendered, advance.reason?.let { charge(moved, advance.task, it) })
             }
 
             is AdvanceOutcome.Repeated -> Decided(

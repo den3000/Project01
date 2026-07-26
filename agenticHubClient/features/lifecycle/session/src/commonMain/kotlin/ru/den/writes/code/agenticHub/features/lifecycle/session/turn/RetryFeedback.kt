@@ -57,6 +57,12 @@ internal fun retryFeedbackMessage(
 
     RetryReason.JUDGE_BLOCKED -> judgeBlockedMessage()
 
+    // Going back over covered ground costs a turn of the budget, but saying so would
+    // argue with a decision the model is entitled to make — a plan that turned out
+    // wrong is exactly what the step back is for. It pays; it is not lectured. Once
+    // the budget runs low the stall nudge arrives anyway, on the next no-move.
+    RetryReason.STAGE_REVISITED -> null
+
     // Nothing the model can act on: it never saw the failed call, and a restart
     // asked for by the user or by an exhausted budget is not its business.
     RetryReason.TRANSPORT_FAILED, RetryReason.TASK_STALLED, RetryReason.USER_RESTART -> null
