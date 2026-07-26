@@ -133,10 +133,11 @@ KMP-модуль (common; таргеты jvm/android/ios): стадии зада
 `TaskStateMachine` в `features:memory`).
 
 ## Тесты
-`./gradlew :agenticHubClient:features:fsm:jvmTest` — 29 тестов, по одному файлу на грань поведения
+`./gradlew :agenticHubClient:features:fsm:jvmTest` — 23 теста, по одному файлу на грань поведения
 (`fsm/task/`): `TaskTransitionsTest` (таблица переходов), `TaskStageAdvanceTest` (решения про
-переход), `TaskPauseTest` (пауза старше таблицы), `TaskStageRetryTest`, `TaskTransportRetryTest`,
-`TaskRestartTest`. Все дёргают `TaskStateMachine` — состояние собирается
+переход), `TaskPauseTest` (пауза старше таблицы), `TaskRetryTest` (все три бюджета: трата и
+исчерпание каждого). Исчерпание везде доводится циклом через настоящий `retry`, а не подставленным
+состоянием — так тесты заодно пинят сами потолки. Все дёргают `TaskStateMachine` — состояние собирается
 фабрикой и проверяется в исходе, прямых вызовов на `Task` нет, потому что их и не существует.
 Общая фабрика задачи — `TaskFixture.kt`; потолки бюджетов тесты читают из `RetryState`, чтобы
 величина жила в одном месте (плата: изменение самого потолка тесты не заметят, они сторожат логику

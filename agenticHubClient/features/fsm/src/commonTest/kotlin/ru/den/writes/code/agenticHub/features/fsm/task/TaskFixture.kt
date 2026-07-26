@@ -27,8 +27,5 @@ internal fun task(
     transportRetryState = transportRetryState,
 )
 
-/** The same budget with every attempt already taken — the next spend fails. */
-internal fun spentToTheLast(state: RetryState): RetryState = state.copy(attempt = state.max)
-
 internal const val TASK_ID = "task-42"
 internal const val GOAL = "ship the import script"
