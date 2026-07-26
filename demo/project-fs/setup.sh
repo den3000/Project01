@@ -18,6 +18,10 @@
 #   bash demo/project-fs/setup.sh
 #   CTT_REPO=/путь/к/репо bash demo/project-fs/setup.sh    # другой целевой репозиторий
 #   SKIP_RAG=1 bash demo/project-fs/setup.sh               # без индексации (не жечь токены)
+#   PROVIDER=ollama bash demo/project-fs/setup.sh          # индекс локальным эмбеддером, СВОИМ именем
+#
+# Индекс принадлежит провайдеру: под ollama он и строится локально, и лежит под именем с суффиксом.
+# Меняешь PROVIDER - перезапусти setup (без SKIP_RAG), иначе индекса этого бэкенда просто нет.
 #
 set -euo pipefail
 
@@ -66,8 +70,8 @@ if [ "${SKIP_RAG:-0}" = "1" ]; then
 else
   echo "[setup] собираю корпус RAG..."
   corpus_files="$(build_rag_corpus)"
-  echo "[setup] в корпусе $corpus_files файл(ов), индексирую как '$RAG_NAME'..."
-  "$CLI" -rag add "$RAG_NAME" src "$RAG_STAGE" embedder gemini
+  echo "[setup] в корпусе $corpus_files файл(ов), индексирую как '$RAG_NAME' (embedder=$RAG_EMBEDDER)..."
+  "$CLI" -rag add "$RAG_NAME" src "$RAG_STAGE" embedder "$RAG_EMBEDDER"
 fi
 
 # ----------------------------------------------------------------------------------

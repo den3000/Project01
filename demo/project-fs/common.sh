@@ -16,10 +16,32 @@ CLI="$REPO_ROOT/agenticHubClient/apps/cliJvmApp/build/install/cliJvmApp/bin/cliJ
 PFS="$REPO_ROOT/playground/projectfs-mcp/build/install/projectfs-mcp/bin/projectfs-mcp"
 TASKS="$HOME/.project01-cli/memory/tasks"
 
+# Выбор провайдера и моделей - переменными окружения, общий для всех демо (интерфейс и валидация -
+# в models.sh). Роли этого демо: fallback (безпрофильный), fs-explorer (разведка), fs-reporter
+# (запись), судья.
+#   PROVIDER=<gemini|ollama>              - куда ходят все агенты (дефолт gemini)
+#   OLLAMA_HOST=<url>                     - адрес сервера, если он не на localhost:11434
+#   MODEL=<id>                            - всем разом
+#   EXPLORER_MODEL / REPORTER_MODEL       - конкретному исполнителю
+#   FALLBACK_MODEL / JUDGE_MODEL          - fallback-агенту / судье
+# Пусто = дефолт клиента (gemini-2.5-flash). Семейство 3.x отсекается с объяснением: демо построено
+# на вызовах инструментов, а с ними 3.x у этого клиента не работает. Под ollama модель обязательна,
+# и её проверяют на месте (сервер поднят, тег спулен, тег умеет tools).
+#
+# Подключается ДО имени индекса: от провайдера зависит и эмбеддер, и имя корпуса.
+# shellcheck source=demo/models.sh
+source "$REPO_ROOT/demo/models.sh"
+
+require_supported_provider
+PROVIDER_ARG="$(provider_arg)"
+
 # Стейджинг RAG-корпуса: копия только тех файлов целевого репозитория, что описывают
-# ТЕКУЩЕЕ состояние проекта (см. build_rag_corpus в setup.sh).
-RAG_NAME="ctt-files"
+# ТЕКУЩЕЕ состояние проекта (см. build_rag_corpus в setup.sh). Имя и эмбеддер - по провайдеру:
+# индекс и запрос обязаны идти одним бэкендом (см. models.sh).
+RAG_NAME="$(rag_name ctt-files)"
 RAG_STAGE="$HOME/.project01-cli/corpus/$RAG_NAME"
+RAG_EMBEDDER="$(embedder_kind)"
+require_rag_embedder
 
 # Репозиторий, НАД которым работает ассистент (не наш собственный). Путь машинно-зависим,
 # поэтому берётся по цепочке: переменная окружения -> пара обычных мест рядом с нашим
@@ -48,23 +70,6 @@ CTT_REPO="$(resolve_ctt_repo)"
 # Ветка, на которую ложатся правки ассистента: отдельная, чтобы не смешиваться с рабочей
 # веткой репозитория. На ней же построен сброс - см. reset_workspace.
 WORK_BRANCH="${WORK_BRANCH:-feature/docs-assistant}"
-
-# Выбор провайдера и моделей - переменными окружения, общий для всех демо (интерфейс и валидация -
-# в models.sh). Роли этого демо: fallback (безпрофильный), fs-explorer (разведка), fs-reporter
-# (запись), судья.
-#   PROVIDER=<gemini|ollama>              - куда ходят все агенты (дефолт gemini)
-#   OLLAMA_HOST=<url>                     - адрес сервера, если он не на localhost:11434
-#   MODEL=<id>                            - всем разом
-#   EXPLORER_MODEL / REPORTER_MODEL       - конкретному исполнителю
-#   FALLBACK_MODEL / JUDGE_MODEL          - fallback-агенту / судье
-# Пусто = дефолт клиента (gemini-2.5-flash). Семейство 3.x отсекается с объяснением: демо построено
-# на вызовах инструментов, а с ними 3.x у этого клиента не работает. Под ollama модель обязательна,
-# и её проверяют на месте (сервер поднят, тег спулен, тег умеет tools).
-# shellcheck source=demo/models.sh
-source "$REPO_ROOT/demo/models.sh"
-
-require_supported_provider
-PROVIDER_ARG="$(provider_arg)"
 
 FALLBACK_MODEL="$(model_for "${FALLBACK_MODEL:-}")"
 EXPLORER_MODEL="$(model_for "${EXPLORER_MODEL:-}")"

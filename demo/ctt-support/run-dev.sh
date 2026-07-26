@@ -40,6 +40,8 @@ source "$REPO_ROOT/demo/models.sh"
 
 require_supported_provider
 PROVIDER_ARG="$(provider_arg)"
+RAG_NAME="$(rag_name ctt-support)"   # индекс принадлежит провайдеру - строит его setup.sh
+require_rag_embedder
 
 FALLBACK_MODEL="$(model_for "${FALLBACK_MODEL:-}")"
 DEVELOPER_MODEL="$(model_for "${DEVELOPER_MODEL:-}")"
@@ -63,7 +65,7 @@ exec "$CLI" \
   -tui \
   -prompt "Привет, нужно закрыть тикет." \
   -task dev-case \
-  -rag ctt-support \
+  -rag "$RAG_NAME" \
   -agent $PROVIDER_ARG $(model_arg "$FALLBACK_MODEL") $(temp_arg "$TEMP") mode system \
   -agent developer   $PROVIDER_ARG $(model_arg "$DEVELOPER_MODEL") profile developer stages clarification..done \
   -agent rules-judge $PROVIDER_ARG $(model_arg "$JUDGE_MODEL") stages clarification..done judge \

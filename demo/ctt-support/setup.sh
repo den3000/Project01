@@ -11,7 +11,11 @@
 #
 # Использование (из корня репозитория Project01):
 #   bash demo/ctt-support/setup.sh
+#   PROVIDER=ollama bash demo/ctt-support/setup.sh   # индекс локальным эмбеддером, СВОИМ именем
 # Путь к репозиторию CTT — переменная CTT_REPO (по умолчанию — соседний каталог).
+#
+# Индекс принадлежит провайдеру: под ollama он и строится локально, и лежит под именем с суффиксом.
+# Меняешь PROVIDER — перезапусти setup, иначе индекса этого бэкенда просто нет.
 #
 set -euo pipefail
 
@@ -27,6 +31,15 @@ CLI="$REPO_ROOT/agenticHubClient/apps/cliJvmApp/build/install/cliJvmApp/bin/cliJ
 
 CTT_REPO="${CTT_REPO:-$HOME/Documents/AuroraProjects/CorporateTaskTracker/CorporateTaskTracker}"
 CORPUS="$HOME/.project01-cli/corpus/ctt-support"
+
+# Имя индекса и эмбеддер - по провайдеру: индекс и запрос обязаны идти одним бэкендом (см. models.sh).
+# shellcheck source=demo/models.sh
+source "$REPO_ROOT/demo/models.sh"
+
+require_supported_provider
+RAG_NAME="$(rag_name ctt-support)"
+RAG_EMBEDDER="$(embedder_kind)"
+require_rag_embedder
 
 echo "[setup] gradle installDist (cliJvmApp + support-mcp)..."
 ( cd "$REPO_ROOT" && ./gradlew \
@@ -68,8 +81,8 @@ else
   echo "[setup] ВНИМАНИЕ: CTT_REPO не найден ($CTT_REPO) — корпус только из наших доков."
 fi
 
-echo "[setup] индексирую RAG-корпус 'ctt-support' (embedder=gemini)..."
-"$CLI" -rag add ctt-support src "$CORPUS" embedder gemini
+echo "[setup] индексирую RAG-корпус '$RAG_NAME' (embedder=$RAG_EMBEDDER)..."
+"$CLI" -rag add "$RAG_NAME" src "$CORPUS" embedder "$RAG_EMBEDDER"
 
 # Профили нарезаны по фазам разговора, а не один на всю задачу. Причина — судья:
 # он аудирует ответ против `constraints` ТОГО профиля, с которым говорил ответивший

@@ -45,6 +45,8 @@ source "$REPO_ROOT/demo/models.sh"
 
 require_supported_provider
 PROVIDER_ARG="$(provider_arg)"
+RAG_NAME="$(rag_name ctt-support)"   # индекс принадлежит провайдеру - строит его setup.sh
+require_rag_embedder
 
 FALLBACK_MODEL="$(model_for "${FALLBACK_MODEL:-}")"
 INTAKE_MODEL="$(model_for "${INTAKE_MODEL:-}")"
@@ -70,7 +72,7 @@ exec "$CLI" \
   -tui \
   -prompt "Здравствуйте!" \
   -task ctt-case \
-  -rag ctt-support \
+  -rag "$RAG_NAME" \
   -agent $PROVIDER_ARG $(model_arg "$FALLBACK_MODEL") $(temp_arg "$TEMP") mode system \
   -agent support-intake $PROVIDER_ARG $(model_arg "$INTAKE_MODEL") profile support-intake stages clarification..planning \
   -agent support-solve  $PROVIDER_ARG $(model_arg "$SOLVE_MODEL") profile support-solve  stages execution..done \
