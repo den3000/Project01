@@ -86,8 +86,9 @@ AI-ассистент поддержки пользователей продук
 
 ## Ключи
 
-RAG-embedder и провайдер — gemini. `GEMINI_API_KEY` должен быть в `local.properties` или в
-переменной окружения (env перекрывает BuildKonfig). Экспортировать в скрипте не нужно.
+RAG-embedder — gemini, провайдер агентов — gemini по умолчанию (переключается `PROVIDER`, см.
+«Запуск»). `GEMINI_API_KEY` должен быть в `local.properties` или в переменной окружения (env
+перекрывает BuildKonfig). Экспортировать в скрипте не нужно.
 
 ## Запуск
 
@@ -119,6 +120,19 @@ SOLVE_MODEL=gemini-2.5-flash bash demo/ctt-support/run-support.sh    # толь�
 общий `MODEL`. Что реально поехало — строка `[demo] модели: …` перед стартом (и `[[AGENT:]]` в самом
 чате). Семейство 3.x и опечатки в id отсекаются до старта JVM — механизм общий для демо,
 [demo/models.sh](../models.sh).
+
+**Провайдер — тоже переменной** (`PROVIDER=gemini` по умолчанию):
+
+```bash
+PROVIDER=ollama MODEL=qwen3.5:27b bash demo/ctt-support/run-support.sh             # локальная модель
+PROVIDER=ollama OLLAMA_HOST=http://хост:11434 MODEL=qwen3.5:27b \
+  bash demo/ctt-support/run-dev.sh                                                 # сервер не на localhost
+```
+
+Провайдер общий на прогон (у всех агентов сразу), под `ollama` модель обязательна: дефолтный тег
+клиента вряд ли спулен, а вызывать инструменты умеет не всякий. Обёртка проверяет до старта JVM, что
+сервер поднят, тег скачан и у него есть capability `tools` (`ollama show <тег>`) — иначе прогон
+упёрся бы в отказ на каждом ходу. Печатается строкой `[demo] провайдер: …`.
 
 ## Сценарии для видео
 
