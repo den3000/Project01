@@ -346,7 +346,7 @@ internal fun judgeFeedback(verdict: InvariantVerdict): String = buildString {
  * flash; a direct «your last move was refused, here is the only way forward»
  * is the stronger nudge.
  */
-private fun stageRejectionMessage(rejected: StageAdvance.Rejected): Message {
+internal fun stageRejectionMessage(rejected: StageAdvance.Rejected): Message {
     val from = rejected.from?.keyword ?: "(none)"
     val allowed = rejected.allowed.joinToString(", ") { it.keyword }
     return Message(
