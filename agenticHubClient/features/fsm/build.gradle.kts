@@ -24,7 +24,11 @@ kotlin {
     sourceSets {
         // No module dependencies on purpose: the task FSM is pure decision logic
         // over its own value types. Anything it needed from another module would
-        // be a sign that a decision leaked out of here.
+        // be a sign that a decision leaked out of here. Koin is the one library
+        // dependency — the module carries its own graph binding, like every other.
+        commonMain.dependencies {
+            implementation(libs.koin.core)
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }

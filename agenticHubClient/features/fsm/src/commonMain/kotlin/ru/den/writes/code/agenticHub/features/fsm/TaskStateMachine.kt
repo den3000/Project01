@@ -9,8 +9,12 @@ package ru.den.writes.code.agenticHub.features.fsm
  * as a table of rules rather than a flow. The caller applies the returned task —
  * persisting it, branching history, rebuilding the engine — the machine only says
  * what should happen.
+ *
+ * A class rather than an `object` so it can be injected like everything else
+ * (`fsmModule` binds it as a `single`) and swapped in a test or a stand. It holds
+ * no state: two instances behave identically, and one per graph is plenty.
  */
-object TaskStateMachine {
+public class TaskStateMachine {
 
     /**
      * Stages reachable from [stage] in one step: forward, plus a single step back

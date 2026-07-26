@@ -13,6 +13,8 @@ import kotlin.test.assertNull
 
 class TaskStageAdvanceTest {
 
+    private val machine = TaskStateMachine()
+
     @Test
     fun `when a legal move is proposed - then the stage advances`() {
         // given
@@ -21,7 +23,7 @@ class TaskStageAdvanceTest {
         val task = task(stage = stage)
 
         // when
-        val actual = TaskStateMachine.advance(task, proposed)
+        val actual = machine.advance(task, proposed)
 
         // then
         assertIs<AdvanceOutcome.Advanced>(actual)
@@ -44,7 +46,7 @@ class TaskStageAdvanceTest {
         val proposed = Stage.EXECUTION
 
         // when
-        val actual = TaskStateMachine.advance(task, proposed)
+        val actual = machine.advance(task, proposed)
 
         // then
         val expected = task.copy(
@@ -74,7 +76,7 @@ class TaskStageAdvanceTest {
         val proposed = Stage.DONE
 
         // when
-        val actual = TaskStateMachine.advance(task, proposed)
+        val actual = machine.advance(task, proposed)
 
         // then
         assertIs<AdvanceOutcome.Rejected>(actual)
@@ -91,7 +93,7 @@ class TaskStageAdvanceTest {
         val proposed = Stage.PLANNING
 
         // when
-        val actual = TaskStateMachine.advance(task, proposed)
+        val actual = machine.advance(task, proposed)
 
         // then
         assertIs<AdvanceOutcome.Advanced>(actual)
@@ -106,7 +108,7 @@ class TaskStageAdvanceTest {
         val task = task(stage = stage)
 
         // when
-        val actual = TaskStateMachine.advance(task, stage)
+        val actual = machine.advance(task, stage)
 
         // then
         assertIs<AdvanceOutcome.Repeated>(actual)
@@ -124,7 +126,7 @@ class TaskStageAdvanceTest {
         val task = task(stage = stage)
 
         // when
-        val actual = TaskStateMachine.advance(task, proposed)
+        val actual = machine.advance(task, proposed)
 
         // then
         assertIs<AdvanceOutcome.Rejected>(actual)

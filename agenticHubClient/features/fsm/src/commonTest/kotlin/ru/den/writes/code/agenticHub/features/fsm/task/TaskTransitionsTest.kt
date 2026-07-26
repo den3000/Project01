@@ -9,6 +9,8 @@ import kotlin.test.assertTrue
 
 class TaskTransitionsTest {
 
+    private val machine = TaskStateMachine()
+
     @Test
     fun `when allowedNext queried - then matches the transition table`() {
         // given
@@ -22,7 +24,7 @@ class TaskTransitionsTest {
 
         Stage.entries.forEach { from ->
             // when
-            val to = TaskStateMachine.allowedNext(from)
+            val to = machine.allowedNext(from)
 
             // then
             assertEquals(table[from], to, "allowedNext($from)")
@@ -41,7 +43,7 @@ class TaskTransitionsTest {
 
         // when - then
         forward.forEach { (from, to) ->
-            assertTrue(TaskStateMachine.canTransition(from, to), "$from -> $to should be allowed")
+            assertTrue(machine.canTransition(from, to), "$from -> $to should be allowed")
         }
     }
 
@@ -56,7 +58,7 @@ class TaskTransitionsTest {
 
         // when - then
         back.forEach { (from, to) ->
-            assertTrue(TaskStateMachine.canTransition(from, to), "$from -> $to should be allowed")
+            assertTrue(machine.canTransition(from, to), "$from -> $to should be allowed")
         }
     }
 
@@ -73,7 +75,7 @@ class TaskTransitionsTest {
 
         // when - then
         illegal.forEach { (from, to) ->
-            assertFalse(TaskStateMachine.canTransition(from, to), "$from -> $to should be rejected")
+            assertFalse(machine.canTransition(from, to), "$from -> $to should be rejected")
         }
     }
 
@@ -88,7 +90,7 @@ class TaskTransitionsTest {
 
         // when - then
         illegal.forEach { (from, to) ->
-            assertFalse(TaskStateMachine.canTransition(from, to), "$from -> $to should be rejected")
+            assertFalse(machine.canTransition(from, to), "$from -> $to should be rejected")
         }
     }
 
@@ -96,7 +98,7 @@ class TaskTransitionsTest {
     fun `when canTransition from done - then every target is rejected`() {
         // when - then
         Stage.entries.forEach { to ->
-            assertFalse(TaskStateMachine.canTransition(Stage.DONE, to), "done -> $to should be rejected")
+            assertFalse(machine.canTransition(Stage.DONE, to), "done -> $to should be rejected")
         }
     }
 }

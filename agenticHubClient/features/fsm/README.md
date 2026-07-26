@@ -12,7 +12,7 @@ KMP-модуль (common; таргеты jvm/android/ios): стадии зада
 **Решения — только в `TaskStateMachine`.** Остальные типы носят состояние и не решают ничего:
 читая поле, нельзя узнать, что будет дальше.
 
-- `TaskStateMachine` (object) — вся логика (`TaskStateMachine.kt`):
+- `TaskStateMachine` (class, stateless) — вся логика (`TaskStateMachine.kt`):
   - `allowedNext(stage): Set<Stage>` — таблица переходов;
   - `canTransition(from, to): Boolean` — её проверка, без особых случаев;
   - `advance(task, proposed): AdvanceOutcome` — что делать с переходом, который предложила модель;
@@ -33,6 +33,9 @@ KMP-модуль (common; таргеты jvm/android/ios): стадии зада
   `TASK_MAX`/`STAGE_MAX`/`TRANSPORT_MAX` и фабрики `task()`/`stage()`/`transport()`
   (`RetryState.kt`). `spend()` — арифметика самого бюджета, а не решение про задачу, поэтому живёт
   здесь.
+- `fsmModule` (Koin) — единственный выход наружу: `single { TaskStateMachine() }`, без
+  runtime-аргументов и без зависимостей от других модулей (`di/FsmModule.kt`). Машина — класс, а не
+  `object`, именно чтобы её резолвили из графа, а не звали статикой.
 
 ## Переходы
 Модель только **предлагает** стадию — решает `advance`. Проверка живёт в коде, а не в промпте:
@@ -152,20 +155,22 @@ KMP-модуль (common; таргеты jvm/android/ios): стадии зада
 попытку и быть привязан к задаче.
 
 ## Зависимости
-Нет модульных (лист) — это осознанно, см. комментарий в `build.gradle.kts`. Потребителей пока нет:
+Нет модульных (лист) — это осознанно, см. комментарий в `build.gradle.kts`. Единственная
+библиотечная — `koin-core`, ради собственного `fsmModule`; composition root (`apps:cliJvmApp`)
+добавляет его в `startKoin` наравне с прочими. Потребителей пока нет:
 модуль собран под движок, но в `lifecycle:session` ещё не подключён — там работает старый FSM
 (`TaskStage`/`TaskStateMachine`/`TaskBinding`/`TaskNotes` в `features:memory`). То есть в проекте
 сейчас две машины стадий, и развод — отдельный заход: адаптер, переключение движка, снос старой.
 
 ## Тесты
-`./gradlew :agenticHubClient:features:fsm:jvmTest` — 19 тестов, по одному файлу на грань поведения
-(`fsm/task/`):
+`./gradlew :agenticHubClient:features:fsm:jvmTest` — 21 тест, по одному файлу на грань поведения:
 
 | файл | тестов | о чём |
 |---|---|---|
-| `TaskStageAdvanceTest` | 7 | решения `advance`: удачный переход, дефолтная стадия, re-signal, прыжок |
-| `TaskTransitionsTest` | 6 | таблица переходов: вперёд, шаг назад, прыжки вперёд и назад, терминальный `done` |
-| `TaskRetryTest` | 6 | три бюджета: обычная трата и доведение до потолка у каждого |
+| `task/TaskStageAdvanceTest` | 7 | решения `advance`: удачный переход, дефолтная стадия, re-signal, прыжок |
+| `task/TaskTransitionsTest` | 6 | таблица переходов: вперёд, шаг назад, прыжки вперёд и назад, терминальный `done` |
+| `task/TaskRetryTest` | 6 | три бюджета: обычная трата и доведение до потолка у каждого |
+| `di/FsmModuleTest` | 2 | граф отдаёт машину и отдаёт её одну на всех |
 
 Все дёргают `TaskStateMachine` — состояние собирается фабрикой и проверяется в исходе, прямых
 вызовов на `Task` нет, потому что методов у него не существует. Общая фабрика — `TaskFixture.kt`.

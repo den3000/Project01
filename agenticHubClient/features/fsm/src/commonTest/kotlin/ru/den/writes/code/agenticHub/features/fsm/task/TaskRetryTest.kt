@@ -12,6 +12,8 @@ import kotlin.test.assertIs
 
 class TaskRetryTest {
 
+    private val machine = TaskStateMachine()
+
     @Test
     fun `when a stage-level reason is retried - then only the stage budget is spent`() {
         // given
@@ -20,7 +22,7 @@ class TaskRetryTest {
         require(reasons.isNotEmpty()) { "no STAGE-level reasons to cover" }
 
         // when
-        val actuals = reasons.map { reason -> reason to TaskStateMachine.retry(task, reason) }
+        val actuals = reasons.map { reason -> reason to machine.retry(task, reason) }
 
         // then
         val expected = task.copy(stageRetryState = RetryState(attempt = 1, max = RetryState.STAGE_MAX))
@@ -41,9 +43,9 @@ class TaskRetryTest {
         )
 
         // when
-        val initial = TaskStateMachine.retry(task, reason)
+        val initial = machine.retry(task, reason)
         val actuals = (1..RetryState.STAGE_MAX).runningFold(initial) { prev, _ ->
-            TaskStateMachine.retry(prev.task, reason)
+            machine.retry(prev.task, reason)
         }
 
         // then
@@ -74,7 +76,7 @@ class TaskRetryTest {
         require(reasons.isNotEmpty()) { "no TASK-level reasons to cover" }
 
         // when
-        val actuals = reasons.map { reason -> reason to TaskStateMachine.retry(task, reason) }
+        val actuals = reasons.map { reason -> reason to machine.retry(task, reason) }
 
         // then
         val expected = task.copy(
@@ -99,9 +101,9 @@ class TaskRetryTest {
         )
 
         // when
-        val initial = TaskStateMachine.retry(task, reason)
+        val initial = machine.retry(task, reason)
         val actuals = (1..RetryState.TASK_MAX).runningFold(initial) { prev, _ ->
-            TaskStateMachine.retry(prev.task, reason)
+            machine.retry(prev.task, reason)
         }
 
         // then
@@ -136,7 +138,7 @@ class TaskRetryTest {
         require(reasons.isNotEmpty()) { "no TRANSPORT-level reasons to cover" }
 
         // when
-        val actuals = reasons.map { reason -> reason to TaskStateMachine.retry(task, reason) }
+        val actuals = reasons.map { reason -> reason to machine.retry(task, reason) }
 
         // then
         val expected = task.copy(
@@ -159,9 +161,9 @@ class TaskRetryTest {
         )
 
         // when
-        val initial = TaskStateMachine.retry(task, reason)
+        val initial = machine.retry(task, reason)
         val actuals = (1..RetryState.TRANSPORT_MAX).runningFold(initial) { prev, _ ->
-            TaskStateMachine.retry(prev.task, reason)
+            machine.retry(prev.task, reason)
         }
 
         // then
