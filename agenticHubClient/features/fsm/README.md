@@ -13,10 +13,17 @@ KMP-модуль (common; таргеты jvm/android/ios): стадии зада
 читая поле, нельзя узнать, что будет дальше.
 
 - `TaskStateMachine` (class, stateless) — вся логика (`TaskStateMachine.kt`):
-  - `allowedNext(stage): Set<Stage>` — таблица переходов;
-  - `canTransition(from, to): Boolean` — её проверка, без особых случаев;
-  - `advance(task, proposed): AdvanceOutcome` — что делать с переходом, который предложила модель;
-  - `retry(task, reason): RetryOutcome` — во что обходится провал.
+  - `update(task, reason): UpdateDecision` — **единственный вход**: что ход сделал с задачей;
+  - `allowedNext(stage): Set<Stage>` — таблица переходов (нужна снаружи для текста подсказок);
+  - `canTransition` / `advance` / `retry` — `internal`, шаги `update`. Публичными они значили бы,
+    что сшивать их — «можно ли двигаться» плюс «во что обходится провал» — снова придётся
+    вызывающему, а сшивка и есть правила.
+- `UpdateReason` (sealed) — чем кончился ход, наблюдениями, а не выводами: `StageProposed(stage)`,
+  `NoStageProposed`, `JudgeBlocked`, `TransportFailed` (`UpdateReason.kt`). Готовый `RetryReason` на
+  входе оставил бы выбор бюджета снаружи.
+- `UpdateDecision` — что делать с результатом: `task` (сохранить), `advance` (показать),
+  `retryOutcome` (вердикт наружу — рестарт/сдача), `retryReason` (что сказать модели; `null` —
+  молчим). Четыре поля, потому что у хода четыре независимых читателя (`UpdateDecision.kt`).
 - `Task` — состояние задачи: `taskId`, `stage`, `deepestStage` (дальше всего, куда попытка
   доходила — не то же, что `stage`), `goal`, `notes` + три бюджета
   (`taskRetryState` / `stageRetryState` / `transportRetryState`). Методов нет (`Task.kt`).
@@ -59,8 +66,9 @@ KMP-модуль (common; таргеты jvm/android/ios): стадии зада
 - `Rejected` — прыжок через стадию: отклонён, стадия удержана, наружу едет `allowed` (куда отсюда
   можно). Оплачивается как `STAGE_REJECTED`.
 
-`advance` решает про переход, `retry` тратит бюджет — двумя вызовами. Чтобы они не разъехались,
-исход сам называет причину в `reason`: забыть оплатить можно, но не молча.
+`advance` решает про переход, `retry` тратит бюджет, и сшивает их `update` — внутри модуля, одним
+вызовом наружу. Исход всё равно называет причину в `reason`: связка проверяется тестами по обе
+стороны, а не держится на том, что её помнят.
 
 ## Как устроены ретраи
 Два бюджета вложены друг в друга, третий стоит особняком. Внутренний исчерпался — провал не роняет
@@ -167,17 +175,20 @@ KMP-модуль (common; таргеты jvm/android/ios): стадии зада
 ## Зависимости
 Нет модульных (лист) — это осознанно, см. комментарий в `build.gradle.kts`. Единственная
 библиотечная — `koin-core`, ради собственного `fsmModule`; composition root (`apps:cliJvmApp`)
-добавляет его в `startKoin` наравне с прочими. Потребителей пока нет:
-модуль собран под движок, но в `lifecycle:session` ещё не подключён — там работает старый FSM
-(`TaskStage`/`TaskStateMachine`/`TaskBinding`/`TaskNotes` в `features:memory`). То есть в проекте
-сейчас две машины стадий, и развод — отдельный заход: адаптер, переключение движка, снос старой.
+добавляет его в `startKoin` наравне с прочими. Потребитель один — `FsmTurnEngine` в
+`lifecycle:session`: он зовёт `update` на каждый ход и исполняет решение (сохранить задачу,
+переключить ветку на рестарте, взвести фидбек). Рядом живёт `InlineFsmTurnEngine` на старом FSM
+(`TaskStage`/`TaskStateMachine`/`TaskBinding`/`TaskNotes` в `features:memory`) — то есть в проекте
+сейчас две машины стадий, и развод — отдельный заход: переезд `TaskBinding`, переключение
+композиции, снос старой.
 
 ## Тесты
-`./gradlew :agenticHubClient:features:fsm:jvmTest` — 21 тест, по одному файлу на грань поведения:
+`./gradlew :agenticHubClient:features:fsm:jvmTest` — 34 теста, по одному файлу на грань поведения:
 
 | файл | тестов | о чём |
 |---|---|---|
-| `task/TaskStageAdvanceTest` | 7 | решения `advance`: удачный переход, дефолтная стадия, re-signal, прыжок |
+| `task/TaskUpdateTest` | 9 | ход целиком: по варианту `UpdateReason` плюс эскалация в рестарт и в сдачу |
+| `task/TaskStageAdvanceTest` | 11 | решения `advance`: переход, глубина и плата за возврат, дефолтная стадия, re-signal, прыжок |
 | `task/TaskTransitionsTest` | 6 | таблица переходов: вперёд, шаг назад, прыжки вперёд и назад, терминальный `done` |
 | `task/TaskRetryTest` | 6 | три бюджета: обычная трата и доведение до потолка у каждого |
 | `di/FsmModuleTest` | 2 | граф отдаёт машину и отдаёт её одну на всех |

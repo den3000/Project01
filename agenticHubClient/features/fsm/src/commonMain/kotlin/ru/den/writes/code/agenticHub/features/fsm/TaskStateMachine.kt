@@ -89,7 +89,7 @@ public class TaskStateMachine {
      * [Stage.DONE] in one move by having no stage set, which is precisely the
      * guarantee this table exists to give.
      */
-    fun canTransition(from: Stage, to: Stage): Boolean = to in allowedNext(from)
+    internal fun canTransition(from: Stage, to: Stage): Boolean = to in allowedNext(from)
 
     /**
      * Apply the move [proposed] for [task] and say what happened.
@@ -111,7 +111,7 @@ public class TaskStateMachine {
      * honest re-plan cheap (going back costs nothing extra) while a loop pays for
      * every turn of it and eventually restarts.
      */
-    fun advance(task: Task, proposed: Stage): AdvanceOutcome {
+    internal fun advance(task: Task, proposed: Stage): AdvanceOutcome {
         val from = task.stage
         // Not a move, but not an illegal one either: the model used the marker to
         // label where it already is. Its own outcome, so the caller can say so
@@ -153,7 +153,7 @@ public class TaskStateMachine {
      * pass; an unreachable provider is not, so promoting it would only spend the
      * restarts on a wall.
      */
-    fun retry(task: Task, reason: RetryReason): RetryOutcome = when (reason.level) {
+    internal fun retry(task: Task, reason: RetryReason): RetryOutcome = when (reason.level) {
         RetryLevel.STAGE -> retryStage(task, reason)
         RetryLevel.TASK -> restart(task, reason)
         RetryLevel.TRANSPORT -> retryTransport(task, reason)
