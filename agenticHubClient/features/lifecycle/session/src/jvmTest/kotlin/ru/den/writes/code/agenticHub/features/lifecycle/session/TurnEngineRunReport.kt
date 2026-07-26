@@ -1,6 +1,7 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.session
 
 import kotlinx.coroutines.test.TestScope
+import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.StageAdvance
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnResult
 import ru.den.writes.code.agenticHub.features.llm.Message
@@ -34,10 +35,13 @@ internal suspend fun TestScope.runTurnEngineWith(
     sessionName: String,
     taskNotes: TaskNotes?,
     stallHint: Boolean = false,
+    engineUnderTest: EngineUnderTest = INLINE_ENGINE,
+    turns: Int = MAX_TURNS,
 ): RunLog = runTurnEngineWith(
     llmApi = { koin -> buildLlmApi(modelProvider, koin.get()) },
+    engineUnderTest = engineUnderTest,
     task = taskNotes,
-    turns = MAX_TURNS,
+    turns = turns,
     stallHint = stallHint,
     modelProvider = modelProvider,
     sessionName = sessionName,
@@ -90,6 +94,25 @@ internal data class TurnLog(
     /** Left the stage put, whichever way — what the engine counts toward a stall. */
     val noMove: Boolean get() = !advanced && !rejected && !failed
 
+    /** What the FSM charged for this turn; empty from an engine that keeps its own. */
+    private val fsm: RetryOutcome? get() = result.fsm
+
+    val fsmOutcome: String
+        get() = when (fsm) {
+            null -> ""
+            is RetryOutcome.Retried -> "RETRIED"
+            is RetryOutcome.Restarted -> "RESTARTED"
+            is RetryOutcome.GaveUp -> "GAVE_UP"
+        }
+
+    /** Why the run was abandoned; only a give-up names it. */
+    val gaveUpReason: String get() = (fsm as? RetryOutcome.GaveUp)?.reason?.name.orEmpty()
+
+    /** Budgets as they stood after this turn — the counters ticking, turn by turn. */
+    val stageSpent: Int? get() = fsm?.task?.stageRetryState?.attempt
+    val taskSpent: Int? get() = fsm?.task?.taskRetryState?.attempt
+    val transportSpent: Int? get() = fsm?.task?.transportRetryState?.attempt
+
     val outcome: String
         get() = when {
             failed -> "FAILED"
@@ -106,6 +129,10 @@ internal data class TurnLog(
         append(" outcome: $outcome")
         append("\ntokens: out=${outputTokens ?: "-"} thoughts=${thoughtsTokens ?: "-"}")
         append(" durationMs=$durationMs judge=${judge.ifEmpty { "-" }}")
+        fsmOutcome.takeIf { it.isNotEmpty() }?.let {
+            append("\nfsm: $it spent[stage=${stageSpent} task=${taskSpent} transport=${transportSpent}]")
+            gaveUpReason.takeIf { r -> r.isNotEmpty() }?.let { r -> append(" reason=$r") }
+        }
         replayErrorReason.takeIf { it.isNotEmpty() }?.let { append("\nreplayErrorReason: $it") }
         advanceErrorReason.takeIf { it.isNotEmpty() }?.let { append("\nadvanceErrorReason: $it") }
         append("\n- prompt: $prompt")
@@ -150,6 +177,21 @@ internal data class RunLog(
     /** How much of [noMoves] was the model re-signalling its stage rather than silence. */
     val repeats: Int get() = turnLogs.count { it.repeated }
     val failures: Int get() = turnLogs.count { it.failed }
+    /** Turns the FSM charged as an ordinary retry — the task carried on. */
+    val fsmRetries: Int get() = turnLogs.count { it.fsmOutcome == "RETRIED" }
+
+    /** Turns that escalated into a restart. The stand only records it: nobody executes it here. */
+    val fsmRestarts: Int get() = turnLogs.count { it.fsmOutcome == "RESTARTED" }
+
+    /** The run the machine abandoned, with the reason that finally broke it. */
+    val fsmGaveUp: Boolean get() = turnLogs.any { it.fsmOutcome == "GAVE_UP" }
+    val fsmGaveUpReason: String get() = turnLogs.lastOrNull { it.gaveUpReason.isNotEmpty() }?.gaveUpReason.orEmpty()
+
+    /** Budgets as the run left them; null from an engine that charges nothing. */
+    val stageSpent: Int? get() = turnLogs.lastOrNull { it.stageSpent != null }?.stageSpent
+    val taskSpent: Int? get() = turnLogs.lastOrNull { it.taskSpent != null }?.taskSpent
+    val transportSpent: Int? get() = turnLogs.lastOrNull { it.transportSpent != null }?.transportSpent
+
     val outputTokens: Int get() = turnLogs.sumOf { it.outputTokens ?: 0 }
     val thoughtsTokens: Int get() = turnLogs.sumOf { it.thoughtsTokens ?: 0 }
     val durationMs: Long get() = turnLogs.sumOf { it.durationMs }
@@ -204,6 +246,8 @@ internal data class RunLog(
         append("---- run [$modelId] task=$taskId ----")
         append("\n  reachedDone=$reachedDone finalStage=${finalStage ?: "NO_STAGE"} turns=${turnLogs.size}")
         append("\n  advances=$advances rejects=$rejects noMoves=$noMoves failures=$failures")
+        append("\n  fsm: retries=$fsmRetries restarts=$fsmRestarts gaveUp=$fsmGaveUp")
+        append(" spent[stage=${stageSpent ?: "-"} task=${taskSpent ?: "-"} transport=${transportSpent ?: "-"}]")
         append("\n  tokens: out=$outputTokens thoughts=$thoughtsTokens durationMs=$durationMs")
     }
 }
@@ -233,7 +277,8 @@ internal fun reportGroups(groups: List<RunGroup>) {
         "PER-RUN (raw, every run a row)",
         listOf(
             "group", "run", "done", "turns", "adv", "rej", "noMv", "rep", "fail",
-            "stall", "recov", "stalledAt", "out", "thghts", "ms", "stage",
+            "stall", "recov", "stalledAt", "rtry", "rstrt", "gvUp", "spent(s/t/x)",
+            "out", "thghts", "ms", "stage",
         ),
         groups.flatMap { g ->
             g.runs.mapIndexed { i, r ->
@@ -250,6 +295,10 @@ internal fun reportGroups(groups: List<RunGroup>) {
                     "${r.longestStall}",
                     if (!r.stalled) "-" else if (r.recovered) "Y" else "N",
                     r.stalledAt?.name ?: "-",
+                    "${r.fsmRetries}",
+                    "${r.fsmRestarts}",
+                    if (r.fsmGaveUp) r.fsmGaveUpReason else "-",
+                    "${r.stageSpent ?: "-"}/${r.taskSpent ?: "-"}/${r.transportSpent ?: "-"}",
                     "${r.outputTokens}",
                     "${r.thoughtsTokens}",
                     "${r.durationMs}",
@@ -262,7 +311,7 @@ internal fun reportGroups(groups: List<RunGroup>) {
         "PER-GROUP (averaged per run)",
         listOf(
             "group", "done", "stalled", "recov", "turns", "adv", "rej", "noMv", "rep",
-            "fail", "out", "thghts", "ms",
+            "fail", "rtry", "rstrt", "gvUp", "out", "thghts", "ms",
         ),
         groups.map { g ->
             val n = g.runs.size.coerceAtLeast(1)
@@ -279,6 +328,9 @@ internal fun reportGroups(groups: List<RunGroup>) {
                 "%.1f".format(avg { it.noMoves }),
                 "%.1f".format(avg { it.repeats }),
                 "%.1f".format(avg { it.failures }),
+                "%.1f".format(avg { it.fsmRetries }),
+                "%.1f".format(avg { it.fsmRestarts }),
+                "${g.runs.count { it.fsmGaveUp }}/${g.runs.size}",
                 "%.0f".format(avg { it.outputTokens }),
                 "%.0f".format(avg { it.thoughtsTokens }),
                 "%.0f".format(avg { it.durationMs }),

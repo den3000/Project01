@@ -244,7 +244,7 @@ private suspend fun TurnEngineFixture.runTurns(
 }
 
 /** Koin graph + temp filesystem root + in-memory database, all disposed after [block]. */
-private suspend fun <T> TestScope.withSessionEnv(block: suspend TestScope.(Koin, File) -> T): T {
+internal suspend fun <T> TestScope.withSessionEnv(block: suspend TestScope.(Koin, File) -> T): T {
     val fsRoot = Files.createTempDirectory("project01-turn-engine-").toFile()
     try {
         TestDb().use { appDb ->

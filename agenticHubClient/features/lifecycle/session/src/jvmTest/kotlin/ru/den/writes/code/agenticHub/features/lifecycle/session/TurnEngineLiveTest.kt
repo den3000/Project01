@@ -4,6 +4,7 @@ import ru.den.writes.code.agenticHub.BuildKonfig
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.gemini.GeminiModel
 import ru.den.writes.code.agenticHub.testutils.runLiveTest
+import kotlin.time.Duration.Companion.minutes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -84,7 +85,76 @@ class TurnEngineLiveTest {
         )
     }
 
+    /**
+     * The new engine on the task that normally finishes: 50 runs, one model, no A/B.
+     *
+     * Not a comparison — a look. The question is whether a turn whose decisions come from
+     * `features:fsm` runs at all end to end: stages advance, refusals are charged, the
+     * counters in the task file move, and the run still reaches done as often as before.
+     * The `rtry`/`rstrt`/`spent` columns are the whole point of the table here.
+     */
+    @Test
+    fun `when the fsm engine runs a simple task - then the run reaches done and the budgets show its cost`() =
+        runLiveTest(timeout = BATCH_TIMEOUT) {
+            // given
+            val modelProvider = gemini(GeminiModel.Known.Gemini25FlashLite)
+            val reps = 50
+
+            // when
+            val runs = (0..<reps).map {
+                runTurnEngineWith(modelProvider, SESSION_NAME, SIMPLE_TASK, engineUnderTest = FSM_ENGINE)
+            }
+
+            // then
+            reportGroups(listOf(RunGroup("fsm engine / simple", runs)))
+        }
+
+    /**
+     * The new engine on the task that stalls, with restarts actually executed: 20 runs.
+     *
+     * The other driver only records an escalation; this one carries it out — fresh history
+     * branch, new engine — so the question stops being "does the machine decide to restart"
+     * and becomes "does a restarted attempt behave differently". That is the whole reason
+     * the restart exists, and it is the one thing the plain stand cannot show.
+     *
+     * [RESTART_TURNS] leaves room for it: ten charged turns exhaust the stage budget, the
+     * eleventh restarts, and what follows is the fresh attempt worth watching. Two of those
+     * fit; the five restarts the task budget allows would take three times the calls.
+     */
+    @Test
+    fun `when the fsm engine restarts a minimal task - then the fresh attempt is visible`() =
+        runLiveTest(timeout = BATCH_TIMEOUT) {
+            // given
+            val modelProvider = gemini(GeminiModel.Known.Gemini25FlashLite)
+            val reps = 20
+
+            // when
+            val runs = (0..<reps).map {
+                runRestartingTurnEngineWith(
+                    modelProvider,
+                    SESSION_NAME,
+                    MINIMAL_TASK,
+                    turns = RESTART_TURNS,
+                )
+            }
+
+            // then
+            reportRestartingRuns("fsm engine / minimal / restarts executed", runs)
+        }
+
     private companion object {
         const val SESSION_NAME = "turn-engine-live-test"
+
+        /**
+         * Long enough for two attempts: ten turns burn the stage budget, the eleventh
+         * restarts, and the rest is the fresh attempt the restart was for.
+         */
+        const val RESTART_TURNS = 25
+
+        /**
+         * Several hundred sequential calls per batch — the default fifteen minutes is a
+         * ceiling for a handful of them, not for a stand.
+         */
+        val BATCH_TIMEOUT = 90.minutes
     }
 }
