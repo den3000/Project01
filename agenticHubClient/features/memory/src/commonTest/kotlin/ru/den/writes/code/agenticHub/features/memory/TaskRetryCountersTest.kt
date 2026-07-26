@@ -12,6 +12,7 @@ class TaskRetryCountersTest {
         val notes = TaskNotes(
             taskId = "auth-service",
             stage = TaskStage.EXECUTION,
+            deepestStage = TaskStage.VALIDATION,
             taskRetriesSpent = 2,
             stageRetriesSpent = 7,
             transportRetriesSpent = 1,

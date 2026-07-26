@@ -36,6 +36,13 @@ data class TaskNotes(
     val stage: TaskStage? = null,
     val paused: Boolean = false,
     val notes: List<String> = emptyList(),
+    /**
+     * The furthest stage this attempt reached, which is not where the task stands: a
+     * task that stepped back from validation sits at execution and has still been to
+     * validation. Null in a file written before it existed — the loader then reads the
+     * current stage as the depth, which is the only reading that cannot invent progress.
+     */
+    val deepestStage: TaskStage? = null,
     val taskRetriesSpent: Int = 0,
     val stageRetriesSpent: Int = 0,
     val transportRetriesSpent: Int = 0,

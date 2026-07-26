@@ -322,6 +322,7 @@ public class FileMemoryStore(
                 // Unknown / legacy free-text stage → null (tolerant): the
                 // task simply has no FSM position until one is set.
                 stage = sections["stage"]?.let { TaskStage.byKeyword(it) },
+                deepestStage = sections["deepest"]?.let { TaskStage.byKeyword(it) },
                 paused = sections["paused"]?.trim()?.lowercase() == "true",
                 notes = notes,
                 // Absent / unparsable → 0: a task file written before retries
@@ -351,6 +352,11 @@ public class FileMemoryStore(
             notes.stage?.let {
                 appendLine()
                 appendLine("## Stage")
+                appendLine(it.keyword)
+            }
+            notes.deepestStage?.let {
+                appendLine()
+                appendLine("## Deepest")
                 appendLine(it.keyword)
             }
             if (notes.paused) {
