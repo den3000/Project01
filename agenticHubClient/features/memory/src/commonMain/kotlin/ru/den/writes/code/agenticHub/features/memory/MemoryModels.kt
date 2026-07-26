@@ -22,6 +22,13 @@ data class RuleEntry(val id: String, val text: String)
  * null means "no stage set yet" — a legacy or hand-edited file. [paused] is
  * an orthogonal flag (pause is allowed at any stage); while it's true the
  * agent holds the stage instead of auto-advancing.
+ *
+ * The three `…RetriesSpent` counters are how much failure this task has already
+ * absorbed. Only the spent side is stored, never the ceiling: the ceilings live
+ * in the FSM (`features:fsm`, `RetryState`), and writing them to disk would both
+ * duplicate them and freeze yesterday's value into every existing task file.
+ * This layer stays ignorant of what the numbers mean — it persists them, the FSM
+ * decides on them.
  */
 data class TaskNotes(
     val taskId: String,
@@ -29,4 +36,7 @@ data class TaskNotes(
     val stage: TaskStage? = null,
     val paused: Boolean = false,
     val notes: List<String> = emptyList(),
+    val taskRetriesSpent: Int = 0,
+    val stageRetriesSpent: Int = 0,
+    val transportRetriesSpent: Int = 0,
 )

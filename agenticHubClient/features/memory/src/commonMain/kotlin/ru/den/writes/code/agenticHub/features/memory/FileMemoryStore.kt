@@ -324,8 +324,17 @@ public class FileMemoryStore(
                 stage = sections["stage"]?.let { TaskStage.byKeyword(it) },
                 paused = sections["paused"]?.trim()?.lowercase() == "true",
                 notes = notes,
+                // Absent / unparsable → 0: a task file written before retries
+                // existed reads as a task that has not failed yet, which is the
+                // only reading that cannot punish it for our schema change.
+                taskRetriesSpent = sections["task retries"].toSpentCount(),
+                stageRetriesSpent = sections["stage retries"].toSpentCount(),
+                transportRetriesSpent = sections["transport retries"].toSpentCount(),
             )
         }
+
+        /** A retry counter section: a bare number, or nothing we can use. */
+        private fun String?.toSpentCount(): Int = this?.trim()?.toIntOrNull()?.coerceAtLeast(0) ?: 0
 
         /**
          * Render [TaskNotes] into the canonical on-disk shape. Empty
@@ -354,6 +363,18 @@ public class FileMemoryStore(
                 appendLine("## Notes")
                 notes.notes.forEach { appendLine("- ${it.trim()}") }
             }
+            // Written only once spent, like every other section: a task that has
+            // never failed reads exactly as it did before retries existed.
+            appendSpent("Task retries", notes.taskRetriesSpent)
+            appendSpent("Stage retries", notes.stageRetriesSpent)
+            appendSpent("Transport retries", notes.transportRetriesSpent)
+        }
+
+        private fun StringBuilder.appendSpent(heading: String, spent: Int) {
+            if (spent <= 0) return
+            appendLine()
+            appendLine("## $heading")
+            appendLine(spent.toString())
         }
 
         private val SECTION_HEADER = Regex("^##\\s+(.+?)\\s*$")
