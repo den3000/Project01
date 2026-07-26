@@ -21,6 +21,18 @@ data class Task(
      * loader settles by starting it at [Stage.INITIAL].
      */
     val stage: Stage = Stage.INITIAL,
+    /**
+     * The furthest stage this attempt has reached, which is not the same as where it
+     * stands: a task that stepped back from validation is at execution and has still
+     * reached validation.
+     *
+     * Kept because "the task moved" turned out to be a bad proxy for "the task got
+     * somewhere". A run measured live oscillated `execution ↔ validation` for
+     * twenty-five turns — every move legal, every move resetting the stage budget,
+     * nothing ever charged. The budget refreshes on new ground, and this is what new
+     * ground is measured against.
+     */
+    val deepestStage: Stage = Stage.INITIAL,
     val goal: String? = null,
     val notes: List<String> = emptyList(),
     /** Restarts of the whole task; running out ends the run. */

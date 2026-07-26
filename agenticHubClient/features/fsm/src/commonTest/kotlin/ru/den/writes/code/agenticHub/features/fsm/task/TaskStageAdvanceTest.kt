@@ -51,6 +51,7 @@ class TaskStageAdvanceTest {
         // then
         val expected = task.copy(
             stage = proposed,
+            deepestStage = proposed,
             stageRetryState = RetryState.stage(),
         )
         assertIs<AdvanceOutcome.Advanced>(actual)
@@ -99,6 +100,54 @@ class TaskStageAdvanceTest {
         assertIs<AdvanceOutcome.Advanced>(actual)
         assertEquals(Stage.CLARIFICATION, actual.from)
         assertEquals(proposed, actual.task.stage)
+    }
+
+    @Test
+    fun `when a move revisits ground already reached - then the stage budget is not refreshed`() {
+        // given
+        val spent = RetryState(attempt = 6, max = RetryState.STAGE_MAX)
+        val task = task(stage = Stage.VALIDATION, deepestStage = Stage.VALIDATION, stageRetryState = spent)
+
+        // when
+        val actual = machine.advance(task, Stage.EXECUTION)
+
+        // then
+        assertIs<AdvanceOutcome.Advanced>(actual)
+        assertEquals(spent, actual.task.stageRetryState)
+        assertEquals(Stage.VALIDATION, actual.task.deepestStage)
+    }
+
+    @Test
+    fun `when a task oscillates between two stages - then the budget keeps its charges`() {
+        // given
+        // The loop measured live: execution -> validation -> execution -> … Both moves are
+        // legal, so while the budget refreshed on movement each of them wiped it and the
+        // task was never charged for a single one of its twenty-five turns.
+        val spent = RetryState(attempt = 6, max = RetryState.STAGE_MAX)
+        val task = task(stage = Stage.EXECUTION, deepestStage = Stage.VALIDATION, stageRetryState = spent)
+
+        // when
+        val actual = machine.advance(task, Stage.VALIDATION)
+
+        // then
+        assertIs<AdvanceOutcome.Advanced>(actual)
+        assertEquals(spent, actual.task.stageRetryState)
+    }
+
+    @Test
+    fun `when the depth was never recorded - then the stage the task stands on counts as reached`() {
+        // given
+        // A task built or loaded without a depth: standing at validation means validation
+        // has been reached, whatever the field happens to hold.
+        val spent = RetryState(attempt = 6, max = RetryState.STAGE_MAX)
+        val task = Task(taskId = TASK_ID, stage = Stage.VALIDATION, stageRetryState = spent)
+
+        // when
+        val actual = machine.advance(task, Stage.EXECUTION)
+
+        // then
+        assertIs<AdvanceOutcome.Advanced>(actual)
+        assertEquals(spent, actual.task.stageRetryState)
     }
 
     @Test

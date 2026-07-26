@@ -50,10 +50,17 @@ public class TaskStateMachine {
      * guarantee has to live in code. The model only ever proposes; this decides.
      *
      * Only [AdvanceOutcome.Advanced] changes the task — and it refills the stage
-     * budget, because reaching a new stage is the proof that the task is moving
-     * (see [AdvanceOutcome.Advanced]). Every other outcome hands the task back
-     * untouched and names, in [AdvanceOutcome.reason], the failure the caller
-     * should then spend through [retry].
+     * budget only when the move reaches **new ground**, i.e. a stage deeper than
+     * anything this attempt has already seen ([Task.deepestStage]). Every other
+     * outcome hands the task back untouched and names, in [AdvanceOutcome.reason],
+     * the failure the caller should then spend through [retry].
+     *
+     * Depth rather than movement, because movement is not progress. Measured live:
+     * a run oscillated `execution ↔ validation` for twenty-five turns and was never
+     * charged a thing — a step back is legal, the step forward after it is legal
+     * too, and each of them refreshed the budget. Refreshing on depth leaves an
+     * honest re-plan cheap (going back costs nothing extra) while a loop pays for
+     * every turn of it and eventually restarts.
      */
     fun advance(task: Task, proposed: Stage): AdvanceOutcome {
         val from = task.stage
@@ -64,10 +71,16 @@ public class TaskStateMachine {
         if (!canTransition(from, proposed)) {
             return AdvanceOutcome.Rejected(task, from, proposed, allowedNext(from))
         }
+        // maxOf, not the field alone: a task built or loaded without a recorded depth
+        // has obviously reached the stage it is standing on, and reading it that way
+        // keeps every construction of [Task] sane instead of only the careful ones.
+        val reached = maxOf(task.deepestStage, from)
+        val newGround = proposed.ordinal > reached.ordinal
         return AdvanceOutcome.Advanced(
             task = task.copy(
                 stage = proposed,
-                stageRetryState = RetryState.stage(),
+                deepestStage = maxOf(reached, proposed),
+                stageRetryState = if (newGround) RetryState.stage() else task.stageRetryState,
             ),
             from = from,
             to = proposed,
@@ -139,6 +152,7 @@ public class TaskStateMachine {
         return RetryOutcome.Restarted(
             task.copy(
                 stage = Stage.INITIAL,
+                deepestStage = Stage.INITIAL,
                 taskRetryState = spent,
                 stageRetryState = RetryState.stage(),
             ),

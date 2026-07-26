@@ -57,6 +57,7 @@ class TaskRetryTest {
             assertIs<RetryOutcome.Restarted>(actual)
             assertEquals(task.copy(
                 stage = Stage.CLARIFICATION,
+                deepestStage = Stage.CLARIFICATION,
                 taskRetryState = RetryState(attempt = 1, max = RetryState.TASK_MAX),
                 stageRetryState = RetryState.stage(),
             ), actual.task)
@@ -81,6 +82,7 @@ class TaskRetryTest {
         // then
         val expected = task.copy(
             stage = Stage.CLARIFICATION,
+            deepestStage = Stage.CLARIFICATION,
             taskRetryState = RetryState(attempt = 1, max = RetryState.TASK_MAX),
             stageRetryState = RetryState.stage(),
         )
@@ -112,6 +114,7 @@ class TaskRetryTest {
             assertEquals(
                 task.copy(
                     stage = Stage.CLARIFICATION,
+                    deepestStage = Stage.CLARIFICATION,
                     taskRetryState = RetryState(index + 1, RetryState.TASK_MAX),
                 ),
                 actual.task,
@@ -123,6 +126,7 @@ class TaskRetryTest {
             assertEquals(
                 task.copy(
                     stage = Stage.CLARIFICATION,
+                    deepestStage = Stage.CLARIFICATION,
                     taskRetryState = RetryState(RetryState.TASK_MAX, RetryState.TASK_MAX),
                 ),
                 actual.task,
