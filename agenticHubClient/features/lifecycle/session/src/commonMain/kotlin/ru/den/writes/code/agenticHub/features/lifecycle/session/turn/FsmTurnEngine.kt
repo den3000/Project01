@@ -33,10 +33,10 @@ import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
  * [TurnAttempts]); what differs is the part after it. Where the inline engine has
  * a transition table of its own and nothing else, this one asks
  * [TaskStateMachine] and gets back both the move and its price: a turn the stage
- * paid for spends a budget, an exhausted budget escalates, and the verdict rides
- * out in [TurnResult.fsm] for the view-model to act on. The engine itself acts on
- * nothing beyond persisting the task — restarting a run is not something a turn
- * can do to itself.
+ * paid for spends a budget, an exhausted budget escalates, and the escalation is
+ * carried out here — the task is written back and the conversation moves to a
+ * fresh branch. The verdict still rides out in [TurnResult.fsm], now as a report
+ * of what happened rather than an instruction for someone else to execute.
  *
  * Two behaviours are deliberately not the inline engine's:
  * - a task always has a stage (a file without one starts at the beginning), so
@@ -69,6 +69,13 @@ public class FsmTurnEngine(
     )
 
     private val attempts = TurnAttempts(historyStore, toolDefs, toolExecutor, toolCallLog)
+
+    /**
+     * The branch the run started on. Every restart hangs its own branch off this
+     * one, so the second restart names itself from the original rather than from
+     * the branch the first one opened.
+     */
+    private val baseBranch: String? = historyStore?.branchId
 
     /**
      * The retry charged on the previous turn, held so THIS turn can tell the model
@@ -157,7 +164,7 @@ public class FsmTurnEngine(
      * What this turn did to the task: the move if there was one, and the retry it
      * cost if there wasn't. A turn with no active task decides nothing.
      */
-    private fun decide(notes: TaskNotes?, task: Task?, proposed: TaskStage?): Decided {
+    private suspend fun decide(notes: TaskNotes?, task: Task?, proposed: TaskStage?): Decided {
         if (notes == null || task == null) return Decided(StageAdvance.None, null)
         // No marker at all — the quiet stall. It never reaches `advance`: there is
         // nothing to advance to, and the FSM only ever judges a proposal.
@@ -198,7 +205,7 @@ public class FsmTurnEngine(
      * verdict — a spent budget is a fact even when the run is over, and a report
      * that cannot see it cannot explain why the task stopped.
      */
-    private fun charge(
+    private suspend fun charge(
         notes: TaskNotes?,
         task: Task?,
         reason: RetryReason,
@@ -210,7 +217,38 @@ public class FsmTurnEngine(
         // Only a plain retry talks to the model: a restarted task must not learn it
         // was restarted, and a run that gave up has nobody left to tell.
         if (outcome is RetryOutcome.Retried) pendingFeedback = RetryFeedback(reason, proposed)
+        if (outcome is RetryOutcome.Restarted) restart(outcome.task)
         return outcome
+    }
+
+    /**
+     * Make the restart real. The machine has already put the task back to the
+     * beginning and [save] has written it, but the task is only one of the things a
+     * restart has to forget: the conversation is what the model actually reads, and
+     * left alone it would carry the whole failed attempt into the fresh one. A new
+     * branch empties the wire while the old turns stay in the database, where a
+     * report can still count them.
+     *
+     * Nothing else in the engine needs resetting, which is why this is one call and
+     * not a rebuild. [pendingFeedback] is already null here — a turn clears it on the
+     * way in and only a plain retry re-arms it — and everything else about the task is
+     * re-read from disk on the next turn. What deliberately survives is [toolCallLog]:
+     * a tool that ran has had its effect, and a fresh attempt that cannot see it will
+     * be judged for inventing the ticket it actually created.
+     *
+     * **The branch only holds while this engine is alive.** [baseBranch] is a field and
+     * nothing persists which branch a restarted task ended up on, while a session opens
+     * `DEFAULT_BRANCH` on startup. Restart a task, quit, come back — and the run resumes
+     * on the branch of the attempt that FAILED, with everything the restart did stranded
+     * where nobody looks. The same goes for the rolling summary and the sticky facts:
+     * both hang off (session, branch), so the fresh attempt starts without them. Fixing
+     * it belongs at session start (open the task's latest branch, not `main`), not here.
+     */
+    private suspend fun restart(task: Task) {
+        val base = baseBranch ?: return
+        // The number names the attempt about to start, so the first restart opens
+        // attempt two: one restart spent means one attempt already behind us.
+        historyStore?.switchTo("$base-attempt-${task.taskRetryState.attempt + 1}")
     }
 
     private fun save(notes: TaskNotes, task: Task) {

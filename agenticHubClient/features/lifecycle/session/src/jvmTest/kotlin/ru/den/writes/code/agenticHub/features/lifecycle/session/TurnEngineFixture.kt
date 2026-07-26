@@ -64,6 +64,9 @@ internal class TurnEngineFixture(
     /** History as the next session would load it: both sides of every persisted turn. */
     suspend fun persistedMessages(): List<Message> =
         RoomHistoryStore(dao, sessionId = sessionId).apply { load() }.messages
+
+    /** Branches this session has rows in, oldest first — a restart opens another one. */
+    suspend fun branches(): List<String> = RoomHistoryStore(dao, sessionId = sessionId).branches()
 }
 
 /**
