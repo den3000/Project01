@@ -17,6 +17,55 @@ package ru.den.writes.code.agenticHub.features.fsm
 public class TaskStateMachine {
 
     /**
+     * Everything one turn does to [task], from what the caller observed ([reason])
+     * to what the task becomes ([UpdateDecision]).
+     *
+     * The single entry point for running a task. [advance] and [retry] answer half a
+     * question each — "may it move" and "what does a failure cost" — and every caller
+     * of them had to know how to join the halves: that a legal move can still be
+     * charged, that a blocked answer costs the stage while a dead provider does not,
+     * that a restarted task is not told it was restarted. Those are rules, and having
+     * them live at the call site meant a second caller would get to invent them again.
+     *
+     * Still no I/O: the decision is returned, not applied. Persisting the task,
+     * branching the conversation and wording the feedback stay outside, where they
+     * can happen; here they cannot even be named.
+     */
+    fun update(task: Task, reason: UpdateReason): UpdateDecision = when (reason) {
+        is UpdateReason.StageProposed -> {
+            val advance = advance(task, reason.stage)
+            when (val price = advance.reason) {
+                // A move onto new ground: the stage budget already came back fresh
+                // inside `advance`, and the turn owes nothing.
+                null -> UpdateDecision(advance.task, advance, retryOutcome = null, retryReason = null)
+                // Applied but no further along (a step back, or the step forward that
+                // undoes one), repeated, or refused — the move is charged to the task
+                // as `advance` left it, so the stage it now sits on is the one paying.
+                else -> charge(advance.task, price).copy(advance = advance)
+            }
+        }
+
+        UpdateReason.NoStageProposed -> charge(task, RetryReason.NO_MARKER)
+        UpdateReason.JudgeBlocked -> charge(task, RetryReason.JUDGE_BLOCKED)
+        UpdateReason.TransportFailed -> charge(task, RetryReason.TRANSPORT_FAILED)
+    }
+
+    /**
+     * Spend [reason] and wrap the verdict for the caller. The model hears about it
+     * only when the task simply tries again: a restart is meant to be invisible to
+     * it, and a run that gave up has nobody left to tell.
+     */
+    private fun charge(task: Task, reason: RetryReason): UpdateDecision {
+        val outcome = retry(task, reason)
+        return UpdateDecision(
+            task = outcome.task,
+            advance = null,
+            retryOutcome = outcome,
+            retryReason = reason.takeIf { outcome is RetryOutcome.Retried },
+        )
+    }
+
+    /**
      * Stages reachable from [stage] in one step: forward, plus a single step back
      * to revisit the prior phase. [Stage.DONE] is terminal (empty set) — a
      * finished task is not reopened automatically.
