@@ -181,8 +181,9 @@ cat <<EOF
   bash demo/project-fs/run-usage-report.sh     карта сетевого слоя -> docs/usage-network.md
   bash demo/project-fs/run-adr.sh              решение о хранении -> docs/adr-0001-local-persistence.md
 
-Модель: gemini-2.5-flash (дефолт клиента). Судья удваивает вызовы на ход, а забракованный
-ход добавляет ещё два - переписывание и повторный суд.
+Провайдер: $(provider_label), индекс '$RAG_NAME'. Обёртка примет те же PROVIDER/MODEL, что и этот
+setup - индекс собран под ЭТОТ бэкенд эмбеддера, и с другим провайдером его не найдут.
+Судья удваивает вызовы на ход, а забракованный ход добавляет ещё два - переписывание и повторный суд.
 
 Аварийный выход, если прогон встал на повторяющемся [invariant] violated:
   JUDGE=0 bash demo/project-fs/run-usage-report.sh
