@@ -5,7 +5,7 @@ package ru.den.writes.code.agenticHub.features.fsm
  * `clarification → planning → execution → validation → done`, with single
  * step-backs allowed. The stage is the piece of working memory that turns a
  * loose chat into a controlled process: it is injected into every turn (so the
- * model knows which phase it is in) and persisted (so a paused task resumes
+ * model knows which phase it is in) and persisted (so a task resumes
  * where it stopped).
  *
  * [keyword] is the lowercase token used on the wire, in `## Stage` markdown, and

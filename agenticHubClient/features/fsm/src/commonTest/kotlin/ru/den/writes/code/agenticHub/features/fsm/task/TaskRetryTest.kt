@@ -66,7 +66,6 @@ class TaskRetryTest {
         // given
         val task = task(
             stage = Stage.VALIDATION,
-            paused = true,
             notes = listOf("scope agreed"),
             stageRetryState = RetryState(attempt = 4, max = RetryState.STAGE_MAX),
             transportRetryState = RetryState(attempt = 2, max = RetryState.TRANSPORT_MAX),
@@ -80,7 +79,6 @@ class TaskRetryTest {
         // then
         val expected = task.copy(
             stage = Stage.CLARIFICATION,
-            paused = false,
             taskRetryState = RetryState(attempt = 1, max = RetryState.TASK_MAX),
             stageRetryState = RetryState.stage(),
         )
@@ -184,19 +182,5 @@ class TaskRetryTest {
                 actual.task,
             )
         }
-    }
-
-    @Test
-    fun `when a paused task is retried - then the pause does not shield the budget`() {
-        // given
-        val task = task(paused = true, notes = listOf("scope agreed"))
-
-        // when
-        val actual = TaskStateMachine.retry(task, RetryReason.NO_MARKER)
-
-        // then
-        val expected = task.copy(stageRetryState = RetryState(attempt = 1, max = RetryState.STAGE_MAX))
-        assertIs<RetryOutcome.Retried>(actual)
-        assertEquals(expected, actual.task)
     }
 }

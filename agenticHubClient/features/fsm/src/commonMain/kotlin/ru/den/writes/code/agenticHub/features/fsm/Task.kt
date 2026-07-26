@@ -2,8 +2,8 @@ package ru.den.writes.code.agenticHub.features.fsm
 
 /**
  * A task and everything the FSM needs to keep running it: where it is ([stage]),
- * what it is for ([goal] / [notes]), whether it is holding ([paused]), and how
- * much failure it may still absorb (the three budgets).
+ * what it is for ([goal] / [notes]), and how much failure it may still absorb
+ * (the three budgets).
  *
  * State only — every decision about it lives in [TaskStateMachine]. Reading a
  * field tells you where the task stands; it never tells you what happens next.
@@ -21,7 +21,6 @@ data class Task(
      * loader settles by starting it at [Stage.INITIAL].
      */
     val stage: Stage = Stage.INITIAL,
-    val paused: Boolean = false,
     val goal: String? = null,
     val notes: List<String> = emptyList(),
     /** Restarts of the whole task; running out ends the run. */

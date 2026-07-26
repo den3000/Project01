@@ -11,7 +11,6 @@ import ru.den.writes.code.agenticHub.features.fsm.Task
  */
 internal fun task(
     stage: Stage = Stage.EXECUTION,
-    paused: Boolean = false,
     notes: List<String> = emptyList(),
     taskRetryState: RetryState = RetryState.task(),
     stageRetryState: RetryState = RetryState.stage(),
@@ -19,7 +18,6 @@ internal fun task(
 ): Task = Task(
     taskId = TASK_ID,
     stage = stage,
-    paused = paused,
     goal = GOAL,
     notes = notes,
     taskRetryState = taskRetryState,

@@ -57,13 +57,4 @@ sealed interface AdvanceOutcome {
     ) : AdvanceOutcome {
         override val reason: RetryReason get() = RetryReason.STAGE_REJECTED
     }
-
-    /**
-     * The task is paused, so the proposal was not considered at all. Not a
-     * failure: pause is a standing instruction to hold the stage, and charging a
-     * retry for obeying it would restart a task that is doing what it was told.
-     */
-    data class Held(override val task: Task) : AdvanceOutcome {
-        override val reason: RetryReason? get() = null
-    }
 }

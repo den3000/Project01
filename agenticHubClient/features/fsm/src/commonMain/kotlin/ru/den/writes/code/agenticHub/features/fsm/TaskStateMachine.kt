@@ -52,9 +52,6 @@ object TaskStateMachine {
      * should then spend through [retry].
      */
     fun advance(task: Task, proposed: Stage): AdvanceOutcome {
-        // Pause is orthogonal to the stage and outranks it: while it is on, the
-        // task holds where it is and a proposal is not a failure to be charged for.
-        if (task.paused) return AdvanceOutcome.Held(task)
         val from = task.stage
         // Not a move, but not an illegal one either: the model used the marker to
         // label where it already is. Its own outcome, so the caller can say so
@@ -138,7 +135,6 @@ object TaskStateMachine {
         return RetryOutcome.Restarted(
             task.copy(
                 stage = Stage.INITIAL,
-                paused = false,
                 taskRetryState = spent,
                 stageRetryState = RetryState.stage(),
             ),
