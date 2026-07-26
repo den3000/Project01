@@ -5,6 +5,7 @@ import org.koin.core.Koin
 import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.InlineFsmTurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.Message
@@ -89,7 +90,7 @@ internal suspend fun <T> TestScope.withTurnEngine(
     val memStore = FileMemoryStore(fsRoot.absolutePath, fs = koin.get<LocalFileSystem>())
     task?.let(memStore::saveTask)
     val dao = koin.get<MessageDao>()
-    val engine = TurnEngine(
+    val engine = InlineFsmTurnEngine(
         newChat(prompt, sessionName, modelProvider, temperature),
         llmApi(koin),
         RoomHistoryStore(dao, sessionId = sessionName),

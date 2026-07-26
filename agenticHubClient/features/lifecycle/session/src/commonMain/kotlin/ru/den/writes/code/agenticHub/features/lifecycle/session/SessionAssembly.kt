@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.TaskHandlerImpl
 import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.ScheduleAction
 import ru.den.writes.code.agenticHub.features.lifecycle.session.scheduling.SchedulerControl
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.InlineFsmTurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
@@ -60,11 +61,11 @@ public fun buildSessionViewModel(
     val multiAgent = routedAgents.isNotEmpty()
     val schedules = (cliArgs as? StartCommand.RunChat)?.config?.schedules.orEmpty()
     val schedulerEnabled = schedules.isNotEmpty()
-    val engine = TurnEngine(
+    val engine = InlineFsmTurnEngine(
         cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor, ragControl,
         // Real sessions get the stall nudge: on a weak model the task FSM otherwise degenerates into a
         // silent NO_MOVE loop (the model re-signals the current stage). Task-less chat never stalls, so
-        // it is unaffected. See TurnEngine.stallHint.
+        // it is unaffected. See InlineFsmTurnEngine.stallHint.
         stallHint = true,
     )
 
