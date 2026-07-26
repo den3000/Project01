@@ -10,12 +10,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class TaskRestartTest {
 
     @Test
-    fun `when a restart lands - then both inner budgets are fresh`() {
+    fun `when a stage escalation restarts the task - then both inner budgets are fresh`() {
         // given
         val task = task(
             turnRetryState = spentToTheLast(RetryState.turn()),
@@ -36,10 +35,13 @@ class TaskRestartTest {
         // given
         val task = task(stage = Stage.VALIDATION, paused = true)
         val reasons = RetryReason.entries.filter { it.level == RetryLevel.TASK }
+        require(reasons.isNotEmpty()) { "no TASK-level reasons to cover" }
 
-        // when - then
-        reasons.forEach { reason ->
-            val actual = TaskStateMachine.retry(task, reason)
+        // when
+        val actuals = reasons.map { reason -> reason to TaskStateMachine.retry(task, reason) }
+
+        // then
+        actuals.forEach { (reason, actual) ->
             assertIs<RetryOutcome.Restarted>(actual, "outcome($reason)")
             assertEquals(Stage.CLARIFICATION, actual.task.stage, "stage($reason)")
             assertFalse(actual.task.paused, "paused($reason)")
@@ -97,15 +99,13 @@ class TaskRestartTest {
     @Test
     fun `when the run gives up - then it carries the state the task died in`() {
         // given
-        val stage = Stage.VALIDATION
-        val task = task(stage = stage, taskRetryState = spentToTheLast(RetryState.task()))
+        val task = task(stage = Stage.VALIDATION, taskRetryState = spentToTheLast(RetryState.task()))
 
         // when
         val actual = TaskStateMachine.retry(task, RetryReason.USER_RESTART)
 
         // then
         assertIs<RetryOutcome.GaveUp>(actual)
-        assertEquals(stage, actual.task.stage)
-        assertTrue(actual.task.taskRetryState.exhausted)
+        assertEquals(task, actual.task)
     }
 }

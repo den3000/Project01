@@ -15,15 +15,18 @@ class TaskStageRetryTest {
     @Test
     fun `when a stage-level reason is retried - then only the stage budget is spent`() {
         // given
-        val task = task()
+        val task = task(stage = Stage.PLANNING, notes = listOf("scope agreed"))
         val reasons = RetryReason.entries.filter { it.level == RetryLevel.STAGE }
+        require(reasons.isNotEmpty()) { "no STAGE-level reasons to cover" }
+        val expected = task.copy(stageRetryState = RetryState(attempt = 1, max = RetryState.STAGE_MAX))
 
-        // when - then
-        reasons.forEach { reason ->
-            val actual = TaskStateMachine.retry(task, reason)
+        // when
+        val actuals = reasons.map { reason -> reason to TaskStateMachine.retry(task, reason) }
+
+        // then
+        actuals.forEach { (reason, actual) ->
             assertIs<RetryOutcome.Retried>(actual, "outcome($reason)")
-            assertEquals(1, actual.task.stageRetryState.attempt, "stage attempt($reason)")
-            assertEquals(0, actual.task.taskRetryState.attempt, "task attempt($reason)")
+            assertEquals(expected, actual.task, "task($reason)")
         }
     }
 

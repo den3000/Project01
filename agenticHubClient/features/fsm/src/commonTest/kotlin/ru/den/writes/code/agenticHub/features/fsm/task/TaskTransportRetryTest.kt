@@ -3,6 +3,7 @@ package ru.den.writes.code.agenticHub.features.fsm.task
 import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.fsm.RetryReason
 import ru.den.writes.code.agenticHub.features.fsm.RetryState
+import ru.den.writes.code.agenticHub.features.fsm.Stage
 import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,16 +14,17 @@ class TaskTransportRetryTest {
     @Test
     fun `when a transport failure is retried - then only the transport budget is spent`() {
         // given
-        val task = task()
+        val task = task(stage = Stage.PLANNING, notes = listOf("scope agreed"))
+        val expected = task.copy(
+            transportRetryState = RetryState(attempt = 1, max = RetryState.TRANSPORT_MAX),
+        )
 
         // when
         val actual = TaskStateMachine.retry(task, RetryReason.TRANSPORT_FAILED)
 
         // then
         assertIs<RetryOutcome.Retried>(actual)
-        assertEquals(1, actual.task.transportRetryState.attempt)
-        assertEquals(0, actual.task.turnRetryState.attempt)
-        assertEquals(0, actual.task.taskRetryState.attempt)
+        assertEquals(expected, actual.task)
     }
 
     @Test
@@ -36,7 +38,7 @@ class TaskTransportRetryTest {
         // then
         assertIs<RetryOutcome.GaveUp>(actual)
         assertEquals(RetryReason.TRANSPORT_FAILED, actual.reason)
-        assertEquals(0, actual.task.taskRetryState.attempt)
+        assertEquals(task, actual.task)
     }
 
     @Test

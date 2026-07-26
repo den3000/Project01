@@ -15,16 +15,18 @@ class TaskTurnRetryTest {
     @Test
     fun `when a turn-level reason is retried - then only the turn budget is spent`() {
         // given
-        val task = task()
+        val task = task(stage = Stage.PLANNING, notes = listOf("scope agreed"))
         val reasons = RetryReason.entries.filter { it.level == RetryLevel.TURN }
+        require(reasons.isNotEmpty()) { "no TURN-level reasons to cover" }
+        val expected = task.copy(turnRetryState = RetryState(attempt = 1, max = RetryState.TURN_MAX))
 
-        // when - then
-        reasons.forEach { reason ->
-            val actual = TaskStateMachine.retry(task, reason)
+        // when
+        val actuals = reasons.map { reason -> reason to TaskStateMachine.retry(task, reason) }
+
+        // then
+        actuals.forEach { (reason, actual) ->
             assertIs<RetryOutcome.Retried>(actual, "outcome($reason)")
-            assertEquals(1, actual.task.turnRetryState.attempt, "turn attempt($reason)")
-            assertEquals(0, actual.task.stageRetryState.attempt, "stage attempt($reason)")
-            assertEquals(0, actual.task.taskRetryState.attempt, "task attempt($reason)")
+            assertEquals(expected, actual.task, "task($reason)")
         }
     }
 
@@ -34,14 +36,18 @@ class TaskTurnRetryTest {
         val stage = Stage.PLANNING
         val notes = listOf("scope agreed")
         val task = task(stage = stage, notes = notes)
+        val reasons = RetryReason.entries.filter { it.level == RetryLevel.TURN }
+        require(reasons.isNotEmpty()) { "no TURN-level reasons to cover" }
 
         // when
-        val actual = TaskStateMachine.retry(task, RetryReason.JUDGE_REWRITE)
+        val actuals = reasons.map { reason -> reason to TaskStateMachine.retry(task, reason) }
 
         // then
-        assertIs<RetryOutcome.Retried>(actual)
-        assertEquals(stage, actual.task.stage)
-        assertEquals(notes, actual.task.notes)
+        actuals.forEach { (reason, actual) ->
+            assertIs<RetryOutcome.Retried>(actual, "outcome($reason)")
+            assertEquals(stage, actual.task.stage, "stage($reason)")
+            assertEquals(notes, actual.task.notes, "notes($reason)")
+        }
     }
 
     @Test
