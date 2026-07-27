@@ -1,18 +1,25 @@
 package ru.den.writes.code.agenticHub.features.fsm.task
 
+import ru.den.writes.code.agenticHub.features.fsm.AdvanceOutcome
 import ru.den.writes.code.agenticHub.features.fsm.Stage
 import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachineImpl
+import ru.den.writes.code.agenticHub.features.fsm.UpdateDecision
+import ru.den.writes.code.agenticHub.features.fsm.UpdateReason
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
 
+/**
+ * The transition table, read the only way anyone outside can read it: by proposing a move and
+ * seeing whether it was applied or refused. Where a stage may go is checked from the same answer
+ * — that list is what the next prompt quotes back.
+ */
 class TaskTransitionsTest {
 
     private val machine = TaskStateMachineImpl()
 
     @Test
-    fun `when allowedNext queried - then matches the transition table`() {
+    fun `when a stage names itself - then the onward stages match the transition table`() {
         // given
         val table = mapOf(
             Stage.CLARIFICATION to setOf(Stage.PLANNING),
@@ -23,16 +30,16 @@ class TaskTransitionsTest {
         )
 
         Stage.entries.forEach { from ->
-            // when
-            val to = machine.allowedNext(from)
+            // when — a re-signal leaves the task where it stands, so the answer is `from`'s row
+            val actual = propose(from, from)
 
             // then
-            assertEquals(table[from], to, "allowedNext($from)")
+            assertEquals(table[from], actual.allowedNext, "allowedNext($from)")
         }
     }
 
     @Test
-    fun `when canTransition along the forward path - then allowed`() {
+    fun `when the move follows the forward path - then it is applied`() {
         // given
         val forward = listOf(
             Stage.CLARIFICATION to Stage.PLANNING,
@@ -43,12 +50,12 @@ class TaskTransitionsTest {
 
         // when - then
         forward.forEach { (from, to) ->
-            assertTrue(machine.canTransition(from, to), "$from -> $to should be allowed")
+            assertIs<AdvanceOutcome.Advanced>(propose(from, to).advance, "$from -> $to should be allowed")
         }
     }
 
     @Test
-    fun `when canTransition steps back one stage - then allowed`() {
+    fun `when the move steps back one stage - then it is applied`() {
         // given
         val back = listOf(
             Stage.PLANNING to Stage.CLARIFICATION,
@@ -58,12 +65,12 @@ class TaskTransitionsTest {
 
         // when - then
         back.forEach { (from, to) ->
-            assertTrue(machine.canTransition(from, to), "$from -> $to should be allowed")
+            assertIs<AdvanceOutcome.Advanced>(propose(from, to).advance, "$from -> $to should be allowed")
         }
     }
 
     @Test
-    fun `when canTransition skips a stage forward - then rejected`() {
+    fun `when the move skips a stage forward - then it is refused`() {
         // given
         val illegal = listOf(
             Stage.CLARIFICATION to Stage.EXECUTION,
@@ -75,12 +82,12 @@ class TaskTransitionsTest {
 
         // when - then
         illegal.forEach { (from, to) ->
-            assertFalse(machine.canTransition(from, to), "$from -> $to should be rejected")
+            assertIs<AdvanceOutcome.Rejected>(propose(from, to).advance, "$from -> $to should be rejected")
         }
     }
 
     @Test
-    fun `when canTransition steps back over a stage - then rejected`() {
+    fun `when the move steps back over a stage - then it is refused`() {
         // given
         val illegal = listOf(
             Stage.EXECUTION to Stage.CLARIFICATION,
@@ -90,15 +97,18 @@ class TaskTransitionsTest {
 
         // when - then
         illegal.forEach { (from, to) ->
-            assertFalse(machine.canTransition(from, to), "$from -> $to should be rejected")
+            assertIs<AdvanceOutcome.Rejected>(propose(from, to).advance, "$from -> $to should be rejected")
         }
     }
 
     @Test
-    fun `when canTransition from done - then every target is rejected`() {
-        // when - then
-        Stage.entries.forEach { to ->
-            assertFalse(machine.canTransition(Stage.DONE, to), "done -> $to should be rejected")
+    fun `when a done task is moved anywhere - then every target is refused`() {
+        // when - then — naming done again is a re-signal, not a move, so it is asked separately
+        Stage.entries.filter { it != Stage.DONE }.forEach { to ->
+            assertIs<AdvanceOutcome.Rejected>(propose(Stage.DONE, to).advance, "done -> $to should be rejected")
         }
     }
+
+    private fun propose(from: Stage, to: Stage): UpdateDecision =
+        machine.update(task(stage = from, deepestStage = from), UpdateReason.StageProposed(to))
 }

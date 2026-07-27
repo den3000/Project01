@@ -6,13 +6,19 @@ import ru.den.writes.code.agenticHub.features.fsm.RetryState
 import ru.den.writes.code.agenticHub.features.fsm.Stage
 import ru.den.writes.code.agenticHub.features.fsm.Task
 import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachineImpl
+import ru.den.writes.code.agenticHub.features.fsm.UpdateDecision
+import ru.den.writes.code.agenticHub.features.fsm.UpdateReason
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/**
+ * What a proposed stage does to the task: the move itself and what it costs. Driven through
+ * `update`, the way the engine drives it, so a move and its price are read from one answer.
+ */
 class TaskStageAdvanceTest {
 
     private val machine = TaskStateMachineImpl()
@@ -25,14 +31,14 @@ class TaskStageAdvanceTest {
         val task = task(stage = stage)
 
         // when
-        val actual = machine.advance(task, proposed)
+        val actual = propose(task, proposed)
 
         // then
-        assertIs<AdvanceOutcome.Advanced>(actual)
-        assertEquals(stage, actual.from)
-        assertEquals(proposed, actual.to)
+        val advance = assertIs<AdvanceOutcome.Advanced>(actual.advance)
+        assertEquals(stage, advance.from)
+        assertEquals(proposed, advance.to)
         assertEquals(proposed, actual.task.stage)
-        assertNull(actual.reason)
+        assertNull(actual.retryReason)
     }
 
     @Test
@@ -48,7 +54,7 @@ class TaskStageAdvanceTest {
         val proposed = Stage.EXECUTION
 
         // when
-        val actual = machine.advance(task, proposed)
+        val actual = propose(task, proposed)
 
         // then
         val expected = task.copy(
@@ -56,7 +62,6 @@ class TaskStageAdvanceTest {
             deepestStage = proposed,
             stageRetryState = RetryState.stage(),
         )
-        assertIs<AdvanceOutcome.Advanced>(actual)
         assertEquals(expected, actual.task)
     }
 
@@ -79,14 +84,14 @@ class TaskStageAdvanceTest {
         val proposed = Stage.DONE
 
         // when
-        val actual = machine.advance(task, proposed)
+        val actual = propose(task, proposed)
 
         // then
-        assertIs<AdvanceOutcome.Rejected>(actual)
-        assertEquals(Stage.CLARIFICATION, actual.from)
-        assertEquals(proposed, actual.proposed)
-        assertEquals(setOf(Stage.PLANNING), actual.allowed)
-        assertEquals(task, actual.task)
+        val advance = assertIs<AdvanceOutcome.Rejected>(actual.advance)
+        assertEquals(Stage.CLARIFICATION, advance.from)
+        assertEquals(proposed, advance.proposed)
+        assertEquals(setOf(Stage.PLANNING), advance.allowed)
+        assertEquals(Stage.CLARIFICATION, actual.task.stage)
     }
 
     @Test
@@ -96,11 +101,11 @@ class TaskStageAdvanceTest {
         val proposed = Stage.PLANNING
 
         // when
-        val actual = machine.advance(task, proposed)
+        val actual = propose(task, proposed)
 
         // then
-        assertIs<AdvanceOutcome.Advanced>(actual)
-        assertEquals(Stage.CLARIFICATION, actual.from)
+        val advance = assertIs<AdvanceOutcome.Advanced>(actual.advance)
+        assertEquals(Stage.CLARIFICATION, advance.from)
         assertEquals(proposed, actual.task.stage)
     }
 
@@ -111,13 +116,13 @@ class TaskStageAdvanceTest {
         val task = task(stage = Stage.VALIDATION, deepestStage = Stage.VALIDATION, stageRetryState = spent)
 
         // when
-        val actual = machine.advance(task, Stage.EXECUTION)
+        val actual = propose(task, Stage.EXECUTION)
 
-        // then
-        assertIs<AdvanceOutcome.Advanced>(actual)
-        assertFalse(actual.newGround)
-        assertEquals(RetryReason.STAGE_REVISITED, actual.reason)
-        assertEquals(spent, actual.task.stageRetryState)
+        // then — the move applies, and the turn costs one attempt on the standing budget
+        val advance = assertIs<AdvanceOutcome.Advanced>(actual.advance)
+        assertFalse(advance.newGround)
+        assertEquals(RetryReason.STAGE_REVISITED, actual.retryReason)
+        assertEquals(spent.attempt + 1, actual.task.stageRetryState.attempt)
         assertEquals(Stage.VALIDATION, actual.task.deepestStage)
     }
 
@@ -128,13 +133,13 @@ class TaskStageAdvanceTest {
         val task = task(stage = Stage.EXECUTION, deepestStage = Stage.VALIDATION, stageRetryState = spent)
 
         // when — forward on the table, but the task has stood on validation before
-        val actual = machine.advance(task, Stage.VALIDATION)
+        val actual = propose(task, Stage.VALIDATION)
 
         // then
-        assertIs<AdvanceOutcome.Advanced>(actual)
-        assertFalse(actual.newGround)
-        assertEquals(RetryReason.STAGE_REVISITED, actual.reason)
-        assertEquals(spent, actual.task.stageRetryState)
+        val advance = assertIs<AdvanceOutcome.Advanced>(actual.advance)
+        assertFalse(advance.newGround)
+        assertEquals(RetryReason.STAGE_REVISITED, actual.retryReason)
+        assertEquals(spent.attempt + 1, actual.task.stageRetryState.attempt)
         assertEquals(Stage.VALIDATION, actual.task.deepestStage)
     }
 
@@ -145,12 +150,12 @@ class TaskStageAdvanceTest {
         val task = task(stage = Stage.PLANNING, deepestStage = Stage.PLANNING, stageRetryState = spent)
 
         // when
-        val actual = machine.advance(task, Stage.EXECUTION)
+        val actual = propose(task, Stage.EXECUTION)
 
         // then
-        assertIs<AdvanceOutcome.Advanced>(actual)
-        assertTrue(actual.newGround)
-        assertNull(actual.reason)
+        val advance = assertIs<AdvanceOutcome.Advanced>(actual.advance)
+        assertTrue(advance.newGround)
+        assertNull(actual.retryReason)
         assertEquals(RetryState.stage(), actual.task.stageRetryState)
     }
 
@@ -163,11 +168,11 @@ class TaskStageAdvanceTest {
         val task = Task(taskId = TASK_ID, stage = Stage.VALIDATION, stageRetryState = spent)
 
         // when
-        val actual = machine.advance(task, Stage.EXECUTION)
+        val actual = propose(task, Stage.EXECUTION)
 
-        // then
-        assertIs<AdvanceOutcome.Advanced>(actual)
-        assertEquals(spent, actual.task.stageRetryState)
+        // then — no free refresh: the step back is charged like any other revisit
+        assertEquals(RetryReason.STAGE_REVISITED, actual.retryReason)
+        assertEquals(spent.attempt + 1, actual.task.stageRetryState.attempt)
     }
 
     @Test
@@ -177,14 +182,14 @@ class TaskStageAdvanceTest {
         val task = task(stage = stage)
 
         // when
-        val actual = machine.advance(task, stage)
+        val actual = propose(task, stage)
 
         // then
-        assertIs<AdvanceOutcome.Repeated>(actual)
-        assertEquals(stage, actual.stage)
-        assertEquals(setOf(Stage.VALIDATION, Stage.PLANNING), actual.allowed)
-        assertEquals(task, actual.task)
-        assertEquals(RetryReason.STAGE_REPEATED, actual.reason)
+        val advance = assertIs<AdvanceOutcome.Repeated>(actual.advance)
+        assertEquals(stage, advance.stage)
+        assertEquals(setOf(Stage.VALIDATION, Stage.PLANNING), advance.allowed)
+        assertEquals(stage, actual.task.stage)
+        assertEquals(RetryReason.STAGE_REPEATED, actual.retryReason)
     }
 
     @Test
@@ -195,14 +200,17 @@ class TaskStageAdvanceTest {
         val task = task(stage = stage)
 
         // when
-        val actual = machine.advance(task, proposed)
+        val actual = propose(task, proposed)
 
         // then
-        assertIs<AdvanceOutcome.Rejected>(actual)
-        assertEquals(stage, actual.from)
-        assertEquals(proposed, actual.proposed)
-        assertEquals(setOf(Stage.EXECUTION, Stage.CLARIFICATION), actual.allowed)
-        assertEquals(task, actual.task)
-        assertEquals(RetryReason.STAGE_REJECTED, actual.reason)
+        val advance = assertIs<AdvanceOutcome.Rejected>(actual.advance)
+        assertEquals(stage, advance.from)
+        assertEquals(proposed, advance.proposed)
+        assertEquals(setOf(Stage.EXECUTION, Stage.CLARIFICATION), advance.allowed)
+        assertEquals(stage, actual.task.stage)
+        assertEquals(RetryReason.STAGE_REJECTED, actual.retryReason)
     }
+
+    private fun propose(task: Task, stage: Stage): UpdateDecision =
+        machine.update(task, UpdateReason.StageProposed(stage))
 }
