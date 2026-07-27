@@ -142,9 +142,9 @@ class TaskMoveTest {
 
     @Test
     fun `when a stage names itself - then nothing moves and the turn is charged`() {
-        // given — every stage but the terminal one, which is charged nothing at all (TaskTerminalTest)
+        // given
         val spent = RetryState(attempt = 3, max = RetryState.STAGE_MAX)
-        val tasks = Stage.entries.filter { it != Stage.DONE }.map { stage -> task(stage = stage, stageRetryState = spent) }
+        val tasks = Stage.entries.map { stage -> task(stage = stage, stageRetryState = spent) }
 
         // when
         val actuals = tasks.fold(emptyList<Pair<Task, UpdateDecision>>()) { moves, task ->
@@ -162,6 +162,28 @@ class TaskMoveTest {
         }
     }
 
-    // Moves out of DONE live in `TaskTerminalTest`: the table refuses them like any other
-    // illegal move, but a finished task pays for nothing, and that rule is that file's.
+    @Test
+    fun `when a done task is moved anywhere - then every target is refused and charged`() {
+        // given
+        val spent = RetryState(attempt = 3, max = RetryState.STAGE_MAX)
+        val task = task(stage = Stage.DONE, stageRetryState = spent)
+        val targets = Stage.entries.filter { it != Stage.DONE }
+
+        // when
+        val actuals = targets.fold(emptyList<Pair<Stage, UpdateDecision>>()) { moves, to ->
+            moves + (to to machine.update(task, UpdateReason.StageProposed(to)))
+        }
+
+        // then
+        actuals.forEach { (to, actual) ->
+            val move = "done -> $to"
+            val advance = assertIs<AdvanceOutcome.Rejected>(actual.advance, "outcome($move)")
+            assertEquals(Stage.DONE, advance.from, "from($move)")
+            assertEquals(to, advance.proposed, "proposed($move)")
+            assertEquals(emptySet(), advance.allowed, "allowed($move)")
+            assertEquals(Stage.DONE, actual.task.stage, "stage($move)")
+            assertEquals(RetryReason.STAGE_REJECTED, actual.retryReason, "price($move)")
+            assertEquals(spent.attempt + 1, actual.task.stageRetryState.attempt, "budget($move)")
+        }
+    }
 }

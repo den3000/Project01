@@ -17,32 +17,10 @@ public class TaskStateMachineImpl : TaskStateMachine {
      * Joining the two halves of a turn: [advance] answers "may it move" and [retry]
      * "what does a failure cost", and the join is where the rules live — that a legal
      * move can still be charged, that a blocked answer costs the stage while a dead
-     * provider does not, that a restarted task is not told it was restarted, and that a
-     * task already at [Stage.DONE] is charged nothing at all. Kept here rather than at
-     * the call site, where a second caller would invent it again.
+     * provider does not, that a restarted task is not told it was restarted. Kept
+     * here rather than at the call site, where a second caller would invent it again.
      */
-    override fun update(task: Task, reason: UpdateReason): UpdateDecision {
-        // A finished task has left the machine, and nothing that happens afterwards is an
-        // attempt at it any more. The conversation does not stop with the task — a person
-        // keeps typing, a headless run keeps feeding "continue" — and every one of those
-        // turns would otherwise be charged as a stall.
-        //
-        // Not a harmless overcount: measured on a live run, the stage budget ran out on
-        // chatter after `done`, the failure escalated as designed, and the machine restarted
-        // a task that had already delivered. So a terminal task is free: no budget moves, no
-        // reason is charged, and the task comes back exactly as it went in.
-        //
-        // The move is still worked out, so a view can say the model re-signalled `done`
-        // instead of going quiet. Its price is the one [AdvanceOutcome.reason] that is read
-        // and deliberately not spent — there is nothing left to spend it on.
-        if (task.stage == Stage.DONE) {
-            val advance = (reason as? UpdateReason.StageProposed)?.let { advance(task, it.stage) }
-            return decision(task, advance = advance)
-        }
-        return decide(task, reason)
-    }
-
-    private fun decide(task: Task, reason: UpdateReason): UpdateDecision = when (reason) {
+    override fun update(task: Task, reason: UpdateReason): UpdateDecision = when (reason) {
         is UpdateReason.StageProposed -> {
             val advance = advance(task, reason.stage)
             when (val price = advance.reason) {
