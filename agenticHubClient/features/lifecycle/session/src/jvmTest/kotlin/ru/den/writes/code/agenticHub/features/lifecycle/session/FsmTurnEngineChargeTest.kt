@@ -1,6 +1,9 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.session
 
 import kotlinx.coroutines.test.runTest
+import ru.den.writes.code.agenticHub.features.fsm.Stage
+import ru.den.writes.code.agenticHub.features.fsm.Task
+import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.toFsmTask
 import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
 import ru.den.writes.code.agenticHub.features.memory.TaskNotes
 import ru.den.writes.code.agenticHub.features.memory.TaskStage
@@ -8,12 +11,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * What one turn costs the task, read off the task file rather than off the return value: a
- * budget that is decided but never persisted is not a budget.
+ * What one turn costs the task, read back off disk and through the same mapping the engine
+ * uses: a budget that is decided but never persisted is not a budget, and it is the FSM's
+ * [Task] that says what was spent — `stageRetriesSpent` in the file is only how it is stored.
  *
- * Every case here is one turn on a task standing at execution, differing only in what the
- * model answered — no marker, a step back, a step deeper — because that is exactly what the
- * price is supposed to depend on.
+ * Only the price is asserted here. Where the stage ends up is `TurnEngineConformanceTest`'s,
+ * and it checks that on both engines; what a move is worth is `features:fsm`'s own tests. What
+ * neither of them can see is whether the charge survives the trip to disk — that is this file,
+ * and three answers cover it: one that pays without moving, one that moves and still pays, one
+ * that moves deeper and pays nothing.
  */
 class FsmTurnEngineChargeTest {
 
@@ -21,14 +27,16 @@ class FsmTurnEngineChargeTest {
     fun `when the reply carries no marker - then the stage pays for the turn`() = runTest {
         // given
         val api = scriptedApi(FakeLlmScript().apply { queueText("thinking out loud") })
+        val task = taskStandingAt(TaskStage.EXECUTION)
 
         // when
-        withTurnEngine({ api }, engineUnderTest = FSM_ENGINE, task = task()) {
+        withTurnEngine({ api }, engineUnderTest = FSM_ENGINE, task = task) {
             engine.turn("one")
 
             // then
-            assertEquals(1, spentOn(TASK_ID))
-            assertEquals(TaskStage.EXECUTION, stageOf(TASK_ID))
+            val actual = fsmTask()
+            assertEquals(Stage.EXECUTION, actual.stage)
+            assertEquals(1, actual.stageRetryState.attempt)
         }
     }
 
@@ -36,14 +44,16 @@ class FsmTurnEngineChargeTest {
     fun `when the move goes back over covered ground - then the stage pays for the turn`() = runTest {
         // given
         val api = scriptedApi(FakeLlmScript().apply { queueText("re-planning [[stage:planning]]") })
+        val task = taskStandingAt(TaskStage.EXECUTION)
 
         // when
-        withTurnEngine({ api }, engineUnderTest = FSM_ENGINE, task = task()) {
+        withTurnEngine({ api }, engineUnderTest = FSM_ENGINE, task = task) {
             engine.turn("one")
 
             // then
-            assertEquals(1, spentOn(TASK_ID))
-            assertEquals(TaskStage.PLANNING, stageOf(TASK_ID))
+            val actual = fsmTask()
+            assertEquals(Stage.PLANNING, actual.stage)
+            assertEquals(1, actual.stageRetryState.attempt)
         }
     }
 
@@ -51,57 +61,27 @@ class FsmTurnEngineChargeTest {
     fun `when the move reaches a deeper stage - then the turn is free`() = runTest {
         // given
         val api = scriptedApi(FakeLlmScript().apply { queueText("checking it [[stage:validation]]") })
+        val task = taskStandingAt(TaskStage.EXECUTION)
 
         // when
-        withTurnEngine({ api }, engineUnderTest = FSM_ENGINE, task = task()) {
+        withTurnEngine({ api }, engineUnderTest = FSM_ENGINE, task = task) {
             engine.turn("one")
 
             // then
-            assertEquals(0, spentOn(TASK_ID))
-            assertEquals(TaskStage.VALIDATION, stageOf(TASK_ID))
+            val actual = fsmTask()
+            assertEquals(Stage.VALIDATION, actual.stage)
+            assertEquals(Stage.VALIDATION, actual.deepestStage)
+            assertEquals(0, actual.stageRetryState.attempt)
         }
     }
 
-    @Test
-    fun `when the reply names the stage it already stands on - then the stage pays for the turn`() = runTest {
-        // given
-        val api = scriptedApi(FakeLlmScript().apply { queueText("still here [[stage:execution]]") })
+    /** The task as the FSM sees it, straight off disk through the engine's own mapping. */
+    private fun TurnEngineFixture.fsmTask(): Task =
+        checkNotNull(memStore.loadTask(TASK_ID)) { "task $TASK_ID is not on disk" }.toFsmTask()
 
-        // when
-        withTurnEngine({ api }, engineUnderTest = FSM_ENGINE, task = task()) {
-            engine.turn("one")
-
-            // then
-            assertEquals(1, spentOn(TASK_ID))
-            assertEquals(TaskStage.EXECUTION, stageOf(TASK_ID))
-        }
-    }
-
-    @Test
-    fun `when the move skips a stage - then it is refused and the stage pays for the turn`() = runTest {
-        // given
-        val api = scriptedApi(FakeLlmScript().apply { queueText("all done [[stage:done]]") })
-
-        // when
-        withTurnEngine({ api }, engineUnderTest = FSM_ENGINE, task = task()) {
-            engine.turn("one")
-
-            // then
-            assertEquals(1, spentOn(TASK_ID))
-            assertEquals(TaskStage.EXECUTION, stageOf(TASK_ID))
-        }
-    }
-
-    /** Stage attempts spent, straight off the task file. */
-    private fun TurnEngineFixture.spentOn(taskId: String): Int =
-        memStore.loadTask(taskId)?.stageRetriesSpent ?: -1
-
-    /** A task in the middle of the machine, with nothing spent and nothing deeper reached. */
-    private fun task() = TaskNotes(
-        taskId = TASK_ID,
-        stage = TaskStage.EXECUTION,
-        deepestStage = TaskStage.EXECUTION,
-    )
+    /** A task standing at [stage] with nothing spent and nothing deeper reached. */
+    private fun taskStandingAt(stage: TaskStage) =
+        TaskNotes(taskId = TASK_ID, stage = stage, deepestStage = stage)
 
     private companion object {
         const val TASK_ID = "t"
