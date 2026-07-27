@@ -7,6 +7,10 @@ plugins {
 }
 
 kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xexplicit-backing-fields")
+    }
+
     iosArm64()
     iosSimulatorArm64()
 
@@ -54,11 +58,5 @@ kotlin {
             implementation(projects.agenticHubClient.platform.network)
             implementation(projects.agenticHubClient.platform.config)
         }
-    }
-}
-
-kotlin {
-    compilerOptions {
-        freeCompilerArgs.add("-Xexplicit-backing-fields")
     }
 }
