@@ -11,6 +11,7 @@ import ru.den.writes.code.agenticHub.cliJvm.commandMappers.ParsedStartCommand
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.USAGE
 import ru.den.writes.code.agenticHub.cliJvm.di.appModule
 import ru.den.writes.code.agenticHub.features.agent.di.agentModule
+import ru.den.writes.code.agenticHub.features.fsm.di.fsmModule
 import ru.den.writes.code.agenticHub.features.lifecycle.session.di.sessionModule
 import ru.den.writes.code.agenticHub.features.lifecycle.start.di.startModule
 import ru.den.writes.code.agenticHub.features.llm.di.llmModule
@@ -40,6 +41,7 @@ suspend fun main(args: Array<String>) {
             llmModule,
             memoryModule,
             agentModule,
+            fsmModule,
             mcpClientModule,
             ragModule,
             startModule,
