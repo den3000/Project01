@@ -10,6 +10,7 @@ import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.fsm.Stage
 import ru.den.writes.code.agenticHub.features.fsm.Task
 import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
+import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachineImpl
 import ru.den.writes.code.agenticHub.features.fsm.UpdateReason
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.session.RagControl
@@ -60,7 +61,7 @@ public class FsmTurnEngine(
     private val toolDefs: List<ToolDefinition> = emptyList(),
     private val toolExecutor: ToolExecutor? = null,
     private val ragControl: RagControl? = null,
-    private val machine: TaskStateMachine = TaskStateMachine(),
+    private val machine: TaskStateMachine = TaskStateMachineImpl(),
     private val toolCallLog: ToolCallLog = ToolCallLog(),
 ) : TurnEngine {
 

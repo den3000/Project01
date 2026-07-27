@@ -5,7 +5,7 @@ import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.fsm.RetryReason
 import ru.den.writes.code.agenticHub.features.fsm.RetryState
 import ru.den.writes.code.agenticHub.features.fsm.Stage
-import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
+import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachineImpl
 import ru.den.writes.code.agenticHub.features.fsm.UpdateReason
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -18,7 +18,7 @@ import kotlin.test.assertNull
  */
 class TaskUpdateTest {
 
-    private val machine = TaskStateMachine()
+    private val machine = TaskStateMachineImpl()
 
     @Test
     fun `when the proposed stage reaches new ground - then the turn costs nothing`() {

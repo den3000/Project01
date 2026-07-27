@@ -5,14 +5,14 @@ import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.fsm.RetryReason
 import ru.den.writes.code.agenticHub.features.fsm.RetryState
 import ru.den.writes.code.agenticHub.features.fsm.Stage
-import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
+import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachineImpl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class TaskRetryTest {
 
-    private val machine = TaskStateMachine()
+    private val machine = TaskStateMachineImpl()
 
     @Test
     fun `when a stage-level reason is retried - then only the stage budget is spent`() {

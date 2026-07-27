@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.features.fsm.task
 
 import ru.den.writes.code.agenticHub.features.fsm.Stage
-import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
+import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachineImpl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 
 class TaskTransitionsTest {
 
-    private val machine = TaskStateMachine()
+    private val machine = TaskStateMachineImpl()
 
     @Test
     fun `when allowedNext queried - then matches the transition table`() {

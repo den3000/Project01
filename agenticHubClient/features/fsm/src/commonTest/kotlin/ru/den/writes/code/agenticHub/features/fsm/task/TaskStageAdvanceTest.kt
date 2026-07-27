@@ -5,7 +5,7 @@ import ru.den.writes.code.agenticHub.features.fsm.RetryReason
 import ru.den.writes.code.agenticHub.features.fsm.RetryState
 import ru.den.writes.code.agenticHub.features.fsm.Stage
 import ru.den.writes.code.agenticHub.features.fsm.Task
-import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
+import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachineImpl
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 
 class TaskStageAdvanceTest {
 
-    private val machine = TaskStateMachine()
+    private val machine = TaskStateMachineImpl()
 
     @Test
     fun `when a legal move is proposed - then the stage advances`() {
