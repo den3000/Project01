@@ -39,10 +39,10 @@ ScheduleAction/TaskHandlerImpl).
 Интеграция (`runSessionForTest` = `TurnEngine`+`SessionViewModel`+`PlainRenderer`, golden
 `PlainViewGoldenTest`) остаётся в `apps:cliJvmApp:test` (нужен `PlainRenderer`).
 
-Тесты движков разведены по реализациям: `FsmTurnEngineTest` — про делегирование (машина
-подставная, проверяется, о чём её спросили и что движок сделал с ответом), `inline/…` — про старый
-`InlineFsmTurnEngine`, который пока и стоит в проде (нудж, пауза, приватный счётчик + контракт хода).
-Правила задачи не проверяются ни там, ни там: они в `features:fsm`.
+Тесты движков разведены по реализациям, каждая в своём подпакете: `fsm/` — про делегирование
+(машина подставная, проверяется, о чём её спросили и что движок сделал с ответом), `inline/` — про
+старый `InlineFsmTurnEngine`, который пока и стоит в проде (нудж, пауза, приватный счётчик +
+контракт хода). Правила задачи не проверяются ни там, ни там: они в `features:fsm`.
 
 **`TurnEngineLiveTest`** (`jvmTest`, opt-in `-PliveTests`, **жжёт токены**, скип без `GEMINI_API_KEY`) —
 стенд стабильности FSM: гоняет реальный `TurnEngine` (настоящий Gemini + Room in-memory + файловая
