@@ -48,6 +48,9 @@ public val sessionModule: Module = module {
             toolDefs = a.toolDefs,
             toolExecutor = a.toolExecutor,
             ragControl = a.ragControl,
+            // Not part of the payload: the task automaton is a stateless singleton of the
+            // graph, not something a call site chooses per session.
+            machine = get(),
         )
     }
 }
