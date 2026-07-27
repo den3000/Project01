@@ -6,6 +6,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.MergedIntentSource
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.IntentSource
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.snapshot
@@ -66,6 +67,9 @@ public class SessionViewModel(
     var lastReply: String? = null
         private set
 
+    /** Whether the give-up currently in force has already been reported — see [verdictLines]. */
+    private var gaveUpAnnounced = false
+
     /**
      * Run the whole session: hydrate (resume banners), opening turn, drive
      * [primary] to a stop, optionally hand off to [followUp] (the feed→REPL
@@ -116,25 +120,58 @@ public class SessionViewModel(
         }
     }
 
-    /** Run one turn; returns true on success, false on failure (lets a feed source abort). */
+    /**
+     * Run one turn; returns true when the loop may keep feeding turns.
+     *
+     * False means "do not push another turn into this on your own": the turn failed,
+     * or the task FSM gave up. A feed source takes that as an abort ([IntentSource.onTurnFailed]);
+     * stdin and the TUI ignore it, so a person can keep typing — a task that ran out of
+     * attempts ends the task, not the conversation.
+     */
     private suspend fun runTurn(prompt: String): Boolean {
         state.update { it.copy(busy = true, lines = it.lines + UiLine.User(prompt)) }
         return when (val result = engine.turn(prompt)) {
             is TurnResult.Ok -> {
                 lastReply = result.reply
+                // Computed before the update, never inside it: `update` re-runs its lambda
+                // under contention, and announcing the give-up is a one-time side effect.
+                val verdict = verdictLines(result.retryOutcome)
                 state.update {
                     it.copy(
                         busy = false,
-                        lines = it.lines + result.toLines(),
+                        lines = it.lines + result.toLines() + verdict,
                         stats = result.session ?: it.stats,
                     )
                 }
-                true
+                result.retryOutcome !is RetryOutcome.GaveUp
             }
             is TurnResult.Failed -> {
-                state.update { it.copy(busy = false, lines = it.lines + UiLine.Error(result.reason)) }
+                val verdict = verdictLines(result.retryOutcome)
+                state.update {
+                    it.copy(busy = false, lines = it.lines + UiLine.Error(result.reason) + verdict)
+                }
                 false
             }
+        }
+    }
+
+    /**
+     * The `[fsm]` line a turn earned, if any. [RetryOutcome.Retried] is silent (the task
+     * carries on) and so is a turn with no task at all.
+     *
+     * A give-up is announced once. The machine does not change a task it has given up on,
+     * so every turn after it returns the same verdict — and a person who keeps typing would
+     * get the same sentence under every reply. The flag clears itself the moment a turn
+     * comes back with anything else, which is what a restarted or re-pointed task does.
+     */
+    private fun verdictLines(outcome: RetryOutcome?): List<UiLine> {
+        val gaveUp = outcome is RetryOutcome.GaveUp
+        val alreadySaid = gaveUpAnnounced
+        gaveUpAnnounced = gaveUp
+        return when {
+            outcome == null || outcome is RetryOutcome.Retried -> emptyList()
+            gaveUp && alreadySaid -> emptyList()
+            else -> listOf(UiLine.Fsm(outcome))
         }
     }
 
