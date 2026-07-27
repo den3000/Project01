@@ -5,6 +5,8 @@ import org.koin.core.Koin
 import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
+import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
+import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachineImpl
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.FsmTurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.InlineFsmTurnEngine
@@ -81,6 +83,8 @@ internal data class EngineDeps(
     val routedAgents: List<RoutedAgent>,
     val routedJudges: List<RoutedJudge>,
     val stallHint: Boolean,
+    /** The FSM the engine asks. Substituted when a test wants to see WHAT it was asked. */
+    val machine: TaskStateMachine = TaskStateMachineImpl(),
 )
 
 /**
@@ -118,6 +122,7 @@ internal val FSM_ENGINE: EngineUnderTest = EngineUnderTest("fsm") { d ->
         memory = d.memory,
         routedAgents = d.routedAgents,
         routedJudges = d.routedJudges,
+        machine = d.machine,
     )
 }
 
@@ -147,6 +152,7 @@ internal suspend fun <T> TestScope.withTurnEngine(
     sessionName: String = "s",
     prompt: String = "hi",
     temperature: Double? = null,
+    machine: TaskStateMachine = TaskStateMachineImpl(),
     block: suspend TurnEngineFixture.() -> T,
 ): T = withSessionEnv { koin, fsRoot ->
     val memStore = FileMemoryStore(fsRoot.absolutePath, fs = koin.get<LocalFileSystem>())
@@ -161,6 +167,7 @@ internal suspend fun <T> TestScope.withTurnEngine(
             routedAgents = routedAgents,
             routedJudges = routedJudges,
             stallHint = stallHint,
+            machine = machine,
         ),
     )
     TurnEngineFixture(engine, memStore, dao, sessionName).block()
