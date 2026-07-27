@@ -69,13 +69,8 @@ internal fun retryFeedbackMessage(
     // the budget runs low the stall nudge arrives anyway, on the next no-move.
     RetryReason.STAGE_REVISITED -> null
 
-    // Nothing the model can act on: it never saw the failed call, and a restart
-    // asked for by the user or by an exhausted budget is not its business.
-    RetryReason.TRANSPORT_FAILED, RetryReason.TASK_STALLED, RetryReason.USER_RESTART -> null
-
-    // The judge's objections are handed to the agent inside the turn, while the
-    // rewrite is still possible; by the next turn they are stale.
-    RetryReason.JUDGE_REWRITE -> null
+    // Nothing the model can act on: it never saw the failed call.
+    RetryReason.TRANSPORT_FAILED -> null
 }
 
 /**

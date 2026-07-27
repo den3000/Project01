@@ -19,10 +19,7 @@ class RetryFeedbackTest {
             RetryReason.STAGE_REJECTED to true,
             RetryReason.STAGE_REVISITED to false,
             RetryReason.JUDGE_BLOCKED to true,
-            RetryReason.JUDGE_REWRITE to false,
             RetryReason.TRANSPORT_FAILED to false,
-            RetryReason.TASK_STALLED to false,
-            RetryReason.USER_RESTART to false,
         )
 
         // when

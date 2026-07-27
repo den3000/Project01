@@ -120,11 +120,12 @@ public class TaskStateMachineImpl : TaskStateMachine {
      * Spend one retry for [reason] and say what the caller should do next.
      *
      * Two nested budgets, plus one that sits outside them. A turn the stage paid
-     * for and got nothing back — no move, or an answer sent back to be rewritten —
-     * costs a [Task.stageRetryState] attempt. That budget running out is not the
-     * end: the failure is promoted, and the whole task restarts on a
+     * for and got nothing back — no move, or an answer that was withdrawn — costs
+     * a [Task.stageRetryState] attempt. That budget running out is not the end:
+     * the failure is promoted, and the whole task restarts on a
      * [Task.taskRetryState] attempt with a fresh stage budget. The outer budget
-     * running out ends the run ([RetryOutcome.GaveUp]).
+     * running out ends the run ([RetryOutcome.GaveUp]). Nothing is charged to the
+     * task budget directly, which is why it has no level of its own.
      *
      * [RetryLevel.TRANSPORT] is not part of that cascade: it spends
      * [Task.transportRetryState] and, when that is gone, gives up on the spot.
@@ -134,7 +135,6 @@ public class TaskStateMachineImpl : TaskStateMachine {
      */
     private fun retry(task: Task, reason: RetryReason): RetryOutcome = when (reason.level) {
         RetryLevel.STAGE -> retryStage(task, reason)
-        RetryLevel.TASK -> restart(task, reason)
         RetryLevel.TRANSPORT -> retryTransport(task, reason)
     }
 

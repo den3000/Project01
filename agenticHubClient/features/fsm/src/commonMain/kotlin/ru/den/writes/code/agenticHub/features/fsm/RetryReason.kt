@@ -1,24 +1,20 @@
 package ru.den.writes.code.agenticHub.features.fsm
 
 /**
- * Why a retry is being asked for — one entry per failure the engine can actually
- * observe, so that "how many kinds of retry are there" has a single answer with
- * a single place to change it.
+ * Why a retry is being asked for — one entry per failure a turn can actually end
+ * in, so that "how many kinds of retry are there" has a single answer with a
+ * single place to change it.
+ *
+ * Every constant here is reachable from some [UpdateReason]; nothing is kept as a
+ * placeholder for a failure the engine cannot yet report. A reason no turn can
+ * produce reads like a promise the module does not keep, and the tests that cover
+ * it cover nothing.
  *
  * An enum while every reason is budget-accounting only. The moment one needs a
  * payload (the refused `from → to` pair, the judge's objections) this becomes a
  * sealed interface with the same constants.
  */
 enum class RetryReason(val level: RetryLevel) {
-
-    /**
-     * The judge rejected the reply and the agent is rewriting it; the stage move
-     * is not even looked at. Spends the stage budget like every other rewrite:
-     * "the answer broke a constraint" and "the answer named the wrong next
-     * stage" are the same event seen from two sides — the model answered for
-     * this stage and has to answer again.
-     */
-    JUDGE_REWRITE(RetryLevel.STAGE),
 
     /**
      * The provider errored or returned nothing. The only reason here that is not
@@ -67,33 +63,18 @@ enum class RetryReason(val level: RetryLevel) {
      */
     JUDGE_BLOCKED(RetryLevel.STAGE),
 
-    /**
-     * The task burned its whole turn allowance without reaching [Stage.DONE].
-     * The measured failure: a run locks in execution or validation and rewords
-     * itself forever.
-     */
-    TASK_STALLED(RetryLevel.TASK),
-
-    /**
-     * The user asked for a restart. Whether an explicit restart should cost an
-     * attempt at all is open — it is a decision, not a failure.
-     */
-    USER_RESTART(RetryLevel.TASK),
 }
 
 /**
- * Which budget a failure spends. [STAGE] escalates when its budget runs out —
- * the task restarts — so for it a level is "how local the failure is", not "how
- * survivable". [TRANSPORT] is the exception and stands apart for exactly that
- * reason.
+ * Which budget a failure spends.
  *
  * [STAGE] — the turn was spent and the task is no further along: the stage did
- * not move, or the answer has to be written again. One budget rather than two,
- * because the cure is the same and a turn that costs a rewrite is a turn the
- * stage paid for.
- * [TASK] — the run as a whole is not converging; only a restart can help.
- * [TRANSPORT] — the model could not be reached at all. Its budget spans the
- * whole task and never refills, and running out ends the run outright: nothing
- * the FSM can do reaches a provider that is down.
+ * not move, or the answer was withdrawn. Running out does not end anything; the
+ * failure is promoted and the task restarts, which is why the task budget has no
+ * level of its own — nothing is charged to it directly, it is only ever spent by
+ * an exhausted stage.
+ * [TRANSPORT] — the model could not be reached at all. Its budget spans the whole
+ * task and never refills, and running out ends the run outright: nothing the FSM
+ * can do reaches a provider that is down.
  */
-enum class RetryLevel { STAGE, TASK, TRANSPORT }
+enum class RetryLevel { STAGE, TRANSPORT }
