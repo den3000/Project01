@@ -65,12 +65,27 @@ internal fun matchesExtension(rel: String, extensions: Set<String>): Boolean {
  * An `ext` that matches nothing and a term that occurs nowhere produce the same empty
  * answer, and the difference decides whether "absent from the project" is a finding or a
  * typo. So the two are told apart, and the extensions actually present are named.
+ *
+ * Both branches spell out that an empty answer is NOT evidence of absence, and that is
+ * load-bearing rather than verbose: a weak model read the terser wording this branch used
+ * to carry ("под X нет файлов вовсе") as "the search found nothing", reported that as a
+ * finding, and kept building on it until the run was spent. Naming what does exist gives
+ * it a way out of the wrong path instead of another guess.
  */
 internal fun FileIo.emptySelectionHint(paths: ProjectPaths, subdir: String?, ext: String?): String? {
     if (candidates(paths, subdir, ext).isNotEmpty()) return null
     val underSubdir = candidates(paths, subdir, ext = null)
     if (underSubdir.isEmpty()) {
-        return "projectfs error: под '${subdir ?: "."}' нет файлов вовсе — проверь путь подкаталога."
+        val roots = candidates(paths, subdir = null, ext = null)
+            .map { rel -> rel.substringBefore('/', missingDelimiterValue = "") }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .take(DIRS_IN_HINT)
+            .joinToString(", ")
+        return "projectfs error: подкаталога '${subdir ?: "."}' в проекте нет — под ним ноль файлов. " +
+            "Это ошибка ПУТИ, а не результат поиска: пустой ответ здесь НЕ означает, что искомого нет в " +
+            "проекте — искать было негде." +
+            if (roots.isEmpty()) "" else " На верхнем уровне есть: $roots."
     }
     val present = underSubdir.map { extensionOf(it) }.filter { it.isNotEmpty() }
         .groupingBy { it }.eachCount()
@@ -83,6 +98,9 @@ internal fun FileIo.emptySelectionHint(paths: ProjectPaths, subdir: String?, ext
 
 /** Extensions listed in the hint — enough to redirect, not a census. */
 private const val EXTENSIONS_IN_HINT = 6
+
+/** Top-level directories named when a subdir path holds nothing — same purpose as [EXTENSIONS_IN_HINT]. */
+private const val DIRS_IN_HINT = 6
 
 /**
  * Files a listing or a search may touch: no binaries, nothing closed, narrowed to

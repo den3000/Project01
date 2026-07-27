@@ -28,6 +28,16 @@ class StagePlainViewTest {
     }
 
     @Test
+    fun `when repeated - then the already-there line`() {
+        assertEquals(
+            listOf("[task] model re-signalled validation — already there, no move"),
+            StagePlainView(
+                StageAdvance.Repeated(TaskStage.VALIDATION, setOf(TaskStage.DONE, TaskStage.EXECUTION)),
+            ).stderr(),
+        )
+    }
+
+    @Test
     fun `when none - then nothing`() {
         assertTrue(StagePlainView(StageAdvance.None).stderr().isEmpty())
     }

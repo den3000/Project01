@@ -39,6 +39,11 @@ ScheduleAction/TaskHandlerImpl).
 Интеграция (`runSessionForTest` = `TurnEngine`+`SessionViewModel`+`PlainRenderer`, golden
 `PlainViewGoldenTest`) остаётся в `apps:cliJvmApp:test` (нужен `PlainRenderer`).
 
+Тесты движков разведены по реализациям, каждая в своём подпакете: `fsm/` — про делегирование
+(машина подставная, проверяется, о чём её спросили и что движок сделал с ответом), `inline/` — про
+старый `InlineFsmTurnEngine`, который пока и стоит в проде (нудж, пауза, приватный счётчик +
+контракт хода). Правила задачи не проверяются ни там, ни там: они в `features:fsm`.
+
 **`TurnEngineLiveTest`** (`jvmTest`, opt-in `-PliveTests`, **жжёт токены**, скип без `GEMINI_API_KEY`) —
 стенд стабильности FSM: гоняет реальный `TurnEngine` (настоящий Gemini + Room in-memory + файловая
 память во временном каталоге; без судьи/RAG/MCP — изолирует канал стадии) на `MINIMAL_TASK`/`SIMPLE_TASK`
@@ -57,6 +62,13 @@ ScheduleAction/TaskHandlerImpl).
   `buildSessionViewModel` включает в бою. Замер на стенде: подсказка направление даёт, но слабая модель
   её часто игнорирует — статзначимого выигрыша нет, потому она и осталась дешёвой страховкой, а не
   несущим механизмом.
+- **Рестарт задачи переключает ветку истории и переживает только живую сессию** — `FsmTurnEngine` на
+  `RetryOutcome.Restarted` делает `switchTo("<стартовая ветка>-attempt-N")`, чтобы новая попытка не
+  читала переписку провалившейся. Имя стартовой ветки движок держит в поле, никуда не пишет, а сессия
+  при запуске открывает `DEFAULT_BRANCH` (`main`): прервал задачу, перезапустил CLI (или `/resume`) —
+  и продолжаешь с ветки ПРОВАЛИВШЕЙСЯ попытки, а всё после рестарта осталось там, куда никто не
+  заглядывает. Сводка и sticky-facts тоже привязаны к паре (session, branch) — новая ветка стартует
+  с пустых. Чинить надо на старте сессии (открывать последнюю ветку задачи, а не `main`).
 - **Троттл feed (16 s)** живёт на `PromptSourceIntents` (feed-источник), не в `TurnEngine`; stdin/TUI → 0.
 - **Scheduler-инъекция в MVI (`MergedIntentSource`)** — фон инжектит ходы/feed через опц.
   `schedulerInbox`; при `inbox==null` — старый путь `source.next()` (golden байт-в-байт). Primary
