@@ -4,58 +4,41 @@ import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.fsm.RetryReason
 import ru.den.writes.code.agenticHub.features.fsm.RetryState
 import ru.den.writes.code.agenticHub.features.fsm.Stage
-import ru.den.writes.code.agenticHub.features.fsm.Task
 import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachineImpl
 import ru.den.writes.code.agenticHub.features.fsm.UpdateDecision
 import ru.den.writes.code.agenticHub.features.fsm.UpdateReason
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 /**
- * The three budgets and the cascade between them, driven by repeating a turn that gets nowhere.
+ * Exhaustion: how many turns each budget actually absorbs, and what the cascade does when one
+ * runs out. Always reached by spending — a task handed in with a full counter proves the
+ * assertion rather than the arithmetic, and that reading is `TaskUpdateTest`'s.
  *
- * Exhaustion is always reached by actually spending it — a task handed in with a full counter
- * would prove the assertion rather than the arithmetic.
+ * What one turn costs is not here at all: that is per-`UpdateReason`, and it is answered once,
+ * next door.
  */
 class TaskRetryTest {
 
     private val machine = TaskStateMachineImpl()
 
     @Test
-    fun `when a turn leaves the task where it was - then only the stage budget is spent`() {
-        // given — every way a turn can end without taking the task any further
-        val stalls = listOf(
-            UpdateReason.NoStageProposed,
-            UpdateReason.JudgeBlocked,
-            UpdateReason.StageProposed(Stage.EXECUTION),
-            UpdateReason.StageProposed(Stage.DONE),
-        )
-        val task = task(stage = Stage.EXECUTION, notes = listOf("scope agreed"))
-
-        // when
-        val actuals = stalls.map { reason -> reason to machine.update(task, reason) }
-
-        // then
-        actuals.forEach { (reason, actual) ->
-            assertIs<RetryOutcome.Retried>(actual.retryOutcome, "outcome($reason)")
-            assertEquals(1, actual.task.stageRetryState.attempt, "stage($reason)")
-            assertEquals(0, actual.task.taskRetryState.attempt, "task($reason)")
-            assertEquals(0, actual.task.transportRetryState.attempt, "transport($reason)")
-        }
-    }
-
-    @Test
     fun `when a stage is stalled to its budget - then the next stall restarts the task`() {
         // given
         val task = task(stage = Stage.VALIDATION, notes = listOf("scope agreed"))
 
-        // when — one turn per stage attempt, plus the one that finds the budget gone
-        val actuals = stall(task, times = RetryState.STAGE_MAX + 1)
+        // when
+        val actuals = (1..RetryState.STAGE_MAX + 1)
+            .fold(emptyList<UpdateDecision>()) { decisions, _ ->
+                decisions + machine.update(decisions.lastOrNull()?.task ?: task, UpdateReason.NoStageProposed)
+            }
 
         // then
         actuals.dropLast(1).forEachIndexed { index, actual ->
             assertIs<RetryOutcome.Retried>(actual.retryOutcome, "stall #${index + 1}")
+            assertEquals(Stage.VALIDATION, actual.task.stage, "held(stall #${index + 1})")
             assertEquals(index + 1, actual.task.stageRetryState.attempt, "stage(stall #${index + 1})")
         }
         actuals.last().let { actual ->
@@ -69,6 +52,8 @@ class TaskRetryTest {
                 ),
                 actual.task,
             )
+            assertEquals(setOf(Stage.PLANNING), actual.allowedNext)
+            assertNull(actual.retryReason)
         }
     }
 
@@ -77,28 +62,21 @@ class TaskRetryTest {
         // given
         val task = task(stage = Stage.VALIDATION, notes = listOf("scope agreed"))
 
-        // when — every attempt burns a whole stage budget before it escalates
-        val actuals = stall(task, times = (RetryState.STAGE_MAX + 1) * (RetryState.TASK_MAX + 1))
+        // when
+        val turns = (RetryState.STAGE_MAX + 1) * (RetryState.TASK_MAX + 1)
+        val actuals = (1..turns)
+            .fold(emptyList<UpdateDecision>()) { decisions, _ ->
+                decisions + machine.update(decisions.lastOrNull()?.task ?: task, UpdateReason.NoStageProposed)
+            }
 
         // then
         assertEquals(RetryState.TASK_MAX, actuals.count { it.retryOutcome is RetryOutcome.Restarted })
         val gaveUp = assertIs<RetryOutcome.GaveUp>(actuals.last().retryOutcome)
         assertEquals(RetryReason.NO_MARKER, gaveUp.reason)
         assertEquals(RetryState.TASK_MAX, gaveUp.task.taskRetryState.attempt)
-    }
-
-    @Test
-    fun `when the provider is unreachable - then only the transport budget is spent`() {
-        // given
-        val task = task(stage = Stage.PLANNING, notes = listOf("scope agreed"))
-
-        // when
-        val actual = machine.update(task, UpdateReason.TransportFailed)
-
-        // then
-        val expected = task.copy(transportRetryState = RetryState(attempt = 1, max = RetryState.TRANSPORT_MAX))
-        assertIs<RetryOutcome.Retried>(actual.retryOutcome)
-        assertEquals(expected, actual.task)
+        assertEquals(RetryState.STAGE_MAX, gaveUp.task.stageRetryState.attempt)
+        assertEquals(Stage.CLARIFICATION, gaveUp.task.stage)
+        assertNull(actuals.last().retryReason)
     }
 
     @Test
@@ -107,27 +85,25 @@ class TaskRetryTest {
         val task = task(stage = Stage.PLANNING, notes = listOf("scope agreed"))
 
         // when
-        val actuals = repeat(task, UpdateReason.TransportFailed, times = RetryState.TRANSPORT_MAX + 1)
+        val actuals = (1..RetryState.TRANSPORT_MAX + 1)
+            .fold(emptyList<UpdateDecision>()) { decisions, _ ->
+                decisions + machine.update(decisions.lastOrNull()?.task ?: task, UpdateReason.TransportFailed)
+            }
 
         // then
         actuals.dropLast(1).forEachIndexed { index, actual ->
             assertIs<RetryOutcome.Retried>(actual.retryOutcome, "failure #${index + 1}")
             assertEquals(index + 1, actual.task.transportRetryState.attempt, "transport(failure #${index + 1})")
+            assertEquals(0, actual.task.stageRetryState.attempt, "stage(failure #${index + 1})")
         }
         actuals.last().let { actual ->
             val gaveUp = assertIs<RetryOutcome.GaveUp>(actual.retryOutcome)
             assertEquals(RetryReason.TRANSPORT_FAILED, gaveUp.reason)
             assertEquals(Stage.PLANNING, actual.task.stage)
+            assertEquals(RetryState.TRANSPORT_MAX, actual.task.transportRetryState.attempt)
+            assertEquals(0, actual.task.stageRetryState.attempt)
             assertEquals(0, actual.task.taskRetryState.attempt)
+            assertNull(actual.retryReason)
         }
     }
-
-    /** [times] turns that name no stage at all, each fed the task the previous one left. */
-    private fun stall(task: Task, times: Int): List<UpdateDecision> =
-        repeat(task, UpdateReason.NoStageProposed, times)
-
-    private fun repeat(task: Task, reason: UpdateReason, times: Int): List<UpdateDecision> =
-        (1..times).fold(emptyList()) { decisions, _ ->
-            decisions + machine.update(decisions.lastOrNull()?.task ?: task, reason)
-        }
 }
