@@ -1,5 +1,6 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.session
 
+import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.JudgeOutcome
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.StageAdvance
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.SessionStatsSnapshot
@@ -169,6 +170,14 @@ public sealed interface UiLine {
 
     /** A task-stage FSM move. Emitted only when the stage changed or a move was rejected. */
     data class Stage(val advance: StageAdvance) : UiLine
+
+    /**
+     * What the task FSM did with a turn that cost the task something: the task was
+     * restarted from the top, or it ran out of attempts. [RetryOutcome.Retried] never
+     * gets here — a spent attempt on a task that carries on is not news, and saying so
+     * every turn would bury the two verdicts that are.
+     */
+    data class Fsm(val outcome: RetryOutcome) : UiLine
 
     /** A failed turn: the provider error. */
     data class Error(val reason: String) : UiLine

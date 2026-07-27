@@ -6,6 +6,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.MergedIntentSource
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.IntentSource
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.snapshot
@@ -19,6 +20,7 @@ import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 import kotlin.math.abs
 import kotlin.math.roundToLong
@@ -65,6 +67,9 @@ public class SessionViewModel(
     /** Last successful model reply, cached for the stdin REPL's `/reuse`. */
     var lastReply: String? = null
         private set
+
+    /** Whether the give-up currently in force has already been reported — see [verdictLines]. */
+    private var gaveUpAnnounced = false
 
     /**
      * Run the whole session: hydrate (resume banners), opening turn, drive
@@ -116,25 +121,61 @@ public class SessionViewModel(
         }
     }
 
-    /** Run one turn; returns true on success, false on failure (lets a feed source abort). */
+    /**
+     * Run one turn; returns true when the loop may keep feeding turns.
+     *
+     * False means "do not push another turn into this on your own": the turn failed,
+     * or the task FSM gave up. A feed source takes that as an abort ([IntentSource.onTurnFailed]);
+     * stdin and the TUI ignore it, so a person can keep typing — a task that ran out of
+     * attempts ends the task, not the conversation.
+     */
     private suspend fun runTurn(prompt: String): Boolean {
         state.update { it.copy(busy = true, lines = it.lines + UiLine.User(prompt)) }
         return when (val result = engine.turn(prompt)) {
             is TurnResult.Ok -> {
                 lastReply = result.reply
+                // Computed before the update, never inside it: `update` re-runs its lambda
+                // under contention, and announcing the give-up is a one-time side effect.
+                val verdict = verdictLines(result.retryOutcome)
                 state.update {
                     it.copy(
                         busy = false,
-                        lines = it.lines + result.toLines(),
+                        lines = it.lines + result.toLines() + verdict,
                         stats = result.session ?: it.stats,
                     )
                 }
-                true
+                // After the turn is on screen: if it was the one that finished the task, the
+                // notice belongs under the reply that finished it.
+                retireFinishedTask()
+                result.retryOutcome !is RetryOutcome.GaveUp
             }
             is TurnResult.Failed -> {
-                state.update { it.copy(busy = false, lines = it.lines + UiLine.Error(result.reason)) }
+                val verdict = verdictLines(result.retryOutcome)
+                state.update {
+                    it.copy(busy = false, lines = it.lines + UiLine.Error(result.reason) + verdict)
+                }
                 false
             }
+        }
+    }
+
+    /**
+     * The `[fsm]` line a turn earned, if any. [RetryOutcome.Retried] is silent (the task
+     * carries on) and so is a turn with no task at all.
+     *
+     * A give-up is announced once. The machine does not change a task it has given up on,
+     * so every turn after it returns the same verdict — and a person who keeps typing would
+     * get the same sentence under every reply. The flag clears itself the moment a turn
+     * comes back with anything else, which is what a restarted or re-pointed task does.
+     */
+    private fun verdictLines(outcome: RetryOutcome?): List<UiLine> {
+        val gaveUp = outcome is RetryOutcome.GaveUp
+        val alreadySaid = gaveUpAnnounced
+        gaveUpAnnounced = gaveUp
+        return when {
+            outcome == null || outcome is RetryOutcome.Retried -> emptyList()
+            gaveUp && alreadySaid -> emptyList()
+            else -> listOf(UiLine.Fsm(outcome))
         }
     }
 
@@ -272,6 +313,7 @@ public class SessionViewModel(
             }
             strategy.rebind(store)
         }
+        retireFinishedTask()
         memory?.activeTaskId()?.let { id ->
             memory.store.loadTask(id)?.let { task ->
                 task.stage?.let { stage ->
@@ -283,6 +325,33 @@ public class SessionViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Let go of a task that reached [TaskStage.DONE]: it stays on disk, it stops being the
+     * session's active one.
+     *
+     * A finished task has nothing left to run, but while it is still active every later turn
+     * is dressed as work on it — the task layer goes into the prompt with its goal, stage and
+     * allowed-next, the answering agent and the judge are picked by a stage that cannot move,
+     * and the FSM is asked about turns that are plainly just conversation. Left alone, that
+     * ends badly rather than merely untidily: the model keeps re-signalling `done`, the stage
+     * budget runs out on the chatter, and the machine restarts a task that had already
+     * delivered — measured on a live run.
+     *
+     * Reads the stored stage rather than the turn's own verdict, so it holds however the task
+     * got there: finished this turn, resumed from a previous session, or picked with
+     * `/task <id>` after it was done.
+     *
+     * The conversation deliberately carries on — the session outlives the task, and a headless
+     * run that keeps feeding "continue" simply gets plain chat replies from here on.
+     */
+    private fun retireFinishedTask() {
+        val mem = memory ?: return
+        val id = mem.activeTaskId() ?: return
+        if (mem.store.loadTask(id)?.stage != TaskStage.DONE) return
+        mem.setTask(null)
+        appendState("[task] '$id' is done — no longer the active task; the chat carries on")
     }
 
     /**

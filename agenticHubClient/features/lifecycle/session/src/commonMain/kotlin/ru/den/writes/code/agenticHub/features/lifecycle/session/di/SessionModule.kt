@@ -48,6 +48,7 @@ public val sessionModule: Module = module {
             toolDefs = a.toolDefs,
             toolExecutor = a.toolExecutor,
             ragControl = a.ragControl,
+            machine = get(),
         )
     }
 }

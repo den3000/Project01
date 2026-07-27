@@ -7,6 +7,10 @@ plugins {
 }
 
 kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xexplicit-backing-fields")
+    }
+
     iosArm64()
     iosSimulatorArm64()
 
