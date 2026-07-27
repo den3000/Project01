@@ -20,6 +20,7 @@ import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.memory.MemoryMode
+import ru.den.writes.code.agenticHub.features.memory.TaskStage
 import ru.den.writes.code.agenticHub.features.llm.pricing.PricingRegistry
 import kotlin.math.abs
 import kotlin.math.roundToLong
@@ -143,6 +144,9 @@ public class SessionViewModel(
                         stats = result.session ?: it.stats,
                     )
                 }
+                // After the turn is on screen: if it was the one that finished the task, the
+                // notice belongs under the reply that finished it.
+                retireFinishedTask()
                 result.retryOutcome !is RetryOutcome.GaveUp
             }
             is TurnResult.Failed -> {
@@ -309,6 +313,9 @@ public class SessionViewModel(
             }
             strategy.rebind(store)
         }
+        // Before the resume banner, so a finished task is never announced as if it were
+        // still being worked on.
+        retireFinishedTask()
         memory?.activeTaskId()?.let { id ->
             memory.store.loadTask(id)?.let { task ->
                 task.stage?.let { stage ->
@@ -320,6 +327,33 @@ public class SessionViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Let go of a task that reached [TaskStage.DONE]: it stays on disk, it stops being the
+     * session's active one.
+     *
+     * A finished task has nothing left to run, but while it is still active every later turn
+     * is dressed as work on it — the task layer goes into the prompt with its goal, stage and
+     * allowed-next, the answering agent and the judge are picked by a stage that cannot move,
+     * and the FSM is asked about turns that are plainly just conversation. Left alone, that
+     * ends badly rather than merely untidily: the model keeps re-signalling `done`, the stage
+     * budget runs out on the chatter, and the machine restarts a task that had already
+     * delivered — measured on a live run.
+     *
+     * Reads the stored stage rather than the turn's own verdict, so it holds however the task
+     * got there: finished this turn, resumed from a previous session, or picked with
+     * `/task <id>` after it was done.
+     *
+     * The conversation deliberately carries on — the session outlives the task, and a headless
+     * run that keeps feeding "continue" simply gets plain chat replies from here on.
+     */
+    private fun retireFinishedTask() {
+        val mem = memory ?: return
+        val id = mem.activeTaskId() ?: return
+        if (mem.store.loadTask(id)?.stage != TaskStage.DONE) return
+        mem.setTask(null)
+        appendState("[task] '$id' is done — no longer the active task; the chat carries on")
     }
 
     /**

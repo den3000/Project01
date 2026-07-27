@@ -29,6 +29,7 @@ import java.io.StringReader
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * Agent-level behaviour of the task state machine: stages auto-advance from a
@@ -244,6 +245,65 @@ class AgentTaskStateTest {
 
                 // then
                 assertEquals(TaskStage.CLARIFICATION, memStore.loadTask("fresh")?.stage)
+            }
+        }
+    }
+    //endregion
+
+    //region a finished task leaves the session
+
+    @Test
+    fun `when the task reaches done - then it stops being the session's active task`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+                    saveTask(TaskNotes("auth", stage = TaskStage.VALIDATION))
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
+                val fake = scriptedApi(FakeLlmScript().apply { queueText("All checks pass.\n[[stage:done]]") })
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
+
+                // when
+                runSessionForTest(
+                    newChat(prompt = "hi", session = "demo"),
+                    fake, store,
+                    promptSource = createStdinPromptSource("/exit\n"),
+                    memory = memory,
+                )
+
+                // then — the task is finished on disk and no longer the one the session is running
+                assertEquals(TaskStage.DONE, memStore.loadTask("auth")?.stage)
+                assertNull(memory.activeTaskId())
+            }
+        }
+    }
+
+    @Test
+    fun `when a session starts on a finished task - then it is not picked up as active`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given — a task left at done by an earlier session
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+                    saveTask(TaskNotes("auth", stage = TaskStage.DONE))
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
+                val fake = scriptedApi(FakeLlmScript().apply { queueText("hello") })
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
+
+                // when
+                runSessionForTest(
+                    newChat(prompt = "hi", session = "demo"),
+                    fake, store,
+                    promptSource = createStdinPromptSource("/exit\n"),
+                    memory = memory,
+                )
+
+                // then — dropped at hydrate, before the opening turn could be dressed as task work
+                assertNull(memory.activeTaskId())
+                assertEquals(TaskStage.DONE, memStore.loadTask("auth")?.stage)
             }
         }
     }
