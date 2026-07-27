@@ -40,9 +40,11 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
 
 ## Тесты
 - Offline (по умолчанию): `./gradlew :agenticHubClient:features:llm:jvmTest` — `*ApiTest`
-  (gemini/openrouter/huggingface/ollama, застаблено), `GeminiFunctionCallTest`, `PricingRegistryTest`,
+  (gemini/openrouter/huggingface/ollama, застаблено), `GeminiFunctionCallTest`,
+  `OllamaFunctionCallTest`, `PricingRegistryTest`,
   `LlmFactoriesTest`, `OllamaChatDtoTest`; live-тесты (`*LiveTest`) исключены центральным гейтом.
-- Live (`-PliveTests`, `jvmTest`): `LocalOllamaApiLiveTest` (генерация в локальную Ollama),
+- Live (`-PliveTests`, `jvmTest`): `LocalOllamaApiLiveTest` (генерация в локальную Ollama + вызов
+  инструмента и возврат его результата — скипается на теге без capability `tools`),
   `LlmWithRagAnswerLiveTest` (baseline без реранка, сетка 2×2 с пином grounding: `SMALL_HANDBOOK` top-3
   → 10/10, `BIG_HANDBOOK` top-1 → 1/10, каждое через Ollama и **реальный Gemini**) и
   `LlmWithRagRerankerAnswerLiveTest` (те же 10 вопросов на `BIG_HANDBOOK`: plain top-K vs
@@ -79,6 +81,11 @@ Hugging Face/локальная Ollama) + tool-типы, ценовой реес
 - **Ollama `stream` без дефолта — намеренно**: при `encodeDefaults=false` (наш JSON) поле, равное
   дефолту, выпадает с wire → Ollama стримит NDJSON → `NoTransformationFound`. Поле без дефолта уходит
   всегда (регресс — `OllamaChatDtoTest`).
+- **Ollama tools: умеет модель, а не клиент** — `tools` уходят в OpenAI-форме (`type:"function"`,
+  `type` без дефолта по той же причине, что `stream`), вызовы приходят в `message.tool_calls`. Тег без
+  capability `tools` роняет запрос ошибкой сервера, а не игнорирует инструменты: проверять
+  `ollama show <tag>` до прогона. `arguments` у части сборок приходят JSON-**строкой**, а не объектом —
+  поле типизировано `JsonElement`, сужение в `argumentsObject()` (`OllamaChatDtoTest`).
 - **Ollama thinking-модели** (gemma4/qwen3.5): reasoning идёт в отдельное поле `message.thinking`, при
   малом `num_predict` весь бюджет уходит туда, а `content` пуст. `GenerationParams.thinkingBudget`
   маппится в top-level `think` (0 → off, >0 → on, null → дефолт модели).

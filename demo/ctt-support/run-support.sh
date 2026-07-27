@@ -31,14 +31,22 @@ TASKS="$HOME/.project01-cli/memory/tasks"
 mkdir -p "$TASKS"
 cp "$DEMO_DIR/case-template.md" "$TASKS/ctt-case.md"   # сброс кейса в clarification
 
-# Выбор моделей - переменными окружения (интерфейс и валидация - в demo/models.sh).
+# Выбор провайдера и моделей - переменными окружения (интерфейс и валидация - в demo/models.sh).
 # Роли: fallback (безпрофильный), support-intake (опознание), support-solve (диагностика), судья.
+#   PROVIDER=<gemini|ollama>       - куда ходят все агенты (дефолт gemini)
+#   OLLAMA_HOST=<url>              - адрес сервера, если он не на localhost:11434
 #   MODEL=<id>                     - всем разом
 #   INTAKE_MODEL / SOLVE_MODEL     - конкретному стадийному агенту
 #   FALLBACK_MODEL / JUDGE_MODEL   - fallback-агенту / судье
-# Пусто = дефолт клиента (gemini-2.5-flash).
+# Пусто = дефолт клиента (gemini-2.5-flash). Под ollama модель обязательна, и её проверяют на месте
+# (сервер поднят, тег спулен, тег умеет tools).
 # shellcheck source=demo/models.sh
 source "$REPO_ROOT/demo/models.sh"
+
+require_supported_provider
+PROVIDER_ARG="$(provider_arg)"
+RAG_NAME="$(rag_name ctt-support)"   # индекс принадлежит провайдеру - строит его setup.sh
+require_rag_embedder
 
 FALLBACK_MODEL="$(model_for "${FALLBACK_MODEL:-}")"
 INTAKE_MODEL="$(model_for "${INTAKE_MODEL:-}")"
@@ -55,6 +63,7 @@ TEMP="${TEMP:-}"
 require_valid_temp "$TEMP"
 
 # Печатается до первого хода: по этой строке потом читают, на чём был прогон.
+echo "[demo] провайдер: $(provider_label)" >&2
 echo "[demo] модели: fallback=$(model_label "$FALLBACK_MODEL") intake=$(model_label "$INTAKE_MODEL")" >&2
 echo "[demo]         solve=$(model_label "$SOLVE_MODEL") судья=$(model_label "$JUDGE_MODEL")" >&2
 echo "[demo] температура воркеров: $(temp_label "$TEMP")" >&2
@@ -63,9 +72,9 @@ exec "$CLI" \
   -tui \
   -prompt "Здравствуйте!" \
   -task ctt-case \
-  -rag ctt-support \
-  -agent provider gemini $(model_arg "$FALLBACK_MODEL") $(temp_arg "$TEMP") mode system \
-  -agent support-intake provider gemini $(model_arg "$INTAKE_MODEL") profile support-intake stages clarification..planning \
-  -agent support-solve  provider gemini $(model_arg "$SOLVE_MODEL") profile support-solve  stages execution..done \
-  -agent rules-judge    provider gemini $(model_arg "$JUDGE_MODEL") stages clarification..done judge \
+  -rag "$RAG_NAME" \
+  -agent $PROVIDER_ARG $(model_arg "$FALLBACK_MODEL") $(temp_arg "$TEMP") mode system \
+  -agent support-intake $PROVIDER_ARG $(model_arg "$INTAKE_MODEL") profile support-intake stages clarification..planning \
+  -agent support-solve  $PROVIDER_ARG $(model_arg "$SOLVE_MODEL") profile support-solve  stages execution..done \
+  -agent rules-judge    $PROVIDER_ARG $(model_arg "$JUDGE_MODEL") stages clarification..done judge \
   -mcpServer "$SUPP $DEMO_DIR"

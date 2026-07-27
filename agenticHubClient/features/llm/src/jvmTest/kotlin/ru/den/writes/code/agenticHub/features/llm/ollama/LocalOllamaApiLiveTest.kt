@@ -1,17 +1,25 @@
 package ru.den.writes.code.agenticHub.features.llm.ollama
 
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import org.junit.Assume.assumeTrue
 import org.koin.core.parameter.parametersOf
 import org.koin.dsl.koinApplication
 import ru.den.writes.code.agenticHub.features.llm.GenerationParams
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
+import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.ModelProvider
 import ru.den.writes.code.agenticHub.features.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
 import ru.den.writes.code.agenticHub.features.llm.di.llmModule
 import ru.den.writes.code.agenticHub.features.llm.liveChatModel
 import ru.den.writes.code.agenticHub.features.llm.liveOllamaTest
 import ru.den.writes.code.agenticHub.platform.network.di.networkModule
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -59,6 +67,82 @@ class LocalOllamaApiLiveTest {
         println("[ollama chat+system] → \"${actual.text?.trim()}\"")
     }
 
+    @Test
+    fun `when a tool is declared - then the model asks to call it`() = liveOllamaTest(koin) {
+        // given
+        val api = localOllamaApi()
+        val messages = listOf(Message(Role.USER, "What is the weather in Paris? Use the tool."))
+        val params = toolParams()
+
+        // when
+        val actual = api.send(messages, params)
+
+        // then
+        assumeToolsCapable(actual)
+        assertNull(actual.error, "expected success, got error: ${actual.error}")
+        val call = actual.toolCalls.singleOrNull()
+        assertEquals(WEATHER_TOOL, call?.name, "expected a call to $WEATHER_TOOL, got: ${actual.toolCalls}")
+        println("[ollama tools] ${call?.name}(${call?.arguments})")
+    }
+
+    /**
+     * The full round trip — the leg that only a real server can check: our replay of the
+     * call (`role:"assistant"` + `tool_calls`) and of the result (`role:"tool"` +
+     * `tool_name`) has to be accepted as a valid continuation of the exchange.
+     */
+    @Test
+    fun `when a tool result is fed back - then the model answers from it`() = liveOllamaTest(koin) {
+        // given
+        val api = localOllamaApi()
+        val question = Message(Role.USER, "What is the weather in Paris? Use the tool.")
+        val first = api.send(listOf(question), toolParams())
+        assumeToolsCapable(first)
+        val call = first.toolCalls.firstOrNull()
+        assumeTrue("model did not call the tool — nothing to feed back", call != null)
+        val wire = listOf(
+            question,
+            Message(Role.ASSISTANT, first.text.orEmpty(), toolCalls = first.toolCalls),
+            Message(Role.USER, "21 degrees and sunny", toolResultFor = call!!.name),
+        )
+
+        // when
+        val actual = api.send(wire, toolParams())
+
+        // then
+        assertNull(actual.error, "expected success, got error: ${actual.error}")
+        assertTrue(actual.text?.contains("21") == true, "expected the answer to use the result, was: ${actual.text}")
+        println("[ollama tools round-trip] → \"${actual.text?.trim()}\"")
+    }
+
+    /**
+     * Not every locally pulled tag can call tools, and the default one is a plain chat
+     * model — Ollama answers such a request with an explicit error. Skipping (rather than
+     * failing) keeps the run honest on a machine that simply has no tools-capable tag,
+     * the same way the reachability check does for a server that is down.
+     */
+    private fun assumeToolsCapable(result: LlmResult) {
+        val unsupported = result.error?.contains("does not support tools", ignoreCase = true) == true
+        assumeTrue("model ${liveChatModel().id} does not support tools — skipping", !unsupported)
+    }
+
+    private fun toolParams(): GenerationParams =
+        GenerationParams(temperature = 0.0, maxTokens = 256, thinkingBudget = 0, tools = listOf(weatherTool()))
+
+    private fun weatherTool(): ToolDefinition =
+        ToolDefinition(
+            name = WEATHER_TOOL,
+            description = "Get the current weather in a city",
+            parameters = buildJsonObject {
+                put("type", "object")
+                put("properties", buildJsonObject { put("city", buildJsonObject { put("type", "string") }) })
+                put("required", buildJsonArray { add("city") })
+            },
+        )
+
     private fun localOllamaApi(): LlmApi =
         koin.get { parametersOf(ModelProvider.LocalOllama(model = liveChatModel())) }
+
+    private companion object {
+        const val WEATHER_TOOL = "current_weather"
+    }
 }

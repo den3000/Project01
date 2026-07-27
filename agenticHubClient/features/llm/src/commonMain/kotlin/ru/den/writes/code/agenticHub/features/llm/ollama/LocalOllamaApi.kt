@@ -13,9 +13,14 @@ import ru.den.writes.code.agenticHub.features.llm.LlmApi
 import ru.den.writes.code.agenticHub.features.llm.LlmResult
 import ru.den.writes.code.agenticHub.features.llm.Message
 import ru.den.writes.code.agenticHub.features.llm.Role
+import ru.den.writes.code.agenticHub.features.llm.ToolCall
+import ru.den.writes.code.agenticHub.features.llm.ToolDefinition
 import ru.den.writes.code.agenticHub.features.llm.Usage
 
 private const val CHAT_PATH = "/api/chat"
+
+/** The only tool kind Ollama declares — see [OllamaTool.type] for why it is not a default. */
+private const val FUNCTION_TYPE = "function"
 
 /**
  * [LlmApi] backed by a local Ollama server (`POST /api/chat`, non-streaming). Ollama
@@ -28,6 +33,12 @@ private const val CHAT_PATH = "/api/chat"
  *
  * Token accounting maps `prompt_eval_count` → prompt and `eval_count` → output; there
  * is no separate «thoughts» counter. One instance is bound to one [model].
+ *
+ * Function calling is supported: [GenerationParams.tools] go out as Ollama's
+ * OpenAI-shaped `tools`, and the model's `tool_calls` come back in
+ * [LlmResult.toolCalls]. Whether the served tag can call anything is the model's
+ * property, not the client's — a tag without that capability makes the server reject
+ * the request, and the rejection surfaces as [LlmResult.error].
  */
 public class LocalOllamaApi(
     private val httpClient: HttpClient,
@@ -50,6 +61,7 @@ public class LocalOllamaApi(
                         stream = false,
                         // Reuse the neutral thinking knob: 0 disables, >0 enables, null = model default.
                         think = params.thinkingBudget?.let { it > 0 },
+                        tools = params.tools?.toOllamaTools(),
                         options = params.toOllamaOptions(),
                     )
                 )
@@ -72,12 +84,35 @@ public class LocalOllamaApi(
                 thoughtsTokens = 0,
                 totalTokens = response.promptEvalCount + response.evalCount,
             )
-            LlmResult(text = text, usage = usage)
+            // A reply that is nothing but a tool call has no text — that is the ordinary
+            // middle of an agent loop, not a failure, so it goes back with text = null and
+            // no error, and the caller drives the tools.
+            LlmResult(text = text, usage = usage, toolCalls = response.extractToolCalls())
         } catch (e: Exception) {
             LlmResult(text = null, error = "Request failed: ${e.message}")
         }
     }
 }
+
+/**
+ * Wrap neutral [ToolDefinition]s into Ollama's OpenAI-shaped `tools` list — one
+ * entry per declaration (unlike Gemini, which groups them all under a single tool).
+ *
+ * Whether the served model can actually call anything is not checked here: Ollama
+ * answers a tools request to a model without that capability with an explicit error,
+ * which travels back as [LlmResult.error] like any other server failure.
+ */
+internal fun List<ToolDefinition>.toOllamaTools(): List<OllamaTool> =
+    map {
+        OllamaTool(
+            type = FUNCTION_TYPE,
+            function = OllamaFunction(name = it.name, description = it.description, parameters = it.parameters),
+        )
+    }
+
+/** The reply's `tool_calls` as neutral [ToolCall]s; empty on a plain answer. */
+internal fun OllamaChatResponse.extractToolCalls(): List<ToolCall> =
+    message?.toolCalls.orEmpty().map { ToolCall(name = it.function.name, arguments = it.function.argumentsObject()) }
 
 /** Fold the neutral params into Ollama's nested `options`; null when nothing is set. */
 private fun GenerationParams.toOllamaOptions(): OllamaOptions? {
@@ -96,9 +131,29 @@ private fun GenerationParams.toOllamaOptions(): OllamaOptions? {
     )
 }
 
-/** Map a neutral non-SYSTEM [Message] into the OpenAI-style role/content shape. */
-private fun Message.toApi(): OllamaMessage =
-    OllamaMessage(
+/**
+ * Map a neutral non-SYSTEM [Message] into the OpenAI-style role/content shape.
+ *
+ * Function-calling turns get their own shape, and it is driven by the tool fields
+ * rather than [Message.role]: a message carrying [Message.toolCalls] becomes a
+ * `role:"assistant"` turn with `tool_calls`, and one carrying [Message.toolResultFor]
+ * becomes a `role:"tool"` turn naming the tool whose output sits in [Message.text].
+ * The latter arrives as [Role.USER] (that is how the responder replays a result), so
+ * reading the role instead would send the result back as an ordinary user turn and
+ * the model would lose the link to its own call. Plain turns are unchanged.
+ */
+private fun Message.toApi(): OllamaMessage {
+    toolCalls?.let { calls ->
+        return OllamaMessage(
+            role = "assistant",
+            content = text,
+            toolCalls = calls.map { OllamaToolCall(OllamaToolCallFunction(name = it.name, arguments = it.arguments)) },
+        )
+    }
+    toolResultFor?.let { name ->
+        return OllamaMessage(role = "tool", content = text, toolName = name)
+    }
+    return OllamaMessage(
         role = when (role) {
             // Filtered out by buildOllamaWireMessages — SYSTEM goes into the single
             // combined system message, not a per-message wire row. Kept for exhaustiveness.
@@ -108,6 +163,7 @@ private fun Message.toApi(): OllamaMessage =
         },
         content = text,
     )
+}
 
 /**
  * Build the OAI-style `messages` list per the [LlmApi.send] contract — identical rules
@@ -117,7 +173,9 @@ private fun Message.toApi(): OllamaMessage =
  *   `"\n\n"`, and an `endSequence` instruction (when set) is appended with the same
  *   separator — producing ONE `role:"system"` message at the head.
  * - No system message is emitted when both inputs are empty.
- * - Non-SYSTEM entries follow in their original order, mapped through [toApi].
+ * - Non-SYSTEM entries follow in their original order, mapped through [toApi] —
+ *   including the function-calling turns (the model's call and the tool's result),
+ *   which keep their position in the exchange like any other turn.
  */
 internal fun buildOllamaWireMessages(
     messages: List<Message>,

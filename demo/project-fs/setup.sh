@@ -18,6 +18,10 @@
 #   bash demo/project-fs/setup.sh
 #   CTT_REPO=/путь/к/репо bash demo/project-fs/setup.sh    # другой целевой репозиторий
 #   SKIP_RAG=1 bash demo/project-fs/setup.sh               # без индексации (не жечь токены)
+#   PROVIDER=ollama bash demo/project-fs/setup.sh          # индекс локальным эмбеддером, СВОИМ именем
+#
+# Индекс принадлежит провайдеру: под ollama он и строится локально, и лежит под именем с суффиксом.
+# Меняешь PROVIDER - перезапусти setup (без SKIP_RAG), иначе индекса этого бэкенда просто нет.
 #
 set -euo pipefail
 
@@ -66,8 +70,8 @@ if [ "${SKIP_RAG:-0}" = "1" ]; then
 else
   echo "[setup] собираю корпус RAG..."
   corpus_files="$(build_rag_corpus)"
-  echo "[setup] в корпусе $corpus_files файл(ов), индексирую как '$RAG_NAME'..."
-  "$CLI" -rag add "$RAG_NAME" src "$RAG_STAGE" embedder gemini
+  echo "[setup] в корпусе $corpus_files файл(ов), индексирую как '$RAG_NAME' (embedder=$RAG_EMBEDDER)..."
+  "$CLI" -rag add "$RAG_NAME" src "$RAG_STAGE" embedder "$RAG_EMBEDDER"
 fi
 
 # ----------------------------------------------------------------------------------
@@ -177,8 +181,9 @@ cat <<EOF
   bash demo/project-fs/run-usage-report.sh     карта сетевого слоя -> docs/usage-network.md
   bash demo/project-fs/run-adr.sh              решение о хранении -> docs/adr-0001-local-persistence.md
 
-Модель: gemini-2.5-flash (дефолт клиента). Судья удваивает вызовы на ход, а забракованный
-ход добавляет ещё два - переписывание и повторный суд.
+Провайдер: $(provider_label), индекс '$RAG_NAME'. Обёртка примет те же PROVIDER/MODEL, что и этот
+setup - индекс собран под ЭТОТ бэкенд эмбеддера, и с другим провайдером его не найдут.
+Судья удваивает вызовы на ход, а забракованный ход добавляет ещё два - переписывание и повторный суд.
 
 Аварийный выход, если прогон встал на повторяющемся [invariant] violated:
   JUDGE=0 bash demo/project-fs/run-usage-report.sh
