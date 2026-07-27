@@ -1,6 +1,10 @@
-package ru.den.writes.code.agenticHub.features.lifecycle.session
+package ru.den.writes.code.agenticHub.features.lifecycle.session.inline
 
 import kotlinx.coroutines.test.runTest
+import ru.den.writes.code.agenticHub.features.lifecycle.session.INLINE_ENGINE
+import ru.den.writes.code.agenticHub.features.lifecycle.session.SIMPLE_TASK
+import ru.den.writes.code.agenticHub.features.lifecycle.session.runTurnEngineWith
+import ru.den.writes.code.agenticHub.features.lifecycle.session.scriptedApi
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.StageAdvance
 import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
 import ru.den.writes.code.agenticHub.features.llm.Message
@@ -11,22 +15,20 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 /**
- * What every engine must do, whoever owns its FSM.
+ * What the inline engine must do at all: what the caller gets back, what reaches the history
+ * and where the task ends up. Habits — wording of the `[fsm]` lines, when the nudge is armed —
+ * are in `InlineFsmTurnEngineTest` next door.
  *
- * The contract, not the habits: what the caller gets back, what reaches the history and
- * where the task ends up. Wording of the `[fsm]` lines, when a nudge is armed and which
- * budget paid for what are an implementation's own business and belong in its own tests —
- * the two engines already differ there on purpose.
- *
- * Every test runs on both engines and names the failing one, so a divergence points at
- * itself instead of at whichever engine the suite happened to be built with.
+ * Used to run on both engines. It stopped being worth it once the FSM engine got tests of its
+ * own: the same five cases on two implementations proved that both were alive, not that either
+ * was right, and the engines differ on purpose in everything the contract does not name.
  */
-class TurnEngineConformanceTest {
+class InlineFsmTurnEngineContractTest {
 
     @Test
     fun `when a turn succeeds - then the reply comes back and both sides persist`() = runTest {
         // given
-        val engines = BOTH_ENGINES
+        val engines = listOf(INLINE_ENGINE)
 
         // when
         val actuals = engines.map { engine ->
@@ -53,7 +55,7 @@ class TurnEngineConformanceTest {
     @Test
     fun `when a legal move is signalled - then the stage advances and is stored`() = runTest {
         // given
-        val engines = BOTH_ENGINES
+        val engines = listOf(INLINE_ENGINE)
 
         // when
         val actuals = engines.map { engine ->
@@ -76,7 +78,7 @@ class TurnEngineConformanceTest {
     @Test
     fun `when a skipping move is signalled - then it is refused and the stage held`() = runTest {
         // given
-        val engines = BOTH_ENGINES
+        val engines = listOf(INLINE_ENGINE)
 
         // when
         val actuals = engines.map { engine ->
@@ -99,7 +101,7 @@ class TurnEngineConformanceTest {
     @Test
     fun `when the current stage is signalled again - then nothing moves`() = runTest {
         // given
-        val engines = BOTH_ENGINES
+        val engines = listOf(INLINE_ENGINE)
 
         // when
         val actuals = engines.map { engine ->
@@ -120,7 +122,7 @@ class TurnEngineConformanceTest {
     @Test
     fun `when the provider errors - then the turn fails and nothing persists`() = runTest {
         // given
-        val engines = BOTH_ENGINES
+        val engines = listOf(INLINE_ENGINE)
 
         // when
         val actuals = engines.map { engine ->

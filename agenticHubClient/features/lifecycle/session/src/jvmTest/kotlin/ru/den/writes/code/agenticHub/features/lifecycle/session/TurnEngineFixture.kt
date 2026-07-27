@@ -90,8 +90,9 @@ internal data class EngineDeps(
 /**
  * An engine under test, with a name for the assert message.
  *
- * The seam the conformance suite runs on: one test, both engines, and a failure that says
- * which of them broke. [name] is short because it is printed on every assertion.
+ * The seam a suite runs on when it drives more than one implementation: the name is printed
+ * on every assertion, so a failure says which engine broke instead of leaving it to be
+ * guessed. [name] is short for exactly that reason.
  */
 internal data class EngineUnderTest(val name: String, val create: (EngineDeps) -> TurnEngine) {
     override fun toString(): String = name
@@ -125,9 +126,6 @@ internal val FSM_ENGINE: EngineUnderTest = EngineUnderTest("fsm") { d ->
         machine = d.machine,
     )
 }
-
-/** Both engines, for a test that must hold for either. */
-internal val BOTH_ENGINES: List<EngineUnderTest> = listOf(INLINE_ENGINE, FSM_ENGINE)
 
 /**
  * Build a [TurnEngine] over a throwaway environment (in-memory DB, temp memory root) and

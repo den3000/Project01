@@ -1,6 +1,11 @@
-package ru.den.writes.code.agenticHub.features.lifecycle.session
+package ru.den.writes.code.agenticHub.features.lifecycle.session.inline
 
 import kotlinx.coroutines.test.runTest
+import ru.den.writes.code.agenticHub.features.lifecycle.session.ProfileItem
+import ru.den.writes.code.agenticHub.features.lifecycle.session.RecordingJudge
+import ru.den.writes.code.agenticHub.features.lifecycle.session.routedAgent
+import ru.den.writes.code.agenticHub.features.lifecycle.session.runTurnEngineWith
+import ru.den.writes.code.agenticHub.features.lifecycle.session.scriptedApi
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.StageAdvance
 import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnResult
 import ru.den.writes.code.agenticHub.features.llm.FakeLlmScript
@@ -29,7 +34,7 @@ import kotlin.test.assertTrue
  * where the task ends up — moved to `TurnEngineConformanceTest`, which runs it on every
  * implementation instead of on whichever one this file happened to be written against.
  */
-class TurnEngineTest {
+class InlineFsmTurnEngineTest {
 
     //region ход и персист
 
