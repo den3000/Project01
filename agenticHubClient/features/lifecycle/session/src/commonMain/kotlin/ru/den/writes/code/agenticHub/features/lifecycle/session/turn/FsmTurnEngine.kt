@@ -175,9 +175,18 @@ public class FsmTurnEngine(
      * The task is persisted whatever the verdict — a spent budget is a fact even when
      * the run is over, and a report that cannot see it cannot explain why the task
      * stopped. A turn with no active task has nothing to decide about.
+     *
+     * A paused task is not asked about either, and that is a seam rather than a
+     * forgotten branch: `paused` is a property of running the task, not of the task
+     * automaton, so the machine deliberately does not model it (see
+     * `TaskNotesFsmMapping`). The flag has to be honoured somewhere, and the only
+     * place that can is the caller — so a turn taken while paused reaches the model
+     * and reaches history, but never reaches the FSM: the stage holds and no budget
+     * is spent. Parity with `InlineFsmTurnEngine`, which refuses the same move
+     * further in.
      */
     private suspend fun updateTaskAfterTurn(notes: TaskNotes?, task: Task?, reason: UpdateReason): TurnUpdate {
-        if (notes == null || task == null) return TurnUpdate(StageAdvance.None, null)
+        if (notes == null || task == null || notes.paused) return TurnUpdate(StageAdvance.None, null)
         val decision = machine.update(task, reason)
         save(notes, decision.task)
         pendingFeedback = decision.retryReason?.let {

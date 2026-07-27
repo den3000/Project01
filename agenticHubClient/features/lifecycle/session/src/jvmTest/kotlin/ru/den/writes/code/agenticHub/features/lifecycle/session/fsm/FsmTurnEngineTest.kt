@@ -143,6 +143,27 @@ class FsmTurnEngineTest {
     }
 
     @Test
+    fun `when the task is paused - then the machine is not asked and the stage holds`() = runTest {
+        // given — a legal move is signalled, so only the pause can be what holds the task
+        val machine = RecordingMachine { decision(it) }
+        val api = scriptedApi(FakeLlmScript().apply { queueText("moving on [[stage:validation]]") })
+
+        // when
+        withTurnEngine(
+            { api },
+            engineUnderTest = FSM_ENGINE,
+            task = task().copy(paused = true),
+            machine = machine,
+        ) {
+            engine.turn("one")
+
+            // then
+            assertTrue(machine.asked.isEmpty(), "the machine was asked ${machine.asked}")
+            assertEquals(TaskStage.EXECUTION, checkNotNull(memStore.loadTask(TASK_ID)).stage)
+        }
+    }
+
+    @Test
     fun `when the machine returns a task - then that task is what gets stored`() = runTest {
         // given — a decision nothing about this turn would produce, so the file can only match it
         val decided = Task(
