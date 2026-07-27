@@ -59,20 +59,12 @@ public fun buildSessionViewModel(
     toolDefs: List<ToolDefinition> = emptyList(),
     toolExecutor: ToolExecutor? = null,
     ragControl: RagControl? = null,
-    // Defaulted so a test can assemble the stack without a graph; the composition root
-    // resolves the real one out of `fsmModule`, which is the module's only export.
     machine: TaskStateMachine = TaskStateMachineImpl(),
 ): SessionAssembly {
     val multiAgent = routedAgents.isNotEmpty()
     val schedules = (cliArgs as? StartCommand.RunChat)?.config?.schedules.orEmpty()
     val schedulerEnabled = schedules.isNotEmpty()
-    // The rules of the task live in `features:fsm`, and this is the engine that asks them.
-    // Its predecessor, InlineFsmTurnEngine, decided the same questions inline and stays
-    // around as the other leg of a comparison — nothing in a real session reaches it.
-    //
-    // The stall nudge needs no flag here: the old engine armed it off a private counter and
-    // had to be told whether to, while this one arms it off the stage budget the machine
-    // keeps, so it cannot drift from the budget it warns about.
+
     val engine = FsmTurnEngine(
         cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges, toolDefs, toolExecutor, ragControl,
         machine = machine,

@@ -313,8 +313,6 @@ public class SessionViewModel(
             }
             strategy.rebind(store)
         }
-        // Before the resume banner, so a finished task is never announced as if it were
-        // still being worked on.
         retireFinishedTask()
         memory?.activeTaskId()?.let { id ->
             memory.store.loadTask(id)?.let { task ->
