@@ -51,21 +51,6 @@ public class TaskStateMachine {
     }
 
     /**
-     * Spend [reason] and wrap the verdict for the caller. The model hears about it
-     * only when the task simply tries again: a restart is meant to be invisible to
-     * it, and a run that gave up has nobody left to tell.
-     */
-    private fun charge(task: Task, reason: RetryReason): UpdateDecision {
-        val outcome = retry(task, reason)
-        return UpdateDecision(
-            task = outcome.task,
-            advance = null,
-            retryOutcome = outcome,
-            retryReason = reason.takeIf { outcome is RetryOutcome.Retried },
-        )
-    }
-
-    /**
      * Stages reachable from [stage] in one step: forward, plus a single step back
      * to revisit the prior phase. [Stage.DONE] is terminal (empty set) — a
      * finished task is not reopened automatically.
@@ -157,6 +142,21 @@ public class TaskStateMachine {
         RetryLevel.STAGE -> retryStage(task, reason)
         RetryLevel.TASK -> restart(task, reason)
         RetryLevel.TRANSPORT -> retryTransport(task, reason)
+    }
+
+    /**
+     * Spend [reason] and wrap the verdict for the caller. The model hears about it
+     * only when the task simply tries again: a restart is meant to be invisible to
+     * it, and a run that gave up has nobody left to tell.
+     */
+    private fun charge(task: Task, reason: RetryReason): UpdateDecision {
+        val outcome = retry(task, reason)
+        return UpdateDecision(
+            task = outcome.task,
+            advance = null,
+            retryOutcome = outcome,
+            retryReason = reason.takeIf { outcome is RetryOutcome.Retried },
+        )
     }
 
     /** Stay where we are, one stage attempt lighter; out of them → escalate to a restart. */
