@@ -34,6 +34,13 @@ KMP-модуль, фундамент памяти (ниже `features:agent` в 
 jvmTest (не commonTest — TestDb JVM + обход iOS backtick-грабли); фейки: `FakeLlmScript`/`llmTestModule` (features:llm), `TestDb` (platform:database).
 
 ## Грабли
+- **`TaskStage.expectedAction` не должна требовать вход, которого не будет** — прежняя формулировка
+  clarification («Ask before assuming») на слабой модели побеждала автономный промпт («действуй сам,
+  вопросов не задавай»): модель залипала на первой стадии, повторяя «I cannot continue without
+  requirements. Please provide them.», пока не кончались ходы. Сейчас — «если цель ясна или просят
+  действовать самому, заяви допущения и двигайся; спрашивай, только если реально заблокирован».
+  Урок общий: инструкция стадии читается моделью НАРАВНЕ с промптом запуска — противоречие между ними
+  слабая модель разрешает не в ту сторону, и это лечится текстом стадии, а не движком.
 - **`Role.SYSTEM` НЕ персистится в `HistoryStore`** — в `messages`-таблице только `USER`/`ASSISTANT`;
   memory-слой инжектится лишь в wire-list `TurnEngine.turn()` поверх baseContext.
 - **Модель файловой памяти**: unnamed `profile.md` + именованные `profiles/<name>.md` (активный

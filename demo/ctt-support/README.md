@@ -81,6 +81,8 @@ AI-ассистент поддержки пользователей продук
   правила (один раз).
 - `run-support.sh` / `run-dev.sh` — запуск чата (роль пользователя / разработчика), прячут
   многоагентную команду.
+- [`../models.sh`](../models.sh) — общий для демо выбор моделей (`MODEL`/`JUDGE_MODEL`/…): каскад
+  «роль → `MODEL` → дефолт клиента» и отсев 3.x/опечаток до старта JVM.
 
 ## Ключи
 
@@ -102,6 +104,21 @@ bash demo/ctt-support/run-dev.sh
 
 Путь к репозиторию CTT для RAG-кода — переменная `CTT_REPO` (по умолчанию соседний каталог).
 Нет каталога → корпус только из наших доков.
+
+**Модели выбираются переменными** (пусто = дефолт клиента, `gemini-2.5-flash`):
+
+```bash
+MODEL=gemini-2.5-flash-lite bash demo/ctt-support/run-support.sh     # всем агентам разом
+MODEL=gemini-2.5-flash-lite JUDGE_MODEL=gemini-2.5-flash \
+  bash demo/ctt-support/run-support.sh                               # исполнители слабые, судья сильный
+SOLVE_MODEL=gemini-2.5-flash bash demo/ctt-support/run-support.sh    # только диагностика
+```
+
+Роли: `FALLBACK_MODEL` (безпрофильный агент), `INTAKE_MODEL`/`SOLVE_MODEL` (стадийные агенты
+`run-support.sh`), `DEVELOPER_MODEL` (`run-dev.sh`), `JUDGE_MODEL` (судья); конкретная роль побеждает
+общий `MODEL`. Что реально поехало — строка `[demo] модели: …` перед стартом (и `[[AGENT:]]` в самом
+чате). Семейство 3.x и опечатки в id отсекаются до старта JVM — механизм общий для демо,
+[demo/models.sh](../models.sh).
 
 ## Сценарии для видео
 

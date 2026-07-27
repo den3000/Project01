@@ -1,7 +1,7 @@
 package ru.den.writes.code.agenticHub.cliJvm.commandMappers
 
-import ru.den.writes.code.agenticHub.cliJvm.ApiKeys
 import ru.den.writes.code.agenticHub.cliJvm.ModelProviderFactory
+import ru.den.writes.code.agenticHub.platform.config.ApiKeys
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.ParseError
 import ru.den.writes.code.agenticHub.cliJvm.cliargs.toArgsList

@@ -45,6 +45,30 @@ private val GEMINI_JSON = Json { ignoreUnknownKeys = true; isLenient = true }
 private const val DEFAULT_429_BACKOFF_MS: Long = 5_000L
 
 /**
+ * Total transient-retry budget for one [GeminiApi.send] call. A 503 spends one
+ * unit, so a "high demand" spike can be ridden out over several attempts; every
+ * other retryable failure (429, timeout, empty candidate) spends the whole budget
+ * at once and therefore fires exactly one extra attempt — the prior behaviour.
+ */
+private const val MAX_RETRIES = 3
+
+/**
+ * Backoff between 503 attempts. Gemini rarely sends a `Retry-After` on a 503, so a
+ * fixed pause is used — long enough to let a demand spike drain, short enough not
+ * to feel frozen across [MAX_RETRIES] attempts.
+ */
+private const val DEFAULT_503_BACKOFF_MS: Long = 2_000L
+
+/**
+ * Advance the transient-retry budget after a retryable failure. A 503 costs 1, so it
+ * may be retried until the spent count reaches [MAX_RETRIES]; any other retryable
+ * failure costs the whole budget, so it fires exactly once. The caller stops as soon
+ * as the returned count reaches [MAX_RETRIES].
+ */
+internal fun spendRetryBudget(spent: Int, is503: Boolean): Int =
+    spent + if (is503) 1 else MAX_RETRIES
+
+/**
  * Gemini-backed [LlmApi] implementation.
  *
  * Owns everything Gemini-specific: the [httpClient] used for transport,
@@ -60,11 +84,14 @@ private const val DEFAULT_429_BACKOFF_MS: Long = 5_000L
  * create another [GeminiApi]; the same [httpClient] can safely be
  * shared across them.
  *
- * Transient-failure handling: a single retry is attempted on 429 (rate
- * limit) and on `HttpRequestTimeoutException` (Ktor client timeout).
- * For 429 the wait honours Gemini's "Please retry in X.Ys" hint when
- * present, otherwise falls back to [DEFAULT_429_BACKOFF_MS]. Persistent
- * failures (both attempts fail) return an `LlmResult.error`.
+ * Transient-failure handling: retries share a budget of [MAX_RETRIES]. A 503
+ * ("high demand") is retried repeatedly until the budget runs out — the spike
+ * usually drains within a couple of attempts. 429 (rate limit), timeout
+ * (`HttpRequestTimeoutException`) and an empty candidate each spend the whole
+ * budget, so they fire exactly one extra attempt. For 429 the wait honours
+ * Gemini's "Please retry in X.Ys" hint when present, else [DEFAULT_429_BACKOFF_MS];
+ * 503 waits [DEFAULT_503_BACKOFF_MS]. A raw connection error (non-timeout) is not
+ * retried. Persistent failures return an `LlmResult.error`.
  *
  * Prints the request-header block before sending; the response footer
  * (`duration`, `tokens: …`) is the caller's job — it has the running
@@ -79,11 +106,12 @@ class GeminiApi(
         messages: List<Message>,
         params: GenerationParams,
     ): LlmResult {
-        // Single-retry loop: at most one extra attempt on 429 or timeout.
-        // Anything else (5xx, network errors etc.) — fail immediately;
-        // the user already has a high-level error path that keeps the
-        // session alive, so they decide if/when to nudge again.
-        var hasRetried = false
+        // Transient-retry loop sharing a budget of MAX_RETRIES (see spendRetryBudget):
+        // 503 is retried repeatedly to ride out a demand spike; 429 / timeout / empty
+        // candidate each spend the whole budget and fire once. A raw connection error
+        // (the catch(Exception) below) still fails immediately — the session's high-level
+        // error path keeps things alive, so the user decides if/when to nudge again.
+        var retries = 0
         while (true) {
             val httpResponse = try {
                 val systemMsgs = messages.filter { it.role == Role.SYSTEM }
@@ -101,14 +129,14 @@ class GeminiApi(
                     )
                 }
             } catch (e: HttpRequestTimeoutException) {
-                if (hasRetried) {
+                if (retries >= MAX_RETRIES) {
                     return LlmResult(
                         text = null,
                         error = "Request timeout (after retry): ${redactGeminiKey(e.message)}",
                     )
                 }
                 logWarn("[retry] timeout — retrying once")
-                hasRetried = true
+                retries = spendRetryBudget(retries, is503 = false)
                 continue
             } catch (e: Exception) {
                 return LlmResult(
@@ -119,7 +147,7 @@ class GeminiApi(
 
             if (httpResponse.status == HttpStatusCode.TooManyRequests) {
                 val rawBody = httpResponse.bodyAsText()
-                if (hasRetried) {
+                if (retries >= MAX_RETRIES) {
                     return LlmResult(
                         text = null,
                         error = "Gemini API 429 (after retry): ${redactGeminiKey(rawBody.take(500))}",
@@ -128,7 +156,21 @@ class GeminiApi(
                 val waitMs = parseRetryAfterMillis(rawBody) ?: DEFAULT_429_BACKOFF_MS
                 logWarn("[retry] 429 — waiting ${waitMs}ms, retrying once")
                 delay(waitMs)
-                hasRetried = true
+                retries = spendRetryBudget(retries, is503 = false)
+                continue
+            }
+
+            if (httpResponse.status == HttpStatusCode.ServiceUnavailable) {
+                if (retries >= MAX_RETRIES) {
+                    val body = httpResponse.bodyAsText().take(500)
+                    return LlmResult(
+                        text = null,
+                        error = "Gemini API 503 (after $retries retries): ${redactGeminiKey(body)}",
+                    )
+                }
+                logWarn("[retry] 503 — waiting ${DEFAULT_503_BACKOFF_MS}ms, retrying (${retries + 1}/$MAX_RETRIES)")
+                delay(DEFAULT_503_BACKOFF_MS)
+                retries = spendRetryBudget(retries, is503 = true)
                 continue
             }
 
@@ -164,9 +206,9 @@ class GeminiApi(
             // Retry once, since a hiccup usually clears; if it persists, return the reason
             // as an error so the caller sees WHY, instead of an empty answer or a crash.
             response.noContentError()?.let { reason ->
-                if (!hasRetried) {
+                if (retries < MAX_RETRIES) {
                     logWarn("[retry] no content — retrying once")
-                    hasRetried = true
+                    retries = spendRetryBudget(retries, is503 = false)
                     continue
                 }
                 return LlmResult(text = null, usage = usage, error = reason)

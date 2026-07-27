@@ -103,6 +103,39 @@ class AgentTaskStateTest {
     }
 
     @Test
+    fun `when a stage stalls in an assembled session - then the composition root has armed the nudge`() = runTest {
+        TestDb().use { harness ->
+            val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin
+            withTempMemoryRoot { root ->
+                // given
+                // The nudge is a composition-root decision (buildSessionViewModel passes
+                // stallHint = true), so it can only be proven through an assembled session.
+                val memStore = FileMemoryStore(root.absolutePath, fs = koinApplication { modules(fileSystemModule) }.koin.get<LocalFileSystem>()).apply {
+                    saveTask(TaskNotes("auth", stage = TaskStage.VALIDATION))
+                }
+                val memory = MemoryProvider(memStore, MemoryMode.SYSTEM, initialTaskId = "auth")
+                val fakeScript = FakeLlmScript().apply {
+                    repeat(3) { queueText("Still checking.\n[[stage:validation]]") }
+                }
+                val fake = scriptedApi(fakeScript)
+                val store = RoomHistoryStore(koin.get<MessageDao>(), sessionId = "demo")
+
+                // when
+                runSessionForTest(
+                    newChat(prompt = "hi", session = "demo"),
+                    fake, store,
+                    promptSource = createStdinPromptSource("go\ngo\n/exit\n"),
+                    memory = memory,
+                )
+
+                // then
+                val nudged = fakeScript.calls[2].messages.any { "[fsm] stalled:" in it.text }
+                assertEquals(true, nudged, "third turn should carry the stall nudge")
+            }
+        }
+    }
+
+    @Test
     fun `when reply has no stage marker - then the stage is unchanged`() = runTest {
         TestDb().use { harness ->
             val koin = koinApplication { modules(databaseTestModule(harness.db)) }.koin

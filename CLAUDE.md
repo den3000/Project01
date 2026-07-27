@@ -26,6 +26,9 @@ iOS-bundle-id остались на `project01` (это идентификато
   [composeApp](agenticHubClient/features/composeApp/README.md) ·
   [mcpClient](agenticHubClient/features/mcpClient/README.md) · lifecycle
   [command](agenticHubClient/features/lifecycle/command/README.md)/[session](agenticHubClient/features/lifecycle/session/README.md)/[start](agenticHubClient/features/lifecycle/start/README.md)
+- **features**: [fsm](agenticHubClient/features/fsm/README.md) — конечный автомат задачи: стадии +
+  четыре бюджета ретраев (turn/stage/task/transport), чистые решения без I/O; лист-модуль, движком
+  ещё не подключён
 - **platform**: [logging](agenticHubClient/platform/logging/README.md) ·
   [config](agenticHubClient/platform/config/README.md) ·
   [database](agenticHubClient/platform/database/README.md) ·
@@ -67,6 +70,8 @@ iOS-bundle-id остались на `project01` (это идентификато
   (детали — [cliJvmApp README](agenticHubClient/apps/cliJvmApp/README.md)).
 - **Live-тесты** (бьют по реальному сервису, напр. локальной Ollama) — opt-in, класс `*LiveTest`,
   исключены из дефолтного прогона; запуск флагом `-PliveTests`. Механизм/конвенция — [LIVE_TESTS.md](LIVE_TESTS.md).
+- **Демо гоняют УСТАНОВЛЕННЫЙ бинарь** (`build/install/…`), а не текущие исходники: перед прогоном демо
+  после любых правок кода — `installDist`, иначе проверяешь прошлую сборку (не только про CLI-флаги).
 
 ## Кросс-каттинг
 

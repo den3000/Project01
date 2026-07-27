@@ -42,7 +42,8 @@ data class ExecutedToolCall(
  * Runs one turn for a single agent: assembles the wire list, asks the
  * model, runs any tool calls it makes through [AgentConfig.toolExecutor] and
  * feeds the results back (up to [MAX_TOOL_ROUNDS] rounds), then reads the stage
- * signal off the final reply. Pure of session state — it does not persist,
+ * signal off the final reply (with any text spoken alongside a tool call folded
+ * in). Pure of session state — it does not persist,
  * print, time, or validate the transition; those stay with the host loop. This
  * is the portable nucleus a runner (single, sequential or orchestrated) drives.
  *
@@ -72,16 +73,23 @@ class AgentResponder(private val config: AgentConfig) {
         val params = if (toolDefs != null) config.params.copy(tools = toolDefs) else config.params
         val wire = (memoryLayer + baseContext + userTurn).toMutableList()
         val executed = mutableListOf<ExecutedToolCall>()
+        // Text the model narrates in the SAME reply as a tool call. Gemini returns
+        // both parts; dropping it loses the stage's work, and a silent finale after
+        // the tool round would then leave the turn empty. Echoed back on the wire and
+        // folded into the reply by [outcome].
+        val spokenFragments = mutableListOf<String>()
 
         // No executor → single call, byte-identical to the pre-tools path.
         repeat(MAX_TOOL_ROUNDS) {
             val result = config.llmApi.send(messages = wire, params = params)
             if (executor == null || result.error != null || result.toolCalls.isEmpty()) {
-                return outcome(result, executed)
+                return outcome(result, executed, spokenFragments)
             }
             // Append the model's call turn, run each tool, feed the results back.
-            // The exchange is ephemeral: the host persists only the final reply.
-            wire += Message(role = Role.ASSISTANT, text = "", toolCalls = result.toolCalls)
+            // The exchange is ephemeral: the host persists only the final reply — but
+            // text spoken next to the call is kept (on the wire and in [spokenFragments]).
+            result.text?.takeIf { it.isNotBlank() }?.let { spokenFragments += it }
+            wire += Message(role = Role.ASSISTANT, text = result.text ?: "", toolCalls = result.toolCalls)
             for (call in result.toolCalls) {
                 val output = executor.execute(call)
                 executed += ExecutedToolCall(call, output)
@@ -89,15 +97,35 @@ class AgentResponder(private val config: AgentConfig) {
             }
         }
         // Round budget spent — make one last call and take whatever comes back.
-        return outcome(config.llmApi.send(messages = wire, params = params), executed)
+        return outcome(config.llmApi.send(messages = wire, params = params), executed, spokenFragments)
     }
 
-    private fun outcome(result: LlmResult, executed: List<ExecutedToolCall>): TurnOutcome =
-        TurnOutcome(
-            result = result,
-            proposedStage = result.text?.let(TaskStateMachine::parseStageSignal),
+    /**
+     * Fold any [spokenFragments] (text the model emitted alongside its tool calls)
+     * into the final [result]: fragments precede the final text, and a silent or
+     * errored finale is recovered from the fragments alone (clearing the "no content"
+     * error). With no fragments the [result] passes through unchanged — the common,
+     * tool-less path stays byte-identical. The stage signal is read off the combined
+     * reply, so a marker spoken next to a tool call still drives the FSM.
+     */
+    private fun outcome(
+        result: LlmResult,
+        executed: List<ExecutedToolCall>,
+        spokenFragments: List<String> = emptyList(),
+    ): TurnOutcome {
+        val effective = if (spokenFragments.isEmpty()) {
+            result
+        } else {
+            val finalText = result.text?.takeIf { it.isNotBlank() }
+            val combined = (spokenFragments + listOfNotNull(finalText)).joinToString("\n\n")
+            if (finalText == null) result.copy(text = combined, error = null) else result.copy(text = combined)
+        }
+        return TurnOutcome(
+            result = effective,
+            proposedStage = effective.text?.let(TaskStateMachine::parseStageSignal),
             executedToolCalls = executed,
         )
+    }
 
     private companion object {
         /**

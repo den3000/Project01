@@ -11,7 +11,7 @@ import org.koin.dsl.koinApplication
 import kotlinx.coroutines.test.runTest
 import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
-import ru.den.writes.code.agenticHub.features.lifecycle.session.CommandRunner
+import ru.den.writes.code.agenticHub.features.lifecycle.session.buildSessionViewModel
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.IntentSource
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
@@ -20,9 +20,7 @@ import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantChecker
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantViolation
-import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
 import ru.den.writes.code.agenticHub.platform.database.TestDb
-import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.lifecycle.session.UiIntent
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.db.RoomHistoryStore
@@ -333,10 +331,11 @@ class PlainViewGoldenTest {
         routedAgents: List<RoutedAgent> = emptyList(),
         routedJudges: List<RoutedJudge> = emptyList(),
     ): CapturedOutput {
-        val multiAgent = routedAgents.isNotEmpty()
-        val engine = TurnEngine(chat, api, store, ContextStrategy.FullHistory, memory, routedAgents, routedJudges)
-        val runner = CommandRunner(store, memory, ContextStrategy.FullHistory)
-        val vm = SessionViewModel(chat, engine, runner, store, memory, ContextStrategy.FullHistory, multiAgent)
+        // Assembled by the production composition root, like `runSessionForTest` — a golden
+        // pinned against a hand-wired stack pins output the binary never produces.
+        val vm = buildSessionViewModel(
+            chat, api, store, ContextStrategy.FullHistory, memory, routedAgents, routedJudges,
+        ).viewModel
         val view = PlainRenderer()
         return captureStdoutStderr { view.run(vm, primary, followUp) }
     }

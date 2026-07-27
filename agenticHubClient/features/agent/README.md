@@ -8,7 +8,8 @@ Memory-домен (профиль/правила/task-FSM/`MemoryLayer`) и ко
 ## Публичный API
 - `AgentConfig` (`LlmApi` + `GenerationParams` + опц. `profileName` + `toolExecutor`) +
   `AgentResponder.respond` (один ход: wire-list `memoryLayer+baseContext+userTurn` → `LlmApi`, парс
-  stage-сигнала; tool-loop ≤`MAX_TOOL_ROUNDS`) + `TurnOutcome`/`ExecutedToolCall`.
+  stage-сигнала; tool-loop ≤`MAX_TOOL_ROUNDS`; текст, сказанный рядом с tool-вызовом, склеивается
+  в финальный ответ) + `TurnOutcome`/`ExecutedToolCall`.
 - Per-stage: `RoutedAgent`/`RoutedJudge` + parsed `StageAgentSpec`/`StageJudgeSpec` (+`TaskBinding`)
   + билдеры `buildRoutedAgents(stageAgents, client, params)`/`buildJudges(judgeAgents, client)`
   (`RoutedAgentBuilders.kt`).
@@ -55,6 +56,12 @@ Backtick-имена в commonTest **без** `()`/`,` — иначе iOS commonT
   один шаг назад, `done` терминальна; переход авто по маркеру, валидирует `TurnEngine` (session).
 - **MCP function-calling** — tool-loop в `AgentResponder.respond`: ответ с `toolCalls` → `executor.
   execute` → дописать в wire → снова, до финального текста. FC только Gemini. Tool-обмен эфемерный.
+- **Текст рядом с `functionCall` НЕ теряется** — Gemini возвращает текст И вызов в одном ответе. Ход
+  модели кладётся в провод со своим текстом (не `""`), фрагменты копятся и склеиваются в финальный
+  ответ, а тихий/сбойный финал восстанавливается ИЗ них (ошибка «no content» гасится). Без этого
+  работа, написанная рядом с вызовом, пропадала и из провода, и из ответа: слабая модель, отвечающая
+  на tool-результат пустым `finishReason=STOP`, отдавала ход пустым целиком. Стадия-маркер тоже
+  парсится из склейки — сигнал, произнесённый рядом с вызовом, доезжает до FSM.
 - **LLM-judge на thinking-модели режет вердикт** — thinking ест тот же `maxTokens` → JSON обрывается
   → fail-open молча пропускает. Лечится `thinkingBudget=0` + малый maxtokens judge.
 - **Вывод инструментов — канал prompt injection.** Текст пользователя попадает в хранилище (тикет

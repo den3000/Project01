@@ -6,7 +6,7 @@ import ru.den.writes.code.agenticHub.cliJvm.cliargs.CliArgsParser
 import ru.den.writes.code.agenticHub.cliJvm.commandMappers.CliArgToSessionCommandMapper
 import ru.den.writes.code.agenticHub.features.lifecycle.command.StartCommand
 import ru.den.writes.code.agenticHub.features.lifecycle.command.SessionConfig
-import ru.den.writes.code.agenticHub.features.lifecycle.session.CommandRunner
+import ru.den.writes.code.agenticHub.features.lifecycle.session.buildSessionViewModel
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategy
 import ru.den.writes.code.agenticHub.features.memory.ContextStrategyKind
 import ru.den.writes.code.agenticHub.cliJvm.plain.PlainRenderer
@@ -14,9 +14,7 @@ import ru.den.writes.code.agenticHub.features.lifecycle.session.PromptSource
 import ru.den.writes.code.agenticHub.features.lifecycle.session.intents.PromptSourceIntents
 import ru.den.writes.code.agenticHub.features.agent.RoutedAgent
 import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
-import ru.den.writes.code.agenticHub.features.lifecycle.session.SessionViewModel
 import ru.den.writes.code.agenticHub.cliJvm.StdinPromptSource
-import ru.den.writes.code.agenticHub.features.lifecycle.session.turn.TurnEngine
 import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
 import ru.den.writes.code.agenticHub.features.memory.MemoryProvider
 import ru.den.writes.code.agenticHub.features.llm.LlmApi
@@ -81,6 +79,11 @@ internal fun createStdinPromptSource(script: String): StdinPromptSource =
  * Run a session through the production MVI stack (TurnEngine + SessionViewModel
  * + PlainView) in one call — the entry a test uses to drive a whole session
  * offline and assert on its PlainView output.
+ *
+ * The stack is assembled by [buildSessionViewModel], the same composition root the
+ * binary uses, rather than wired here by hand. A local copy of the wiring is a copy
+ * that drifts: this one had already lost `toolDefs`, `toolExecutor`, `ragControl` and
+ * `stallHint`, so every test using it was measuring a session that ships nowhere.
  */
 internal suspend fun runSessionForTest(
     cliArgs: StartCommand.SessionInitialState,
@@ -93,10 +96,9 @@ internal suspend fun runSessionForTest(
     routedAgents: List<RoutedAgent> = emptyList(),
     routedJudges: List<RoutedJudge> = emptyList(),
 ) {
-    val multiAgent = routedAgents.isNotEmpty()
-    val engine = TurnEngine(cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges)
-    val commandRunner = CommandRunner(historyStore, memory, strategy)
-    val viewModel = SessionViewModel(cliArgs, engine, commandRunner, historyStore, memory, strategy, multiAgent)
+    val viewModel = buildSessionViewModel(
+        cliArgs, llmApi, historyStore, strategy, memory, routedAgents, routedJudges,
+    ).viewModel
     val view = PlainRenderer()
     view.run(viewModel, PromptSourceIntents(promptSource), replAfterFeed?.let { PromptSourceIntents(it) })
 }

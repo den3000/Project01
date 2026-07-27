@@ -40,9 +40,9 @@ run_assistant \
   -prompt "Приступай: разберись, как в проекте устроено локальное хранение задач, и восстанови по коду принятое архитектурное решение." \
   -task adr \
   -rag "$RAG_NAME" \
-  -agent provider gemini mode system \
-  -agent fs-explorer provider gemini profile fs-explorer stages clarification..planning \
-  -agent fs-reporter provider gemini profile fs-reporter stages execution..execution \
+  -agent provider gemini $FALLBACK_MODEL_ARG $TEMP_ARG mode system \
+  -agent fs-explorer provider gemini $EXPLORER_MODEL_ARG profile fs-explorer stages clarification..planning \
+  -agent fs-reporter provider gemini $REPORTER_MODEL_ARG profile fs-reporter stages execution..execution \
   $JUDGE_ARG \
   -mcpServer "$PFS $CTT_REPO --write-ext=md"
 

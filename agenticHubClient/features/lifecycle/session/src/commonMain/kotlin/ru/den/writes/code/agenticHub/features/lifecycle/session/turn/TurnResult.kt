@@ -1,5 +1,6 @@
 package ru.den.writes.code.agenticHub.features.lifecycle.session.turn
 
+import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
 import ru.den.writes.code.agenticHub.features.memory.SessionStats
 import ru.den.writes.code.agenticHub.features.agent.ExecutedToolCall
 import ru.den.writes.code.agenticHub.features.agent.invariant.InvariantVerdict
@@ -16,6 +17,20 @@ import ru.den.writes.code.agenticHub.features.rag.indexing.ScoredChunk
  * be able to race the next turn's accumulation through a shared object.
  */
 public sealed interface TurnResult {
+
+    /**
+     * What the task FSM decided about this turn, when an engine consulted one —
+     * null from an engine that keeps its own FSM inline, and from any turn with
+     * no active task.
+     *
+     * This is the one thing a turn cannot finish by itself. [RetryOutcome.Retried]
+     * is already done: the task was persisted and the next turn just runs.
+     * [RetryOutcome.Restarted] needs the conversation branched and the engine
+     * rebuilt — an engine cannot do either to itself — and [RetryOutcome.GaveUp]
+     * ends the run. Both are the view-model's to execute, which is why the verdict
+     * travels out here instead of being acted on inside.
+     */
+    public val retryOutcome: RetryOutcome?
 
     /**
      * A successful turn. [reply] is the model text; [modelId] / [profileName]
@@ -43,10 +58,15 @@ public sealed interface TurnResult {
         val executedToolCalls: List<ExecutedToolCall> = emptyList(),
         /** RAG chunks retrieved and injected this turn (empty when RAG is off). */
         val retrieval: List<ScoredChunk> = emptyList(),
+        override val retryOutcome: RetryOutcome? = null,
     ) : TurnResult
 
-    /** The turn failed (provider error or empty response). [reason] is the message. */
-    data class Failed(val reason: String) : TurnResult
+    /**
+     * The turn failed (provider error or empty response). [reason] is the message;
+     * [retryOutcome] is what the machine charged for it — a dead provider spends the
+     * transport budget and can end the run on its own.
+     */
+    data class Failed(val reason: String, override val retryOutcome: RetryOutcome? = null) : TurnResult
 }
 
 /**
@@ -109,11 +129,20 @@ public sealed interface JudgeOutcome {
  * the current `maybeAdvanceTaskStage`, lifted out of the I/O.
  */
 public sealed interface StageAdvance {
-    /** Nothing to report: no memory, no active task, no signal, paused, or already there. */
+    /** Nothing to report: no memory, no active task, no signal, or paused. */
     data object None : StageAdvance
 
     /** The proposed move was legal and applied: `[task] stage: <from> → <to> (auto)`. */
     data class Advanced(val from: TaskStage?, val to: TaskStage) : StageAdvance
+
+    /**
+     * The model named the stage it is already in, so nothing moved. Its own variant
+     * rather than [None] because it is a specific, correctable mistake — the marker
+     * names a destination, and the model used it to label where it already was. Left
+     * silent, this is the FSM's main lock: the model repeats the marker, the engine
+     * keeps swallowing it, and neither side learns anything.
+     */
+    data class Repeated(val stage: TaskStage, val allowed: Set<TaskStage>) : StageAdvance
 
     /** The model proposed an illegal move; it was ignored and reported. */
     data class Rejected(

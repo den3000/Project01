@@ -26,6 +26,10 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.agenticHubClient.platform.logging)
 
+            // ApiKey — the env-var names for the provider keys; buildModelProvider
+            // raises MissingApiKey with them. platform:config also exposes BuildKonfig.
+            implementation(projects.agenticHubClient.platform.config)
+
             // RagContextMapper (retrieved chunks → grounding Message) is production
             // glue for RAG-answering; ScoredChunk leaks through its public signature
             // → api(features:rag). No cycle: features:rag does NOT depend on llm.
@@ -46,6 +50,10 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutinesTest)
+            // Fake HTTP transport: the *Api classes take an HttpClient, so a canned
+            // engine is the only way to cover the retry loops (which statuses are
+            // retried, how often) without a real provider on the wire.
+            implementation(libs.ktor.client.mock)
         }
         jvmTest.dependencies {
             // JVM-only live tests hitting a real local Ollama: platform:network gives the
@@ -54,8 +62,10 @@ kotlin {
             // features:rag comes transitively via commonMain api (RagContextMapper).
             implementation(projects.agenticHubClient.platform.network)
             implementation(libs.junit)
-            // platform:config exposes BuildKonfig — the Gemini live test reads GEMINI_API_KEY.
-            implementation(projects.agenticHubClient.platform.config)
+            // runLiveTest — shared live-test timeout wrapper.
+            implementation(projects.agenticHubClient.testUtils)
+            // platform:config (BuildKonfig, for the Gemini live test's GEMINI_API_KEY)
+            // now comes transitively from commonMain.
         }
     }
 }
