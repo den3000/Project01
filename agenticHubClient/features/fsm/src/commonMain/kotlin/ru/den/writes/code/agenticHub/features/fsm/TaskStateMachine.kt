@@ -37,7 +37,7 @@ public class TaskStateMachine {
             when (val price = advance.reason) {
                 // A move onto new ground: the stage budget already came back fresh
                 // inside `advance`, and the turn owes nothing.
-                null -> UpdateDecision(advance.task, advance, retryOutcome = null, retryReason = null)
+                null -> decision(advance.task, advance = advance)
                 // Applied but no further along (a step back, or the step forward that
                 // undoes one), repeated, or refused — the move is charged to the task
                 // as `advance` left it, so the stage it now sits on is the one paying.
@@ -54,8 +54,13 @@ public class TaskStateMachine {
      * Stages reachable from [stage] in one step: forward, plus a single step back
      * to revisit the prior phase. [Stage.DONE] is terminal (empty set) — a
      * finished task is not reopened automatically.
+     *
+     * Internal: the table leaves the module inside [UpdateDecision.allowedNext],
+     * already read off the task the turn ended on. Handing it out as a function
+     * would let a caller ask at the wrong moment and quote stages the task cannot
+     * reach any more.
      */
-    fun allowedNext(stage: Stage): Set<Stage> = when (stage) {
+    internal fun allowedNext(stage: Stage): Set<Stage> = when (stage) {
         Stage.CLARIFICATION -> setOf(Stage.PLANNING)
         Stage.PLANNING -> setOf(Stage.EXECUTION, Stage.CLARIFICATION)
         Stage.EXECUTION -> setOf(Stage.VALIDATION, Stage.PLANNING)
@@ -151,13 +156,26 @@ public class TaskStateMachine {
      */
     private fun charge(task: Task, reason: RetryReason): UpdateDecision {
         val outcome = retry(task, reason)
-        return UpdateDecision(
+        return decision(
             task = outcome.task,
-            advance = null,
             retryOutcome = outcome,
             retryReason = reason.takeIf { outcome is RetryOutcome.Retried },
         )
     }
+
+    /** A decision about [task], with the onward stages read off where it ended up. */
+    private fun decision(
+        task: Task,
+        advance: AdvanceOutcome? = null,
+        retryOutcome: RetryOutcome? = null,
+        retryReason: RetryReason? = null,
+    ) = UpdateDecision(
+        task = task,
+        advance = advance,
+        retryOutcome = retryOutcome,
+        retryReason = retryReason,
+        allowedNext = allowedNext(task.stage),
+    )
 
     /** Stay where we are, one stage attempt lighter; out of them → escalate to a restart. */
     private fun retryStage(task: Task, reason: RetryReason): RetryOutcome {

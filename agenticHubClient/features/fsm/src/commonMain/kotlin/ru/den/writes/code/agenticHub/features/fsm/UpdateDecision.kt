@@ -38,4 +38,15 @@ data class UpdateDecision(
      * caller's business — this only names what happened.
      */
     val retryReason: RetryReason?,
+
+    /**
+     * Where [task] may go from where it now stands — the stages the next prompt quotes
+     * back when it tells the model what a marker may name.
+     *
+     * Carried in the decision rather than looked up later, so the table stays inside
+     * the module. A caller holding the table is a caller that can read it at the wrong
+     * moment (before the move, or after a restart moved the task somewhere else) and
+     * quote stages the task cannot reach.
+     */
+    val allowedNext: Set<Stage>,
 )

@@ -13,17 +13,19 @@ KMP-модуль (common; таргеты jvm/android/ios): стадии зада
 читая поле, нельзя узнать, что будет дальше.
 
 - `TaskStateMachine` (class, stateless) — вся логика (`TaskStateMachine.kt`):
-  - `update(task, reason): UpdateDecision` — **единственный вход**: что ход сделал с задачей;
-  - `allowedNext(stage): Set<Stage>` — таблица переходов (нужна снаружи для текста подсказок);
-  - `canTransition` / `advance` / `retry` — `internal`, шаги `update`. Публичными они значили бы,
-    что сшивать их — «можно ли двигаться» плюс «во что обходится провал» — снова придётся
-    вызывающему, а сшивка и есть правила.
+  - `update(task, reason): UpdateDecision` — **единственный публичный метод**: что ход сделал с
+    задачей;
+  - `allowedNext` / `canTransition` / `advance` / `retry` — `internal`, шаги `update`. Публичными
+    они значили бы, что сшивать их — «можно ли двигаться» плюс «во что обходится провал» — снова
+    придётся вызывающему, а сшивка и есть правила. Таблица переходов уезжает наружу значением
+    (`UpdateDecision.allowedNext`), уже прочитанным от задачи, на которой ход закончился.
 - `UpdateReason` (sealed) — чем кончился ход, наблюдениями, а не выводами: `StageProposed(stage)`,
   `NoStageProposed`, `JudgeBlocked`, `TransportFailed` (`UpdateReason.kt`). Готовый `RetryReason` на
   входе оставил бы выбор бюджета снаружи.
 - `UpdateDecision` — что делать с результатом: `task` (сохранить), `advance` (показать),
   `retryOutcome` (вердикт наружу — рестарт/сдача), `retryReason` (что сказать модели; `null` —
-  молчим). Четыре поля, потому что у хода четыре независимых читателя (`UpdateDecision.kt`).
+  молчим), `allowedNext` (куда задача может пойти дальше — для текста подсказки).
+  Поля независимые, потому что у хода независимые читатели (`UpdateDecision.kt`).
 - `Task` — состояние задачи: `taskId`, `stage`, `deepestStage` (дальше всего, куда попытка
   доходила — не то же, что `stage`), `goal`, `notes` + три бюджета
   (`taskRetryState` / `stageRetryState` / `transportRetryState`). Методов нет (`Task.kt`).

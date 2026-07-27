@@ -179,7 +179,9 @@ public class FsmTurnEngine(
         if (notes == null || task == null) return TurnUpdate(StageAdvance.None, null)
         val decision = machine.update(task, reason)
         save(notes, decision.task)
-        pendingFeedback = decision.retryReason?.let { RetryFeedback(it, decision.advance.refusedStage()) }
+        pendingFeedback = decision.retryReason?.let {
+            RetryFeedback(it, decision.advance.refusedStage(), decision.allowedNext.toTaskStages())
+        }
         if (decision.retryOutcome is RetryOutcome.Restarted) restart(decision.task)
         return TurnUpdate(decision.advance.toStageAdvance(), decision.retryOutcome)
     }
@@ -242,19 +244,15 @@ public class FsmTurnEngine(
      * The `[fsm]` line this turn opens with, if last turn cost the task anything.
      * Built here rather than stored: what to say follows from the charged reason,
      * how firmly — from the budget the stage has burned by now, and both are read
-     * at the moment they are needed.
+     * at the moment they are needed. Where the task may go came with the charge —
+     * that table belongs to the FSM and is never consulted from here.
      */
     private fun feedbackMessage(task: Task?): Message? {
         val feedback = pendingFeedback ?: return null
         if (task == null) return null
         val stage = task.stage.toTaskStage()
         if (stage == TaskStage.DONE) return null
-        return retryFeedbackMessage(
-            feedback = feedback,
-            stage = stage,
-            spent = task.stageRetryState.attempt,
-            allowed = machine.allowedNext(task.stage).toTaskStages(),
-        )
+        return retryFeedbackMessage(feedback = feedback, stage = stage, spent = task.stageRetryState.attempt)
     }
 
     private fun Set<Stage>.toTaskStages(): Set<TaskStage> = mapTo(mutableSetOf()) { it.toTaskStage() }

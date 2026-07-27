@@ -33,6 +33,7 @@ class TaskUpdateTest {
         assertEquals(Stage.EXECUTION, actual.task.stage)
         assertNull(actual.retryOutcome)
         assertNull(actual.retryReason)
+        assertEquals(setOf(Stage.VALIDATION, Stage.PLANNING), actual.allowedNext)
     }
 
     @Test
@@ -138,6 +139,9 @@ class TaskUpdateTest {
         assertEquals(Stage.INITIAL, actual.task.stage)
         assertEquals(1, actual.task.taskRetryState.attempt)
         assertNull(actual.retryReason)
+        // Read off where the task ended up, not where it was: a restart moves it back
+        // to the beginning, and quoting validation's onward stages would be a lie.
+        assertEquals(setOf(Stage.PLANNING), actual.allowedNext)
     }
 
     @Test

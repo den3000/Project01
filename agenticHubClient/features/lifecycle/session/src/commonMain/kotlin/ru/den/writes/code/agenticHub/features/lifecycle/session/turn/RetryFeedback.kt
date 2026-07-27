@@ -26,6 +26,13 @@ internal data class RetryFeedback(
     val reason: RetryReason,
     /** The stage the model asked for, when it asked for one. */
     val proposed: TaskStage? = null,
+    /**
+     * Where the task may go from where the charged turn left it — quoted back to the
+     * model as the markers it may name. Captured with the charge rather than looked
+     * up when the line is rendered: the FSM owns its transition table, and by then
+     * the only honest answer would have to come from it anyway.
+     */
+    val allowed: Set<TaskStage> = emptySet(),
 )
 
 /**
@@ -42,17 +49,16 @@ internal fun retryFeedbackMessage(
     feedback: RetryFeedback,
     stage: TaskStage,
     spent: Int,
-    allowed: Set<TaskStage>,
 ): Message? = when (feedback.reason) {
     RetryReason.NO_MARKER ->
-        if (spent >= STALL_NUDGE_AFTER) stallHintMessage(stage) else noMarkerMessage(stage, allowed)
+        if (spent >= STALL_NUDGE_AFTER) stallHintMessage(stage) else noMarkerMessage(stage, feedback.allowed)
 
     RetryReason.STAGE_REPEATED ->
         if (spent >= STALL_NUDGE_AFTER) stallHintMessage(stage)
-        else stageRepeatMessage(StageAdvance.Repeated(stage, allowed))
+        else stageRepeatMessage(StageAdvance.Repeated(stage, feedback.allowed))
 
     RetryReason.STAGE_REJECTED -> feedback.proposed?.let {
-        stageRejectionMessage(StageAdvance.Rejected(stage, it, allowed))
+        stageRejectionMessage(StageAdvance.Rejected(stage, it, feedback.allowed))
     }
 
     RetryReason.JUDGE_BLOCKED -> judgeBlockedMessage()
