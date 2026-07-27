@@ -7,6 +7,7 @@ import ru.den.writes.code.agenticHub.features.agent.RoutedJudge
 import ru.den.writes.code.agenticHub.features.agent.ToolCallLog
 import ru.den.writes.code.agenticHub.features.fsm.AdvanceOutcome
 import ru.den.writes.code.agenticHub.features.fsm.RetryOutcome
+import ru.den.writes.code.agenticHub.features.fsm.Stage
 import ru.den.writes.code.agenticHub.features.fsm.Task
 import ru.den.writes.code.agenticHub.features.fsm.TaskStateMachine
 import ru.den.writes.code.agenticHub.features.fsm.UpdateReason
@@ -35,7 +36,7 @@ import ru.den.writes.code.agenticHub.features.memory.db.HistoryStore
  * the finished turn to [TaskStateMachine] and carries out what comes back: the
  * task is written down, a restart moves the conversation to a fresh branch, the
  * charged reason is held for the next prompt, and the move is phrased for the
- * view. The verdict rides out in [TurnResult.fsm] as a report of what happened.
+ * view. The verdict rides out in [TurnResult.retryOutcome] as a report of what happened.
  *
  * No rule about the task lives here. Which budget a failure spends, whether a
  * legal move still costs a turn, when a stall escalates into a restart — all of
@@ -120,7 +121,7 @@ public class FsmTurnEngine(
             // the one budget that can end the run without a restart in between.
             is AttemptOutcome.Failed -> TurnResult.Failed(
                 reason = outcome.reason,
-                fsm = apply(notes, task, UpdateReason.TransportFailed).fsm,
+                retryOutcome = updateTaskAfterTurn(notes, task, UpdateReason.TransportFailed).retryOutcome,
             )
 
             // Every rewrite breached. The turn is spent and the task is no further
@@ -137,11 +138,11 @@ public class FsmTurnEngine(
                 judgeModelId = judge?.modelId,
                 executedToolCalls = outcome.toolCalls,
                 retrieval = retrieval,
-                fsm = apply(notes, task, UpdateReason.JudgeBlocked).fsm,
+                retryOutcome = updateTaskAfterTurn(notes, task, UpdateReason.JudgeBlocked).retryOutcome,
             )
 
             is AttemptOutcome.Answered -> {
-                val decided = apply(notes, task, outcome.proposedStage.toUpdateReason())
+                val decided = updateTaskAfterTurn(notes, task, outcome.proposedStage.toUpdateReason())
                 TurnResult.Ok(
                     reply = outcome.reply,
                     modelId = modelId,
@@ -149,7 +150,7 @@ public class FsmTurnEngine(
                     usage = outcome.usage,
                     durationMs = outcome.durationMs,
                     session = historyStore?.stats?.snapshot(),
-                    stageAdvance = decided.rendered,
+                    stageAdvance = decided.stageAdvance,
                     judge = when {
                         judge == null -> JudgeOutcome.NotRun
                         outcome.rejected.isNotEmpty() -> JudgeOutcome.Retried(outcome.rejected)
@@ -158,7 +159,7 @@ public class FsmTurnEngine(
                     judgeModelId = judge?.modelId,
                     executedToolCalls = outcome.toolCalls,
                     retrieval = retrieval,
-                    fsm = decided.fsm,
+                    retryOutcome = decided.retryOutcome,
                 )
             }
         }
@@ -174,17 +175,17 @@ public class FsmTurnEngine(
      * the run is over, and a report that cannot see it cannot explain why the task
      * stopped. A turn with no active task has nothing to decide about.
      */
-    private suspend fun apply(notes: TaskNotes?, task: Task?, reason: UpdateReason): Decided {
-        if (notes == null || task == null) return Decided(StageAdvance.None, null)
+    private suspend fun updateTaskAfterTurn(notes: TaskNotes?, task: Task?, reason: UpdateReason): TurnUpdate {
+        if (notes == null || task == null) return TurnUpdate(StageAdvance.None, null)
         val decision = machine.update(task, reason)
         save(notes, decision.task)
         pendingFeedback = decision.retryReason?.let { RetryFeedback(it, decision.advance.refusedStage()) }
         if (decision.retryOutcome is RetryOutcome.Restarted) restart(decision.task)
-        return Decided(decision.advance.render(), decision.retryOutcome)
+        return TurnUpdate(decision.advance.toStageAdvance(), decision.retryOutcome)
     }
 
     /** The move as the view says it; [StageAdvance.None] when there was no move to speak of. */
-    private fun AdvanceOutcome?.render(): StageAdvance = when (this) {
+    private fun AdvanceOutcome?.toStageAdvance(): StageAdvance = when (this) {
         null -> StageAdvance.None
         is AdvanceOutcome.Advanced -> StageAdvance.Advanced(from.toTaskStage(), to.toTaskStage())
         is AdvanceOutcome.Repeated -> StageAdvance.Repeated(stage.toTaskStage(), allowed.toTaskStages())
@@ -256,9 +257,8 @@ public class FsmTurnEngine(
         )
     }
 
-    private fun Set<ru.den.writes.code.agenticHub.features.fsm.Stage>.toTaskStages(): Set<TaskStage> =
-        mapTo(mutableSetOf()) { it.toTaskStage() }
+    private fun Set<Stage>.toTaskStages(): Set<TaskStage> = mapTo(mutableSetOf()) { it.toTaskStage() }
 
     /** What one turn decided: what the view shows, and what the caller may have to act on. */
-    private data class Decided(val rendered: StageAdvance, val fsm: RetryOutcome?)
+    private data class TurnUpdate(val stageAdvance: StageAdvance, val retryOutcome: RetryOutcome?)
 }

@@ -95,7 +95,7 @@ internal data class TurnLog(
     val noMove: Boolean get() = !advanced && !rejected && !failed
 
     /** What the FSM charged for this turn; empty from an engine that keeps its own. */
-    private val fsm: RetryOutcome? get() = result.fsm
+    private val fsm: RetryOutcome? get() = result.retryOutcome
 
     val fsmOutcome: String
         get() = when (fsm) {

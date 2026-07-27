@@ -25,7 +25,7 @@ class FsmTurnEngineRestartTest {
             val result = engine.turn("one")
 
             // then
-            assertIs<RetryOutcome.Restarted>(assertIs<TurnResult.Ok>(result).fsm)
+            assertIs<RetryOutcome.Restarted>(assertIs<TurnResult.Ok>(result).retryOutcome)
             assertEquals(TaskStage.CLARIFICATION, stageOf(TASK_ID))
         }
     }
@@ -105,7 +105,7 @@ class FsmTurnEngineRestartTest {
             val result = engine.turn("one")
 
             // then — nothing left to start over, so the conversation is left where it was
-            assertIs<RetryOutcome.GaveUp>(assertIs<TurnResult.Ok>(result).fsm)
+            assertIs<RetryOutcome.GaveUp>(assertIs<TurnResult.Ok>(result).retryOutcome)
             assertEquals(listOf(DEFAULT_BRANCH), branches())
         }
     }

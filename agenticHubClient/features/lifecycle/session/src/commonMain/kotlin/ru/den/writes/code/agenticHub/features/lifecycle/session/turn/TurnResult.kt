@@ -30,7 +30,7 @@ public sealed interface TurnResult {
      * ends the run. Both are the view-model's to execute, which is why the verdict
      * travels out here instead of being acted on inside.
      */
-    public val fsm: RetryOutcome?
+    public val retryOutcome: RetryOutcome?
 
     /**
      * A successful turn. [reply] is the model text; [modelId] / [profileName]
@@ -58,15 +58,15 @@ public sealed interface TurnResult {
         val executedToolCalls: List<ExecutedToolCall> = emptyList(),
         /** RAG chunks retrieved and injected this turn (empty when RAG is off). */
         val retrieval: List<ScoredChunk> = emptyList(),
-        override val fsm: RetryOutcome? = null,
+        override val retryOutcome: RetryOutcome? = null,
     ) : TurnResult
 
     /**
      * The turn failed (provider error or empty response). [reason] is the message;
-     * [fsm] is what the machine charged for it — a dead provider spends the
+     * [retryOutcome] is what the machine charged for it — a dead provider spends the
      * transport budget and can end the run on its own.
      */
-    data class Failed(val reason: String, override val fsm: RetryOutcome? = null) : TurnResult
+    data class Failed(val reason: String, override val retryOutcome: RetryOutcome? = null) : TurnResult
 }
 
 /**

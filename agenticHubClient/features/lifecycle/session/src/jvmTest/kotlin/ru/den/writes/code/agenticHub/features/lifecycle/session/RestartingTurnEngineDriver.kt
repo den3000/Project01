@@ -72,7 +72,7 @@ internal suspend fun TestScope.runRestartingTurnEngineWith(
         turnLogs += log
         if (logTurns) println(log.formatted())
 
-        when (val verdict = log.result.fsm) {
+        when (val verdict = log.result.retryOutcome) {
             is RetryOutcome.Restarted -> {
                 attempt++
                 // The engine has already emptied the wire; the driver only records where
